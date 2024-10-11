@@ -1,12 +1,18 @@
+__author__ = "Jose David Escribano Orts"
+__subsystem__ = "main"
+__module__ = "main.py"
+__version__ = "0.1"
+__info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
+
+from src.animeflv.animeflv import AnimeFLV
+
 import tkinter as tk
 import requests
-from bs4 import BeautifulSoup
 from PIL import Image, ImageTk, ImageSequence
 from io import BytesIO
 import os
 import webbrowser
 import threading
-import json
 
 
 def show_loading_screen():
@@ -48,6 +54,8 @@ def show_loading_screen():
     threading.Thread(target=download_images_and_show_animes, daemon=True).start()
 
 def download_images_and_show_animes():
+    global recent_animes
+    recent_animes = animeflv_api.get_recent_animes()
     download_images()  # Descargar imágenes
     show_animes_recientes()  # Mostrar animes recientes al finalizar la descarga
 
@@ -69,6 +77,27 @@ def show_favorites():
     favorites_label = tk.Label(main_frame, text="Mis animes favoritos", font=("Helvetica", 16))
     favorites_label.pack(pady=20)
 
+def show_finished_animes():
+    global active_tab
+    active_tab = "finalizados"
+    clear_frame()
+    recent_label = tk.Label(main_frame, text="Mis animes finalizados", font=("Helvetica", 16))
+    recent_label.pack(pady=20)
+
+def show_watching_animes():
+    global active_tab
+    active_tab = "viendo"
+    clear_frame()
+    recent_label = tk.Label(main_frame, text="Los animes que estoy viendo", font=("Helvetica", 16))
+    recent_label.pack(pady=20)
+
+def show_pending_animes():
+    global active_tab
+    active_tab = "pendientes"
+    clear_frame()
+    recent_label = tk.Label(main_frame, text="Mis animes pendientes", font=("Helvetica", 16))
+    recent_label.pack(pady=20)
+
 def show_buscador():
     global active_tab
     active_tab = "buscador"
@@ -76,101 +105,109 @@ def show_buscador():
     recent_label = tk.Label(main_frame, text="Buscador de animes", font=("Helvetica", 16))
     recent_label.pack(pady=20)
 
-def fetch_recent_animes():
-    response = requests.get(animeflv_url)
-    soup = BeautifulSoup(response.text, 'html.parser')
-
-    animes_list = []
-    for anime in soup.select('ul.ListAnimes.AX.Rows.A06.C04.D03 li'):
-        title = anime.find('h3', class_='Title').get_text(strip=True).replace(".", "").replace(":", "")
-        img_src = anime.find('img')['src']
-        animes_list.append((title, animeflv_url + img_src))
-
-    return animes_list
 
 def download_images():
     if not os.path.exists(images_path):
         os.makedirs(images_path)  # Crear la carpeta si no existe
 
-    recent_animes_images = os.listdir(images_path)
-    if len(recent_animes_images) > 0:
-        for recent_anime in recent_animes_images:
+    current_animes_images = os.listdir(images_path)
+    for anime in recent_animes:
+        image_name = f"{anime.id}.jpg"
+        if image_name in current_animes_images:
+            continue
+        response = requests.get(anime.poster)
+        img_data = Image.open(BytesIO(response.content)).resize((130, 185))
+        img_data.save(os.path.join(images_path, image_name))
+
+    for image in current_animes_images:
+        if not any(image == f"{anime.id}.jpg" for anime in recent_animes):
             try:
-                os.remove(os.path.join(images_path, recent_anime))
-            except FileNotFoundError:
+                os.remove(os.path.join(images_path, image))
+            except Exception as e:
+                print(f"No se pudo borrar la imagen {image}: {e}")
                 continue
 
-    for title, img_src in animes:
-        # Normalizar el título para crear un nombre de archivo válido
-        filename = f"{title}.jpg"
-        try:
-            response = requests.get(img_src)
-            img_data = Image.open(BytesIO(response.content)).resize((130, 185))
-            img_data.save(os.path.join(images_path, filename))  # Guardar la imagen
-        except Exception as e:
-            print(f"Error al descargar {title}: {e}")
 
-
-def fetch_anime_details(title):
-    """Obtiene detalles del anime desde la página web."""
-    title = parse_title(title)
-    url = f"https://www3.animeflv.net/anime/{title}"
-    response = requests.get(url)
-    soup = BeautifulSoup(response.text, 'html.parser')
-    if response.status_code != 200:
-        print(f"Error al acceder a la página: {response.status_code}")
-        return [], "", []
-
-    # Obtener género
-    genres = [a.text for a in soup.select('section.WdgtCn nav.Nvgnrs a')]
-
-    # Obtener descripción
-    description = soup.select_one('section.WdgtCn div.Description p').text.strip()
-
-    # Obtener capítulos
-    episodes = []
-
-    for script in soup.find_all("script"):
-        contents = str(script)
-
-        if "var episodes = [" in contents:
-            data = contents.split("var episodes = ")[1].split(";")[0]
-            episodes = [episode[0] for episode in json.loads(data)]
-    #TODO: EPISODES TIENE QUE TENER UN TITULO Y UN ENLACE
-    return genres, description, episodes[::-1]
-
-def parse_title(anime_title: str) -> str:
-    anime_title = anime_title.replace("!", "").replace("?", "").replace(",", "").replace("(", "").replace(")", "").replace("@", "").replace("½", "12").replace("-", "")
-    return anime_title.replace(" ", "-").lower()
-
-def on_anime_click(title):
+def on_anime_click(anime_id):
     """Función que se ejecuta al hacer clic en un anime."""
-    genres, description, episodes = fetch_anime_details(title)
+    anime_info = animeflv_api.get_anime_info(anime_id)
 
     # Limpiar el main_frame
     clear_frame()
 
-    # Mostrar información del anime
-    title_label = tk.Label(main_frame, text=title, font=("Helvetica", 24, "bold"))
-    title_label.pack(pady=10)
+    # Cargar la portada del anime
+    image_path = os.path.join(images_path, f"{anime_info.id}.jpg")
+    anime_image = load_image(image_path)
 
-    genres_label = tk.Label(main_frame, text="Géneros: " + ", ".join(genres), font=("Helvetica", 12))
-    genres_label.pack(pady=5)
+    # Crear un frame para la imagen y la información
+    info_frame = tk.Frame(main_frame)
+    info_frame.pack(pady=10)
 
-    description_label = tk.Label(main_frame, text="Descripción: " + description, wraplength=600, justify="left")
-    description_label.pack(pady=10)
+    # Mostrar la portada en la parte superior izquierda
+    image_label = tk.Label(info_frame, image=anime_image)
+    image_label.image = anime_image  # Evitar que el garbage collector elimine la imagen
+    image_label.grid(row=0, column=0, rowspan=3, padx=10)
 
-    episodes_label = tk.Label(main_frame, text="Episodios:", font=("Helvetica", 16, "bold"))
-    episodes_label.pack(pady=5)
+    # Título centrado a la derecha de la imagen
+    title_label = tk.Label(
+        info_frame,
+        text=anime_info.title,
+        font=("Helvetica", 24, "bold"),
+        wraplength=main_frame.winfo_width() - 200
+    )
+    title_label.grid(row=0, column=1, sticky="w", padx=(10, 50))
 
-    for episode_title, episode_link in episodes:
-        episode_button = tk.Button(main_frame, text=episode_title, command=lambda link=episode_link: open_episode(link))
-        episode_button.pack(pady=5)
+    # Géneros debajo del título
+    genres_label = tk.Label(
+        info_frame,
+        text="Géneros: " + ", ".join(anime_info.genres),
+        font=("Helvetica", 14)
+    )
+    genres_label.grid(row=1, column=1, sticky="w", padx=10)
 
 
-def open_episode(link):
+    # Sinopsis en el frame principal, ocupando todo el ancho
+    description_title_label = tk.Label(
+        main_frame,
+        text="Descripción",
+        font=("Helvetica", 16, "bold")
+    )
+    description_title_label.pack(anchor="w", pady=(30, 5), padx=10)
+
+    description_label = tk.Label(
+        main_frame,
+        text=anime_info.synopsis,
+        font=("Helvetica", 14),
+        wraplength=main_frame.winfo_width() - 25,
+        justify="left",
+        anchor="w"
+    )
+    description_label.pack(pady=5, padx=10)
+
+
+    # Episodios debajo de la sinopsis, alineados a la izquierda
+    episodes_label = tk.Label(
+        main_frame,
+        text="Lista de episodios",
+        font=("Helvetica", 16, "bold")
+    )
+    episodes_label.pack(anchor="w", pady=(30, 5), padx=10)
+
+    for episode in anime_info.episodes:
+        episode_button = tk.Button(
+            main_frame,
+            text=f"{anime_info.title} episodio {episode.id}",
+            font=("Helvetica", 14),
+            command=lambda episode_info=episode: open_episode(episode_info),
+        )
+        episode_button.pack(pady=5, padx=20)
+
+
+
+def open_episode(episode_info):
     """Función para abrir el enlace del episodio en el navegador."""
-    webbrowser.open(link)
+    servers_info = animeflv_api.get_anime_episode_video_servers(episode_info.anime, episode_info.id)
+    webbrowser.open(servers_info[0].url)
 
 def display_recent_animes():
     clear_frame()
@@ -180,36 +217,38 @@ def display_recent_animes():
     for col in range(num_columns):
         main_frame.grid_columnconfigure(col, weight=1)
 
-    for index, (title, _) in enumerate(animes):
+    for index, anime in enumerate(recent_animes):
         row = index // num_columns
         column = index % num_columns
 
         # Cargar la imagen desde el archivo en lugar de la URL
-        img_file = f"{title}.jpg"
-        img_path = os.path.join(images_path, img_file)
-        if os.path.exists(img_path):
-            img = ImageTk.PhotoImage(Image.open(img_path))
-        else:
-            img = ImageTk.PhotoImage(Image.new('RGB', (130, 185), (200, 200, 200)))  # Placeholder
+        img_file = f"{anime.id}.jpg"
+        image = load_image(os.path.join(images_path, img_file))
 
-        img_label = tk.Label(main_frame, image=img)
-        img_label.image = img  # Mantener una referencia a la imagen
+        img_label = tk.Label(main_frame, image=image)
+        img_label.image = image  # Mantener una referencia a la imagen
         img_label.grid(row=row * 2, column=column, padx=10, pady=(20, 0), sticky="nsew")  # Posicionar con relleno
-        img_label.bind("<Button-1>", lambda e, title=title: on_anime_click(title))
+        img_label.bind("<Button-1>", lambda e, anime_id=anime.id: on_anime_click(anime_id))
 
         # Título del anime
-        title_label = tk.Label(main_frame, text=title, font=("Helvetica", 10, "bold"), wraplength=130, justify="center")
-        title_label.grid(row=(row * 2) + 1, column=column, padx=10, pady=(0,10), sticky="n")  # Posicionar con relleno
+        title_label = tk.Label(main_frame, text=anime.title, font=("Helvetica", 10, "bold"), wraplength=130, justify="center")
+        title_label.grid(row=(row * 2) + 1, column=column, padx=10, pady=(0, 10), sticky="n")  # Posicionar con relleno
 
-        title_label.bind("<Button-2>", lambda e, title=title: on_anime_click(title))
+        title_label.bind("<Button-2>", lambda e, anime_id=anime.id: on_anime_click(anime_id))
+
+def load_image(image_path: str):
+    if os.path.exists(image_path):
+        return ImageTk.PhotoImage(Image.open(image_path))
+    return ImageTk.PhotoImage(Image.new('RGB', (130, 185), (200, 200, 200)))  # Placeholder
 
 def clear_frame():
     for widget in main_frame.winfo_children():
         widget.destroy()
 
-animeflv_url = "https://animeflv.net"
+animeflv_api = AnimeFLV()
+
 images_path = "../../resources/images/recent_animes/"
-animes = fetch_recent_animes()
+recent_animes = []
 
 # Crear la ventana principal
 root = tk.Tk()
@@ -228,10 +267,19 @@ title_label.pack(pady=20, padx=10)
 home_button = tk.Button(sidebar, text="ANIMES RECIENTES", command=show_animes_recientes, bg="#34495E", fg="white", padx=20, pady=5)
 home_button.pack(fill=tk.X, padx=20, pady=10)
 
-favorites_button = tk.Button(sidebar, text="FAVORITOS", command=show_favorites, bg="#34495E", fg="white", padx=10, pady=5)
+favorites_button = tk.Button(sidebar, text="ANIMES FAVORITOS", command=show_favorites, bg="#34495E", fg="white", padx=10, pady=5)
 favorites_button.pack(fill=tk.X, padx=20, pady=10)
 
-recent_button = tk.Button(sidebar, text="BUSCADOR", command=show_buscador, bg="#34495E", fg="white", padx=10, pady=5)
+finished_button = tk.Button(sidebar, text="ANIMES FINALIZADOS", command=show_finished_animes, bg="#34495E", fg="white", padx=10, pady=5)
+finished_button.pack(fill=tk.X, padx=20, pady=10)
+
+watching_button = tk.Button(sidebar, text="ANIMES VIENDO", command=show_watching_animes, bg="#34495E", fg="white", padx=10, pady=5)
+watching_button.pack(fill=tk.X, padx=20, pady=10)
+
+pending_button = tk.Button(sidebar, text="ANIMES PENDIENTES", command=show_pending_animes, bg="#34495E", fg="white", padx=10, pady=5)
+pending_button.pack(fill=tk.X, padx=20, pady=10)
+
+recent_button = tk.Button(sidebar, text="BUSCADOR DE ANIMES", command=show_buscador, bg="#34495E", fg="white", padx=10, pady=5)
 recent_button.pack(fill=tk.X, padx=20, pady=10)
 
 # Crear el marco derecho (área principal)
