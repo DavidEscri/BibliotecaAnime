@@ -13,7 +13,7 @@ from dataclasses import dataclass
 import json
 
 
-def removeprefix(str: str, prefix: str) -> str:
+def removeprefix(text: str, prefix_text: str) -> str:
     """
     Remove the prefix of a given string if it contains that
     prefix for compatability with Python >3.9
@@ -23,18 +23,17 @@ def removeprefix(str: str, prefix: str) -> str:
     :rtype: str
     """
 
-    if type(str) is type(prefix):
-        if str.startswith(prefix):
-            return str[len(prefix) :]
+    if type(text) is type(prefix_text):
+        if text.startswith(prefix_text):
+            return text[len(prefix_text):]
         else:
-            return str[:]
+            return text[:]
 
 
 BASE_URL = "https://animeflv.net"
 BROWSE_URL = "https://animeflv.net/browse"
 ANIME_VIDEO_URL = "https://animeflv.net/ver/"
 ANIME_URL = "https://animeflv.net/anime/"
-BASE_EPISODE_IMG_URL = "https://cdn.animeflv.net/screenshots/"
 
 
 @dataclass
@@ -59,7 +58,7 @@ class AnimeInfo:
     episodes: Optional[List[EpisodeInfo]] = None
 
 
-class AnimeFLV(object):
+class AnimeFLV:
 
     def search_for_anime(self, query: str = None, page: int = None) -> List[AnimeInfo]:
         """
@@ -116,7 +115,7 @@ class AnimeFLV(object):
                 servers_subtitle = json.loads(videos)["SUB"]
                 servers = [
                     ServerInfo(
-                        server=server_data.get('server'),
+                        server=server_data.get('title'),
                         url=server_data.get('code') or server_data.get('url')
                     )
                     for server_data in servers_subtitle
@@ -154,7 +153,7 @@ class AnimeFLV(object):
 
         information = {
             "title": soup.select_one("body div.Wrapper div.Body div div.Ficha.fchlt div.Container h1.Title").string,
-            "poster": f"{BASE_URL}/{soup.select_one('body div div div div div aside div.AnimeCover div.Image figure img').get('src', '')}",
+            "poster": f"{BASE_URL}/{soup.select_one('body div div div div div aside div.AnimeCover div.Image figure img').get('old_src', '')}",
             "synopsis": soup.select_one("body div div div div div main section div.Description p").string.strip(),
         }
         genres = []
