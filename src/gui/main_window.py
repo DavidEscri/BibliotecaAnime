@@ -1,9 +1,10 @@
 import threading
 import tkinter as tk
+from typing import List
 
 from PIL import Image, ImageSequence, ImageTk
 
-from APIs.animeflv.animeflv import AnimeFLV
+from APIs.animeflv.animeflv import AnimeFLV, AnimeInfo
 from gui.sidebarButtons.favouriteAnimes.favouriteAnimes import FavouritesButton
 from gui.sidebarButtons.finishedAnimes.finishedAnimes import FinishedAnimeButton
 from gui.sidebarButtons.pendingAnimes.pendingAnimes import PendingAnimeButton
@@ -28,12 +29,12 @@ class MainWindow:
         self.__search_animes_button: SearchButton = None
 
         # Crear los frames
-        self.loading_frame = None
-        self.sidebar_frame = self.create_sidebar()
-        self.content_frame = self.create_content_frame()
+        self.loading_frame: tk.Frame | None = None
+        self.sidebar_frame: tk.Frame = self.create_sidebar()
+        self.content_frame: tk.Frame = self.create_content_frame()
 
-        self.animeflv_api = AnimeFLV()
-        self.recent_animes = []
+        self.animeflv_api: AnimeFLV = AnimeFLV()
+        self.recent_animes: List[AnimeInfo] = []
         self.images_path = "../../resources/images/recent_animes"
 
         self.load_buttons()
@@ -54,7 +55,7 @@ class MainWindow:
 
         return sidebar
 
-    def load_buttons(self):
+    def load_buttons(self) -> None:
         # Instanciar los botones
         self.__recent_animes_button: RecentAnimeButton = RecentAnimeButton(self)
         self.__favourites_animes_button: FavouritesButton = FavouritesButton(self)

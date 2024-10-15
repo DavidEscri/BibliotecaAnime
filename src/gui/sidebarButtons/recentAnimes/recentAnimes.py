@@ -2,6 +2,7 @@ import os
 import tkinter as tk
 import webbrowser
 
+from APIs.animeflv.animeflv import ServerInfo, EpisodeInfo, AnimeInfo
 from gui.sidebarButtons.sidebarButton import BaseButton
 from utils.utils import load_image
 
@@ -49,8 +50,8 @@ class RecentAnimeButton(BaseButton):
 
             title_label.bind("<Button-2>", lambda e, anime_id=anime.id: self.on_anime_click(anime_id))
 
-    def on_anime_click(self, anime_id):
-        anime_info = self.main_window.animeflv_api.get_anime_info(anime_id)
+    def on_anime_click(self, anime_id: AnimeInfo.id):
+        anime_info: AnimeInfo = self.main_window.animeflv_api.get_anime_info(anime_id)
 
         # Limpiar el main_frame
         self.main_window.clear_frame()
@@ -125,7 +126,7 @@ class RecentAnimeButton(BaseButton):
             )
             episode_button.pack(pady=5, padx=20)
 
-    def toggle_servers_frame(self, episode_info, episode_frame, servers_frames):
+    def toggle_servers_frame(self, episode_info: EpisodeInfo, episode_frame: tk.Frame, servers_frames: dict):
         """Muestra u oculta el frame de los servidores para un episodio."""
         if episode_info.id in servers_frames:
             # Si el frame ya existe, simplemente lo mostramos u ocultamos
