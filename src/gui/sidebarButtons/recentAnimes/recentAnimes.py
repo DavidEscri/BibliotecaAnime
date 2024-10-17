@@ -1,8 +1,9 @@
 import os
 import tkinter as tk
 import webbrowser
+from typing import Union
 
-from APIs.animeflv.animeflv import ServerInfo, EpisodeInfo, AnimeInfo
+from APIs.animeflv.animeflv import EpisodeInfo, AnimeInfo
 from gui.sidebarButtons.sidebarButton import BaseButton
 from utils.utils import load_image
 
@@ -40,7 +41,7 @@ class RecentAnimeButton(BaseButton):
             img_label = tk.Label(self.main_window.content_frame, image=image)
             img_label.image = image  # Mantener una referencia a la imagen
             img_label.grid(row=row * 2, column=column, padx=10, pady=(20, 0), sticky="nsew")  # Posicionar con relleno
-            img_label.bind("<Button-1>", lambda e, anime_id=anime.id: self.on_anime_click(anime_id))
+            img_label.bind("<Button-1>", lambda e, anime_id=anime.id: self.__on_anime_click(anime_id))
 
             # Título del anime
             title_label = tk.Label(self.main_window.content_frame, text=anime.title, font=("Helvetica", 10, "bold"), wraplength=130,
@@ -48,9 +49,9 @@ class RecentAnimeButton(BaseButton):
             title_label.grid(row=(row * 2) + 1, column=column, padx=10, pady=(0, 10),
                              sticky="n")  # Posicionar con relleno
 
-            title_label.bind("<Button-2>", lambda e, anime_id=anime.id: self.on_anime_click(anime_id))
+            title_label.bind("<Button-2>", lambda e, anime_id=anime.id: self.__on_anime_click(anime_id))
 
-    def on_anime_click(self, anime_id: AnimeInfo.id):
+    def __on_anime_click(self, anime_id: Union[str, int]):
         anime_info: AnimeInfo = self.main_window.animeflv_api.get_anime_info(anime_id)
 
         # Limpiar el main_frame
@@ -62,124 +63,115 @@ class RecentAnimeButton(BaseButton):
 
         # Crear un frame para la imagen y la información
         info_frame = tk.Frame(self.main_window.content_frame)
-        info_frame.pack(pady=10)
+        info_frame.grid(row=0, column=0, pady=10, padx=10)
 
         # Mostrar la portada en la parte superior izquierda
-        image_label = tk.Label(info_frame, image=anime_image)
+        image_label = tk.Label(
+            info_frame,
+            image=anime_image
+        )
         image_label.image = anime_image  # Evitar que el garbage collector elimine la imagen
-        image_label.grid(row=0, column=0, rowspan=3, padx=10)
+        image_label.grid(row=0, column=0, rowspan=2, sticky="nw", padx=10, pady=10)
 
         # Título centrado a la derecha de la imagen
         title_label = tk.Label(
             info_frame,
             text=anime_info.title,
             font=("Helvetica", 24, "bold"),
-            wraplength=self.main_window.content_frame.winfo_width() - 200
+            wraplength=self.main_window.content_frame.winfo_width() - 200,
+            justify="left",
+            anchor="w",
         )
-        title_label.grid(row=0, column=1, sticky="w", padx=(10, 50))
+        title_label.grid(row=0, column=1, sticky="nw", padx=10, pady=5)
 
         # Géneros debajo del título
         genres_label = tk.Label(
             info_frame,
             text="Géneros: " + ", ".join(anime_info.genres),
-            font=("Helvetica", 14)
+            font=("Helvetica", 14),
+            justify="left",
+            anchor="w",
         )
-        genres_label.grid(row=1, column=1, sticky="w", padx=10)
+        genres_label.grid(row=1, column=1, sticky="nw", padx=10, pady=5)
 
         # Sinopsis en el frame principal, ocupando todo el ancho
         description_title_label = tk.Label(
-            self.main_window.content_frame,
+            info_frame,
             text="Descripción",
             font=("Helvetica", 16, "bold")
         )
-        description_title_label.pack(anchor="w", pady=(30, 5), padx=10)
+        description_title_label.grid(row=2, column=0, columnspan=2, sticky="w", pady=(10, 5), padx=10)
 
         description_label = tk.Label(
-            self.main_window.content_frame,
+            info_frame,
             text=anime_info.synopsis,
             font=("Helvetica", 14),
             wraplength=self.main_window.content_frame.winfo_width() - 25,
             justify="left",
             anchor="w"
         )
-        description_label.pack(pady=5, padx=10)
+        description_label.grid(row=3, column=0, columnspan=2, sticky="w", padx=10)
+
+        self.__show_anime_episodes(info_frame, anime_info)
+
+    def __show_anime_episodes(self, info_frame, anime_info):
+        list_episodes_frame = tk.Frame(info_frame)
+        list_episodes_frame.grid(row=4, column=0, columnspan=2, sticky="nsew", pady=(10, 5), padx=10)
 
         # Episodios debajo de la sinopsis, alineados a la izquierda
         episodes_label = tk.Label(
-            self.main_window.content_frame,
+            list_episodes_frame,
             text="Lista de episodios",
             font=("Helvetica", 16, "bold")
         )
-        episodes_label.pack(anchor="w", pady=(30, 5), padx=10)
+        episodes_label.grid(row=0, column=0, sticky="w", pady=(10, 5))
 
         servers_frames = {}
 
-        for episode in anime_info.episodes:
-            episode_frame = tk.Frame(self.main_window.content_frame)
-            episode_frame.pack(fill=tk.X, pady=5, padx=20)
-
+        for index, episode_info in enumerate(anime_info.episodes):
             episode_button = tk.Button(
-                episode_frame,
-                text=f"{anime_info.title} episodio {episode.id}",
+                list_episodes_frame,
+                text=f"{anime_info.title}\n\nEpisodio {episode_info.id}",
                 font=("Helvetica", 14),
-                command=lambda episode_info=episode: self.toggle_servers_frame(episode_info, episode_frame, servers_frames),
+                height=5,  # Ajusta la altura del botón
+                width=50,  # Ajusta el ancho del botón del episodio
+                anchor="w",
+                justify="left",
+                command=lambda ep_info=episode_info, ep_index=index: self.__toggle_servers_frame(
+                    list_episodes_frame, servers_frames, ep_info, ep_index
+                ),
             )
-            episode_button.pack(pady=5, padx=20)
+            episode_button.grid(row=index + 1, column=0, sticky="w", pady=(10, 5))
 
-    def toggle_servers_frame(self, episode_info: EpisodeInfo, episode_frame: tk.Frame, servers_frames: dict):
-        """Muestra u oculta el frame de los servidores para un episodio."""
+            list_episodes_frame.grid_columnconfigure(0, weight=1)
+
+    def __toggle_servers_frame(self, list_episodes_frame, servers_frames, episode_info, current_row):
         if episode_info.id in servers_frames:
-            # Si el frame ya existe, simplemente lo mostramos u ocultamos
-            servers_frame = servers_frames[episode_info.id]
-            if servers_frame.winfo_ismapped():
-                servers_frame.pack_forget()
-            else:
-                servers_frame.pack(fill=tk.X)
+            servers_frames[episode_info.id].destroy()
+            del servers_frames[episode_info.id]
         else:
-            # Si el frame no existe, lo creamos y mostramos
-            servers_frame = tk.Frame(episode_frame, bg='grey')  # Puedes quitar el color de fondo
-            servers_frames[episode_info.id] = servers_frame
+            servers_info = self.main_window.animeflv_api.get_anime_episode_video_servers(episode_info.anime,
+                                                                                         episode_info.id)
+            # Crear un nuevo frame solo para los servidores
+            new_server_frame = tk.Frame(list_episodes_frame)
+            new_server_frame.grid(row=current_row + 1, column=1, padx=(15, 10), pady=(10, 5), sticky="nsew")
 
-            servers_info = self.main_window.animeflv_api.get_anime_episode_video_servers(episode_info.anime, episode_info.id)
-            self.create_server_buttons(servers_info, servers_frame)
+            # Guardar el frame de servidores en el diccionario para poder ocultarlo después
+            servers_frames[episode_info.id] = new_server_frame
+            num_columns = 3
+            for index, server in enumerate(servers_info):
+                server_button = tk.Button(
+                    new_server_frame,
+                    text=server.server,
+                    font=("Helvetica", 12),
+                    width=10,  # Ancho fijo para todos los botones de servidor
+                    command=lambda url=server.url: self.__play_video(url)
+                )
+                server_button.grid(row=index // num_columns, column=index % num_columns, padx=5, pady=5, sticky="ew")
 
-            servers_frame.pack(fill=tk.X)
+            for col in range(num_columns):
+                new_server_frame.grid_columnconfigure(col, weight=1)
 
-    def create_server_buttons(self, servers_info, servers_frame):
-        """Crea y empaqueta los botones de servidores en el centro del servers_frame."""
-        for server_info in servers_info:
-            server_button = tk.Button(
-                servers_frame,
-                text=server_info.server,
-                command=lambda url=server_info.url: self.play_video(url)
-            )
-            server_button.pack(side=tk.LEFT, padx=10)  # Agrega un poco de espacio entre los botones
-
-        # Centrar los botones horizontalmente en el servers_frame
-        servers_frame.pack_configure(anchor='center')
-
-    def open_episode(self, episode_button, episode_info):
-        """Función para abrir un popup de selección de servidor y reproducir el video."""
-        servers_info = self.main_window.animeflv_api.get_anime_episode_video_servers(episode_info.anime, episode_info.id)
-        for widget in episode_button.winfo_children():
-            if widget.winfo_name() == "server_button_frame":
-                widget.destroy()
-
-            # Obtener la lista de servidores para el episodio
-
-        # Crear un marco para los botones de los servidores
-        server_button_frame = tk.Frame(episode_button, name="server_button_frame")
-        server_button_frame.pack(pady=5)
-
-        # Crear botones para cada servidor
-        for server_info in servers_info:
-            server_button = tk.Button(
-                server_button_frame,
-                text=server_info.server,
-                command=lambda url=server_info.url: self.play_video(url)
-            )
-            server_button.pack(side=tk.LEFT, padx=5)  # Agregar el botón al marco
-
-    def play_video(self, url):
+    def __play_video(self, url):
         """Función para reproducir un video embebido en el frame de Tkinter."""
         webbrowser.open(url)

@@ -5,7 +5,7 @@ from gui.main_window import MainWindow
 def main():
     root = tk.Tk()
     root.title("Mi Biblioteca de Anime")
-    root.geometry("1185x850")
+    root.geometry("1200x850")
 
     # Crear ventana principal
     app = MainWindow(root)
