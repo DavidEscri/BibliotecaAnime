@@ -141,7 +141,7 @@ class AnimeFLV:
 
         return self.__process_anime_list_info(elements)
 
-    def get_anime_info(self, anime_id: AnimeInfo.id) -> AnimeInfo:
+    def get_anime_info(self, anime_id: Union[str, int]) -> AnimeInfo:
         """
         Obtiene información sobre un anime específico.
 
