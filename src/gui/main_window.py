@@ -4,7 +4,7 @@ from typing import List
 
 from PIL import Image, ImageSequence, ImageTk
 
-from APIs.animeflv.animeflv import AnimeFLV, AnimeInfo
+from APIs.animeflv.animeflv import AnimeFLVSingleton, AnimeFLV, AnimeInfo
 from gui.sidebarButtons.favouriteAnimes.favouriteAnimes import FavouritesButton
 from gui.sidebarButtons.finishedAnimes.finishedAnimes import FinishedAnimeButton
 from gui.sidebarButtons.pendingAnimes.pendingAnimes import PendingAnimeButton
@@ -33,7 +33,7 @@ class MainWindow:
         self.sidebar_frame: tk.Frame = self.create_sidebar()
         self.content_frame: tk.Frame = self.create_content_frame()
 
-        self.animeflv_api: AnimeFLV = AnimeFLV()
+        self.animeflv_api: AnimeFLV = AnimeFLVSingleton()
         self.recent_animes: List[AnimeInfo] = []
         self.images_path = "../../resources/images/recent_animes"
 

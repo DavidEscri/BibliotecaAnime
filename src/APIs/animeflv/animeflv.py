@@ -93,7 +93,7 @@ class AnimeFLV:
 
         return self.__process_anime_list_info(elements)
 
-    def get_anime_episode_video_servers(self, anime_id: str, episode_id: int) -> List[ServerInfo]:
+    def get_anime_episode_servers(self, anime_id: str, episode_id: int) -> List[ServerInfo]:
         """
         Obtiene una lista de servidores de los videos del episodio solicitado para un anime dado.
 
@@ -207,3 +207,12 @@ class AnimeFLV:
                 print(exc)
 
         return ret
+
+
+class AnimeFLVSingleton:
+    __instance = None
+
+    def __new__(cls):
+        if AnimeFLVSingleton.__instance is None:
+            AnimeFLVSingleton.__instance = AnimeFLV()
+        return AnimeFLVSingleton.__instance
