@@ -37,3 +37,10 @@ def load_image(image_path: str):
     if os.path.exists(image_path):
         return ImageTk.PhotoImage(Image.open(image_path))
     return ImageTk.PhotoImage(Image.new('RGB', (130, 185), (200, 200, 200)))  # Placeholder
+
+
+def on_mousewheel(event, canvas):
+    if event.delta:
+        canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+    else:
+        canvas.yview_scroll(int(event.num * -1), "units")

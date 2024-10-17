@@ -12,7 +12,7 @@ from gui.sidebarButtons.recentAnimes.recentAnimes import RecentAnimeButton
 from gui.sidebarButtons.searchAnimes.searchAnimes import SearchButton
 from gui.sidebarButtons.watchingAnimes.watchingAnimes import WatchingAnimeButton
 
-from utils.utils import download_images
+from utils.utils import download_images, on_mousewheel
 
 
 class MainWindow:
@@ -78,6 +78,10 @@ class MainWindow:
 
         # Actualizar el tamaño del canvas para permitir el desplazamiento
         main_frame.bind("<Configure>", lambda e: main_canvas.configure(scrollregion=main_canvas.bbox("all")))
+        main_canvas.bind_all("<MouseWheel>", lambda event: on_mousewheel(event, main_canvas))
+        # Establecer grid en el main_frame
+        main_frame.grid_rowconfigure(0, weight=1)  # Permitir que la primera fila se expanda
+        main_frame.grid_columnconfigure(0, weight=1)  # Permitir que la primera columna se expanda
         return main_frame
 
     def show_loading_screen(self):
