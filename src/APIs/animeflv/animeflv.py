@@ -19,7 +19,7 @@ from utils.utils import removeprefix
 BASE_URL = "https://animeflv.net"
 BROWSE_URL = "https://animeflv.net/browse"
 ANIME_VIDEO_URL = "https://animeflv.net/ver/"
-ANIME_URL = "https://animeflv.net/anime/"
+ANIME_URL = "https://animeflv.net/anime"
 
 class AnimeGenreFilter(Enum):
     ACCIÓN = "accion"
@@ -205,7 +205,7 @@ class AnimeFLV:
 
         information = {
             "title": soup.select_one("body div.Wrapper div.Body div div.Ficha.fchlt div.Container h1.Title").string,
-            "poster": f"{BASE_URL}/{soup.select_one('body div div div div div aside div.AnimeCover div.Image figure img').get('old_src', '')}",
+            "poster": f"{BASE_URL}{soup.select_one('body div div div div div aside div.AnimeCover div.Image figure img').get('src', '')}",
             "synopsis": soup.select_one("body div div div div div main section div.Description p").string.strip(),
         }
         genres = []
