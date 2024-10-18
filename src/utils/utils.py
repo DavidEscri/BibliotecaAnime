@@ -5,6 +5,23 @@ from io import BytesIO
 import requests
 
 
+def removeprefix(text: str, prefix_text: str) -> str:
+    """
+    Remove the prefix of a given string if it contains that
+    prefix for compatability with Python >3.9
+
+    :param _str: string to remove prefix from.
+    :param episode: prefix to remove from the string.
+    :rtype: str
+    """
+
+    if type(text) is type(prefix_text):
+        if text.startswith(prefix_text):
+            return text[len(prefix_text):]
+        else:
+            return text[:]
+
+
 def update_gif(label: tk.Label, gif_frames: list, root: tk.Tk, frame = 0):
     label.config(image=gif_frames[frame])
     frame = (frame + 1) % len(gif_frames)
