@@ -1,3 +1,9 @@
+__author__ = "Jose David Escribano Orts"
+__subsystem__ = "gui"
+__module__ = "anime_wnidow.py"
+__version__ = "0.1"
+__info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
+
 import os
 import tkinter as tk
 import webbrowser

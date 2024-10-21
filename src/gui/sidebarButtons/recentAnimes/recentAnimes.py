@@ -1,9 +1,15 @@
+__author__ = "Jose David Escribano Orts"
+__subsystem__ = "sidebarButtons"
+__module__ = "recentAnimes.py"
+__version__ = "0.1"
+__info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
+
 import os
 import tkinter as tk
 from typing import Union
 
 from APIs.animeflv.animeflv import AnimeInfo, AnimeFLV, AnimeFLVSingleton
-from gui.anime_windows import AnimeWindowViewer
+from gui.anime_window import AnimeWindowViewer
 from gui.sidebarButtons.sidebarButton import BaseButton
 from utils.utils import load_image
 

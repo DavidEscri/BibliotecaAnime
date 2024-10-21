@@ -1,3 +1,9 @@
+__author__ = "Jose David Escribano Orts"
+__subsystem__ = "gui"
+__module__ = "main_window.py"
+__version__ = "0.1"
+__info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
+
 import threading
 import tkinter as tk
 from typing import List
@@ -12,7 +18,7 @@ from gui.sidebarButtons.recentAnimes.recentAnimes import RecentAnimeButton
 from gui.sidebarButtons.searchAnimes.searchAnimes import SearchButton
 from gui.sidebarButtons.watchingAnimes.watchingAnimes import WatchingAnimeButton
 
-from utils.utils import download_images, on_mousewheel
+from utils.utils import download_images, on_mousewheel, get_resource_path
 
 
 class MainWindow:
@@ -35,7 +41,7 @@ class MainWindow:
 
         self.animeflv_api: AnimeFLV = AnimeFLVSingleton()
         self.recent_animes: List[AnimeInfo] = []
-        self.images_path = "../../resources/images/recent_animes"
+        self.images_path = get_resource_path("resources/images/recent_animes")
 
         self.load_buttons()
 
@@ -100,7 +106,8 @@ class MainWindow:
         loading_label.pack(pady=20)
 
         # Cargar y mostrar el GIF con todos los frames
-        gif_image = Image.open("../resources/images/utils/loading-image.gif")
+        loadgin_image_path = get_resource_path("resources/images/utils/loading-image.gif")
+        gif_image = Image.open(loadgin_image_path)
         gif_frames = [ImageTk.PhotoImage(frame.copy()) for frame in ImageSequence.Iterator(gif_image)]
         loading_image_label = tk.Label(self.loading_frame, bg="#ECF0F1")
         loading_image_label.pack(pady=20)

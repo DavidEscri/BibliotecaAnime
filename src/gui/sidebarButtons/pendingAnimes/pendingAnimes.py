@@ -1,3 +1,9 @@
+__author__ = "Jose David Escribano Orts"
+__subsystem__ = "sidebarButtons"
+__module__ = "pendingAnimes.py"
+__version__ = "0.1"
+__info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
+
 from gui.sidebarButtons.sidebarButton import BaseButton
 
 

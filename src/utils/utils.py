@@ -1,4 +1,11 @@
+__author__ = "Jose David Escribano Orts"
+__subsystem__ = "utils"
+__module__ = "utils.py"
+__version__ = "0.1"
+__info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
+
 import os
+import sys
 import tkinter as tk
 from PIL import Image, ImageTk
 from io import BytesIO
@@ -61,3 +68,15 @@ def on_mousewheel(event, canvas):
         canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
     else:
         canvas.yview_scroll(int(event.num * -1), "units")
+
+def get_resource_path(relative_path):
+    """Devuelve la ruta absoluta de los recursos, ya sea que se esté ejecutando
+    como script o como ejecutable empaquetado."""
+    def is_running_as_exe():
+        """Determina si el programa se está ejecutando como un archivo .exe o desde el IDE."""
+        return getattr(sys, 'frozen', False)
+
+    if is_running_as_exe():
+        # Si está empaquetado, _MEIPASS contendrá la ruta temporal donde se extraen los archivos
+        return os.path.join(sys._MEIPASS, relative_path)
+    return os.path.join(os.path.abspath(".."), relative_path)

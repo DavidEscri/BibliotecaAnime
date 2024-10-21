@@ -1,3 +1,9 @@
+__author__ = "Jose David Escribano Orts"
+__subsystem__ = "sidebarButtons"
+__module__ = "searchAnimes.py"
+__version__ = "0.1"
+__info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
+
 import tkinter as tk
 from typing import List
 
