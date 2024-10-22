@@ -8,11 +8,10 @@ import tkinter as tk
 from typing import List
 
 from APIs.animeflv.animeflv import AnimeFLV, AnimeGenreFilter, AnimeOrderFilter, AnimeFLVSingleton, AnimeInfo
-from gui.sidebarButtons.sidebarButton import SidebarButton
 from utils.buttons import utilsButtons
 
 
-class SearchButton(SidebarButton):
+class SearchButton(utilsButtons.SidebarButton):
     def __init__(self, main_window):
         super().__init__(main_window.sidebar_frame, "BUSCADOR DE ANIMES", self.__show_buscador)
         self.main_window = main_window

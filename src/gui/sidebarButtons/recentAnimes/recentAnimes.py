@@ -10,11 +10,11 @@ from typing import Union
 
 from APIs.animeflv.animeflv import AnimeInfo, AnimeFLV, AnimeFLVSingleton
 from gui.anime_window import AnimeWindowViewer
-from gui.sidebarButtons.sidebarButton import SidebarButton
+from utils.buttons import utilsButtons
 from utils.utils import load_image
 
 
-class RecentAnimeButton(SidebarButton):
+class RecentAnimeButton(utilsButtons.SidebarButton):
     def __init__(self, main_window):
         super().__init__(main_window.sidebar_frame, "ANIMES RECIENTES", self.__show_animes_recientes)
         self.main_window = main_window

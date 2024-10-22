@@ -6,7 +6,6 @@ __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __
 
 import os
 import tkinter as tk
-import webbrowser
 from typing import List
 
 from APIs.animeflv.animeflv import AnimeFLV, AnimeInfo, AnimeFLVSingleton, EpisodeInfo, ServerInfo
