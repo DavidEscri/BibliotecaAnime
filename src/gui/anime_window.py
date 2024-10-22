@@ -10,7 +10,8 @@ import webbrowser
 from typing import List
 
 from APIs.animeflv.animeflv import AnimeFLV, AnimeInfo, AnimeFLVSingleton, EpisodeInfo, ServerInfo
-from utils.utils import load_image
+from utils import utils
+from utils.buttons import utilsButtons
 
 
 class AnimeWindowViewer:
@@ -27,7 +28,7 @@ class AnimeWindowViewer:
     def __display_anime_info(self):
         # Cargar la portada del anime
         image_path = os.path.join(self.main_window.images_path, f"{self.anime_info.id}.jpg")
-        anime_image = load_image(image_path)
+        anime_image = utils.load_image(image_path)
 
         # Crear un frame para la imagen y la información
         info_frame = tk.Frame(self.main_window.content_frame)
@@ -97,23 +98,20 @@ class AnimeWindowViewer:
         servers_frames = {}
 
         for index, episode_info in enumerate(self.anime_info.episodes):
-            episode_button = tk.Button(
-                list_episodes_frame,
-                text=f"{self.anime_info.title}\n\nEpisodio {episode_info.id}",
-                font=("Helvetica", 14),
-                height=4,  # Ajusta la altura del botón
-                width=50,  # Ajusta el ancho del botón del episodio
-                anchor="w",
-                justify="left",
-                command=lambda ep_info=episode_info, ep_index=index: self.__toggle_servers_frame(
-                    list_episodes_frame, servers_frames, ep_info, ep_index
-                ),
+            episode_button = utilsButtons.EpisodeButton(
+                parent_frame=list_episodes_frame,
+                anime_title=self.anime_info.title,
+                episode_info=episode_info,
+                servers_frame=servers_frames,
+                index=index,
+                toggle_servers_command=self.__toggle_servers_frame
             )
             episode_button.grid(row=index + 1, column=0, sticky="w", pady=(10, 5))
 
             list_episodes_frame.grid_columnconfigure(0, weight=1)
 
-    def __toggle_servers_frame(self, list_episodes_frame, servers_frames, episode_info: EpisodeInfo, current_row: int):
+    def __toggle_servers_frame(self, list_episodes_frame, episode_info: EpisodeInfo, servers_frames, current_row: int):
+        episode_button = list_episodes_frame.grid_slaves(row=current_row + 1, column=0)[0]
         if episode_info.id in servers_frames:
             servers_frames[episode_info.id].destroy()
             del servers_frames[episode_info.id]
@@ -128,18 +126,12 @@ class AnimeWindowViewer:
             servers_frames[episode_info.id] = new_server_frame
             num_columns = 3
             for index, server in enumerate(servers_info):
-                server_button = tk.Button(
-                    new_server_frame,
-                    text=server.server,
-                    font=("Helvetica", 12),
-                    width=10,  # Ancho fijo para todos los botones de servidor
-                    command=lambda url=server.url: self.__play_video(url)
+                server_button = utilsButtons.ServerButton(
+                    parent_frame=new_server_frame,
+                    server_info=server,
+                    episode_button=episode_button
                 )
                 server_button.grid(row=index // num_columns, column=index % num_columns, padx=5, pady=5, sticky="ew")
 
             for col in range(num_columns):
                 new_server_frame.grid_columnconfigure(col, weight=1)
-
-    def __play_video(self, url: str):
-        """Función para reproducir un video embebido en el frame de Tkinter."""
-        webbrowser.open(url)

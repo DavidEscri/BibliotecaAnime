@@ -4,10 +4,10 @@ __module__ = "watchingAnimes.py"
 __version__ = "0.1"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
-from gui.sidebarButtons.sidebarButton import BaseButton
+from gui.sidebarButtons.sidebarButton import SidebarButton
 
 
-class WatchingAnimeButton(BaseButton):
+class WatchingAnimeButton(SidebarButton):
     def __init__(self, main_window):
         super().__init__(main_window.sidebar_frame, "ANIMES VIENDO", self.show_watching_animes)
         self.main_window = main_window

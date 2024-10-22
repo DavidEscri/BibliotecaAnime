@@ -4,10 +4,10 @@ __module__ = "favouriteAnimes.py"
 __version__ = "0.1"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
-from gui.sidebarButtons.sidebarButton import BaseButton
+from gui.sidebarButtons.sidebarButton import SidebarButton
 
 
-class FavouritesButton(BaseButton):
+class FavouritesButton(SidebarButton):
     def __init__(self, main_window):
         super().__init__(main_window.sidebar_frame, "ANIMES FAVORITOS", self.show_favorites)
         self.main_window = main_window

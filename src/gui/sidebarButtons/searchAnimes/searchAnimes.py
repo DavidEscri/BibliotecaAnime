@@ -8,10 +8,11 @@ import tkinter as tk
 from typing import List
 
 from APIs.animeflv.animeflv import AnimeFLV, AnimeGenreFilter, AnimeOrderFilter, AnimeFLVSingleton, AnimeInfo
-from gui.sidebarButtons.sidebarButton import BaseButton
+from gui.sidebarButtons.sidebarButton import SidebarButton
+from utils.buttons import utilsButtons
 
 
-class SearchButton(BaseButton):
+class SearchButton(SidebarButton):
     def __init__(self, main_window):
         super().__init__(main_window.sidebar_frame, "BUSCADOR DE ANIMES", self.__show_buscador)
         self.main_window = main_window
@@ -51,11 +52,10 @@ class SearchButton(BaseButton):
         search_entry.grid(row=0, column=1, padx=5, pady=5, sticky="w")
 
         # Botón de buscar
-        search_button = tk.Button(
-            search_frame,
-            text="Buscar",
-            command=lambda: self.__search_anime(search_entry),
-            width=25
+        search_button = utilsButtons.SearchButton(
+            parent_frame=search_frame,
+            search_command=self.__search_anime,
+            search_entry=search_entry
         )
         search_button.grid(row=0, column=2, padx=(10, 5), pady=5, sticky="w")
 
@@ -102,10 +102,9 @@ class SearchButton(BaseButton):
             order_radioButton.grid(row=row+1, column=col, padx=5, pady=2, sticky="w")
 
         # Botón para aplicar los filtros
-        apply_filters_button = tk.Button(
-            self.main_window.content_frame,
-            text="Aplicar Filtros",
-            command=self.__apply_filters
+        apply_filters_button = utilsButtons.ApplyFiltersButton(
+            parent_frame=self.main_window.content_frame,
+            apply_filter_command=self.__apply_filters
         )
         apply_filters_button.grid(row=4, column=0, columnspan=2, padx=(10, 15), pady=(10, 20), sticky="ew")
 
@@ -128,7 +127,6 @@ class SearchButton(BaseButton):
         # TODO: Lanzarlo en un hilo paralelo para que no se pare la aplicación
         animes_filter = self.animeflv_api.search_animes_by_genres_and_order(selected_genres, selected_order)
         self.__display_animes(animes_filter)
-
 
     def __display_animes(self, animes: List[AnimeInfo]):
         episodios_filter_frame = tk.Frame(self.main_window.content_frame)
