@@ -4,21 +4,15 @@ __module__ = "app.py"
 __version__ = "0.1"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
-import tkinter as tk
 from gui.main_window import MainWindow
 
-
 def main():
-    root = tk.Tk()
-    root.title("Mi Biblioteca de Anime")
-    root.geometry("1200x850")
-
+    #TODO: Añadir licencia GPL
     # Crear ventana principal
-    app = MainWindow(root)
+    app = MainWindow()
 
-    # Iniciar bucle principal de Tkinter
-    root.mainloop()
-
+    # Iniciar bucle principal de customTkinter
+    app.mainloop()
 
 if __name__ == "__main__":
     main()

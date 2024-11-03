@@ -4,6 +4,8 @@ __module__ = "animeflv.py"
 __version__ = "0.1"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
+import time
+
 import requests
 import json
 
@@ -16,10 +18,10 @@ from dataclasses import dataclass
 from utils.utils import removeprefix
 
 
-BASE_URL = "https://animeflv.net"
-BROWSE_URL = "https://animeflv.net/browse"
-ANIME_VIDEO_URL = "https://animeflv.net/ver/"
-ANIME_URL = "https://animeflv.net/anime"
+BASE_URL = "https://www3.animeflv.net"
+BROWSE_URL = f"{BASE_URL}/browse"
+ANIME_VIDEO_URL = f"{BASE_URL}/ver/"
+ANIME_URL = f"{BASE_URL}/anime"
 
 class AnimeGenreFilter(Enum):
     ACCIÓN = "accion"
@@ -84,7 +86,7 @@ class EpisodeInfo:
 class AnimeInfo:
     id: Union[str, int]
     title: str
-    poster: Optional[str] = None
+    poster: str
     synopsis: Optional[str] = None
     genres: Optional[List[str]] = None
     episodes: Optional[List[EpisodeInfo]] = None
@@ -181,8 +183,12 @@ class AnimeFLV:
 
         :rtype: List[AnimeInfo]
         """
-
-        response = requests.get(BASE_URL)
+        try:
+            response = requests.get(BASE_URL, timeout=10)
+            response.raise_for_status()
+        except Exception as e:
+            print(f"Error al conectarse a {BASE_URL} para obtener los animes recientes")
+            return []
         soup = BeautifulSoup(response.text, "html.parser")
 
         elements = soup.select("ul.ListAnimes li article")
@@ -190,8 +196,16 @@ class AnimeFLV:
         if elements is None:
             print("Unable to get list of animes")
             return []
-
-        return self.__process_anime_list_info(elements)
+        recent_animes: List[AnimeInfo] = []
+        for element in elements:
+            recent_animes.append(
+                AnimeInfo(
+                    id=removeprefix(element.select_one("div.Description a.Button")["href"][1:], "anime/"),
+                    title=element.select_one("div.Title").string,
+                    poster=f"{BASE_URL}{element.select_one('div.Image figure img').get('src', '')}",
+                )
+            )
+        return recent_animes
 
     def get_anime_info(self, anime_id: Union[str, int]) -> AnimeInfo:
         """
@@ -200,53 +214,57 @@ class AnimeFLV:
         :param anime_id: Identificador del anime, como por ejemplo 'one-piece-tv'.
         :rtype: AnimeInfo
         """
-        response = requests.get(f"{ANIME_URL}/{anime_id}")
-        soup = BeautifulSoup(response.text, "html.parser")
+        attempt = 0
+        max_attemts = 3
+        while attempt < max_attemts:
+            try:
+                response = requests.get(f"{ANIME_URL}/{anime_id}", timeout=2)
+                response.raise_for_status()  # Lanza excepción si la respuesta no es exitosa (status code 4xx o 5xx)
 
-        information = {
-            "title": soup.select_one("body div.Wrapper div.Body div div.Ficha.fchlt div.Container h1.Title").string,
-            "poster": f"{BASE_URL}{soup.select_one('body div div div div div aside div.AnimeCover div.Image figure img').get('src', '')}",
-            "synopsis": soup.select_one("body div div div div div main section div.Description p").string.strip(),
-        }
-        genres = []
+                soup = BeautifulSoup(response.text, "html.parser")
 
-        for element in soup.select("main.Main section.WdgtCn nav.Nvgnrs a"):
-            if "=" in element["href"]:
-                genres.append(element["href"].split("=")[1])
+                information = {
+                    "title": soup.select_one("div.Container h1.Title").string,
+                    "poster": f"{BASE_URL}{soup.select_one('div.Image figure img').get('src', '')}",
+                    "synopsis": soup.select_one("div.Description p").string,
+                }
 
-        info_ids = []
-        episodes_data = []
-        episodes = []
+                genres = [
+                    element["href"].split("=")[1]
+                    for element in soup.select("main.Main section.WdgtCn nav.Nvgnrs a")
+                    if "=" in element["href"]
+                ]
 
-        try:
-            for script in soup.find_all("script"):
-                contents = str(script)
+                info_ids = []
+                episodes_data = []
+                episodes = []
 
-                if "var anime_info = [" in contents or "var episodes = [" in contents:
-                    anime_info = contents.split("var anime_info = ")[1].split(";")[0]
-                    info_ids.append(json.loads(anime_info))
+                try:
+                    for script in soup.find_all("script"):
+                        contents = str(script)
+                        if "var anime_info = [" in contents or "var episodes = [" in contents:
+                            anime_info = contents.split("var anime_info = ")[1].split(";")[0]
+                            info_ids.append(json.loads(anime_info))
 
-                    espisode_info = contents.split("var episodes = ")[1].split(";")[0]
-                    episodes_data.extend(json.loads(espisode_info))
-                    break
+                            episode_info = contents.split("var episodes = ")[1].split(";")[0]
+                            episodes_data.extend(json.loads(episode_info))
+                            break
 
-            for episode, _ in episodes_data:
-                episodes.append(
-                    EpisodeInfo(
-                        id=episode,
-                        anime=anime_id,
-                    )
-                )
+                    for episode, _ in episodes_data:
+                        episodes.append(EpisodeInfo(id=episode, anime=anime_id))
 
-        except Exception as exc:
-            print(exc)
+                except Exception as exc:
+                    print(f"Error al los episodios de {anime_id}: {exc}")
 
-        return AnimeInfo(
-            id=anime_id,
-            episodes=episodes,
-            genres=genres,
-            **information,
-        )
+                return AnimeInfo(id=anime_id, episodes=episodes, genres=genres, **information)
+
+            except requests.RequestException as e:
+                print(f"Intento {attempt + 1}/{max_attemts} fallido para el anime {anime_id}: {e}")
+                attempt += 1
+                time.sleep(1)  # Espera un segundo entre intentos para evitar sobrecargar el servidor
+
+        print(f"No se pudo obtener la información del anime {anime_id}")
+        return None
 
     def __process_anime_list_info(self, elements: ResultSet) -> List[AnimeInfo]:
         ret: List[AnimeInfo] = []
@@ -254,9 +272,13 @@ class AnimeFLV:
         for element in elements:
             try:
                 anime_id = removeprefix(element.select_one("div.Description a.Button")["href"][1:], "anime/")
-                ret.append(self.get_anime_info(anime_id))
-            except Exception as exc:
-                print(exc)
+                anime_info = self.get_anime_info(anime_id)
+                if anime_info is None:
+                    continue
+                ret.append(anime_info)
+            except requests.RequestException as exc:
+                print(f"Error al obtener información del anime {anime_id}: {exc}")
+                continue
 
         return ret
 

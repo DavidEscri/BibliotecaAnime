@@ -7,6 +7,7 @@ a = Analysis(
     pathex=['src'],
     binaries=[],
     datas=[
+        ('resources/DB', 'resources/DB'),
         ('resources/images/favorites', 'resources/images/favorites'),
         ('resources/images/recent_animes', 'resources/images/recent_animes'),
         ('resources/images/utils', 'resources/images/utils')
@@ -48,6 +49,7 @@ exe = EXE(
     upx_exclude=[],
     runtime_tmpdir=None,
     console=False,  # Cambia a True si deseas que el programa abra una ventana de consola
+    icon='resources/images/utils/app_icon.ico'
 )
 
 coll = COLLECT(

@@ -9,21 +9,22 @@ from typing import List
 
 from APIs.animeflv.animeflv import AnimeFLV, AnimeGenreFilter, AnimeOrderFilter, AnimeFLVSingleton, AnimeInfo
 from utils.buttons import utilsButtons
+from utils.utils import refactor_genre_text
 
 
 class SearchButton(utilsButtons.SidebarButton):
-    def __init__(self, main_window):
-        super().__init__(main_window.sidebar_frame, "BUSCADOR DE ANIMES", self.__show_buscador)
+    def __init__(self, main_window, row, column):
+        super().__init__(main_window.sidebar_frame, "BUSCADOR DE ANIMES", row, column, self.__show_buscador)
         self.main_window = main_window
         self.animeflv_api: AnimeFLV = AnimeFLVSingleton()
 
         # Géneros de ejemplo (debes usar tu enum de géneros reales)
-        self.genres = list(AnimeGenreFilter)
+        self.genres: List[AnimeGenreFilter] = list(AnimeGenreFilter)
         self.selected_genres = []
         self.genre_vars = {genre: tk.BooleanVar() for genre in self.genres}
 
-        self.order_options = list(AnimeOrderFilter)
-        self.selected_order = tk.StringVar(value=AnimeOrderFilter.POR_DEFECTO.value)
+        self.order_options: List[AnimeOrderFilter] = list(AnimeOrderFilter)
+        self.selected_order = tk.StringVar(name=AnimeOrderFilter.POR_DEFECTO.name, value=AnimeOrderFilter.POR_DEFECTO.value)
 
     def show_frame(self):
         self.main_window.clear_frame()
@@ -73,7 +74,7 @@ class SearchButton(utilsButtons.SidebarButton):
             col = idx % 10
             genre_checkButton = tk.Checkbutton(
                 genre_filter_frame,
-                text=self.__get_display_name(genre),
+                text=refactor_genre_text(genre.value),
                 variable=var
             )
             genre_checkButton.grid(row=row+1, column=col, padx=0, pady=2, sticky="w")
@@ -94,7 +95,7 @@ class SearchButton(utilsButtons.SidebarButton):
             col = idx % 10
             order_radioButton = tk.Radiobutton(
                 order_filter_frame,
-                text=self.__get_display_name(order),
+                text=refactor_genre_text(order.name),
                 variable=self.selected_order,
                 value=order.value
             )
@@ -106,11 +107,6 @@ class SearchButton(utilsButtons.SidebarButton):
             apply_filter_command=self.__apply_filters
         )
         apply_filters_button.grid(row=4, column=0, columnspan=2, padx=(10, 15), pady=(10, 20), sticky="ew")
-
-
-    def __get_display_name(self, enum_value):
-        """Genera el nombre para mostrar en la interfaz a partir del nombre del Enum"""
-        return enum_value.name.capitalize().replace("_", " ")
 
     def __search_anime(self, search_entry: tk.Entry):
         # Aquí iría la lógica para buscar por nombre de anime

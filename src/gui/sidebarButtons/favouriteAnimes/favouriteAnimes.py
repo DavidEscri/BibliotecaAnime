@@ -7,8 +7,8 @@ __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __
 from utils.buttons import utilsButtons
 
 class FavouritesButton(utilsButtons.SidebarButton):
-    def __init__(self, main_window):
-        super().__init__(main_window.sidebar_frame, "ANIMES FAVORITOS", self.show_favorites)
+    def __init__(self, main_window, row, column):
+        super().__init__(main_window.sidebar_frame, "ANIMES FAVORITOS", row, column, self.show_favorites)
         self.main_window = main_window
 
     def show_frame(self):

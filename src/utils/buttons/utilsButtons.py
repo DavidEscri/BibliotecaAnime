@@ -1,15 +1,12 @@
 import webbrowser
-import tkinter as tk
+import customtkinter as ctk
 
-class BaseButton(tk.Button):
-    def __init__(self, parent_frame, text, command, width=None, height=None, font=None, **kwargs):
+class BaseButton(ctk.CTkButton):
+    def __init__(self, parent_frame, text, command, **kwargs):
         super().__init__(
             parent_frame,
             text=text,
             command=command,
-            font=font,
-            width=width,
-            height=height,
             **kwargs
         )
 
@@ -17,16 +14,14 @@ class BaseButton(tk.Button):
 class EpisodeButton(BaseButton):
     def __init__(self, parent_frame, anime_title, episode_info, servers_frame, index, toggle_servers_command):
         self.watched_episode = False
-        text = f"{anime_title}\n\nEpisodio {episode_info.id}"
         super().__init__(
             parent_frame,
-            text=text,
-            command=lambda: toggle_servers_command(parent_frame, episode_info, servers_frame, index),
-            width=50,
-            height=4,
-            font=("Helvetica", 14),
-            anchor="w",
-            justify="left"
+            text=f"{anime_title} - Episodio {episode_info.id}",
+            command=lambda: toggle_servers_command(episode_info, servers_frame, index),
+            height=40,
+            font=ctk.CTkFont(size=14),
+            anchor=ctk.W,
+            border_spacing=20
         )
 
     def is_watched(self):
@@ -37,11 +32,9 @@ class EpisodeButton(BaseButton):
     def mark_as_watched(self):
         """Marcar el episodio como visto"""
         self.watched_episode = True
-        self.configure(bg="#D3D3D3")
 
     def mark_as_unwatched(self):
         self.watched_episode = False
-        self.configure(bg="SystemButtonFace")
 
 class ServerButton(BaseButton):
     def __init__(self, parent_frame, server_info, episode_button: EpisodeButton):
@@ -83,17 +76,13 @@ class ApplyFiltersButton(BaseButton):
 
 
 class SidebarButton(BaseButton):
-    def __init__(self, parent_frame, text, command):
+    def __init__(self, parent_frame, text, row, column, command):
         super().__init__(
             parent_frame,
             text=text,
             command=command,
-            bg="#34495E",
-            fg="white",
-            padx=20,
-            pady=5
         )
-        self.pack(fill=tk.X, padx=20, pady=10)
+        self.grid(row=row, column=column, padx=20, pady=10)
 
     def show_frame(self):
         raise NotImplementedError("Subclasses must implement this method")

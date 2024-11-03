@@ -7,6 +7,7 @@ __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __
 import os
 import sys
 import tkinter as tk
+import customtkinter as ctk
 from PIL import Image, ImageTk
 from io import BytesIO
 import requests
@@ -29,24 +30,37 @@ def removeprefix(text: str, prefix_text: str) -> str:
             return text[:]
 
 
+def refactor_genre_text(genre_text):
+    """
+    Genera el nombre para mostrar en la interfaz a partir del nombre
+    """
+    return genre_text.capitalize().replace("-", " ")
+
+
 def update_gif(label: tk.Label, gif_frames: list, root: tk.Tk, frame = 0):
     label.config(image=gif_frames[frame])
     frame = (frame + 1) % len(gif_frames)
     root.after(100, update_gif, frame)
 
 
-def download_images(images_path, recent_animes):
+def download_images(images_path, recent_animes, progress_bar: ctk.CTkProgressBar, progress_label: ctk.CTkLabel):
     if not os.path.exists(images_path):
         os.makedirs(images_path)
 
+    total_images = len(recent_animes)
     current_animes_images = os.listdir(images_path)
-    for anime in recent_animes:
+    for index, anime in enumerate(recent_animes):
         image_name = f"{anime.id}.jpg"
+        progress_percentage = round(0.9 + (0.1 * (index + 1) / total_images), 2)
         if image_name in current_animes_images:
+            progress_bar.set(progress_percentage)  # Actualizar progreso
+            progress_label.configure(text=f"{int(progress_percentage*100)} %")  # Actualizar etiqueta
             continue
         response = requests.get(anime.poster)
         img_data = Image.open(BytesIO(response.content)).resize((130, 185))
         img_data.save(os.path.join(images_path, image_name))
+        progress_bar.set(progress_percentage)  # Actualizar progreso
+        progress_label.configure(text=f"{int(progress_percentage*100)} %")  # Actualizar etiqueta
 
     for image in current_animes_images:
         if not any(image == f"{anime.id}.jpg" for anime in recent_animes):
@@ -57,17 +71,11 @@ def download_images(images_path, recent_animes):
                 continue
 
 
-def load_image(image_path: str):
+def load_image(image_path: str, image_size: tuple[int, int] = (130, 185)):
     if os.path.exists(image_path):
-        return ImageTk.PhotoImage(Image.open(image_path))
-    return ImageTk.PhotoImage(Image.new('RGB', (130, 185), (200, 200, 200)))  # Placeholder
+        return ctk.CTkImage(Image.open(image_path), size=image_size)
+    return ctk.CTkImage(Image.new('RGB', image_size, (200, 200, 200)), size=image_size)  # Placeholder
 
-
-def on_mousewheel(event, canvas):
-    if event.delta:
-        canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
-    else:
-        canvas.yview_scroll(int(event.num * -1), "units")
 
 def get_resource_path(relative_path):
     """Devuelve la ruta absoluta de los recursos, ya sea que se esté ejecutando
