@@ -7,7 +7,6 @@ __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __
 import json
 import os
 import webbrowser
-from tkinter import messagebox, Toplevel, Listbox, Button
 
 import customtkinter as ctk
 from typing import List
@@ -15,7 +14,7 @@ from typing import List
 from APIs.animeflv.animeflv import AnimeFLV, AnimeInfo, AnimeFLVSingleton, EpisodeInfo, ServerInfo
 from utils import utils
 from utils.buttons import utilsButtons
-from utils.utils import refactor_genre_text
+from utils.utils import refactor_genre_text, get_resource_path
 
 
 #TODO: Al ver un episodio, se deberá preguntar si se quiere ver el siguiente. 500 -> 501 -> 502...
@@ -128,43 +127,51 @@ class AnimeWindowViewer:
     def __display_anime_status(self):
         for widget in self.__anime_status_frame.winfo_children():
             widget.destroy()
-
+        favourite_button_img = utils.load_image(get_resource_path("resources/images/utils/favoritos.png"), image_size=(24, 24))
+        non_favourite_button_img = utils.load_image(get_resource_path("resources/images/utils/no_favoritos.png"), image_size=(24, 24))
         favorite_botton = ctk.CTkButton(
             self.__anime_status_frame,
             text=f"Añadir a favoritos" if not self.__anime_is_favourite else f"Eliminar de favoritos",
             font=ctk.CTkFont(size=14),
             anchor="center",
             border_spacing=10,
+            image=non_favourite_button_img if not self.__anime_is_favourite else favourite_button_img,
             command=self.add_to_favorites if not self.__anime_is_favourite else self.remove_from_favorites,
         )
         favorite_botton.grid(row=0, column=0, sticky=ctk.EW, padx=(5, 10), pady=(0, 5))
 
+        finished_button_img = utils.load_image(get_resource_path("resources/images/utils/finalizados.png"), image_size=(24, 24))
         finished_button = ctk.CTkButton(
             self.__anime_status_frame,
             text=f"Añadir a finalizados" if not self.__anime_is_finished else f"Eliminar de finalizados",
             font=ctk.CTkFont(size=14),
             anchor="center",
             border_spacing=10,
+            image=finished_button_img,
             command=self.add_to_finished if not self.__anime_is_finished else self.remove_from_finished,
         )
         finished_button.grid(row=0, column=1, sticky=ctk.EW, padx=(5, 10), pady=(0, 5))
 
+        watching_button_img = utils.load_image(get_resource_path("resources/images/utils/viendo.png"), image_size=(24, 24))
         watching_button = ctk.CTkButton(
             self.__anime_status_frame,
             text=f"Añadir a viendo" if not self.__anime_is_watching else f"Eliminar de viendo",
             font=ctk.CTkFont(size=14),
             anchor="center",
             border_spacing=10,
+            image=watching_button_img,
             command=self.add_to_watching if not self.__anime_is_watching else self.remove_from_watching,
         )
         watching_button.grid(row=0, column=2, sticky=ctk.EW, padx=(5, 10), pady=(0, 5))
 
+        watching_button_img = utils.load_image(get_resource_path("resources/images/utils/pendientes.png"), image_size=(24, 24))
         pending_button = ctk.CTkButton(
             self.__anime_status_frame,
             text=f"Añadir a pendiente" if not self.__anime_is_pending else f"Eliminar de pendiente",
             font=ctk.CTkFont(size=14),
             anchor="center",
             border_spacing=10,
+            image=watching_button_img,
             command=self.add_to_pending if not self.__anime_is_pending else self.remove_from_pending,
         )
         pending_button.grid(row=0, column=3, sticky=ctk.EW, padx=(5, 10), pady=(0, 5))
@@ -430,59 +437,10 @@ class AnimeWindowViewer:
             )
             server_button.grid(row=0, column=0, sticky=ctk.EW, pady=(15, 5))
             server_button.set(None)
-            server_button.configure(command=lambda selected: self.__play_video(server_url_map[selected], episode_info.id))
+            server_button.configure(command=lambda selected: self.__play_video(server_url_map[selected]))
 
             new_server_frame.grid_columnconfigure(0, weight=1)
 
-    def __play_video(self, url, episode_id):
+    def __play_video(self, url):
         webbrowser.open(url)
-        # Preguntar si quiere ver el siguiente episodio después de abrir el actual
-        self.__prompt_next_episode(url, episode_id)
-
-    def __prompt_next_episode(self, url, episode_id: int):
-        # Obtener el índice del episodio actual y calcular el índice del siguiente en base al orden
-        current_index = next(i for i, ep in enumerate(self.anime_info.episodes) if ep.id == episode_id)
-        next_index = current_index - 1 if self.sort_descending else current_index + 1
-
-        # Verificar que el siguiente episodio está en el rango
-        if 0 <= next_index < len(self.anime_info.episodes):
-            next_episode = self.anime_info.episodes[next_index]
-
-            # Mostrar ventana emergente para continuar con el siguiente episodio
-            response = messagebox.askyesno("Continuar con el siguiente episodio",
-                                           f"¿Desea ver el siguiente episodio ({next_episode.id}) de {self.anime_info.title}?")
-            if response:
-                servers_info: List[ServerInfo] = self.animeflv_api.get_anime_episode_servers(next_episode.anime,
-                                                                                             next_episode.id)
-                # self.__show_server_selection(servers_info, next_episode.id)
-                # Abrir el siguiente episodio en el navegador
-                webbrowser.open(url)
-                # Llamar recursivamente para permitir ver el siguiente episodio de nuevo
-                self.__prompt_next_episode(url, next_episode.id)
-
-    def __show_server_selection(self, servers_info: List[ServerInfo], episode_id: int):
-        server_window = Toplevel()
-        server_window.title("Seleccionar Servidor")
-
-        # Crear una lista para mostrar los nombres de los servidores
-        server_listbox = Listbox(server_window, selectmode="single")
-        for server in servers_info:
-            server_listbox.insert(0, server.server)
-        server_listbox.pack(padx=10, pady=10)
-
-        # Función para abrir el servidor seleccionado en el navegador
-        def on_server_select():
-            selected_index = server_listbox.curselection()
-            if selected_index:
-                selected_server = servers_info[selected_index[0]]
-                webbrowser.open(selected_server.url)
-                server_window.destroy()
-                # Llamar de nuevo para preguntar si quiere ver el siguiente episodio
-                self.__prompt_next_episode(selected_server.url, episode_id)
-            else:
-                messagebox.showwarning("Advertencia", "Seleccione un servidor para continuar.")
-
-        # Botón para confirmar la selección del servidor
-        select_button = Button(server_window, text="Ver en este servidor", command=on_server_select)
-        select_button.pack(pady=10)
 

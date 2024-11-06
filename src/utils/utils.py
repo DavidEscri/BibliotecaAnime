@@ -34,7 +34,7 @@ def refactor_genre_text(genre_text):
     """
     Genera el nombre para mostrar en la interfaz a partir del nombre
     """
-    return genre_text.capitalize().replace("-", " ")
+    return genre_text.capitalize().replace("-", " ").replace("_", " ")
 
 
 def update_gif(label: tk.Label, gif_frames: list, root: tk.Tk, frame = 0):
