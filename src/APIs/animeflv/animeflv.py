@@ -112,7 +112,16 @@ class AnimeFLV:
             print("Unable to get list of animes")
             return []
 
-        return self.__process_anime_list_info(elements)
+        query_animes: List[AnimeInfo] = []
+        for element in elements:
+            query_animes.append(
+                AnimeInfo(
+                    id=removeprefix(element.select_one("div.Description a.Button")["href"][1:], "anime/"),
+                    title=element.select_one("div.Title").string,
+                    poster=f"{element.select_one('div.Image figure img').get('src', '')}",
+                )
+            )
+        return query_animes
 
     def search_animes_by_query(self, query: str = None, page: int = None) -> List[AnimeInfo]:
         """
@@ -145,7 +154,16 @@ class AnimeFLV:
             print("Unable to get list of animes")
             return []
 
-        return self.__process_anime_list_info(elements)
+        query_animes: List[AnimeInfo] = []
+        for element in elements:
+            query_animes.append(
+                AnimeInfo(
+                    id=removeprefix(element.select_one("div.Description a.Button")["href"][1:], "anime/"),
+                    title=element.select_one("div.Title").string,
+                    poster=f"{element.select_one('div.Image figure img').get('src', '')}",
+                )
+            )
+        return query_animes
 
     def get_anime_episode_servers(self, anime_id: str, episode_id: int) -> List[ServerInfo]:
         """
