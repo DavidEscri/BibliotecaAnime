@@ -95,7 +95,7 @@ class AnimeInfo:
 class AnimeFLV:
 
     def search_animes_by_genres_and_order(self, genres: List[AnimeGenreFilter], order: str = None,
-                                          page: int = None) -> List[AnimeInfo]:
+                                          page: int = None) -> (List[AnimeInfo], int):
         genre_values = [genre.value for genre in genres]
 
         # Generar la query string
@@ -106,11 +106,19 @@ class AnimeFLV:
         response = requests.get(url)
         soup = BeautifulSoup(response.text, "html.parser")
 
+        pages = soup.select("div.Container div.NvCnAnm ul.pagination li")
         elements = soup.select("div.Container ul.ListAnimes li article")
 
         if elements is None:
             print("Unable to get list of animes")
             return []
+
+        last_page = 1
+        if pages is not None:
+            for page in pages:
+                link = page.find("a")
+                if link and link.text.isdigit():  # Verificamos si es un número de página
+                    last_page = int(link.text)
 
         query_animes: List[AnimeInfo] = []
         for element in elements:
@@ -121,9 +129,9 @@ class AnimeFLV:
                     poster=f"{element.select_one('div.Image figure img').get('src', '')}",
                 )
             )
-        return query_animes
+        return query_animes, last_page
 
-    def search_animes_by_query(self, query: str = None, page: int = None) -> List[AnimeInfo]:
+    def search_animes_by_query(self, query: str = None, page: int = None) -> (List[AnimeInfo], int):
         """
         Search in animeflv.net by query.
         :param query: Query information like: 'Nanatsu no Taizai'.
@@ -148,12 +156,19 @@ class AnimeFLV:
         response = requests.get(url)
         soup = BeautifulSoup(response.text, "html.parser")
 
+        pages = soup.select("div.Container div.NvCnAnm ul.pagination li")
         elements = soup.select("div.Container ul.ListAnimes li article")
 
         if elements is None:
             print("Unable to get list of animes")
             return []
 
+        last_page = 1
+        if pages is not None:
+            for page in pages:
+                link = page.find("a")
+                if link and link.text.isdigit():  # Verificamos si es un número de página
+                    last_page = int(link.text)
         query_animes: List[AnimeInfo] = []
         for element in elements:
             query_animes.append(
@@ -163,7 +178,7 @@ class AnimeFLV:
                     poster=f"{element.select_one('div.Image figure img').get('src', '')}",
                 )
             )
-        return query_animes
+        return query_animes, last_page
 
     def get_anime_episode_servers(self, anime_id: str, episode_id: int) -> List[ServerInfo]:
         """

@@ -17,14 +17,14 @@ from utils.utils import load_image
 
 
 class RecentAnimeButton(utilsButtons.SidebarButton):
-    def __init__(self, main_window, row: int, column: int):
-        super().__init__(main_window.sidebar_frame, "ANIMES RECIENTES", row, column, self.__show_animes_recientes)
+    def __init__(self, main_window, icon_path: str, row: int, column: int):
+        icon_path_light = icon_path_dark = os.path.join(icon_path, "recientes.png")
+        super().__init__(main_window.sidebar_frame, "ANIMES RECIENTES", row, column, self.__show_animes_recientes,
+                         icon_path_light, icon_path_dark)
         self.main_window = main_window
         self.animeflv_api: AnimeFLV = AnimeFLVSingleton()
 
     def show_frame(self):
-        self.main_window.loading_frame.place_forget()  # Usar place_forget para ocultar el frame
-
         # Mostrar el sidebar ahora que ha terminado la descarga
         self.main_window.sidebar_frame.grid(row=0, column=0, rowspan=8, sticky="nsew")
 

@@ -1,4 +1,6 @@
-import webbrowser
+import os
+from PIL import Image
+from utils.utils import load_image
 import customtkinter as ctk
 
 class BaseButton(ctk.CTkButton):
@@ -13,7 +15,6 @@ class BaseButton(ctk.CTkButton):
 
 class EpisodeButton(BaseButton):
     def __init__(self, parent_frame, anime_title, episode_info, servers_frame, index, toggle_servers_command):
-        self.watched_episode = False
         super().__init__(
             parent_frame,
             text=f"{anime_title} - Episodio {episode_info.id}",
@@ -24,35 +25,6 @@ class EpisodeButton(BaseButton):
             border_spacing=20
         )
 
-    def is_watched(self):
-        #TODO: De alguna manera se debe persistir que el episodio ya ha sido visto. Indiferentemente de lo tenga en favoritos,
-        # pendiente, terminado, mirando, etc. No hace falta ni que esté catalogado.
-        return self.watched_episode
-
-    def mark_as_watched(self):
-        """Marcar el episodio como visto"""
-        self.watched_episode = True
-
-    def mark_as_unwatched(self):
-        self.watched_episode = False
-
-class ServerButton(BaseButton):
-    def __init__(self, parent_frame, server_info, episode_button: EpisodeButton):
-        super().__init__(
-            parent_frame,
-            text=server_info.server,
-            command=lambda: self.__play_video(server_info.url, episode_button),
-            width=10,
-            font=("Helvetica", 12)
-        )
-
-    def __play_video(self, url, episode_button: EpisodeButton):
-        webbrowser.open(url)
-        if episode_button.is_watched():
-            episode_button.mark_as_unwatched()
-        else:
-            episode_button.mark_as_watched()
-
 
 class SearchButton(BaseButton):
     def __init__(self, parent_frame, search_command, search_entry):
@@ -60,8 +32,7 @@ class SearchButton(BaseButton):
             parent_frame,
             text="Buscar",
             command=lambda: search_command(search_entry),
-            width=25,
-            font=("Helvetica", 9)
+            font=ctk.CTkFont(size=14)
         )
 
 
@@ -71,18 +42,34 @@ class ApplyFiltersButton(BaseButton):
             parent_frame,
             text="Aplicar Filtros",
             command=apply_filter_command,
-            font=("Helvetica", 10)
+            font=ctk.CTkFont(size=14)
         )
 
 
 class SidebarButton(BaseButton):
-    def __init__(self, parent_frame, text, row, column, command):
+    def __init__(self, parent_frame, text, row, column, command, icon_path_light, icon_path_dark):
+        self.icon_light = load_image(icon_path_light, image_size=(24, 24))
+        self.icon_dark = load_image(icon_path_dark, image_size=(24, 24))
+        current_icon = self.icon_dark if ctk.get_appearance_mode() == "Dark" else self.icon_light
         super().__init__(
             parent_frame,
-            text=text,
+            text=" " + text,
+            font=ctk.CTkFont(size=14),
+            width=parent_frame.winfo_width(),
+            height=parent_frame.winfo_height() - 150,
+            fg_color=parent_frame.cget("fg_color"),
+            text_color="black",
+            image=current_icon,
+            compound="left",
+            corner_radius=0,
+            hover_color="white",
             command=command,
         )
-        self.grid(row=row, column=column, padx=20, pady=10)
+        self.grid(row=row, column=column, sticky="nsew")
+
+    def update_icon(self, mode):
+        new_icon = self.icon_dark if mode == "Dark" else self.icon_light
+        self.configure(image=new_icon)
 
     def show_frame(self):
         raise NotImplementedError("Subclasses must implement this method")
