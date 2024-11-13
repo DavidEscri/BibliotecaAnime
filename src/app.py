@@ -5,9 +5,8 @@ __version__ = "0.1"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 from gui.main_window import MainWindow
-
+#TODO: Añadir licencia GPL
 def main():
-    #TODO: Añadir licencia GPL
     # Crear ventana principal
     app = MainWindow()
 

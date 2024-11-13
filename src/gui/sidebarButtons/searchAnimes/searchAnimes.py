@@ -5,6 +5,7 @@ __version__ = "0.1"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 import os
+import threading
 import time
 import tkinter as tk
 import urllib.request
@@ -13,13 +14,22 @@ from io import BytesIO
 import customtkinter as ctk
 from typing import List, Union
 
-from PIL import Image
+from PIL import Image, ImageSequence
+from attr import dataclass
 
 from APIs.animeflv.animeflv import AnimeFLV, AnimeGenreFilter, AnimeOrderFilter, AnimeFLVSingleton, AnimeInfo
 from gui.anime_window import AnimeWindowViewer
 from utils.buttons import utilsButtons
-from utils.utils import refactor_genre_text, load_image
+from utils.utils import refactor_genre_text, load_image, get_resource_path, download_animes_poster
 
+@dataclass
+class AnimeSearch:
+    animes: List[AnimeInfo]
+    last_page: int
+    current_page: int = 1
+    text_query: str = None
+    genre_filters: List[AnimeGenreFilter] = None
+    order_filter: str = None
 
 class SearchButton(utilsButtons.SidebarButton):
     def __init__(self, main_window, icon_path, row, column):
@@ -33,12 +43,25 @@ class SearchButton(utilsButtons.SidebarButton):
         self.__pagination_frame: ctk.CTkFrame = None
 
         # Géneros de ejemplo (debes usar tu enum de géneros reales)
-        genres: List[AnimeGenreFilter] = list(AnimeGenreFilter)
+        anime_genres: List[AnimeGenreFilter] = list(AnimeGenreFilter)
         self.selected_genres = []
-        self.genre_vars = {genre: ctk.BooleanVar() for genre in genres}
+        self.genre_vars = {genre: ctk.BooleanVar() for genre in anime_genres}
 
         self.order_options: List[AnimeOrderFilter] = list(AnimeOrderFilter)
         self.selected_order = ctk.StringVar(name=AnimeOrderFilter.POR_DEFECTO.name, value=AnimeOrderFilter.POR_DEFECTO.value)
+        self.__current_search_thread: threading.Thread = None
+        self.__loading_frame: ctk.CTkFrame = None
+
+    def save_anime_search(self, anime_list: List[AnimeInfo], last_page: int, current_page: int, text_query: str):
+        self.main_window.last_search_instance = AnimeSearch(
+            animes=anime_list,
+            last_page=last_page,
+            current_page=current_page,
+            text_query=text_query,
+            genre_filters=self.selected_genres,
+            order_filter=self.selected_order.get()
+        )
+
 
     def show_frame(self):
         self.main_window.clear_frame()
@@ -124,24 +147,109 @@ class SearchButton(utilsButtons.SidebarButton):
         )
         apply_filters_button.grid(row=4, column=0, columnspan=2, padx=(10, 15), pady=(10, 20), sticky="ew")
 
+        if self.main_window.last_search_instance is not None:
+            self.selected_genres = self.main_window.last_search_instance.genre_filters
+            self.selected_order.set(self.main_window.last_search_instance.order_filter)
+            self.__display_animes(
+                animes=self.main_window.last_search_instance.animes,
+                last_page=self.main_window.last_search_instance.last_page,
+                current_page=self.main_window.last_search_instance.current_page,
+                text_query=self.main_window.last_search_instance.text_query
+            )
+
     def __search_anime(self, search_entry: ctk.CTkEntry):
+        if self.__current_search_thread and self.__current_search_thread.is_alive():
+            return
         # Aquí iría la lógica para buscar por nombre de anime
         search_text = search_entry.get()
-        #TODO: Lanzarlo en un hilo paralelo para que no se pare la aplicación
-        animes_query, last_page = self.animeflv_api.search_animes_by_query(search_text)
-        self.__display_animes(animes_query, last_page, text_query=search_text)
+        self.__show_loading_frame(text_entry=search_text)
 
     def __apply_filters(self):
+        if self.__current_search_thread and self.__current_search_thread.is_alive():
+            return
         # Obtener los valores reales de los géneros seleccionados y la ordenación
-        selected_genres = [genre for genre, var in self.genre_vars.items() if var.get()]
-        selected_order = self.selected_order.get()
-        # TODO: Lanzarlo en un hilo paralelo para que no se pare la aplicación
-        animes_filter, last_page = self.animeflv_api.search_animes_by_genres_and_order(selected_genres, selected_order)
-        self.__display_animes(animes_filter, last_page)
+        self.selected_genres = [genre for genre, var in self.genre_vars.items() if var.get()]
+        self.__show_loading_frame()
+
+    def __show_loading_frame(self, text_entry: str = None, page: int = 1):
+        if self.__loading_frame is not None and self.__loading_frame.winfo_exists():
+            self.__loading_frame.grid_forget()
+        if self.__episodes_filter_frame is not None and self.__episodes_filter_frame.winfo_exists():
+            for widget in self.__episodes_filter_frame.winfo_children():
+                widget.destroy()
+            self.__episodes_filter_frame.destroy()
+        if self.__pagination_frame is not None and self.__pagination_frame.winfo_exists():
+            self.__pagination_frame.grid_forget()
+
+        self.__loading_frame = ctk.CTkFrame(self.main_window.content_frame)
+        self.__loading_frame.grid(row=6, column=0, columnspan=3, padx=5, pady=10, sticky="ew")
+
+        # Centrar el frame
+        # x_position = (self.main_window.winfo_width() / 1.5)
+        # y_position = (self.main_window.winfo_height() / 1.5)
+        # self.__loading_frame.place(x=x_position, y=y_position)
+
+        # Mostrar el texto de "Cargando biblioteca de anime"
+        loading_label = ctk.CTkLabel(
+            self.__loading_frame,
+            text="Buscando animes...",
+            font=ctk.CTkFont(size=24, weight="bold")
+        )
+        loading_label.pack(pady=20)
+
+        # Cargar y mostrar el GIF con todos los frames
+        loading_image_path = get_resource_path("resources/images/utils/loading-image.gif")
+        gif_image = Image.open(loading_image_path)
+        gif_frames = [ctk.CTkImage(frame.copy(), size=(300, 300)) for frame in ImageSequence.Iterator(gif_image)]
+        loading_image_label = ctk.CTkLabel(self.__loading_frame, text="")
+        loading_image_label.pack(pady=20)
+
+        # Crear y mostrar la barra de progreso
+        # progress_bar = ctk.CTkProgressBar(self.__loading_frame, width=400)
+        # progress_bar.set(0)
+        # progress_bar.pack(pady=10)
+        # progress_label = ctk.CTkLabel(self.__loading_frame, text="0 %")
+        # progress_label.pack(pady=5)
+
+        def update_gif(frame=0):
+            if self.__loading_frame and self.__loading_frame.winfo_exists() and loading_image_label.winfo_exists():
+                loading_image_label.configure(image=gif_frames[frame])
+                frame = (frame + 1) % len(gif_frames)  # Continuar en bucle
+                self.after(100, update_gif, frame)  # Controla la velocidad de cambio de frame (100 ms)
+
+        update_gif()
+
+        if text_entry == "" or text_entry is not None:
+            self.__current_search_thread = threading.Thread(
+                target=self.__search_anime_by_query,
+                args=(text_entry, page,),
+                daemon=True
+            ).start()
+        else:
+            self.__current_search_thread = threading.Thread(
+                target=self.__search_anime_by_filter,
+                args=(page,),
+                daemon=True
+            ).start()
+
+    def __search_anime_by_query(self, text_entry: str, page: int = 1):
+        animes_query, last_page = self.animeflv_api.search_animes_by_query(text_entry, page)
+        self.__display_animes(animes_query, last_page, current_page=page, text_query=text_entry)
+
+    def __search_anime_by_filter(self, page: int = 1):
+        animes_filter, last_page = self.animeflv_api.search_animes_by_genres_and_order(self.selected_genres, self.selected_order.get(), page)
+        self.__display_animes(animes_filter, last_page, current_page=page)
 
     def __display_animes(self, animes: List[AnimeInfo], last_page: int, current_page: int = 1, text_query: str = None):
-        if self.__episodes_filter_frame is not None:
-            self.__episodes_filter_frame.destroy()
+        self.save_anime_search(anime_list=animes, last_page=last_page, current_page=current_page, text_query=text_query)
+
+        search_images_path = get_resource_path("resources/images/search")
+        download_animes_poster(search_images_path, animes)
+
+        if self.__loading_frame is not None and self.__loading_frame.winfo_exists():
+            self.__loading_frame.grid_forget()
+        if self.__pagination_frame is not None and self.__pagination_frame.winfo_exists():
+            self.__pagination_frame.grid_forget()
 
         self.__episodes_filter_frame = ctk.CTkFrame(self.main_window.content_frame)
         self.__episodes_filter_frame.grid(row=5, column=0, padx=5, pady=10, sticky="w")
@@ -151,10 +259,8 @@ class SearchButton(utilsButtons.SidebarButton):
             row = index // num_columns
             column = index % num_columns
 
-            # Cargar la imagen desde el archivo en lugar de la URL
-            with urllib.request.urlopen(anime.poster) as url:
-                # Cargar la imagen directamente desde los bytes descargados
-                image = ctk.CTkImage(Image.open(BytesIO(url.read())), size=(130, 185))
+            img_file = f"{anime.id}.jpg"
+            image = load_image(os.path.join(search_images_path, img_file))
 
             img_label = ctk.CTkLabel(
                 self.__episodes_filter_frame,
@@ -177,9 +283,6 @@ class SearchButton(utilsButtons.SidebarButton):
         self.__display_pagination_buttons(last_page, current_page, text_query)
 
     def __display_pagination_buttons(self, last_page: int, current_page: int, text_query: str):
-        if self.__pagination_frame is not None:
-            self.__pagination_frame.destroy()
-
         # Frame de paginación
         self.__pagination_frame = ctk.CTkFrame(self.main_window.content_frame)
         self.__pagination_frame.grid(row=6, column=0, columnspan=3, padx=5, pady=5, sticky="ew")
@@ -239,15 +342,25 @@ class SearchButton(utilsButtons.SidebarButton):
         next_button.grid(row=0, column=7, padx=(5, 10), pady=5, sticky="ew")
 
     def __load_page(self, page: int, text_query: str):
-        # Carga la nueva página usando la lógica del filtro actual
-        if text_query == "" or text_query is not None:
-            animes, last_page = self.animeflv_api.search_animes_by_query(query=text_query, page=page)
-        else:
-            selected_genres = [genre for genre, var in self.genre_vars.items() if var.get()]
-            animes, last_page = self.animeflv_api.search_animes_by_genres_and_order(genres=self.selected_genres,
-                                                                                    order=self.selected_order.get(),
-                                                                                    page=page)
-        self.__display_animes(animes, last_page, page, text_query=text_query)
+        if self.__current_search_thread and self.__current_search_thread.is_alive():
+            return
+        self.__current_search_thread = threading.Thread(
+            target=self.__search_and_display_animes,
+            args=(page, text_query),
+            daemon=True
+        ).start()
+
+    def __search_and_display_animes(self, page, text_query: str = None):
+        self.__show_loading_frame(text_entry=text_query, page=page)
+        # # Carga la nueva página usando la lógica del filtro actual
+        # if text_query == "" or text_query is not None:
+        #     animes, last_page = self.animeflv_api.search_animes_by_query(query=text_query, page=page)
+        # else:
+        #     selected_genres = [genre for genre, var in self.genre_vars.items() if var.get()]
+        #     animes, last_page = self.animeflv_api.search_animes_by_genres_and_order(genres=self.selected_genres,
+        #                                                                             order=self.selected_order.get(),
+        #                                                                             page=page)
+        # self.__display_animes(animes, last_page, current_page=page, text_query=text_query)
 
     def __on_anime_click(self, anime_id: Union[str, int]):
         # Reemplazar el anime en la lista

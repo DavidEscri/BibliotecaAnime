@@ -8,7 +8,7 @@ import os
 import sys
 import tkinter as tk
 import customtkinter as ctk
-from PIL import Image, ImageTk
+from PIL import Image
 from io import BytesIO
 import requests
 
@@ -42,8 +42,28 @@ def update_gif(label: tk.Label, gif_frames: list, root: tk.Tk, frame = 0):
     frame = (frame + 1) % len(gif_frames)
     root.after(100, update_gif, frame)
 
+def download_animes_poster(images_path, animes):
+    if not os.path.exists(images_path):
+        os.makedirs(images_path)
 
-def download_images(images_path, recent_animes, progress_bar: ctk.CTkProgressBar, progress_label: ctk.CTkLabel):
+    current_animes_images = os.listdir(images_path)
+    for index, anime in enumerate(animes):
+        image_name = f"{anime.id}.jpg"
+        if image_name in current_animes_images:
+            continue
+        response = requests.get(anime.poster)
+        img_data = Image.open(BytesIO(response.content)).resize((130, 185))
+        img_data.save(os.path.join(images_path, image_name))
+
+    for image in current_animes_images:
+        if not any(image == f"{anime.id}.jpg" for anime in animes):
+            try:
+                os.remove(os.path.join(images_path, image))
+            except Exception as e:
+                print(f"No se pudo borrar la imagen {image}: {e}")
+                continue
+
+def download_images_progress(images_path, recent_animes, progress_bar: ctk.CTkProgressBar, progress_label: ctk.CTkLabel):
     if not os.path.exists(images_path):
         os.makedirs(images_path)
 

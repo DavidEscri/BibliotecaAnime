@@ -18,11 +18,11 @@ from gui.sidebarButtons.favouriteAnimes.favouriteAnimes import FavouritesButton
 from gui.sidebarButtons.finishedAnimes.finishedAnimes import FinishedAnimeButton
 from gui.sidebarButtons.pendingAnimes.pendingAnimes import PendingAnimeButton
 from gui.sidebarButtons.recentAnimes.recentAnimes import RecentAnimeButton
-from gui.sidebarButtons.searchAnimes.searchAnimes import SearchButton
+from gui.sidebarButtons.searchAnimes.searchAnimes import SearchButton, AnimeSearch
 from gui.sidebarButtons.watchingAnimes.watchingAnimes import WatchingAnimeButton
 from utils.buttons.utilsButtons import SidebarButton
 
-from utils.utils import download_images, get_resource_path
+from utils.utils import get_resource_path, download_images_progress
 
 
 class MainWindow(ctk.CTk):
@@ -46,10 +46,11 @@ class MainWindow(ctk.CTk):
         self.__search_animes_button: SearchButton = None
 
         self.recent_animes: List[AnimeInfo] = []
-        self.favourites_animes: List[AnimeInfo] = []
+        self.favourite_animes: List[AnimeInfo] = []
         self.finished_animes: List[AnimeInfo] = []
         self.watching_animes: List[AnimeInfo] = []
         self.pending_animes: List[AnimeInfo] = []
+        self.last_search_instance: AnimeSearch = None
         self.images_path = get_resource_path("resources/images/recent_animes")
 
         self.load_sidebar_buttons()
@@ -204,13 +205,13 @@ class MainWindow(ctk.CTk):
             return
         progress_bar.set(0.9)
         progress_label.configure(text="90 %")
-        download_images(self.images_path, self.recent_animes, progress_bar, progress_label)  # Descargar imágenes
+        download_images_progress(self.images_path, self.recent_animes, progress_bar, progress_label)  # Descargar imágenes
         loading_frame.place_forget()
         self.__recent_animes_button.show_frame()  # Mostrar animes recientes al finalizar la descarga
 
     def load_animes(self, progress_bar: ctk.CTkProgressBar, progress_label: ctk.CTkLabel):
         self.animes_persistence.start()
-        self.favourites_animes = self.animes_persistence.get_favourite_animes()
+        self.favourite_animes = self.animes_persistence.get_favourite_animes()
         progress_bar.set(0.1)
         progress_label.configure(text="10 %")
         self.finished_animes = self.animes_persistence.get_finished_animes()

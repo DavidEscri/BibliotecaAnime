@@ -17,8 +17,8 @@ from utils.buttons import utilsButtons
 from utils.utils import refactor_genre_text, get_resource_path
 
 
-#TODO: Al ver un episodio, se deberá preguntar si se quiere ver el siguiente. 500 -> 501 -> 502...
-# al final de la lista de episodios nuevo frame del estilo. "Si te ha gustado One piece, te puede interesar..." y mostrar 4 animes con los mimos generos.
+# TODO: Al final de la lista de episodios nuevo frame del estilo. "Si te ha gustado One piece, te puede interesar..." y
+#  mostrar 4 animes con los mimos generos.
 
 class AnimeWindowViewer:
     def __init__(self, main_window, anime_info: AnimeInfo):
