@@ -8,7 +8,7 @@ import json
 import os
 
 from APIs.animeflv.animeflv import AnimeInfo
-from src.utils.db.sqlite import ServiceDB
+from utils.db.sqlite import ServiceDB
 from utils.utils import get_resource_path
 
 
