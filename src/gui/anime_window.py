@@ -7,14 +7,18 @@ __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __
 import json
 import os
 import webbrowser
+from io import BytesIO
 
 import customtkinter as ctk
 from typing import List
 
+import requests
+from PIL import Image
+
 from APIs.animeflv.animeflv import AnimeFLV, AnimeInfo, AnimeFLVSingleton, EpisodeInfo, ServerInfo
 from utils import utils
 from utils.buttons import utilsButtons
-from utils.utils import refactor_genre_text, get_resource_path
+from utils.utils import refactor_genre_text, get_resource_path, get_anime_image
 
 
 # TODO: Al final de la lista de episodios nuevo frame del estilo. "Si te ha gustado One piece, te puede interesar..." y
@@ -64,8 +68,7 @@ class AnimeWindowViewer:
         self.main_window.content_frame.grid_columnconfigure(3, weight=1)  # Añadir espacio para los botones
 
         # Cargar la imagen del póster
-        image_path = os.path.join(self.main_window.images_path, f"{self.anime_info.id}.jpg")
-        anime_image = utils.load_image(image_path, image_size=(195, 270))
+        anime_image = get_anime_image(self.anime_info)
 
         # Crear el frame para contener el póster y la información
         info_frame = ctk.CTkFrame(self.main_window.content_frame, fg_color="white")

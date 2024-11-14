@@ -12,7 +12,6 @@ from PIL import Image
 from io import BytesIO
 import requests
 
-
 def removeprefix(text: str, prefix_text: str) -> str:
     """
     Remove the prefix of a given string if it contains that
@@ -90,6 +89,19 @@ def download_images_progress(images_path, recent_animes, progress_bar: ctk.CTkPr
                 print(f"No se pudo borrar la imagen {image}: {e}")
                 continue
 
+
+def get_anime_image(anime, image_size: tuple[int, int] = (195, 275)) -> ctk.CTkImage:
+    base_dir = get_resource_path("resources/images")
+    subfolders = ["favorites", "finished", "pending", "recent_animes", "search"]
+    for subfolder in subfolders:
+        folder_path = os.path.join(base_dir, subfolder)
+        if not os.path.exists(folder_path) or not os.path.isdir(folder_path):
+            continue
+        image_path = os.path.join(folder_path, f"{anime.id}.jpg")
+        if os.path.exists(image_path):
+            return load_image(image_path, image_size)
+    response = requests.get(anime.poster)
+    return ctk.CTkImage(Image.open(BytesIO(response.content)).resize(image_size))
 
 def load_image(image_path: str, image_size: tuple[int, int] = (130, 185)):
     if os.path.exists(image_path):
