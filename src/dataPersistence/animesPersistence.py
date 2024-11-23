@@ -6,8 +6,9 @@ __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __
 
 import json
 import os
+from typing import List
 
-from APIs.animeflv.animeflv import AnimeInfo
+from APIs.animeflv.animeflv import AnimeInfo, AnimeGenreFilter, AnimeOrderFilter
 from utils.db.sqlite import ServiceDB
 from utils.utils import get_resource_path
 
@@ -62,6 +63,31 @@ class AnimesPersistence(ServiceDB):
     def get_anime_by_anime_id(self, anime_id: int):
         sql: str = f"SELECT * FROM {self._table_name} WHERE {self._list_fields[self.POS_ANIME_ID]} = '{anime_id}'"
         return self._db.query_sql(sql, tuple(), self._list_fields)
+
+    def get_anime_by_anime_genre_and_order(self, genres: List[AnimeGenreFilter], order: AnimeOrderFilter):
+        genre_conditions = " OR ".join(
+            [f"{self._list_fields[self.POS_GENRES]} LIKE '%\"{genre.value}\"%'" for genre in genres])
+        sql: str = f"SELECT * FROM {self._table_name} WHERE {genre_conditions}"
+        res, animes_filtered = self._db.query_sql(sql, tuple(), self._list_fields)
+        if not res:
+            return res, []
+        if order != "default":
+            return res, animes_filtered
+        if len(genres) == 0:
+            return res, animes_filtered
+
+        filter_genres = set(genre.value for genre in genres)
+
+        def count_matching_genres(anime):
+            # Convierte la cadena de géneros en una lista
+            anime_genres = set(eval(anime["genres"]))
+            # Cuenta los géneros coincidentes
+            return len(filter_genres.intersection(anime_genres))
+
+        # Ordena los animes: primero los que coinciden con más géneros
+        animes_filtered.sort(key=lambda anime: count_matching_genres(anime), reverse=True)
+        return res, animes_filtered
+
 
     def get_favourite_animes(self):
         sql: str = f"SELECT * FROM {self._table_name} WHERE {self._list_fields[self.POS_IS_FAVOURITE]} = True"
