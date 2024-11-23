@@ -5,15 +5,11 @@ __version__ = "0.1"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 import json
-import os
+import time
 import webbrowser
-from io import BytesIO
 
 import customtkinter as ctk
 from typing import List
-
-import requests
-from PIL import Image
 
 from APIs.animeflv.animeflv import AnimeFLV, AnimeInfo, AnimeFLVSingleton, EpisodeInfo, ServerInfo
 from utils import utils
@@ -58,6 +54,8 @@ class AnimeWindowViewer:
         self.__anime_is_pending = anime[0]["is_pending"]
 
     def __display_anime_info(self):
+        self.main_window.clear_frame()
+        time.sleep(0.1)
         # Configuración inicial del layout en content_frame
         self.main_window.content_frame.grid_rowconfigure(0, weight=1)
         self.main_window.content_frame.grid_rowconfigure(1, weight=1)
