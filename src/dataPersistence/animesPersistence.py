@@ -6,11 +6,18 @@ __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __
 
 import json
 import os
+from enum import Enum
 from typing import List
 
 from APIs.animeflv.animeflv import AnimeInfo, AnimeGenreFilter, AnimeOrderFilter
 from utils.db.sqlite import ServiceDB
 from utils.utils import get_resource_path
+
+class AnimeStatus(Enum):
+    FAVOURITE: str = "is_favourite"
+    WATCHING: str = "is_watching"
+    FINISHED: str = "is_finished"
+    PENDING: str = "is_pending"
 
 
 class AnimesPersistence(ServiceDB):
@@ -64,10 +71,10 @@ class AnimesPersistence(ServiceDB):
         sql: str = f"SELECT * FROM {self._table_name} WHERE {self._list_fields[self.POS_ANIME_ID]} = '{anime_id}'"
         return self._db.query_sql(sql, tuple(), self._list_fields)
 
-    def get_anime_by_anime_genre_and_order(self, genres: List[AnimeGenreFilter], order: AnimeOrderFilter):
+    def __get_anime_by_genre_and_order(self, status: AnimeStatus, genres: List[AnimeGenreFilter], order: AnimeOrderFilter):
         genre_conditions = " OR ".join(
             [f"{self._list_fields[self.POS_GENRES]} LIKE '%\"{genre.value}\"%'" for genre in genres])
-        sql: str = f"SELECT * FROM {self._table_name} WHERE {genre_conditions}"
+        sql: str = f"SELECT * FROM {self._table_name} WHERE (({genre_conditions}) AND {status.value} = True)"
         res, animes_filtered = self._db.query_sql(sql, tuple(), self._list_fields)
         if not res:
             return res, []
@@ -93,17 +100,29 @@ class AnimesPersistence(ServiceDB):
         sql: str = f"SELECT * FROM {self._table_name} WHERE {self._list_fields[self.POS_IS_FAVOURITE]} = True"
         return self._db.query_sql(sql, tuple(), self._list_fields)
 
+    def get_favourite_animes_by_genre_and_order(self, genres: List[AnimeGenreFilter], order: AnimeOrderFilter):
+        return self.__get_anime_by_genre_and_order(AnimeStatus.FAVOURITE, genres, order)
+
     def get_watching_animes(self):
         sql: str = f"SELECT * FROM {self._table_name} WHERE {self._list_fields[self.POS_IS_WATCHING]} = True"
         return self._db.query_sql(sql, tuple(), self._list_fields)
+
+    def get_watching_animes_by_genre_and_order(self, genres: List[AnimeGenreFilter], order: AnimeOrderFilter):
+        return self.__get_anime_by_genre_and_order(AnimeStatus.WATCHING, genres, order)
 
     def get_pending_animes(self):
         sql: str = f"SELECT * FROM {self._table_name} WHERE {self._list_fields[self.POS_IS_PENDING]} = True"
         return self._db.query_sql(sql, tuple(), self._list_fields)
 
+    def get_pending_animes_by_genre_and_order(self, genres: List[AnimeGenreFilter], order: AnimeOrderFilter):
+        return self.__get_anime_by_genre_and_order(AnimeStatus.PENDING, genres, order)
+
     def get_finished_animes(self):
         sql: str = f"SELECT * FROM {self._table_name} WHERE {self._list_fields[self.POS_IS_FINISHED]} = True"
         return self._db.query_sql(sql, tuple(), self._list_fields)
+
+    def get_finished_animes_by_genre_and_order(self, genres: List[AnimeGenreFilter], order: AnimeOrderFilter):
+        return self.__get_anime_by_genre_and_order(AnimeStatus.FINISHED, genres, order)
 
     def update_anime_to_favourite(self, anime_record: AnimeInfo):
         res, animes = self.get_anime_by_anime_id(anime_record.id)
