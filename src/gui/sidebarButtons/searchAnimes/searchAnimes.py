@@ -47,7 +47,7 @@ class SearchButton(utilsButtons.SidebarButton):
         self.genre_vars = {genre: ctk.BooleanVar() for genre in anime_genres}
 
         self.order_options: List[AnimeOrderFilter] = list(AnimeOrderFilter)
-        self.selected_order = ctk.StringVar(name=AnimeOrderFilter.POR_DEFECTO.name, value=AnimeOrderFilter.POR_DEFECTO.value)
+        self.selected_order = ctk.StringVar(value=AnimeOrderFilter.POR_DEFECTO.value)
         self.__current_search_thread: threading.Thread = None
         self.__loading_frame: ctk.CTkFrame = None
 
