@@ -12,9 +12,11 @@ import customtkinter as ctk
 from typing import List
 
 from APIs.animeflv.animeflv import AnimeFLV, AnimeInfo, AnimeFLVSingleton, EpisodeInfo, ServerInfo
+from dataPersistence.animesPersistence import AnimeStatus
 from utils import utils
 from utils.buttons import utilsButtons
-from utils.utils import refactor_genre_text, get_resource_path, get_anime_image
+from utils.utils import refactor_genre_text, get_resource_path, get_anime_image, download_anime_poster_by_status, \
+    remove_anime_poster_by_status
 
 
 # TODO: Al final de la lista de episodios nuevo frame del estilo. "Si te ha gustado One piece, te puede interesar..." y
@@ -181,18 +183,21 @@ class AnimeWindowViewer:
 
     def add_to_favorites(self):
         self.main_window.animes_persistence.update_anime_to_favourite(self.anime_info)
+        download_anime_poster_by_status(AnimeStatus.FAVOURITE, self.anime_info)
         print(f"{self.anime_info.title} añadido a favoritos.")
         self.__anime_is_favourite = True
         self.__display_anime_status()
 
     def remove_from_favorites(self):
         self.main_window.animes_persistence.update_anime_to_not_favourite(self.anime_info.id)
+        remove_anime_poster_by_status(AnimeStatus.FAVOURITE, self.anime_info)
         print(f"{self.anime_info.title} eliminado de favoritos.")
         self.__anime_is_favourite = False
         self.__display_anime_status()
 
     def add_to_finished(self):
         self.main_window.animes_persistence.update_anime_to_finished(self.anime_info)
+        download_anime_poster_by_status(AnimeStatus.FINISHED, self.anime_info)
         print(f"{self.anime_info.title} añadido a finalizados.")
         self.__anime_is_finished = True
         self.__anime_is_watching = False
@@ -201,6 +206,7 @@ class AnimeWindowViewer:
 
     def remove_from_finished(self):
         self.main_window.animes_persistence.update_anime_to_not_finished(self.anime_info.id)
+        remove_anime_poster_by_status(AnimeStatus.FINISHED, self.anime_info)
         print(f"{self.anime_info.title} eliminado de finalizados.")
         self.__anime_is_finished = False
         self.__anime_is_pending = True
@@ -208,6 +214,7 @@ class AnimeWindowViewer:
 
     def add_to_watching(self):
         self.main_window.animes_persistence.update_anime_to_watching(self.anime_info)
+        download_anime_poster_by_status(AnimeStatus.WATCHING, self.anime_info)
         print(f"{self.anime_info.title} añadido a viendo.")
         self.__anime_is_finished = False
         self.__anime_is_watching = True
@@ -216,12 +223,14 @@ class AnimeWindowViewer:
 
     def remove_from_watching(self):
         self.main_window.animes_persistence.update_anime_to_not_watching(self.anime_info.id)
+        remove_anime_poster_by_status(AnimeStatus.WATCHING, self.anime_info)
         print(f"{self.anime_info.title} eliminado de viendo.")
         self.__anime_is_watching = False
         self.__display_anime_status()
 
     def add_to_pending(self):
         self.main_window.animes_persistence.update_anime_to_pending(self.anime_info)
+        download_anime_poster_by_status(AnimeStatus.PENDING, self.anime_info)
         print(f"{self.anime_info.title} añadido a pendientes.")
         self.__anime_is_finished = False
         self.__anime_is_watching = False
@@ -230,6 +239,7 @@ class AnimeWindowViewer:
 
     def remove_from_pending(self):
         self.main_window.animes_persistence.update_anime_to_not_pending(self.anime_info.id)
+        remove_anime_poster_by_status(AnimeStatus.PENDING, self.anime_info)
         print(f"{self.anime_info.title} eliminado de pendientes.")
         self.__anime_is_pending = False
         self.__display_anime_status()
