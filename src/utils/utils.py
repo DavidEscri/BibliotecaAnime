@@ -41,6 +41,24 @@ def update_gif(label: tk.Label, gif_frames: list, root: tk.Tk, frame = 0):
     frame = (frame + 1) % len(gif_frames)
     root.after(100, update_gif, frame)
 
+def download_anime_poster_by_status(status, anime):
+    anime_status_dir = get_resource_path(f"resources/images/{status.name.lower()}")
+    if not os.path.exists(anime_status_dir):
+        os.makedirs(anime_status_dir)
+    image_name = f"{anime.id}.jpg"
+    response = requests.get(anime.poster)
+    img_data = Image.open(BytesIO(response.content)).resize((130, 185))
+    img_data.save(os.path.join(anime_status_dir, image_name))
+
+def remove_anime_poster_by_status(status, anime):
+    anime_status_dir = get_resource_path(f"resources/images/{status.name.lower()}")
+    image_name = f"{anime.id}.jpg"
+    anime_poster_path = os.path.join(anime_status_dir, image_name)
+    if not os.path.exists(anime_poster_path):
+        print(f"No existe el poster para el anime {anime.title} con estado {status.name}")
+        return
+    os.remove(anime_poster_path)
+
 def download_animes_poster(images_path, animes):
     if not os.path.exists(images_path):
         os.makedirs(images_path)
@@ -92,7 +110,7 @@ def download_images_progress(images_path, recent_animes, progress_bar: ctk.CTkPr
 
 def get_anime_image(anime, image_size: tuple[int, int] = (195, 275)) -> ctk.CTkImage:
     base_dir = get_resource_path("resources/images")
-    subfolders = ["favorites", "finished", "pending", "recent_animes", "search"]
+    subfolders = ["favourite", "finished", "pending", "recent_animes", "search"]
     for subfolder in subfolders:
         folder_path = os.path.join(base_dir, subfolder)
         if not os.path.exists(folder_path) or not os.path.isdir(folder_path):
