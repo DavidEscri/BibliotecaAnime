@@ -70,12 +70,12 @@ class FavouritesButton(utilsButtons.SidebarButton):
             cb_display_anime=self.__display_animes
         )
 
-        self.__display_animes(self.main_window.favourite_animes)
+        self.__display_animes(self.animes_persistence.get_favourite_animes())
 
     def __search_anime(self, search_entry: ctk.CTkEntry):
         search_text = search_entry.get()
         if len(search_text) == 0:
-            self.__display_animes(self.main_window.favourite_animes)
+            self.__display_animes(self.animes_persistence.get_favourite_animes())
             return
         query_animes: List[AnimeInfo] = self.animeflv_api.search_animes_by_query(search_text)[0]
         if len(query_animes) == 0:
