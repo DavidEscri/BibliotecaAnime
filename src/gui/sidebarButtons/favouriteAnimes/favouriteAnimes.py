@@ -25,6 +25,7 @@ class FavouritesButton(utilsButtons.SidebarButton):
         self.main_window = main_window
         self.animeflv_api: AnimeFLV = AnimeFLVSingleton()
         self.animes_persistence: AnimesPersistence = AnimesPersistenceSingleton()
+        self.__episodes_frame: ctk.CTkFrame = None
 
     def show_frame(self):
         self.main_window.clear_frame()
@@ -93,8 +94,12 @@ class FavouritesButton(utilsButtons.SidebarButton):
         self.__display_animes(list_favourite_animes)
 
     def __display_animes(self, favourite_animes: List[dict]):
-        episodes_frame = ctk.CTkFrame(self.main_window.content_frame)
-        episodes_frame.grid(row=5, column=0, padx=10, pady=10, sticky=ctk.EW)
+        if self.__episodes_frame is not None and self.__episodes_frame.winfo_exists():
+            for widget in self.__episodes_frame.winfo_children():
+                widget.destroy()
+            self.__episodes_frame.destroy()
+        self.__episodes_frame = ctk.CTkFrame(self.main_window.content_frame)
+        self.__episodes_frame.grid(row=5, column=0, padx=10, pady=10, sticky=ctk.EW)
 
         num_columns = max(1, self.main_window.content_frame.winfo_width() // 150)
         for index, anime in enumerate(favourite_animes):
@@ -104,7 +109,7 @@ class FavouritesButton(utilsButtons.SidebarButton):
             image = load_image(get_resource_path(f"resources/images/favourite/{anime['anime_id']}.jpg"))
 
             img_label = ctk.CTkLabel(
-                episodes_frame,
+                self.__episodes_frame,
                 text="",
                 image=image
             )
@@ -113,7 +118,7 @@ class FavouritesButton(utilsButtons.SidebarButton):
 
             # Título del anime
             title_label = ctk.CTkLabel(
-                episodes_frame,
+                self.__episodes_frame,
                 text=anime["title"],
                 font=ctk.CTkFont(size=14),
                 wraplength=120,
