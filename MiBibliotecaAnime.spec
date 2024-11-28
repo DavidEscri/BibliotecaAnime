@@ -8,13 +8,18 @@ a = Analysis(
     binaries=[],
     datas=[
         ('resources/DB', 'resources/DB'),
-        ('resources/images/favorites', 'resources/images/favorites'),
+        ('resources/images/favourite', 'resources/images/favourite'),
+        ('resources/images/finished', 'resources/images/finished'),
+        ('resources/images/pending', 'resources/images/pending'),
+        ('resources/images/watching', 'resources/images/watching'),
+        ('resources/images/search', 'resources/images/search'),
         ('resources/images/recent_animes', 'resources/images/recent_animes'),
         ('resources/images/utils', 'resources/images/utils')
     ],
     hiddenimports=[
         'APIs.animeflv.animeflv',
-        'gui.sidebarButtons.favoriteAnimes.favoriteAnimes',
+        'dataPersistence.animesPersistence',
+        'gui.sidebarButtons.favouriteAnimes.favouriteAnimes',
         'gui.sidebarButtons.finishedAnimes.finishedAnimes',
         'gui.sidebarButtons.pendingAnimes.pendingAnimes',
         'gui.sidebarButtons.recentAnimes.recentAnimes',
@@ -23,6 +28,8 @@ a = Analysis(
         'gui.sidebarButtons.sidebarButton',
         'gui.anime_windows',
         'gui.main_window',
+        'utils.buttons.utilsButtons',
+        'utils.db.sqlite',
         'utils.utils'
     ],
     hookspath=[],
