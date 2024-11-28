@@ -1,5 +1,7 @@
 # -*- mode: python ; coding: utf-8 -*-
 
+APP_VERSION = "0.9.1"
+
 block_cipher = None
 
 a = Analysis(
@@ -48,14 +50,14 @@ exe = EXE(
     a.scripts,
     [],
     exclude_binaries=True,
-    name='MiBibliotecaAnime',
+    name=f'MiBibliotecaAnime_v{APP_VERSION}',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
-    upx=True,
+    upx=False,
     upx_exclude=[],
     runtime_tmpdir=None,
-    console=False,  # Cambia a True si deseas que el programa abra una ventana de consola
+    console=False,
     icon='resources/images/utils/app_icon.ico'
 )
 
@@ -65,7 +67,7 @@ coll = COLLECT(
     a.zipfiles,
     a.datas,
     strip=False,
-    upx=True,
+    upx=False,
     upx_exclude=[],
-    name='MiBibliotecaAnime'
+    name=f'MiBibliotecaAnime_v{APP_VERSION}'
 )
