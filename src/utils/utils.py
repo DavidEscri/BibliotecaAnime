@@ -137,4 +137,8 @@ def get_resource_path(relative_path):
     if is_running_as_exe():
         # Si está empaquetado, _MEIPASS contendrá la ruta temporal donde se extraen los archivos
         return os.path.join(sys._MEIPASS, relative_path)
-    return os.path.join(os.path.abspath(".."), relative_path)
+    # Cuando se ejecuta como script, calcular la raíz del proyecto a partir
+    # de la ubicación de este módulo (src/utils/utils.py -> project root)
+    base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+    return os.path.normpath(os.path.join(base_dir, relative_path))
+    # return os.path.join(os.path.abspath(".."), relative_path)

@@ -9,7 +9,7 @@ import os
 from enum import Enum
 from typing import List
 
-from APIs.animeflv.animeflv import AnimeInfo, AnimeGenreFilter, AnimeOrderFilter
+from APIs.animeflv.animeflv import AnimeInfo, AnimeGenreFilter, AnimeOrderFilter, EpisodeInfo
 from utils.db.sqlite import ServiceDB
 from utils.utils import get_resource_path
 
@@ -237,7 +237,7 @@ class AnimesPersistence(ServiceDB):
               f"WHERE {self._list_fields[self.POS_ANIME_ID]} = '{anime_record.id}'"
         return self._db.update_sql(sql, tuple())
 
-    def update_anime_to_not_finished(self, anime_id):
+    def update_anime_to_not_finished(self, anime_id: int):
         res, anime = self.get_anime_by_anime_id(anime_id)
         if not res:
             return False
@@ -246,7 +246,7 @@ class AnimesPersistence(ServiceDB):
               f"WHERE {self._list_fields[self.POS_ANIME_ID]} = '{anime_id}'"
         return self._db.update_sql(sql, tuple())
 
-    def update_anime_episodes(self, anime_id, episodes: AnimeInfo.episodes):
+    def update_anime_episodes(self, anime_id, episodes: List[EpisodeInfo]):
         new_episodes_list = [episode.id for episode in episodes][::-1]
         sql = f"UPDATE {self._table_name} SET episodes = '{new_episodes_list}' " \
               f"WHERE {self._list_fields[self.POS_ANIME_ID]} = '{anime_id}'"
