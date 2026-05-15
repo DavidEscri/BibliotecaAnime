@@ -14,10 +14,10 @@ from utils.db.sqlite import ServiceDB
 from utils.utils import get_resource_path
 
 class AnimeStatus(Enum):
-    FAVOURITE = "is_favourite"
-    WATCHING = "is_watching"
-    FINISHED = "is_finished"
-    PENDING = "is_pending"
+    FAVOURITE: str = "is_favourite"
+    WATCHING: str = "is_watching"
+    FINISHED: str = "is_finished"
+    PENDING: str = "is_pending"
 
 
 class AnimesPersistence(ServiceDB):
