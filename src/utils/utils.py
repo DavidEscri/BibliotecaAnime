@@ -6,11 +6,20 @@ __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __
 
 import os
 import sys
+import threading
 import tkinter as tk
 import customtkinter as ctk
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from PIL import Image
 from io import BytesIO
 import requests
+
+# Número de hilos paralelos para descarga de imágenes.
+# 8 es el equilibrio entre velocidad y no saturar el servidor de AnimeFLV.
+_MAX_DOWNLOAD_WORKERS = 8
+
+# Timeout en segundos para cada petición de imagen.
+_REQUEST_TIMEOUT = 10
 
 def removeprefix(text: str, prefix_text: str) -> str:
     """
@@ -46,7 +55,7 @@ def download_anime_poster_by_status(status, anime):
     if not os.path.exists(anime_status_dir):
         os.makedirs(anime_status_dir)
     image_name = f"{anime.id}.jpg"
-    response = requests.get(anime.poster)
+    response = requests.get(anime.poster, timeout=_REQUEST_TIMEOUT)
     img_data = Image.open(BytesIO(response.content)).resize((130, 185))
     img_data.save(os.path.join(anime_status_dir, image_name))
 
@@ -63,17 +72,32 @@ def download_animes_poster(images_path, animes):
     if not os.path.exists(images_path):
         os.makedirs(images_path)
 
-    current_animes_images = os.listdir(images_path)
-    for index, anime in enumerate(animes):
-        image_name = f"{anime.id}.jpg"
-        if image_name in current_animes_images:
-            continue
-        response = requests.get(anime.poster)
-        img_data = Image.open(BytesIO(response.content)).resize((130, 185))
-        img_data.save(os.path.join(images_path, image_name))
+    current_animes_images = set(os.listdir(images_path))
 
+    # Filtrar solo los animes cuya imagen aún no existe en disco
+    animes_to_download = [
+        anime for anime in animes
+        if f"{anime.id}.jpg" not in current_animes_images
+    ]
+
+    def _download_single(anime):
+        image_name = f"{anime.id}.jpg"
+        try:
+            response = requests.get(anime.poster, timeout=_REQUEST_TIMEOUT)
+            img_data = Image.open(BytesIO(response.content)).resize((130, 185))
+            img_data.save(os.path.join(images_path, image_name))
+        except Exception as e:
+            print(f"Error al descargar el poster de {anime.id}: {e}")
+
+    # Descargar en paralelo solo las imágenes que faltan
+    if animes_to_download:
+        with ThreadPoolExecutor(max_workers=_MAX_DOWNLOAD_WORKERS) as executor:
+            executor.map(_download_single, animes_to_download)
+
+    # Eliminar imágenes que ya no corresponden a ningún anime de la lista actual
+    anime_ids = {f"{anime.id}.jpg" for anime in animes}
     for image in current_animes_images:
-        if not any(image == f"{anime.id}.jpg" for anime in animes):
+        if image not in anime_ids:
             try:
                 os.remove(os.path.join(images_path, image))
             except Exception as e:
@@ -85,22 +109,53 @@ def download_images_progress(images_path, recent_animes, progress_bar: ctk.CTkPr
         os.makedirs(images_path)
 
     total_images = len(recent_animes)
-    current_animes_images = os.listdir(images_path)
-    for index, anime in enumerate(recent_animes):
-        image_name = f"{anime.id}.jpg"
-        progress_percentage = round(0.9 + (0.1 * (index + 1) / total_images), 2)
-        if image_name in current_animes_images:
-            progress_bar.set(progress_percentage)  # Actualizar progreso
-            progress_label.configure(text=f"{int(progress_percentage*100)} %")  # Actualizar etiqueta
-            continue
-        response = requests.get(anime.poster)
-        img_data = Image.open(BytesIO(response.content)).resize((130, 185))
-        img_data.save(os.path.join(images_path, image_name))
-        progress_bar.set(progress_percentage)  # Actualizar progreso
-        progress_label.configure(text=f"{int(progress_percentage*100)} %")  # Actualizar etiqueta
+    if total_images == 0:
+        return
 
+    current_animes_images = set(os.listdir(images_path))
+
+    # Separar los animes en: ya en caché (progreso inmediato) y los que hay que descargar
+    cached = [a for a in recent_animes if f"{a.id}.jpg" in current_animes_images]
+    to_download = [a for a in recent_animes if f"{a.id}.jpg" not in current_animes_images]
+
+    # Contador compartido entre workers, protegido con Lock
+    completed_count = [len(cached)]  # los cacheados ya cuentan como completados
+    lock = threading.Lock()
+
+    def _update_progress():
+        progress_percentage = round(0.9 + (0.1 * completed_count[0] / total_images), 2)
+        progress_bar.set(progress_percentage)
+        progress_label.configure(text=f"{int(progress_percentage * 100)} %")
+
+    # Reflejar en la barra el progreso inicial de los ya cacheados
+    _update_progress()
+
+    def _download_single(anime):
+        image_name = f"{anime.id}.jpg"
+        try:
+            response = requests.get(anime.poster, timeout=_REQUEST_TIMEOUT)
+            img_data = Image.open(BytesIO(response.content)).resize((130, 185))
+            img_data.save(os.path.join(images_path, image_name))
+        except Exception as e:
+            print(f"Error al descargar el poster de {anime.id}: {e}")
+        finally:
+            # Actualizar el progreso de forma thread-safe
+            with lock:
+                completed_count[0] += 1
+                _update_progress()
+
+    # Descargar en paralelo las imágenes que faltan
+    if to_download:
+        with ThreadPoolExecutor(max_workers=_MAX_DOWNLOAD_WORKERS) as executor:
+            futures = {executor.submit(_download_single, anime): anime for anime in to_download}
+            # Esperar a que todos los futures terminen (as_completed ya gestiona el orden de finalización)
+            for future in as_completed(futures):
+                future.result()  # propagar excepciones no capturadas internamente
+
+    # Eliminar imágenes de animes que ya no están en la lista de recientes
+    anime_ids = {f"{anime.id}.jpg" for anime in recent_animes}
     for image in current_animes_images:
-        if not any(image == f"{anime.id}.jpg" for anime in recent_animes):
+        if image not in anime_ids:
             try:
                 os.remove(os.path.join(images_path, image))
             except Exception as e:
