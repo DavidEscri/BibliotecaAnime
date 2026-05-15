@@ -1,5 +1,11 @@
 # My .ignore project files
-resources/
+resources/DB/
+resources/images/favourite/
+resources/images/finished/
+resources/images/pending/
+resources/images/recent_animes/
+resources/images/search/
+resources/images/watching/
 
 # Created by .ignore support plugin (hsz.mobi)
 ### Python template
