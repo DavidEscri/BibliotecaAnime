@@ -266,6 +266,10 @@ class AnimeWindowViewer:
 
         self.episode_switches.clear()
 
+        bd_watched = self.main_window.animes_persistence.get_watched_episodes(self.anime_info.id)
+        for episode_info in episodes_to_show:
+            self.watched_status[episode_info.id] = episode_info.id in bd_watched
+
         # Episodios debajo de la sinopsis, alineados a la izquierda
         episodes_label = ctk.CTkLabel(
             self.__list_episodes_frame,
@@ -393,46 +397,60 @@ class AnimeWindowViewer:
             self.__display_previous_and_next_episodes(next_episode)
 
     def __toggle_episode_switch(self, episode_id: int):
-        # Encontrar el índice del episodio en anime_info.episodes usando su ID
+        # Encontrar el índice del episodio en la lista COMPLETA del anime
         try:
             index = next(i for i, ep in enumerate(self.anime_info.episodes) if ep.id == episode_id)
         except StopIteration:
             print(f"Error: Episodio con ID {episode_id} no encontrado.")
             return
 
-        # Obtener el estado actual del switch de este episodio
         current_state = self.watched_status[episode_id]
+        marking_as_watched = not current_state
 
-        # Cambiar el estado del episodio actual en el diccionario
-        self.watched_status[episode_id] = not current_state
-
-        # Control de switches en función del orden de clasificación
+        # --- 1. Actualizar switches VISIBLES en pantalla ---
+        # Solo se tocan los widgets renderizados actualmente (los 24 del frame).
         if self.sort_descending:
-            if not current_state:  # Si el episodio se marcó como "no visto"
+            if marking_as_watched:
                 for i in range(index, len(self.episode_switches)):
                     ep_id = self.anime_info.episodes[i].id
                     self.watched_status[ep_id] = True
                     self.episode_switches[i].select()
-            else:  # Si el episodio se marcó como "visto"
-                for i in range(index + 1):
-                    ep_id = self.anime_info.episodes[i].id
-                    self.watched_status[ep_id] = False
-                    self.episode_switches[i].deselect()
+            else:
+                # Unitario: solo este episodio
+                self.watched_status[episode_id] = False
+                self.episode_switches[index].deselect()
         else:
-            if not current_state:  # Si el episodio se marcó como "no visto"
-                for i in range(0, index):
+            if marking_as_watched:
+                for i in range(0, index + 1):
                     ep_id = self.anime_info.episodes[i].id
                     self.watched_status[ep_id] = True
                     self.episode_switches[i].select()
-            else:  # Si el episodio se marcó como "visto"
-                for i in range(index + 1, len(self.episode_switches)):
-                    ep_id = self.anime_info.episodes[i].id
-                    self.watched_status[ep_id] = False
-                    self.episode_switches[i].deselect()
+            else:
+                # Unitario: solo este episodio
+                self.watched_status[episode_id] = False
+                self.episode_switches[index].deselect()
 
-        # Persistir el estado actualizado en la BD
-        watched_ids = {ep_id for ep_id, seen in self.watched_status.items() if seen}
-        self.main_window.animes_persistence.update_watched_episodes(self.anime_info.id, watched_ids)
+        # --- 2. Calcular el conjunto COMPLETO a persistir ---
+        bd_watched = self.main_window.animes_persistence.get_watched_episodes(self.anime_info.id)
+
+        if marking_as_watched:
+            # Al marcar como visto: todos los episodios desde el inicio hasta
+            # episode_id (en orden real ascendente) se consideran vistos,
+            # salvo los que el usuario haya desmarcado explícitamente en BD.
+            # Los episodios posteriores no se tocan.
+            all_episodes_sorted = sorted(self.anime_info.episodes, key=lambda ep: ep.id)
+            ep_index_asc = next(i for i, ep in enumerate(all_episodes_sorted) if ep.id == episode_id)
+            # IDs de todos los episodios hasta el marcado (inclusive) en orden real
+            episodes_up_to = {ep.id for ep in all_episodes_sorted[:ep_index_asc + 1]}
+            # IDs de episodios posteriores ya vistos en BD (no los tocamos)
+            episodes_after = {ep_id for ep_id in bd_watched if ep_id > episode_id}
+            merged = episodes_up_to | episodes_after
+        else:
+            # Al desmarcar: eliminar solo este episodio, el resto se preserva intacto
+            merged = bd_watched - {episode_id}
+
+        self.main_window.animes_persistence.update_watched_episodes(self.anime_info.id, merged)
+
     def __toggle_servers_frame(self, episode_info: EpisodeInfo, servers_frames, current_row: int):
         if episode_info.id in servers_frames:
             servers_frames[episode_info.id].destroy()

@@ -73,8 +73,8 @@ class AnimesPersistence(ServiceDB):
         sql: str = f"SELECT * FROM {self._table_name} WHERE {self._list_fields[self.POS_ANIME_ID]} = '{anime_id}'"
         return self._db.query_sql(sql, tuple(), self._list_fields)
 
-    def get_watched_episodes(self, anime_id: int) -> set:
-        """Devuelve el conjunto de IDs de episodios marcados como vistos para un anime."""
+    def get_watched_episodes(self, anime_id) -> set:
+        """Devuelve el conjunto completo de IDs de episodios vistos, expandiendo rangos [[ini,fin], ...]."""
         res, animes = self.get_anime_by_anime_id(anime_id)
         if not res or len(animes) == 0:
             return set()
@@ -82,7 +82,8 @@ class AnimesPersistence(ServiceDB):
         if not raw:
             return set()
         try:
-            return set(json.loads(raw))
+            ranges = json.loads(raw)
+            return self._ranges_to_episodes(ranges)
         except (json.JSONDecodeError, TypeError):
             return set()
 
@@ -96,14 +97,48 @@ class AnimesPersistence(ServiceDB):
         res, animes = self.get_anime_by_anime_id(anime_id)
         if not res or len(animes) == 0:
             return False
-        serialized = json.dumps(sorted(watched_episode_ids))
+        ranges = self._episodes_to_ranges(watched_episode_ids)
+        serialized = json.dumps(ranges)
+        last_watched = max(watched_episode_ids) if watched_episode_ids else 0
         sql = (
             f"UPDATE {self._table_name} "
             f"SET watched_episodes = ?, last_watched_episode = ? "
             f"WHERE {self._list_fields[self.POS_ANIME_ID]} = ?"
         )
-        last_watched = max(watched_episode_ids) if watched_episode_ids else 0
         return self._db.update_sql(sql, (serialized, last_watched, str(anime_id)))
+
+    @staticmethod
+    def _episodes_to_ranges(episode_ids: set) -> list:
+        """Convierte un conjunto de IDs de episodios en rangos compactos.
+
+        Ejemplo: {1,2,3,5,6,10} → [[1,3],[5,6],[10,10]]
+        Un episodio suelto se representa como [N, N].
+        """
+        if not episode_ids:
+            return []
+        sorted_ids = sorted(episode_ids)
+        ranges = []
+        start = prev = sorted_ids[0]
+        for ep_id in sorted_ids[1:]:
+            if ep_id == prev + 1:
+                prev = ep_id
+            else:
+                ranges.append([start, prev])
+                start = prev = ep_id
+        ranges.append([start, prev])
+        return ranges
+
+    @staticmethod
+    def _ranges_to_episodes(ranges: list) -> set:
+        """Expande rangos compactos [[ini,fin], ...] a un conjunto de IDs de episodios.
+
+        Ejemplo: [[1,3],[5,6],[10,10]] → {1,2,3,5,6,10}
+        """
+        episode_ids = set()
+        for r in ranges:
+            if len(r) == 2:
+                episode_ids.update(range(r[0], r[1] + 1))
+        return episode_ids
 
     def get_anime_by_genre_and_order(self, status: AnimeStatus, genres: List[AnimeGenreFilter], order: str):
         if len(genres) > 0:
