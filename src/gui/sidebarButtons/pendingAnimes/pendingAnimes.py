@@ -11,7 +11,7 @@ from typing import List, Union
 import customtkinter as ctk
 
 from APIs.animeflv.animeflv import AnimeFLV, AnimeFLVSingleton, AnimeInfo
-from dataPersistence.animesPersistence import AnimesPersistence, AnimesPersistenceSingleton, AnimeStatus
+from dataPersistence.animesPersistence import AnimesPersistence, AnimesPersistenceSingleton, AnimeStatus, AnimeRecord
 from gui.anime_window import AnimeWindowViewer
 from utils.buttons import utilsButtons
 from utils.utils import load_image, get_resource_path
@@ -95,7 +95,7 @@ class PendingAnimeButton(utilsButtons.SidebarButton):
             list_finished_animes.append(finished_anime[0])
         self.__display_animes(list_finished_animes)
 
-    def __display_animes(self, pending_animes: List[dict]):
+    def __display_animes(self, pending_animes: List[AnimeRecord]):
         if self.__episodes_frame is not None and self.__episodes_frame.winfo_exists():
             for widget in self.__episodes_frame.winfo_children():
                 widget.destroy()
@@ -104,11 +104,11 @@ class PendingAnimeButton(utilsButtons.SidebarButton):
         self.__episodes_frame.grid(row=5, column=0, padx=10, pady=10, sticky=ctk.EW)
 
         num_columns = max(1, self.main_window.content_frame.winfo_width() // 150)
-        for index, anime in enumerate(pending_animes):
+        for index, anime_record in enumerate(pending_animes):
             row = index // num_columns
             column = index % num_columns
 
-            image = load_image(get_resource_path(f"resources/images/pending/{anime['anime_id']}.jpg"))
+            image = load_image(get_resource_path(f"resources/images/pending/{anime_record.anime_id}.jpg"))
 
             img_label = ctk.CTkLabel(
                 self.__episodes_frame,
@@ -116,12 +116,12 @@ class PendingAnimeButton(utilsButtons.SidebarButton):
                 image=image
             )
             img_label.grid(row=row * 2, column=column, padx=10, pady=(20, 0), sticky=ctk.NSEW)
-            img_label.bind("<Button-1>", lambda e, anime_id=anime['anime_id']: self.__on_anime_click(anime_id))
+            img_label.bind("<Button-1>", lambda e, anime_id=anime_record.anime_id: self.__on_anime_click(anime_id))
 
             # Título del anime
             title_label = ctk.CTkLabel(
                 self.__episodes_frame,
-                text=anime["title"],
+                text=anime_record.title,
                 font=ctk.CTkFont(size=14),
                 wraplength=120,
                 justify="center"
