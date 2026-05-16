@@ -276,7 +276,7 @@ class AnimeFLV:
                     for script in soup.find_all("script"):
                         contents = str(script)
                         if "var anime_info = [" in contents or "var episodes = [" in contents:
-                            anime_info = contents.split("var anime_info = ")[1].split(";")[0]
+                            anime_info = contents.split("var anime_info = ")[1].split("\r")[0].strip(";")
                             info_ids.append(json.loads(anime_info))
 
                             episode_info = contents.split("var episodes = ")[1].split(";")[0]
@@ -287,7 +287,7 @@ class AnimeFLV:
                         episodes.append(EpisodeInfo(id=episode, anime=anime_id))
 
                 except Exception as exc:
-                    print(f"Error al los episodios de {anime_id}: {exc}")
+                    print(f"Error al obtener los episodios de {anime_id}: {exc}")
 
                 return AnimeInfo(id=anime_id, episodes=episodes, genres=genres, **information)
 
