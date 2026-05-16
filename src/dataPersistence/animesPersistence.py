@@ -24,9 +24,9 @@ class AnimesPersistence(ServiceDB):
     DB_NAME = "DB_Animes.db"
 
     _table_name: str = "ANIMES"
-    _list_fields: list = ["id", "anime_id", "title", "poster_url", "synopsis", "genres", "episodes", "is_favourite", "is_watching",
-                          "is_finished", "is_pending", "last_watched_episode"]
-    _list_fields_type: list = ["INTEGER", "INTEGER", "VARCHAR(100)", "VARCHAR(100)", "TEXT", "JSON", "JSON", "BOOLEAN", "BOOLEAN", "BOOLEAN",
+    _list_fields: list = ["id", "anime_id", "title", "poster_url", "synopsis", "genres", "episodes", "watched_episodes", "last_watched_episode", "is_favourite", "is_watching",
+                          "is_finished", "is_pending"]
+    _list_fields_type: list = ["INTEGER", "INTEGER", "VARCHAR(100)", "VARCHAR(100)", "TEXT", "JSON", "JSON", "JSON", "INTEGER", "BOOLEAN", "BOOLEAN", "BOOLEAN",
                                "BOOLEAN", "INTEGER"]
     _primary_key: str = "id AUTOINCREMENT"
 
@@ -37,11 +37,12 @@ class AnimesPersistence(ServiceDB):
     POS_SYNOPSIS: int = 4
     POS_GENRES: int = 5
     POS_EPISODES: int = 6
-    POS_IS_FAVOURITE: int = 7
-    POS_IS_WATCHING: int = 8
-    POS_IS_FINISHED: int = 9
-    POS_IS_PENDING: int = 10
-    POS_LAST_WATCHED_EPISODE: int = 11
+    POS_LAST_WATCHED_EPISODE: int = 7
+    POS_WATCHED_EPISODES: int = 8
+    POS_IS_FAVOURITE: int = 9
+    POS_IS_WATCHING: int = 10
+    POS_IS_FINISHED: int = 11
+    POS_IS_PENDING: int = 12
 
     def __init__(self):
         try:
@@ -65,11 +66,44 @@ class AnimesPersistence(ServiceDB):
         record[self._list_fields[self.POS_GENRES]] = json.dumps(record[self._list_fields[self.POS_GENRES]])
         record[self._list_fields[self.POS_EPISODES]] = json.dumps(record[self._list_fields[self.POS_EPISODES]][::-1])
         record.setdefault("last_watched_episode", 0)
+        record.setdefault("watched_episodes", json.dumps([]))
         return self.insert_record_db(self._table_name, self._list_fields, record)
 
     def get_anime_by_anime_id(self, anime_id: int):
         sql: str = f"SELECT * FROM {self._table_name} WHERE {self._list_fields[self.POS_ANIME_ID]} = '{anime_id}'"
         return self._db.query_sql(sql, tuple(), self._list_fields)
+
+    def get_watched_episodes(self, anime_id: int) -> set:
+        """Devuelve el conjunto de IDs de episodios marcados como vistos para un anime."""
+        res, animes = self.get_anime_by_anime_id(anime_id)
+        if not res or len(animes) == 0:
+            return set()
+        raw = animes[0].get("watched_episodes")
+        if not raw:
+            return set()
+        try:
+            return set(json.loads(raw))
+        except (json.JSONDecodeError, TypeError):
+            return set()
+
+    def update_watched_episodes(self, anime_id: int, watched_episode_ids: set) -> bool:
+        """Persiste el conjunto completo de episodios vistos para un anime.
+
+        Si el anime aún no existe en la BD (nunca se añadió a ninguna lista),
+        no se hace nada — los episodios vistos solo tienen sentido para animes
+        que el usuario ha registrado en alguna categoría.
+        """
+        res, animes = self.get_anime_by_anime_id(anime_id)
+        if not res or len(animes) == 0:
+            return False
+        serialized = json.dumps(sorted(watched_episode_ids))
+        sql = (
+            f"UPDATE {self._table_name} "
+            f"SET watched_episodes = ?, last_watched_episode = ? "
+            f"WHERE {self._list_fields[self.POS_ANIME_ID]} = ?"
+        )
+        last_watched = max(watched_episode_ids) if watched_episode_ids else 0
+        return self._db.update_sql(sql, (serialized, last_watched, str(anime_id)))
 
     def get_anime_by_genre_and_order(self, status: AnimeStatus, genres: List[AnimeGenreFilter], order: str):
         if len(genres) > 0:
