@@ -209,6 +209,29 @@ class MainWindow(ctk.CTk):
         loading_frame.place_forget()
         self.__recent_animes_button.show_frame()  # Mostrar animes recientes al finalizar la descarga
 
+        # Precargar el detalle de cada anime reciente en segundo plano para que
+        # el clic del usuario sea instantáneo en lugar de bloquear la UI.
+        threading.Thread(target=self.__preload_recent_animes_info, daemon=True).start()
+
+    def __preload_recent_animes_info(self):
+        """Rellena synopsis, géneros y episodios de los animes recientes en segundo plano.
+
+        Se ejecuta en un hilo daemon tras mostrar la pantalla principal.
+        Escribe cada resultado directamente en self.recent_animes[index]; la
+        asignación de un elemento de lista es atómica en CPython (GIL), por lo
+        que no se necesita Lock.
+        """
+        for index, anime in enumerate(self.recent_animes):
+            if anime.synopsis is not None and anime.genres is not None and anime.episodes is not None:
+                # Ya precargado (p.ej. segunda apertura en la misma sesión)
+                continue
+            try:
+                anime_info = self.animeflv_api.get_anime_info(anime.id)
+                if anime_info is not None:
+                    self.recent_animes[index] = anime_info
+            except Exception as e:
+                print(f"Error al precargar info del anime {anime.id}: {e}")
+
     def load_animes(self, progress_bar: ctk.CTkProgressBar, progress_label: ctk.CTkLabel):
         self.animes_persistence.start()
         self.favourite_animes = self.animes_persistence.get_favourite_animes()
