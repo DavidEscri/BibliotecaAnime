@@ -55,6 +55,11 @@ class AnimeWindowViewer:
         self.__anime_is_watching = anime[0]["is_watching"]
         self.__anime_is_pending = anime[0]["is_pending"]
 
+        # Restaurar episodios vistos desde la BD
+        watched_ids = self.main_window.animes_persistence.get_watched_episodes(self.anime_info.id)
+        for episode in self.anime_info.episodes:
+            self.watched_status[episode.id] = episode.id in watched_ids
+
     def __display_anime_info(self):
         self.main_window.clear_frame()
         time.sleep(0.1)
@@ -425,6 +430,9 @@ class AnimeWindowViewer:
                     self.watched_status[ep_id] = False
                     self.episode_switches[i].deselect()
 
+        # Persistir el estado actualizado en la BD
+        watched_ids = {ep_id for ep_id, seen in self.watched_status.items() if seen}
+        self.main_window.animes_persistence.update_watched_episodes(self.anime_info.id, watched_ids)
     def __toggle_servers_frame(self, episode_info: EpisodeInfo, servers_frames, current_row: int):
         if episode_info.id in servers_frames:
             servers_frames[episode_info.id].destroy()
