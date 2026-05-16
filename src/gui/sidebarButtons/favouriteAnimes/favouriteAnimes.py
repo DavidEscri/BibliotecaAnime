@@ -6,7 +6,7 @@ __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __
 
 import os
 import time
-from typing import List, Union
+from typing import List, Union, Optional
 
 import customtkinter as ctk
 
@@ -84,13 +84,13 @@ class FavouritesButton(utilsButtons.SidebarButton):
             return
         list_favourite_animes = []
         for anime in query_animes:
-            res, favourite_anime = self.animes_persistence.get_anime_by_anime_id(anime.id)
-            if not res or len(favourite_anime) == 0:
+            anime_record: Optional[AnimeRecord] = self.animes_persistence.get_anime_by_anime_id(anime.id)
+            if anime_record is None:
                 continue
-            if not favourite_anime[0]["is_favourite"]:
+            if not anime_record.is_favourite:
                 continue
-            print(f"{favourite_anime[0]['title']} encontrado entre mis animes favoritos")
-            list_favourite_animes.append(favourite_anime[0])
+            print(f"{anime_record.title} encontrado entre mis animes favoritos")
+            list_favourite_animes.append(anime_record)
         self.__display_animes(list_favourite_animes)
 
     def __display_animes(self, favourite_animes: List[AnimeRecord]):
