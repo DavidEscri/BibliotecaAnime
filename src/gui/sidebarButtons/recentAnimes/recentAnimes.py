@@ -5,6 +5,7 @@ __version__ = "0.1"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 import os
+import threading
 import time
 
 import customtkinter as ctk
@@ -82,7 +83,22 @@ class RecentAnimeButton(utilsButtons.SidebarButton):
         # Reemplazar el anime en la lista
         anime_clicked = self.main_window.recent_animes[index]
         if anime_clicked.synopsis is None or anime_clicked.genres is None or anime_clicked.episodes is None:
-            anime_clicked: AnimeInfo = self.animeflv_api.get_anime_info(anime_id)
-            self.main_window.recent_animes[index] = anime_clicked
+            self.main_window.configure(cursor="watch")
+            self.main_window.update()
+
+            def _load_and_show():
+                anime_info = self.animeflv_api.get_anime_info(anime_id)
+                if anime_info is not None:
+                    self.main_window.recent_animes[index] = anime_info
+                    anime_clicked_final = anime_info
+                else:
+                    anime_clicked_final = anime_clicked
+                self.main_window.configure(cursor="")
+                anime_viewer = AnimeWindowViewer(self.main_window, anime_clicked_final)
+                anime_viewer.display_anime_info()
+
+            # Ejecutar en hilo secundario para no congelar la UI durante la petición HTTP
+            threading.Thread(target=_load_and_show, daemon=True).start()
+            return
         anime_viewer = AnimeWindowViewer(self.main_window, anime_clicked)
         anime_viewer.display_anime_info()
