@@ -12,7 +12,7 @@ import customtkinter as ctk
 from typing import List
 
 from APIs.animeflv.animeflv import AnimeFLV, AnimeInfo, AnimeFLVSingleton, EpisodeInfo, ServerInfo
-from dataPersistence.animesPersistence import AnimeStatus
+from dataPersistence.animesPersistence import AnimeStatus, AnimeRecord
 from utils import utils
 from utils.buttons import utilsButtons
 from utils.utils import refactor_genre_text, get_resource_path, get_anime_image, download_anime_poster_by_status, \
@@ -43,17 +43,15 @@ class AnimeWindowViewer:
         self.__display_anime_info()
 
     def __load_anime_status(self):
-        res, anime = self.main_window.animes_persistence.get_anime_by_anime_id(self.anime_info.id)
-        if not res:
+        anime_record: AnimeRecord = self.main_window.animes_persistence.get_anime_by_anime_id(self.anime_info.id)
+        if anime_record is None:
             return
-        if len(anime) == 0:
-            return
-        if len(json.loads(anime[0]["episodes"])) != len(self.anime_info.episodes):
+        if len(anime_record.episodes) != len(self.anime_info.episodes):
             self.main_window.animes_persistence.update_anime_episodes(self.anime_info.id, self.anime_info.episodes)
-        self.__anime_is_favourite = anime[0]["is_favourite"]
-        self.__anime_is_finished = anime[0]["is_finished"]
-        self.__anime_is_watching = anime[0]["is_watching"]
-        self.__anime_is_pending = anime[0]["is_pending"]
+        self.__anime_is_favourite = anime_record.is_favourite
+        self.__anime_is_finished = anime_record.is_finished
+        self.__anime_is_watching = anime_record.is_watching
+        self.__anime_is_pending = anime_record.is_pending
 
         # Restaurar episodios vistos desde la BD
         watched_ids = self.main_window.animes_persistence.get_watched_episodes(self.anime_info.id)

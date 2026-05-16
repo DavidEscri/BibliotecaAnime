@@ -13,7 +13,7 @@ from typing import List
 from PIL import Image, ImageSequence
 
 from APIs.animeflv.animeflv import AnimeFLVSingleton, AnimeFLV, AnimeInfo
-from dataPersistence.animesPersistence import AnimesPersistenceSingleton, AnimesPersistence
+from dataPersistence.animesPersistence import AnimesPersistenceSingleton, AnimesPersistence, AnimeRecord
 from gui.sidebarButtons.favouriteAnimes.favouriteAnimes import FavouritesButton
 from gui.sidebarButtons.finishedAnimes.finishedAnimes import FinishedAnimeButton
 from gui.sidebarButtons.pendingAnimes.pendingAnimes import PendingAnimeButton
@@ -45,11 +45,11 @@ class MainWindow(ctk.CTk):
         self.__pending_animes_button: PendingAnimeButton = None
         self.__search_animes_button: SearchButton = None
 
-        self.recent_animes: List[AnimeInfo] = []
-        self.favourite_animes: List[AnimeInfo] = []
-        self.finished_animes: List[AnimeInfo] = []
-        self.watching_animes: List[AnimeInfo] = []
-        self.pending_animes: List[AnimeInfo] = []
+        self.recent_animes: List[AnimeRecord] = []
+        self.favourite_animes: List[AnimeRecord] = []
+        self.finished_animes: List[AnimeRecord] = []
+        self.watching_animes: List[AnimeRecord] = []
+        self.pending_animes: List[AnimeRecord] = []
         self.last_search_instance: AnimeSearch = None
         self.images_path = get_resource_path("resources/images/recent_animes")
 

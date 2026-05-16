@@ -78,13 +78,13 @@ class ServerInfo:
 
 @dataclass
 class EpisodeInfo:
-    id: Union[str, int]
+    id: int
     anime: str
 
 
 @dataclass
 class AnimeInfo:
-    id: Union[str, int]
+    id: str
     title: str
     poster: str
     synopsis: Optional[str] = None
