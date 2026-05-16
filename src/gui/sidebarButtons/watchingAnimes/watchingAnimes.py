@@ -6,7 +6,7 @@ __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __
 
 import os
 import time
-from typing import List, Union
+from typing import List, Union, Optional
 
 import customtkinter as ctk
 
@@ -86,13 +86,13 @@ class WatchingAnimeButton(utilsButtons.SidebarButton):
             return
         list_finished_animes = []
         for anime in query_animes:
-            res, finished_anime = self.animes_persistence.get_anime_by_anime_id(anime.id)
-            if not res or len(finished_anime) == 0:
+            anime_record: Optional[AnimeRecord] = self.animes_persistence.get_anime_by_anime_id(anime.id)
+            if anime_record is None:
                 continue
-            if not finished_anime[0]["is_watching"]:
+            if not anime_record.is_watching:
                 continue
-            print(f"{finished_anime[0]['title']} encontrado entre los animes que estoy viendo")
-            list_finished_animes.append(finished_anime[0])
+            print(f"{anime_record.title} encontrado entre los animes que estoy viendo")
+            list_finished_animes.append(anime_record)
         self.__display_animes(list_finished_animes)
 
     def __display_animes(self, pending_animes: List[AnimeRecord]):

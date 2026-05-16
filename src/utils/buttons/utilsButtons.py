@@ -4,7 +4,7 @@ from typing import List
 from PIL import Image
 
 from APIs.animeflv.animeflv import AnimeGenreFilter, AnimeOrderFilter, AnimeInfo
-from dataPersistence.animesPersistence import AnimeStatus, AnimesPersistenceSingleton, AnimesPersistence
+from dataPersistence.animesPersistence import AnimeStatus, AnimesPersistenceSingleton, AnimesPersistence, AnimeRecord
 from utils.utils import load_image, refactor_genre_text
 import customtkinter as ctk
 
@@ -178,17 +178,17 @@ class AccordionFilterButton:
 
     def __apply_filters(self):
         self.selected_genres = [genre for genre, var in self.genre_vars.items() if var.get()]
-        res, filter_animes = self.animes_persistence.get_anime_by_genre_and_order(
+        filter_animes: List[AnimeRecord] = self.animes_persistence.get_anime_by_genre_and_order(
             self.anime_status,
             self.selected_genres,
             self.selected_order.get()
         )
-        if not res or len(filter_animes) == 0:
+        if len(filter_animes) == 0:
             print("No se encontró ningún anime")
             return
-        for anime in filter_animes:
-            print(f"{anime['title']} encontrado entre mis animes {self.anime_status.name}")
+        for anime_register in filter_animes:
+            print(f"{anime_register.title} encontrado entre mis animes {self.anime_status.name}")
         self.__display_animes(filter_animes)
 
-    def __display_animes(self, anime_list: List[AnimeInfo]):
+    def __display_animes(self, anime_list: List[AnimeRecord]):
         self.display_animes_callback(anime_list)
