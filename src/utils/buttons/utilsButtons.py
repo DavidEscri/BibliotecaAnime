@@ -1,5 +1,5 @@
 import os
-from typing import List
+from typing import List, Callable
 
 from PIL import Image
 
@@ -80,7 +80,7 @@ class SidebarButton(BaseButton):
         raise NotImplementedError("Subclasses must implement this method")
 
 class AccordionFilterButton:
-    def __init__(self, parent_frame, title, status: AnimeStatus, cb_display_anime: callable):
+    def __init__(self, parent_frame, title, status: AnimeStatus, cb_display_anime: Callable):
         self.animes_persistence: AnimesPersistence = AnimesPersistenceSingleton()
         self.parent_frame = parent_frame
         self.anime_status: AnimeStatus = status
