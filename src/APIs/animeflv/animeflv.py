@@ -299,22 +299,6 @@ class AnimeFLV:
         print(f"No se pudo obtener la información del anime {anime_id}")
         return None
 
-    def __process_anime_list_info(self, elements: ResultSet) -> List[AnimeInfo]:
-        ret: List[AnimeInfo] = []
-
-        for element in elements:
-            try:
-                anime_id = removeprefix(element.select_one("div.Description a.Button")["href"][1:], "anime/")
-                anime_info = self.get_anime_info(anime_id)
-                if anime_info is None:
-                    continue
-                ret.append(anime_info)
-            except requests.RequestException as exc:
-                print(f"Error al obtener información del anime {anime_id}: {exc}")
-                continue
-
-        return ret
-
 
 class AnimeFLVSingleton:
     __instance = None
