@@ -5,8 +5,8 @@
 **Tu colección personal de anime, 100% offline, privada y sin dependencias web.**
 
 [![Python Version](https://img.shields.io/badge/Python-3.10+-blue.svg?style=flat-square&logo=python)](https://www.python.org/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](https://opensource.org/licenses/MIT)
-[![OS: Windows/Linux/macOS](https://img.shields.io/badge/OS-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey.svg?style=flat-square)](#)
+[![License: GPL-3.0](https://img.shields.io/badge/License-GPL-yellow.svg?style=flat-square)](https://opensource.org/licenses/gpl-3.0)
+[![OS: Windows](https://img.shields.io/badge/OS-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey.svg?style=flat-square)](#)
 [![Status: En Desarrollo](https://img.shields.io/badge/Status-Activo-success.svg?style=flat-square)](#)
 
 [Características](#caracteristicas-principales) • [Instalación](##instalación-y-despliegue) • [Estructura](#-estructura-del-proyecto) • [Próximos pasos](#-proximos-pasos)
