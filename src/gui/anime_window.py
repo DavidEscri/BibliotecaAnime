@@ -4,7 +4,6 @@ __module__ = "anime_wnidow.py"
 __version__ = "0.1"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
-import json
 import time
 import webbrowser
 
@@ -22,6 +21,7 @@ from utils.utils import refactor_genre_text, get_resource_path, get_anime_image,
 
 # TODO: Al final de la lista de episodios nuevo frame del estilo. "Si te ha gustado One piece, te puede interesar..." y
 #  mostrar 4 animes con los mimos generos.
+
 
 class AnimeWindowViewer:
     def __init__(self, main_window, anime_info: AnimeInfo):

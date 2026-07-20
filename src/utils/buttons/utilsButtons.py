@@ -1,7 +1,10 @@
-import os
-from typing import List, Callable
+__author__ = "Jose David Escribano Orts"
+__subsystem__ = "utils.buttons"
+__module__ = "utilsButtons.py"
+__version__ = "0.1"
+__info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
-from PIL import Image
+from typing import List, Callable
 
 from APIs.common.models import AnimeGenreFilter, AnimeOrderFilter
 from dataPersistence.animesPersistence import AnimeStatus, AnimesPersistenceSingleton, AnimesPersistence, AnimeRecord
@@ -137,12 +140,12 @@ class AccordionFilterButton:
         for idx, (genre, var) in enumerate(self.genre_vars.items()):
             row = idx // 10
             col = idx % 10
-            genre_checkButton = ctk.CTkCheckBox(
+            genre_check_button = ctk.CTkCheckBox(
                 genre_filter_frame,
                 text=refactor_genre_text(genre.value),
                 variable=var
             )
-            genre_checkButton.grid(row=row + 1, column=col, padx=(3, 8), pady=2, sticky=ctk.W)
+            genre_check_button.grid(row=row + 1, column=col, padx=(3, 8), pady=2, sticky=ctk.W)
 
         # Filtro de ordenación (opción de multiselección en 1 fila de 3 columnas)
         order_filter_frame = ctk.CTkFrame(self.filter_frame)
@@ -158,13 +161,13 @@ class AccordionFilterButton:
         for idx, order in enumerate(self.order_options):
             row = idx // 10
             col = idx % 10
-            order_radioButton = ctk.CTkRadioButton(
+            order_radio_button = ctk.CTkRadioButton(
                 order_filter_frame,
                 text=refactor_genre_text(order.name),
                 variable=self.selected_order,
                 value=order.value
             )
-            order_radioButton.grid(row=row + 1, column=col, padx=5, pady=(2, 4), sticky=ctk.EW)
+            order_radio_button.grid(row=row + 1, column=col, padx=5, pady=(2, 4), sticky=ctk.EW)
 
         apply_filters_button = ctk.CTkButton(
             self.filter_frame,

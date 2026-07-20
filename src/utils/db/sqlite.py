@@ -1,5 +1,5 @@
 __author__ = "Jose David Escribano Orts"
-__subsystem__ = "utils"
+__subsystem__ = "utils.db"
 __module__ = "sqlite.py"
 __version__ = "1.0"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
@@ -7,8 +7,6 @@ __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __
 import os
 import sqlite3
 from sqlite3 import Connection
-
-from utils.utils import get_resource_path
 
 class SqlUtils:
 

@@ -39,23 +39,23 @@ class MainWindow(ctk.CTk):
         self.__config_main_frames()
 
         self.animes_persistence: AnimesPersistence = AnimesPersistenceSingleton()
-        self.__recent_animes_button: RecentAnimeButton = None
-        self.__favourites_animes_button: FavouritesButton = None
-        self.__finished_animes_button: FinishedAnimeButton = None
-        self.__watching_animes_button: WatchingAnimeButton = None
-        self.__pending_animes_button: PendingAnimeButton = None
-        self.__search_animes_button: SearchButton = None
-
-        self.recent_animes: List[AnimeRecord] = []
         self.anime_provider_mgr: AnimeProviderManager = AnimeProviderManagerSingleton()
         self.anime_provider_mgr.register(AnimeAV1Singleton(), default=True)
         self.anime_provider_mgr.register(AnimeFLVSingleton())
 
+        self.__recent_animes_button: RecentAnimeButton | None = None
+        self.__favourites_animes_button: FavouritesButton | None = None
+        self.__finished_animes_button: FinishedAnimeButton | None = None
+        self.__watching_animes_button: WatchingAnimeButton | None = None
+        self.__pending_animes_button: PendingAnimeButton | None = None
+        self.__search_animes_button: SearchButton | None = None
+
+        self.recent_animes: List[AnimeRecord | AnimeInfo] = []
         self.favourite_animes: List[AnimeRecord] = []
         self.finished_animes: List[AnimeRecord] = []
         self.watching_animes: List[AnimeRecord] = []
         self.pending_animes: List[AnimeRecord] = []
-        self.last_search_instance: AnimeSearch = None
+        self.last_search_instance: AnimeSearch | None = None
         self.images_path = get_resource_path("resources/images/recent_animes")
 
         self.load_sidebar_buttons()

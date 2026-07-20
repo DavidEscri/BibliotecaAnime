@@ -37,10 +37,9 @@ class SearchButton(utilsButtons.SidebarButton):
         super().__init__(main_window.sidebar_frame, "BUSCADOR DE ANIMES", row, column, self.__show_buscador,
                          icon_path_light, icon_path_dark)
         self.main_window = main_window
-
-        self.__episodes_filter_frame: ctk.CTkFrame = None
-        self.__pagination_frame: ctk.CTkFrame = None
         self.anime_provider_mgr: AnimeProviderManager = AnimeProviderManagerSingleton()
+        self.__episodes_filter_frame: ctk.CTkFrame | None = None
+        self.__pagination_frame: ctk.CTkFrame | None = None
 
         # Géneros de ejemplo (debes usar tu enum de géneros reales)
         anime_genres: List[AnimeGenreFilter] = list(AnimeGenreFilter)
@@ -49,8 +48,8 @@ class SearchButton(utilsButtons.SidebarButton):
 
         self.order_options: List[AnimeOrderFilter] = list(AnimeOrderFilter)
         self.selected_order = ctk.StringVar(value=AnimeOrderFilter.POR_DEFECTO.value)
-        self.__current_search_thread: threading.Thread = None
-        self.__loading_frame: ctk.CTkFrame = None
+        self.__current_search_thread: threading.Thread | None = None
+        self.__loading_frame: ctk.CTkFrame | None = None
 
     def save_anime_search(self, anime_list: List[AnimeInfo], last_page: int, current_page: int, text_query: str):
         self.main_window.last_search_instance = AnimeSearch(
