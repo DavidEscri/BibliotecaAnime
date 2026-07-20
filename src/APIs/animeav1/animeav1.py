@@ -41,101 +41,176 @@ class AnimeAV1:
 
     def get_recent_animes(self) -> List[AnimeInfo]:
         """
-        Obtiene lista de los últimos animes añadidos
+        Obtiene la lista de los animes recientemente añadidos a animeav1.com (portada).
 
         :rtype: List[AnimeInfo]
         """
         try:
             response = requests.get(BASE_URL, timeout=10)
             response.raise_for_status()
-        except Exception as e:
+        except Exception:
             print(f"Error al conectarse a {BASE_URL} para obtener los animes recientes")
             return []
+
         soup = BeautifulSoup(response.text, "html.parser")
-        elements = soup.select("section.grid div.grid article.relative")
+        return self.__parse_anime_cards(soup)
 
-        if elements is None:
-            print("Unable to get list of animes")
-            return []
-        recent_animes: List[AnimeInfo] = []
-        for element in elements:
-            try:
-                recent_animes.append(
-                    AnimeInfo(
-                        id=removeprefix(element.select_one("a.absolute")["href"][1:], "media/"),
-                        title=element.select_one("h3").string,
-                        poster=element.select_one("div.relative figure.dark img")["src"]
-                    )
-                )
-            except Exception as e:
-                continue
-        return recent_animes
+    def get_anime_info(self, anime_id: Union[str, int]) -> AnimeInfo | None:
+        """
+        Obtiene información sobre un anime específico.
 
-    def get_anime_info(self, anime_id: Union[str, int]) -> AnimeInfo:
+        :param anime_id: Identificador (slug) del anime, como por ejemplo 'one-piece'.
+        :rtype: AnimeInfo
+        """
         attempt = 0
-        max_attemts = 3
-        while attempt < max_attemts:
+        max_attempts = 3
+        while attempt < max_attempts:
             try:
-                response = requests.get(f"{ANIME_URL}/{anime_id}", timeout=2)
-                response.raise_for_status()  # Lanza excepción si la respuesta no es exitosa (status code 4xx o 5xx)
-                response.encoding = "utf-8"
+                response = requests.get(f"{MEDIA_URL}/{anime_id}", timeout=5)
+                response.raise_for_status()
 
                 soup = BeautifulSoup(response.text, "html.parser")
+                payload = self.__extract_svelte_payload(soup)
 
-                information = {
-                    "title": soup.select_one("h1.text-lead").string,
-                    "poster": soup.select_one("img.aspect-poster")["src"],
-                    "synopsis": soup.select_one("div.entry").get_text(strip=True),
-                }
+                title = None
+                synopsis = None
+                episodes_count = 0
 
-                genres = [
-                    element["href"].split("=")[1]
-                    for element in soup.select("header.grid div.flex a")
-                    if "=" in element["href"]
-                ]
+                if payload is not None:
+                    title_match = re.search(r'title:\s*"(.+?)",', payload)
+                    synopsis_match = re.search(r'synopsis:\s*"(.*?)",', payload)
+                    episodes_match = re.search(r'episodesCount:\s*(\d+),', payload)
 
-                episodes = []
-                try:
-                    for script in soup.find_all("script"):
-                        if script.string and 'episodes:[' in script.string:
-                            script_text = script.string
+                    if title_match:
+                        title = title_match.group(1)
+                    if synopsis_match:
+                        synopsis = synopsis_match.group(1).replace('\\n', '\n').replace('\\"', '"')
+                    if episodes_match:
+                        episodes_count = int(episodes_match.group(1))
 
-                            start_marker = 'episodes:['
-                            start_idx = script_text.find(start_marker)
+                # Fallbacks por si el payload cambia de formato entre despliegues del sitio
+                if title is None:
+                    title_el = soup.select_one("main h1")
+                    title = title_el.get_text(strip=True) if title_el else str(anime_id)
 
-                            if start_idx == -1:
-                                continue
-                            start_idx += len(start_marker)
-                            end_idx = script_text.find(']', start_idx)
+                if synopsis is None:
+                    synopsis_el = soup.select_one("main div.entry p") or soup.select_one("main article p")
+                    synopsis = synopsis_el.get_text(strip=True) if synopsis_el else None
 
-                            episodes_content = script_text[start_idx:end_idx]
-                            parts = episodes_content.split('number')
-                            for part in parts[1:]:
-                                num_str = ""
-                                for char in part:
-                                    if char.isdigit():
-                                        num_str += char
-                                    elif num_str:
-                                        break
+                cover_el = soup.select_one("main figure img")
+                poster = cover_el.get("src", "") if cover_el is not None else ""
 
-                                if num_str:
-                                    episode_number = int(num_str)
-                                    episodes.append(EpisodeInfo(id=episode_number, anime=anime_id))
+                genres = self.__extract_genres(soup)
 
-                            break
+                if episodes_count == 0:
+                    episodes_count = self.__count_episodes_from_dom(soup, anime_id)
 
-                except Exception as exc:
-                    print(f"Error al obtener los episodios de {anime_id}: {exc}")
-                return AnimeInfo(id=anime_id, episodes=episodes, genres=genres, **information)
+                episodes = [EpisodeInfo(id=i, anime=anime_id) for i in range(1, episodes_count + 1)]
 
-            except requests.RequestException as e:
-                print(f"Intento {attempt + 1}/{max_attemts} fallido para el anime {anime_id}: {e}")
+                return AnimeInfo(
+                    id=anime_id,
+                    title=title,
+                    poster=poster,
+                    synopsis=synopsis,
+                    genres=genres,
+                    episodes=episodes,
+                )
+
+            except requests.RequestException as exc:
+                print(f"Intento {attempt + 1}/{max_attempts} fallido para el anime {anime_id}: {exc}")
                 attempt += 1
-                time.sleep(1)  # Espera un segundo entre intentos para evitar sobrecargar el servidor
+                time.sleep(1)
 
         print(f"No se pudo obtener la información del anime {anime_id}")
         return None
 
+    # ------------------------------------------------------------------
+    # Helpers privados de parseo
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def __extract_svelte_payload(soup: BeautifulSoup) -> Optional[str]:
+        """
+        Localiza el <script> de hidratación de SvelteKit y devuelve el fragmento
+        que contiene los datos de la página ('data: [...]').
+        """
+        for script in soup.find_all("script"):
+            content = script.string or script.get_text() or ""
+            if _SVELTE_PAYLOAD_MARKER in content:
+                match = re.search(r"data:(.+\]),", content, re.DOTALL)
+                if match:
+                    return match.group(1)
+        return None
+
+    @staticmethod
+    def __parse_anime_cards(soup: BeautifulSoup) -> List[AnimeInfo]:
+        """
+        Parsea las tarjetas de anime (<article>) presentes tanto en el catálogo/
+        búsqueda como en la portada. Descarta cualquier tarjeta cuyo enlace apunte
+        a un episodio concreto (/media/{slug}/{numero}) en vez de a la ficha del anime.
+        """
+        animes: List[AnimeInfo] = []
+        seen_ids = set()
+
+        for article in soup.select("main article"):
+            link = article.select_one("a[href*='/media/']")
+            if link is None:
+                continue
+
+            href = link.get("href", "")
+            anime_id = removeprefix(urlparse(href).path, "/media/").strip("/")
+            if not anime_id or "/" in anime_id or anime_id in seen_ids:
+                continue
+
+            title_el = article.select_one("h3")
+            img_el = article.select_one("figure img")
+            if title_el is None or img_el is None:
+                continue
+
+            seen_ids.add(anime_id)
+            animes.append(
+                AnimeInfo(
+                    id=anime_id,
+                    title=title_el.get_text(strip=True),
+                    poster=img_el.get("src", ""),
+                )
+            )
+
+        return animes
+
+    @staticmethod
+    def __extract_genres(soup: BeautifulSoup) -> List[str]:
+        """
+        Extrae los slugs de género (p.ej. 'accion', 'aventura') a partir de los
+        enlaces de género de la ficha del anime, igual que hace animeflv.py.
+        """
+        genres: List[str] = []
+        seen = set()
+        for link in soup.select("main a[href*='genre=']"):
+            parsed = urlparse(link.get("href", ""))
+            values = parse_qs(parsed.query).get("genre")
+            if not values:
+                continue
+            genre_slug = values[0]
+            if genre_slug not in seen:
+                seen.add(genre_slug)
+                genres.append(genre_slug)
+        return genres
+
+    @staticmethod
+    def __count_episodes_from_dom(soup: BeautifulSoup, anime_id: Union[str, int]) -> int:
+        """
+        Fallback: si no se pudo leer 'episodesCount' del payload de SvelteKit,
+        cuenta los episodios a partir de los enlaces /media/{anime_id}/{n} listados
+        en la propia ficha del anime.
+        """
+        episode_pattern = re.compile(rf"/media/{re.escape(str(anime_id))}/(\d+)$")
+        episode_numbers = set()
+        for link in soup.select(f"a[href*='/media/{anime_id}/']"):
+            match = episode_pattern.search(urlparse(link.get("href", "")).path)
+            if match:
+                episode_numbers.add(int(match.group(1)))
+        return max(episode_numbers) if episode_numbers else 0
 class AnimeAV1Singleton:
     __instance = None
 
