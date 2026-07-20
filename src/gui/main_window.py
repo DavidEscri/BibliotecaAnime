@@ -12,7 +12,10 @@ from typing import List
 
 from PIL import Image, ImageSequence
 
-from APIs.animeflv.animeflv import AnimeFLVSingleton, AnimeFLV, AnimeInfo
+from APIs.animeav1.animeav1 import AnimeAV1Singleton
+from APIs.animeflv.animeflv import AnimeFLVSingleton
+from APIs.common.animeProviderMgr import AnimeProviderManagerSingleton, AnimeProviderManager
+from APIs.common.models import AnimeInfo
 from dataPersistence.animesPersistence import AnimesPersistenceSingleton, AnimesPersistence, AnimeRecord
 from gui.sidebarButtons.favouriteAnimes.favouriteAnimes import FavouritesButton
 from gui.sidebarButtons.finishedAnimes.finishedAnimes import FinishedAnimeButton
@@ -36,8 +39,6 @@ class MainWindow(ctk.CTk):
         self.__config_main_frames()
 
         self.animes_persistence: AnimesPersistence = AnimesPersistenceSingleton()
-        self.animeflv_api: AnimeFLV = AnimeFLVSingleton()
-
         self.__recent_animes_button: RecentAnimeButton = None
         self.__favourites_animes_button: FavouritesButton = None
         self.__finished_animes_button: FinishedAnimeButton = None
@@ -46,6 +47,10 @@ class MainWindow(ctk.CTk):
         self.__search_animes_button: SearchButton = None
 
         self.recent_animes: List[AnimeRecord] = []
+        self.anime_provider_mgr: AnimeProviderManager = AnimeProviderManagerSingleton()
+        self.anime_provider_mgr.register(AnimeAV1Singleton(), default=True)
+        self.anime_provider_mgr.register(AnimeFLVSingleton())
+
         self.favourite_animes: List[AnimeRecord] = []
         self.finished_animes: List[AnimeRecord] = []
         self.watching_animes: List[AnimeRecord] = []
@@ -196,10 +201,10 @@ class MainWindow(ctk.CTk):
     def download_images_and_show_animes(self, progress_bar: ctk.CTkProgressBar, progress_label: ctk.CTkLabel,
                                         loading_frame: ctk.CTkFrame):
         self.load_animes(progress_bar, progress_label)
-        self.recent_animes = self.animeflv_api.get_recent_animes()
+        self.recent_animes = self.anime_provider_mgr.get_recent_animes()
         if len(self.recent_animes) == 0:
             messagebox.showwarning("Aviso!",
-                                   "La conexión con https://www3.animeflv.net/ es muy lenta, por lo que no se "
+                                   "La conexión con los proveedores de anime es muy lenta, por lo que no se "
                                    "pudieron obtener los animes recientes.")
             self.__recent_animes_button.show_frame()
             return
@@ -226,7 +231,7 @@ class MainWindow(ctk.CTk):
                 # Ya precargado (p.ej. segunda apertura en la misma sesión)
                 continue
             try:
-                anime_info = self.animeflv_api.get_anime_info(anime.id)
+                anime_info = self.anime_provider_mgr.get_anime_info(anime.id)
                 if anime_info is not None:
                     self.recent_animes[index] = anime_info
             except Exception as e:

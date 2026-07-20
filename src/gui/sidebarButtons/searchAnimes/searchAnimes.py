@@ -14,7 +14,8 @@ from typing import List, Union
 from PIL import Image, ImageSequence
 from attr import dataclass
 
-from APIs.animeflv.animeflv import AnimeFLV, AnimeGenreFilter, AnimeOrderFilter, AnimeFLVSingleton, AnimeInfo
+from APIs.common.models import AnimeGenreFilter, AnimeOrderFilter, AnimeInfo
+from APIs.common.animeProviderMgr import AnimeProviderManager, AnimeProviderManagerSingleton
 from gui.anime_window import AnimeWindowViewer
 from utils.buttons import utilsButtons
 from utils.utils import refactor_genre_text, load_image, get_resource_path, download_animes_poster
@@ -36,10 +37,10 @@ class SearchButton(utilsButtons.SidebarButton):
         super().__init__(main_window.sidebar_frame, "BUSCADOR DE ANIMES", row, column, self.__show_buscador,
                          icon_path_light, icon_path_dark)
         self.main_window = main_window
-        self.animeflv_api: AnimeFLV = AnimeFLVSingleton()
 
         self.__episodes_filter_frame: ctk.CTkFrame = None
         self.__pagination_frame: ctk.CTkFrame = None
+        self.anime_provider_mgr: AnimeProviderManager = AnimeProviderManagerSingleton()
 
         # Géneros de ejemplo (debes usar tu enum de géneros reales)
         anime_genres: List[AnimeGenreFilter] = list(AnimeGenreFilter)
@@ -215,11 +216,11 @@ class SearchButton(utilsButtons.SidebarButton):
             ).start()
 
     def __search_anime_by_query(self, text_entry: str, page: int = 1):
-        animes_query, last_page = self.animeflv_api.search_animes_by_query(text_entry, page)
+        animes_query, last_page = self.anime_provider_mgr.search_animes_by_query(text_entry, page)
         self.__display_animes(animes_query, last_page, current_page=page, text_query=text_entry)
 
     def __search_anime_by_filter(self, page: int = 1):
-        animes_filter, last_page = self.animeflv_api.search_animes_by_genres_and_order(self.selected_genres, self.selected_order.get(), page)
+        animes_filter, last_page = self.anime_provider_mgr.search_animes_by_genres_and_order(self.selected_genres, self.selected_order.get(), page)
         self.__display_animes(animes_filter, last_page, current_page=page)
 
     def __display_animes(self, animes: List[AnimeInfo], last_page: int, current_page: int = 1, text_query: str = None):
@@ -337,6 +338,6 @@ class SearchButton(utilsButtons.SidebarButton):
 
     def __on_anime_click(self, anime_id: Union[str, int]):
         # Reemplazar el anime en la lista
-        anime_clicked: AnimeInfo = self.animeflv_api.get_anime_info(anime_id)
+        anime_clicked: AnimeInfo | None = self.anime_provider_mgr.get_anime_info(anime_id)
         anime_viewer = AnimeWindowViewer(self.main_window, anime_clicked)
         anime_viewer.display_anime_info()

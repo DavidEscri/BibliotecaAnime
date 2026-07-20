@@ -3,7 +3,7 @@ from typing import List, Callable
 
 from PIL import Image
 
-from APIs.animeflv.animeflv import AnimeGenreFilter, AnimeOrderFilter, AnimeInfo
+from APIs.common.models import AnimeGenreFilter, AnimeOrderFilter
 from dataPersistence.animesPersistence import AnimeStatus, AnimesPersistenceSingleton, AnimesPersistence, AnimeRecord
 from utils.utils import load_image, refactor_genre_text
 import customtkinter as ctk

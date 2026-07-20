@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Dict, List, Optional, Set, Any
 
-from APIs.animeflv.animeflv import AnimeInfo, AnimeGenreFilter, AnimeOrderFilter, EpisodeInfo
+from APIs.common.models import AnimeInfo, AnimeGenreFilter, AnimeOrderFilter, EpisodeInfo
 from utils.db.sqlite import ServiceDB
 from utils.utils import get_resource_path
 

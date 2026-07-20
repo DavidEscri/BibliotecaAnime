@@ -11,7 +11,8 @@ import webbrowser
 import customtkinter as ctk
 from typing import List
 
-from APIs.animeflv.animeflv import AnimeFLV, AnimeInfo, AnimeFLVSingleton, EpisodeInfo, ServerInfo
+from APIs.common.models import AnimeInfo, EpisodeInfo, ServerInfo
+from APIs.common.animeProviderMgr import AnimeProviderManager, AnimeProviderManagerSingleton
 from dataPersistence.animesPersistence import AnimeStatus, AnimeRecord
 from utils import utils
 from utils.buttons import utilsButtons
@@ -25,8 +26,8 @@ from utils.utils import refactor_genre_text, get_resource_path, get_anime_image,
 class AnimeWindowViewer:
     def __init__(self, main_window, anime_info: AnimeInfo):
         self.main_window = main_window
+        self.anime_provider_mgr: AnimeProviderManager = AnimeProviderManagerSingleton()
         self.anime_info: AnimeInfo = anime_info
-        self.animeflv_api: AnimeFLV = AnimeFLVSingleton()
         self.episode_switches: list = []
         self.watched_status = {episode.id: False for episode in self.anime_info.episodes}
         self.sort_descending: bool = True
@@ -454,7 +455,7 @@ class AnimeWindowViewer:
             servers_frames[episode_info.id].destroy()
             del servers_frames[episode_info.id]
         else:
-            servers_info: List[ServerInfo] = self.animeflv_api.get_anime_episode_servers(episode_info.anime,
+            servers_info: List[ServerInfo] = self.anime_provider_mgr.get_anime_episode_servers(episode_info.anime,
                                                                                          episode_info.id)
             # Crear un nuevo frame solo para los servidores
             new_server_frame = ctk.CTkFrame(

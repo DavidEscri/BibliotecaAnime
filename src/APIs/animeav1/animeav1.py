@@ -1,43 +1,140 @@
+"""
+animeav1.com está construido con SvelteKit. Las páginas no se generan con HTML "clásico" navegable por selectores
+estables (como sí ocurre en AnimeFLV), sino que el propio framework inyecta los datos de la página como un objeto JS
+(no JSON estricto) dentro de un <script> que contiene la llamada `kit.start(app, element, {`. Por eso, además de
+BeautifulSoup, aquí se usan expresiones regulares para extraer ese payload y parsear los campos que nos interesan
+(título, sinopsis, nº de episodios, servidores de vídeo, etc.), con fallbacks al DOM por si el formato cambia en un
+futuro despliegue del sitio.
+"""
 __author__ = "Jose David Escribano Orts"
-__subsystem__ = "animeflv"
-__module__ = "animeflv.py"
-__version__ = "0.1"
+__subsystem__ = "APIs.animeav1"
+__module__ = "animeav1.py"
+__version__ = "0.2"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
+import re
 import time
 
 import requests
-import json
 
-from typing import List, Optional, Union
-from enum import Enum
-from bs4 import BeautifulSoup, ResultSet
-from urllib.parse import urlencode
-from dataclasses import dataclass
+from typing import List, Optional, Union, Tuple
+from bs4 import BeautifulSoup
+from urllib.parse import urlencode, urlparse, parse_qs
 
 from utils.utils import removeprefix
-
+from APIs.common.animeProviderMgr import AnimeProvider
+from APIs.common.models import AnimeGenreFilter, AnimeOrderFilter, ServerInfo, EpisodeInfo, AnimeInfo
 
 BASE_URL = "https://animeav1.com"
-BROWSE_URL = f"{BASE_URL}/catalogo"
-ANIME_VIDEO_URL = f"{BASE_URL}/media/"
-ANIME_URL = f"{BASE_URL}/media"
+CATALOG_URL = f"{BASE_URL}/catalogo"
+MEDIA_URL = f"{BASE_URL}/media"
 
-@dataclass
-class EpisodeInfo:
-    id: int
-    anime: str
+# Fragmento que identifica el <script> de hidratación de SvelteKit que contiene
+# los datos de la página (título, sinopsis, episodios, servidores, etc.)
+_SVELTE_PAYLOAD_MARKER = "kit.start(app, element, {"
 
-@dataclass
-class AnimeInfo:
-    id: str
-    title: str
-    poster: str
-    synopsis: Optional[str] = None
-    genres: Optional[List[str]] = None
-    episodes: Optional[List[EpisodeInfo]] = None
 
-class AnimeAV1:
+class AnimeAV1(AnimeProvider):
+
+    PROVIDER_ID = "animeav1"
+    PROVIDER_NAME = "AnimeAV1"
+    BASE_URL = BASE_URL
+
+    def search_animes_by_genres_and_order(self, genres: List[AnimeGenreFilter], order: str = None,
+                                          page: int = None) -> Tuple[List[AnimeInfo], int]:
+        """
+        Busca animes en animeav1.com filtrando por género y orden.
+
+        AnimeAV1 no expone la puntuación en las tarjetas del listado, así que el
+        orden por AnimeOrderFilter.CALIFICACIÓN no se puede aplicar sin pedir la
+        ficha completa de cada anime (demasiadas peticiones). El orden alfabético
+        sí se puede aplicar del lado del cliente una vez descargado el listado.
+
+        :param genres: Lista de géneros por los que filtrar.
+        :param order: Valor de AnimeOrderFilter.
+        :param page: Página del listado a consultar.
+        :rtype: (List[AnimeInfo], int)
+        """
+        genre_values = [genre.value for genre in genres]
+
+        query_pairs = [("genre", genre) for genre in genre_values]
+        if page is not None:
+            query_pairs.append(("page", page))
+        query_string = urlencode(query_pairs)
+
+        url = f"{CATALOG_URL}?{query_string}" if query_string else CATALOG_URL
+        response = requests.get(url)
+        soup = BeautifulSoup(response.text, "html.parser")
+
+        query_animes = self.__parse_anime_cards(soup)
+        last_page = self.__get_last_page(soup)
+        query_animes = self.__apply_client_side_order(query_animes, order)
+
+        return query_animes, last_page
+
+    def search_animes_by_query(self, query: str = None, page: int = None) -> Tuple[List[AnimeInfo], int]:
+        """
+        Busca en animeav1.com por texto libre.
+
+        :param query: Texto de búsqueda, como por ejemplo 'Nanatsu no Taizai'.
+        :param page: Página de la búsqueda a devolver.
+        :rtype: (List[AnimeInfo], int)
+        """
+        if page is not None and not isinstance(page, int):
+            raise TypeError
+
+        params = dict()
+        if query is not None:
+            params["search"] = query
+        if page is not None:
+            params["page"] = page
+        params = urlencode(params)
+
+        url = CATALOG_URL
+        if params != "":
+            url += f"?{params}"
+
+        response = requests.get(url)
+        soup = BeautifulSoup(response.text, "html.parser")
+
+        query_animes = self.__parse_anime_cards(soup)
+        last_page = self.__get_last_page(soup)
+
+        return query_animes, last_page
+
+    def get_anime_episode_servers(self, anime_id: str, episode_id: int) -> List[ServerInfo]:
+        """
+        Obtiene la lista de servidores de vídeo (subtitulado) de un episodio de un anime.
+
+        :param anime_id: Identificador (slug) del anime, como por ejemplo 'one-piece'.
+        :param episode_id: Número del episodio.
+        :rtype: List[ServerInfo]
+        """
+        try:
+            response = requests.get(f"{MEDIA_URL}/{anime_id}/{episode_id}", timeout=10)
+            response.raise_for_status()
+        except requests.RequestException as exc:
+            print(f"Error al obtener los servidores del episodio {episode_id} de {anime_id}: {exc}")
+            return []
+
+        soup = BeautifulSoup(response.text, "html.parser")
+        payload = self.__extract_svelte_payload(soup)
+        if payload is None:
+            return []
+
+        # Los servidores de embed en subtitulado vienen como: embeds: { ..., SUB: [ {...}, {...} ] }
+        embeds_match = re.search(r"embeds:\s*.*?SUB:\s*(\[.*?\])", payload, re.DOTALL)
+        if embeds_match is None:
+            return []
+
+        servers: List[ServerInfo] = []
+        for entry in embeds_match.group(1).split("},"):
+            server_match = re.search(r'server:\s*"(.*?)"', entry)
+            url_match = re.search(r'url:\s*"(.*?)"', entry)
+            if server_match and url_match:
+                servers.append(ServerInfo(server=server_match.group(1), url=url_match.group(1)))
+
+        return servers
 
     def get_recent_animes(self) -> List[AnimeInfo]:
         """
@@ -179,6 +276,20 @@ class AnimeAV1:
         return animes
 
     @staticmethod
+    def __get_last_page(soup: BeautifulSoup) -> int:
+        """
+        Calcula el número de la última página a partir de todos los enlaces de
+        paginación (?page=N) presentes en la página, sin depender de una
+        estructura CSS concreta del paginador.
+        """
+        last_page = 1
+        for link in soup.select("a[href*='page=']"):
+            match = re.search(r"[?&]page=(\d+)", link.get("href", ""))
+            if match:
+                last_page = max(last_page, int(match.group(1)))
+        return last_page
+
+    @staticmethod
     def __extract_genres(soup: BeautifulSoup) -> List[str]:
         """
         Extrae los slugs de género (p.ej. 'accion', 'aventura') a partir de los
@@ -211,6 +322,20 @@ class AnimeAV1:
             if match:
                 episode_numbers.add(int(match.group(1)))
         return max(episode_numbers) if episode_numbers else 0
+
+    @staticmethod
+    def __apply_client_side_order(animes: List[AnimeInfo], order: str) -> List[AnimeInfo]:
+        if order == AnimeOrderFilter.ALFABÉTICAMENTE.value:
+            return sorted(animes, key=lambda anime: anime.title.lower())
+        if order == AnimeOrderFilter.CALIFICACIÓN.value:
+            # AnimeAV1 no incluye la puntuación en las tarjetas del listado, por lo
+            # que no se puede ordenar por calificación sin pedir cada ficha individual.
+            print("Aviso: AnimeAV1 no permite ordenar por calificación en el listado; "
+                  "se devuelve el orden por defecto del sitio.")
+            return animes
+        return animes
+
+
 class AnimeAV1Singleton:
     __instance = None
 

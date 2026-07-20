@@ -10,7 +10,8 @@ from typing import List, Union, Optional
 
 import customtkinter as ctk
 
-from APIs.animeflv.animeflv import AnimeFLV, AnimeFLVSingleton, AnimeInfo
+from APIs.common.models import AnimeInfo
+from APIs.common.animeProviderMgr import AnimeProviderManager, AnimeProviderManagerSingleton
 from dataPersistence.animesPersistence import AnimesPersistence, AnimesPersistenceSingleton, AnimeStatus, AnimeRecord
 from gui.anime_window import AnimeWindowViewer
 from utils.buttons import utilsButtons
@@ -23,7 +24,7 @@ class FinishedAnimeButton(utilsButtons.SidebarButton):
         super().__init__(main_window.sidebar_frame, "ANIMES FINALIZADOS", row, column, self.show_finished_animes,
                          icon_path_light, icon_path_dark)
         self.main_window = main_window
-        self.animeflv_api: AnimeFLV = AnimeFLVSingleton()
+        self.anime_provider_mgr: AnimeProviderManager = AnimeProviderManagerSingleton()
         self.animes_persistence: AnimesPersistence = AnimesPersistenceSingleton()
         self.__episodes_frame: ctk.CTkFrame = None
 
@@ -78,7 +79,7 @@ class FinishedAnimeButton(utilsButtons.SidebarButton):
         if len(search_text) == 0:
             self.__display_animes(self.animes_persistence.get_finished_animes())
             return
-        query_animes: List[AnimeInfo] = self.animeflv_api.search_animes_by_query(search_text)[0]
+        query_animes: List[AnimeInfo] = self.anime_provider_mgr.search_animes_by_query(search_text)[0]
         if len(query_animes) == 0:
             print("No se encontró ningún anime")
             return
@@ -127,6 +128,6 @@ class FinishedAnimeButton(utilsButtons.SidebarButton):
             title_label.grid(row=(row * 2) + 1, column=column, padx=10, pady=(5, 10), sticky=ctk.N)
 
     def __on_anime_click(self, anime_id: Union[str, int]):
-        anime_clicked: AnimeInfo = self.animeflv_api.get_anime_info(anime_id)
+        anime_clicked: AnimeInfo | None = self.anime_provider_mgr.get_anime_info(anime_id)
         anime_viewer = AnimeWindowViewer(self.main_window, anime_clicked)
         anime_viewer.display_anime_info()

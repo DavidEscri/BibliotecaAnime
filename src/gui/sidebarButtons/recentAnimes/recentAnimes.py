@@ -11,7 +11,7 @@ import time
 import customtkinter as ctk
 from typing import Union
 
-from APIs.animeflv.animeflv import AnimeInfo, AnimeFLV, AnimeFLVSingleton
+from APIs.common.animeProviderMgr import AnimeProviderManager, AnimeProviderManagerSingleton
 from gui.anime_window import AnimeWindowViewer
 from utils.buttons import utilsButtons
 from utils.utils import load_image
@@ -23,7 +23,7 @@ class RecentAnimeButton(utilsButtons.SidebarButton):
         super().__init__(main_window.sidebar_frame, "ANIMES RECIENTES", row, column, self.__show_animes_recientes,
                          icon_path_light, icon_path_dark)
         self.main_window = main_window
-        self.animeflv_api: AnimeFLV = AnimeFLVSingleton()
+        self.anime_provider_mgr: AnimeProviderManager = AnimeProviderManagerSingleton()
 
     def show_frame(self):
         # Mostrar el sidebar ahora que ha terminado la descarga
@@ -87,7 +87,7 @@ class RecentAnimeButton(utilsButtons.SidebarButton):
             self.main_window.update()
 
             def _load_and_show():
-                anime_info = self.animeflv_api.get_anime_info(anime_id)
+                anime_info = self.anime_provider_mgr.get_anime_info(anime_id)
                 if anime_info is not None:
                     self.main_window.recent_animes[index] = anime_info
                     anime_clicked_final = anime_info

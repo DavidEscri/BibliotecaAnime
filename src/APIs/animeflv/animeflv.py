@@ -1,7 +1,7 @@
 __author__ = "Jose David Escribano Orts"
-__subsystem__ = "animeflv"
+__subsystem__ = "APIs.animeflv"
 __module__ = "animeflv.py"
-__version__ = "0.1"
+__version__ = "0.2"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 import time
@@ -9,13 +9,13 @@ import time
 import requests
 import json
 
-from typing import List, Optional, Union
-from enum import Enum
-from bs4 import BeautifulSoup, ResultSet
+from typing import List, Union, Tuple
+from bs4 import BeautifulSoup
 from urllib.parse import urlencode
-from dataclasses import dataclass
 
 from utils.utils import removeprefix
+from APIs.common.animeProviderMgr import AnimeProvider
+from APIs.common.models import AnimeGenreFilter, ServerInfo, EpisodeInfo, AnimeInfo
 
 
 BASE_URL = "https://www3.animeflv.net"
@@ -23,79 +23,15 @@ BROWSE_URL = f"{BASE_URL}/browse"
 ANIME_VIDEO_URL = f"{BASE_URL}/ver/"
 ANIME_URL = f"{BASE_URL}/anime"
 
-class AnimeGenreFilter(Enum):
-    ACCIÓN = "accion"
-    ARTES_MARCIALES = "artes-marciales"
-    AVENTURA = "aventura"
-    CARRERAS = "carreras"
-    CIENCIA_FICCIÓN = "ciencia-ficcion"
-    COMEDIA = "comedia"
-    DEMENCIA = "demencia"
-    DEMONIOS = "demonios"
-    DEPORTES = "deportes"
-    DRAMA = "drama"
-    ECCHI = "ecchi"
-    ESCOLARES = "escolares"
-    ESPACIAL = "espacial"
-    FANTASÍA = "fantasia"
-    HAREM = "harem"
-    HISTÓRICO = "historico"
-    INFANTIL = "infantil"
-    JOSEI = "josei"
-    JUEGOS = "juegos"
-    MAGIA = "magia"
-    MECHA = "mecha"
-    MILITAR = "militar"
-    MISTERIO = "misterio"
-    MÚSICA = "musica"
-    PARODIA = "parodia"
-    POLICÍA = "policia"
-    PSICOLÓGICO = "psicologico"
-    RECUENTOS_DE_LA_VIDA = "recuentos-de-la-vida"
-    ROMANCE = "romance"
-    SAMURAI = "samurai"
-    SEINEN = "seinen"
-    SHOUJO = "shoujo"
-    SHOUNEN = "shounen"
-    SOBRENATURAL = "sobrenatural"
-    SUPERPODERES = "superpoderes"
-    SUSPENSO = "suspenso"
-    TERROR = "terror"
-    VAMPIROS = "vampiros"
-    YAOI = "yaoi"
-    YURI = "yuri"
 
-class AnimeOrderFilter(Enum):
-    POR_DEFECTO = "default"
-    ALFABÉTICAMENTE = "title"
-    CALIFICACIÓN = "rating"
+class AnimeFLV(AnimeProvider):
 
-@dataclass
-class ServerInfo:
-    server: str
-    url: str
-
-
-@dataclass
-class EpisodeInfo:
-    id: int
-    anime: str
-
-
-@dataclass
-class AnimeInfo:
-    id: str
-    title: str
-    poster: str
-    synopsis: Optional[str] = None
-    genres: Optional[List[str]] = None
-    episodes: Optional[List[EpisodeInfo]] = None
-
-
-class AnimeFLV:
+    PROVIDER_ID = "animeflv"
+    PROVIDER_NAME = "AnimeFLV"
+    BASE_URL = BASE_URL
 
     def search_animes_by_genres_and_order(self, genres: List[AnimeGenreFilter], order: str = None,
-                                          page: int = None) -> (List[AnimeInfo], int):
+                                          page: int = None) -> Tuple[List[AnimeInfo], int]:
         genre_values = [genre.value for genre in genres]
 
         # Generar la query string
@@ -111,7 +47,7 @@ class AnimeFLV:
 
         if elements is None:
             print("Unable to get list of animes")
-            return []
+            return [], 0
 
         last_page = 1
         if pages is not None:
@@ -131,7 +67,7 @@ class AnimeFLV:
             )
         return query_animes, last_page
 
-    def search_animes_by_query(self, query: str = None, page: int = None) -> (List[AnimeInfo], int):
+    def search_animes_by_query(self, query: str = None, page: int = None) -> Tuple[List[AnimeInfo], int]:
         """
         Search in animeflv.net by query.
         :param query: Query information like: 'Nanatsu no Taizai'.
@@ -161,7 +97,7 @@ class AnimeFLV:
 
         if elements is None:
             print("Unable to get list of animes")
-            return []
+            return [], 0
 
         last_page = 1
         if pages is not None:
@@ -240,7 +176,7 @@ class AnimeFLV:
             )
         return recent_animes
 
-    def get_anime_info(self, anime_id: Union[str, int]) -> AnimeInfo:
+    def get_anime_info(self, anime_id: Union[str, int]) -> AnimeInfo | None:
         """
         Obtiene información sobre un anime específico.
 
@@ -284,7 +220,7 @@ class AnimeFLV:
                             break
 
                     for episode, _ in episodes_data:
-                        episodes.append(EpisodeInfo(id=episode, anime=anime_id))
+                        episodes.append(EpisodeInfo(id=episode, anime=str(anime_id)))
 
                 except Exception as exc:
                     print(f"Error al obtener los episodios de {anime_id}: {exc}")
