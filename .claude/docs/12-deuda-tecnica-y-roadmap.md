@@ -18,6 +18,7 @@ Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ si
 | `src/gui/anime_window.py` | +1 línea: TODO «alternar entre manga y anime» (`:25`) |
 | `src/gui/main_window.py` | +5 líneas: TODOs de renombrado y selector de proveedor (`:30-34`) |
 | `src/gui/sidebarButtons/recentAnimes/recentAnimes.py` | +1 línea: TODO «nuevos lanzamientos» (`:19`) |
+| `src/gui/sidebarButtons/searchAnimes/searchAnimes.py` | **cambio funcional**: `from attr import dataclass` → `from dataclasses import dataclass` (arreglo de A2, ver §4) |
 | `src/utils/buttons/utilsButtons.py` | ±1 línea: TODO color de texto en modo oscuro (`:56`) |
 | `resources/images/utils/pendientes_dark.png` | **sin trackear** |
 | `resources/images/utils/pendientes_light.png` | **sin trackear** |
@@ -26,8 +27,9 @@ Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ si
 | `.vscode/` | **sin trackear** |
 | `.claude/` | **sin trackear** (incluye esta documentación) |
 
-**Los cambios en `src/` son exclusivamente comentarios `TODO`.** Ninguna lógica se ha modificado
-respecto a `a972850`.
+Salvo el arreglo de A2 en `searchAnimes.py` (cambio de import, sin efecto en el comportamiento),
+**los cambios en `src/` son comentarios `TODO`**. Ninguna lógica se ha modificado respecto a
+`a972850`.
 
 ---
 
@@ -64,7 +66,7 @@ Auditado punto por punto. Donde el código contradice a `CLAUDE.md`, **gana el c
 | D7 | «Muestra … la lista de episodios (**los 25 primeros**, `[:25]`)» | ✅ Correcto. El comentario del propio código dice «24» (`anime_window.py:302`) | `anime_window.py:263` |
 | D8 | Lista los TODOs de `main_window.py`, `anime_window.py`, `recentAnimes.py`, `utilsButtons.py` | ✅ Correcto y completo (6 TODOs) | §2 |
 | D9 | «`.spec` … no incluye `APIs.animeav1.animeav1`, `APIs.common.animeProviderMgr` ni `APIs.common.models`, y declara `gui.anime_windows`» | ✅ Correcto. **Además** declara `gui.sidebarButtons.sidebarButton`, que tampoco existe | `MiBibliotecaAnime.spec:30` |
-| D10 | No menciona `attrs` | ✅ **Dependencia no declarada**: `searchAnimes.py:15` la usa y no está en `requirements.txt` | [10, trampa 18b](10-invariantes-y-trampas.md) |
+| D10 | No menciona `attrs` | ✅ **Ya no aplica (2026-07-28)**: era una dependencia no declarada; el import se cambió a `dataclasses` de la stdlib y `attrs` deja de ser dependencia | [10, trampa 18b](10-invariantes-y-trampas.md) |
 | D11 | No menciona el estado de AnimeFLV | ✅ `get_anime_episode_servers` devuelve `[]`; el usuario confirma que el sitio está caído / en desuso | [05 §2](05-proveedores-y-scraping.md) |
 
 ### El `README.md` también miente un poco
@@ -87,7 +89,6 @@ Auditado punto por punto. Donde el código contradice a `CLAUDE.md`, **gana el c
 | # | Problema | Dónde | Impacto |
 |---|---|---|---|
 | A1 | **Sin migraciones de BD** | `animesPersistence.py:221-227` | Cualquier columna nueva rompe silenciosamente las instalaciones con datos. Bloquea el TODO #4 |
-| A2 | **`attrs` no declarada** | `searchAnimes.py:15` vs `requirements.txt` | Entorno limpio → `ModuleNotFoundError` |
 | A3 | **`.spec` desactualizado** | `MiBibliotecaAnime.spec:21-36` | El `.exe` falla en runtime, no al compilar |
 | A4 | **Póster a 20×20 al descargar** | `utils.py:176-177` | Visible para el usuario en cada ficha no cacheada |
 | A5 | **Mojibake en la sinopsis de AnimeAV1** | `animeav1.py:169` | Texto roto en pantalla **y persistido en BD** |
@@ -123,6 +124,14 @@ Auditado punto por punto. Donde el código contradice a `CLAUDE.md`, **gana el c
 | C9 | Comentario «24 primeros» donde el código dice 25 | `anime_window.py:302` |
 | C10 | `README.md` describe funciones inexistentes | §3 |
 | C11 | La BD del desarrollador se empaqueta en el `.exe` | `MiBibliotecaAnime.spec:12` |
+
+### ✅ Resuelto
+
+| # | Problema | Resuelto | Cómo |
+|---|---|---|---|
+| A2 | **`attrs` no declarada** — `searchAnimes.py:15` hacía `from attr import dataclass` de un paquete ausente de `requirements.txt`, presente solo como transitiva de `selenium → trio → outcome → attrs`. Entorno limpio → `ModuleNotFoundError: No module named 'attr'` | 2026-07-28 | Sustituido por `from dataclasses import dataclass` (stdlib). Se elimina la dependencia en vez de declararla; `src/` ya no referencia `attrs` ni `selenium`. ✅ Verificado importando el módulo e instanciando `AnimeSearch` |
+
+> Los identificadores retirados (`A2`) **no se reutilizan**: otros documentos los citan.
 
 ---
 
@@ -176,7 +185,8 @@ Roadmap declarado en `.claude/CLAUDE.md` y `README.md:124-130`.
 
 ### Orden sugerido
 
-1. **Pagar A2, A3, A4, A5** — son arreglos pequeños con impacto visible o de despliegue.
+1. **Pagar A3, A4, A5** — son arreglos pequeños con impacto visible o de despliegue.
+   (~~A2~~ ya pagada: ver [§4 → Resuelto](#-resuelto).)
 2. **Resolver R1 (migraciones)** — desbloquea todo lo demás.
 3. **Integrar un tercer proveedor** — mitiga R2 y valida que la abstracción aguanta.
 4. **Entonces** abordar la convivencia anime/manga, que es la refactorización grande.

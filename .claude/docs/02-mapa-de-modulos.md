@@ -321,7 +321,7 @@ contenido de `content_frame`.
 `recentAnimes.py` es la **única** que carga la ficha en un hilo secundario (`:90-102`) y la única con
 `show_frame()` que revela la sidebar (`:31`).
 
-`searchAnimes.py` añade `AnimeSearch` (`:24-31`, dataclass de **`attrs`**), paginación
+`searchAnimes.py` añade `AnimeSearch` (`:24-31`, `dataclasses.dataclass` de la stdlib), paginación
 (`:267-324`) y un frame de carga con GIF (`:170-215`).
 
 ---

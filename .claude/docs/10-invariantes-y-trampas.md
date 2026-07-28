@@ -301,13 +301,21 @@ directorio que no corresponda a un anime de la lista recibida.
 
 **Síntoma**: `ModuleNotFoundError` al arrancar el `.exe`, no al compilar.
 
-**b) `attrs` no está en `requirements.txt`** ✅:
-`searchAnimes.py:15` hace `from attr import dataclass`, del paquete **`attrs`** (instalado: 24.2.0),
-ausente de `requirements.txt`. `attr.dataclass` es `functools.partial(attrs, auto_attribs=True)`, **no**
-`dataclasses.dataclass`.
+**b) `attrs` no declarada** — ✅ **RESUELTO (2026-07-28)**:
 
-**Síntoma**: en un entorno limpio creado solo con `requirements.txt`, `ModuleNotFoundError: No module
-named 'attr'` al importar `main_window`.
+`searchAnimes.py:15` hacía `from attr import dataclass`, del paquete **`attrs`** (24.2.0), ausente de
+`requirements.txt` y presente en el entorno solo por accidente, como transitiva de
+`selenium → trio → outcome → attrs`. En un entorno limpio creado solo con `requirements.txt` daba
+`ModuleNotFoundError: No module named 'attr'` al importar `main_window`.
+
+**Arreglo aplicado**: sustituido por `from dataclasses import dataclass` (stdlib), consistente con
+`models.py:13` y `animesPersistence.py:9`. `AnimeSearch` solo usa defaults simples, así que el
+comportamiento no cambia. ✅ Verificado: el módulo importa, `dataclasses.is_dataclass(AnimeSearch)`
+es `True` y la instancia se construye. `src/` ya no referencia `attrs` ni `selenium`.
+
+> **Ojo si vuelves a ver este import**: `attr.dataclass` **no** es `dataclasses.dataclass`, sino
+> `functools.partial(attrs, auto_attribs=True)`. Es un alias no documentado que los IDE ofrecen en
+> el autocompletado — fue justo el origen de este fallo.
 
 **c) `console=False` en el `.spec`** 📖 (`:60`): todos los `print` desaparecen en el `.exe`. Para
 depurar el empaquetado, cambia temporalmente a `console=True`.

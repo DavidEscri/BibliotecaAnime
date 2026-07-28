@@ -8,11 +8,12 @@ import os
 import threading
 import time
 
+from dataclasses import dataclass
+
 import customtkinter as ctk
 from typing import List, Union
 
 from PIL import Image, ImageSequence
-from attr import dataclass
 
 from APIs.common.models import AnimeGenreFilter, AnimeOrderFilter, AnimeInfo
 from APIs.common.animeProviderMgr import AnimeProviderManager, AnimeProviderManagerSingleton

@@ -187,12 +187,13 @@ existe** (`:221-227`).
 `beautifulsoup4==4.12.3` · `Pillow==11.0.0` · `Requests==2.32.3` · `pyinstaller==6.11.0` ·
 `customtkinter==5.2.2` · `typing_extensions==4.12.2`
 
-> ⚠️ **Dependencia no declarada.** ✅ Verificado: `gui/sidebarButtons/searchAnimes/searchAnimes.py:15`
-> hace `from attr import dataclass`, que viene del paquete **`attrs`** (instalado: 24.2.0), y `attrs`
-> **no está en `requirements.txt`**. `attr.dataclass` es
-> `functools.partial(attrs, auto_attribs=True)` — no es `dataclasses.dataclass`. Un entorno limpio
-> creado solo con `requirements.txt` fallaría al importar el buscador. Ver trampa 18 y
-> [12](12-deuda-tecnica-y-roadmap.md).
+✅ **La lista está completa** (2026-07-28): `src/` no importa nada fuera de la stdlib y de esos seis
+paquetes.
+
+> **Histórico**: hasta 2026-07-28 `searchAnimes.py:15` hacía `from attr import dataclass`, del
+> paquete **`attrs`**, que no estaba declarado y solo existía en el entorno como transitiva de
+> `selenium`. Se sustituyó por `dataclasses` de la stdlib. Ver trampa 18b y
+> [12 §4 → Resuelto](12-deuda-tecnica-y-roadmap.md).
 
 ---
 

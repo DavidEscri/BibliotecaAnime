@@ -248,5 +248,4 @@ cambian mi comportamiento): [`.claude/COMO-PEDIR-TAREAS.md`](COMO-PEDIR-TAREAS.m
 > **Correcciones a este fichero** detectadas al auditarlo (detalle en
 > [docs/12 §3](docs/12-deuda-tecnica-y-roadmap.md)): no todos los `update_*` devuelven `False` si el
 > anime no existe; `get_anime_image()` **no** busca en `resources/images/watching/`; el orden de
-> `episodes` antes de invertirse **depende del proveedor**; y `attrs` es una dependencia real que
-> falta en `requirements.txt`.
+> `episodes` antes de invertirse **depende del proveedor**.

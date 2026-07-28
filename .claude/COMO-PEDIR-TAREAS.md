@@ -246,7 +246,6 @@ Si haces un cambio de código y quieres que la documentación acompañe, **dilo 
 empaquetado, dime:
 
 - Si puedo **corregir el `.spec`** (`hiddenimports` incompletos, `gui.anime_windows` mal escrito).
-- Si `attrs` puede entrar en `requirements.txt` (hoy falta y el buscador no importaría en limpio).
 - **Qué hacer con `('resources/DB', 'resources/DB')`**: tal cual, tu biblioteca personal viaja
   dentro del `.exe`.
 - La `APP_VERSION` nueva.

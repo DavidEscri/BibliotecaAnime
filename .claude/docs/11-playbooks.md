@@ -264,26 +264,24 @@ para claro y oscuro, así que `update_icon()` (`utilsButtons.py:78-80`) no cambi
    | **corregir** | `gui.anime_windows` → `gui.anime_window` |
    | **eliminar** | `gui.sidebarButtons.sidebarButton` (no existe tal módulo) |
 
-2. Añade `attrs` a `requirements.txt` o el entorno de build no lo tendrá (trampa 18b).
-3. Sube `APP_VERSION` (`:3`) — determina el nombre de `dist/MiBibliotecaAnime_v<X>/`.
-4. ⚠️ **Decide qué hacer con `('resources/DB', 'resources/DB')`** (`:12`): tal cual, **empaqueta la
+2. Sube `APP_VERSION` (`:3`) — determina el nombre de `dist/MiBibliotecaAnime_v<X>/`.
+3. ⚠️ **Decide qué hacer con `('resources/DB', 'resources/DB')`** (`:12`): tal cual, **empaqueta la
    biblioteca personal del desarrollador** dentro del ejecutable.
-5. Revisa que toda carpeta nueva de `resources/` esté en `datas` (`:11-20`).
-6. Compila:
+4. Revisa que toda carpeta nueva de `resources/` esté en `datas` (`:11-20`).
+5. Compila:
 
    ```bash
    pyinstaller MiBibliotecaAnime.spec
    ```
 
-7. Para depurar: cambia `console=False` → `console=True` (`:60`) y verás los `print`.
+6. Para depurar: cambia `console=False` → `console=True` (`:60`) y verás los `print`.
 
 **Checklist**
 
 - [ ] `hiddenimports` corregido y completo.
-- [ ] `attrs` en `requirements.txt`.
 - [ ] El `.exe` arranca y muestra la pantalla de carga.
 - [ ] Las 6 vistas de la sidebar abren sin `ModuleNotFoundError`.
-- [ ] El **buscador** abre (es el que importa `attr`).
+- [ ] El **buscador** abre.
 - [ ] Los iconos y el GIF de carga se ven (→ `datas` correcto).
 - [ ] La ficha de detalle abre y los servidores cargan.
 - [ ] Comprobado en una máquina **sin** el entorno de desarrollo.
