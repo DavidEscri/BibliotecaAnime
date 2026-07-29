@@ -9,7 +9,7 @@ futuro despliegue del sitio.
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "APIs.animeav1"
 __module__ = "animeav1.py"
-__version__ = "0.2"
+__version__ = "0.3"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 import re
@@ -32,6 +32,28 @@ MEDIA_URL = f"{BASE_URL}/media"
 # Fragmento que identifica el <script> de hidratación de SvelteKit que contiene
 # los datos de la página (título, sinopsis, episodios, servidores, etc.)
 _SVELTE_PAYLOAD_MARKER = "kit.start(app, element, {"
+
+
+def _fetch(url: str, **kwargs) -> requests.Response:
+    """
+    Descarga una página de animeav1.com dejando `response.text` en UTF-8.
+
+    El sitio responde `Content-Type: text/html` **sin `charset`**. Ante esa
+    ausencia, requests aplica el valor por defecto de la RFC 2616 (ISO-8859-1),
+    así que `response.text` sale con mojibake ("tÃ­tulo" en vez de "título") y
+    ese texto acaba en `AnimeInfo.synopsis`, en pantalla y en la BD.
+
+    Se fuerza UTF-8 solo cuando el servidor no declara charset, de forma que si
+    algún día empieza a declararlo, se respeta el suyo.
+
+    :param url: URL a descargar.
+    :param kwargs: Argumentos que se pasan tal cual a `requests.get`.
+    :rtype: requests.Response
+    """
+    response = requests.get(url, **kwargs)
+    if "charset" not in response.headers.get("Content-Type", "").lower():
+        response.encoding = "utf-8"
+    return response
 
 
 class AnimeAV1(AnimeProvider):
@@ -63,7 +85,7 @@ class AnimeAV1(AnimeProvider):
         query_string = urlencode(query_pairs)
 
         url = f"{CATALOG_URL}?{query_string}" if query_string else CATALOG_URL
-        response = requests.get(url)
+        response = _fetch(url)
         soup = BeautifulSoup(response.text, "html.parser")
 
         query_animes = self.__parse_anime_cards(soup)
@@ -94,7 +116,7 @@ class AnimeAV1(AnimeProvider):
         if params != "":
             url += f"?{params}"
 
-        response = requests.get(url)
+        response = _fetch(url)
         soup = BeautifulSoup(response.text, "html.parser")
 
         query_animes = self.__parse_anime_cards(soup)
@@ -111,7 +133,7 @@ class AnimeAV1(AnimeProvider):
         :rtype: List[ServerInfo]
         """
         try:
-            response = requests.get(f"{MEDIA_URL}/{anime_id}/{episode_id}", timeout=10)
+            response = _fetch(f"{MEDIA_URL}/{anime_id}/{episode_id}", timeout=10)
             response.raise_for_status()
         except requests.RequestException as exc:
             print(f"Error al obtener los servidores del episodio {episode_id} de {anime_id}: {exc}")
@@ -143,7 +165,7 @@ class AnimeAV1(AnimeProvider):
         :rtype: List[AnimeInfo]
         """
         try:
-            response = requests.get(BASE_URL, timeout=10)
+            response = _fetch(BASE_URL, timeout=10)
             response.raise_for_status()
         except Exception:
             print(f"Error al conectarse a {BASE_URL} para obtener los animes recientes")
@@ -163,7 +185,7 @@ class AnimeAV1(AnimeProvider):
         max_attempts = 3
         while attempt < max_attempts:
             try:
-                response = requests.get(f"{MEDIA_URL}/{anime_id}", timeout=5)
+                response = _fetch(f"{MEDIA_URL}/{anime_id}", timeout=5)
                 response.raise_for_status()
 
                 soup = BeautifulSoup(response.text, "html.parser")
