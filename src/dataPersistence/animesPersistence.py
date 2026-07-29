@@ -1,7 +1,7 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "DataPersistence"
 __module__ = "animesPersistence"
-__version__ = "2.0"
+__version__ = "2.1"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 import json
@@ -11,7 +11,7 @@ from enum import Enum
 from typing import Dict, List, Optional, Set, Any
 
 from APIs.common.models import AnimeInfo, AnimeGenreFilter, AnimeOrderFilter, EpisodeInfo
-from utils.db.sqlite import ServiceDB
+from utils.db.sqlite import ServiceDB, TableSchema
 from utils.utils import get_resource_path
 
 
@@ -211,6 +211,18 @@ class AnimesPersistence(ServiceDB):
     FIELD_TYPES = [f.sql_type for f in AnimeField]
     PRIMARY_KEY = f"{AnimeField.ID.column} AUTOINCREMENT"
 
+    # Esquema declarado de la BD: **la fuente de verdad**. Toda tabla de
+    # DB_Animes.db debe figurar aquí; para añadir una tabla nueva basta con
+    # añadir su TableSchema a esta lista — validate_db_integrity() la creará
+    # en el siguiente arranque, también en instalaciones con datos previos.
+    SCHEMA: List[TableSchema] = [
+        TableSchema(
+            name        = TABLE_NAME,
+            fields      = [(f.column, f.sql_type) for f in AnimeField],
+            primary_key = PRIMARY_KEY,
+        ),
+    ]
+
     def __init__(self):
         try:
             self.path_db = get_resource_path(f"resources/DB/{self.DB_NAME}")
@@ -223,8 +235,40 @@ class AnimesPersistence(ServiceDB):
             if not os.path.isfile(self.path_db):
                 if not self._create_db_animes():
                     raise Exception(f"Error al crear la base de datos {self.DB_NAME}")
+            if not self.validate_db_integrity():
+                print(f"Aviso: la base de datos {self.DB_NAME} no concuerda con el esquema "
+                      f"declarado en código; puede haber lecturas incorrectas")
         except Exception as e:
             print(f"Error al empezar la base de datos {self.DB_NAME}: {e}")
+
+    # ------------------------------------------------------------------
+    # Integridad de esquema
+    # ------------------------------------------------------------------
+    def validate_db_integrity(self) -> bool:
+        """Verifica que la BD física concuerda con ``SCHEMA`` y la corrige si no.
+
+        Se llama desde ``start()`` justo después de comprobar o crear el fichero
+        de la BD. Cubre los tres escenarios de evolución del esquema:
+
+        - **columna nueva** en ``AnimeField`` → se añade con ``ALTER TABLE``
+          (los registros existentes la reciben a ``NULL`` o a su default).
+        - **cambio de orden o de tipo** de las columnas → se reconstruye la
+          tabla copiando los datos por nombre de columna.
+        - **tabla nueva** añadida a ``SCHEMA`` → se crea.
+
+        Es idempotente: si no hay diferencias no toca la BD ni crea copias. Antes
+        de cualquier modificación se guarda una copia del ``.db`` en
+        ``resources/DB/backups/``.
+
+        Esto es lo que evita el fallo silencioso de las instalaciones con datos
+        previos: ``query_sql`` empareja fila y ``FIELDS`` **por posición**, así
+        que una BD antigua con menos columnas devolvería los valores desplazados
+        sin lanzar ningún error.
+
+        :return: ``True`` si al terminar la BD concuerda con el esquema.
+        """
+        print(f"Validando la integridad de {self.DB_NAME}")
+        return self.validate_schema(self.SCHEMA)
 
     # ------------------------------------------------------------------
     # Consultas
@@ -487,8 +531,14 @@ class AnimesPersistence(ServiceDB):
         return False
 
     def _create_db_animes(self) -> bool:
+        """Crea la BD desde cero con todas las tablas declaradas en ``SCHEMA``."""
         print(f"Creando base de datos {self.DB_NAME}")
-        return self.create_table(self.TABLE_NAME, self.FIELDS, self.FIELD_TYPES, self.PRIMARY_KEY)
+        for table_schema in self.SCHEMA:
+            if not self._db.create_db(table_schema.create_sql()):
+                print(f"Error al crear la tabla {table_schema.name} en {self.path_db}")
+                return False
+            print(f"Tabla {table_schema.name} creada en {self.path_db}")
+        return True
 
 
 # ---------------------------------------------------------------------------
