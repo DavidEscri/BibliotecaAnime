@@ -83,7 +83,8 @@ Esta documentación caduca. Puntos de mantenimiento concretos:
 | Cuándo | Qué actualizar |
 |---|---|
 | Añades/quitas un módulo en `src/` | Ficha en [02](02-mapa-de-modulos.md) + diagrama en [01](01-arquitectura.md) + `hiddenimports` del `.spec` |
-| Añades un miembro a `AnimeField` | Tabla de esquema en [04](04-modelo-de-datos.md) + trampa 1 + playbook [11 §2](11-playbooks.md) |
+| Añades un miembro a `AnimeField` | Tabla de esquema en [04](04-modelo-de-datos.md) + trampa 1 + playbook [11 §2](11-playbooks.md). La migración la aplica `validate_db_integrity()`; verifícala sobre copia ([09 §3b](09-verificacion-y-pruebas.md)) |
+| Añades una tabla a `AnimesPersistence.SCHEMA` | Playbook [11 §2b](11-playbooks.md) + [04 §3](04-modelo-de-datos.md) + ficha de `animesPersistence.py` en [02](02-mapa-de-modulos.md) |
 | Añades un proveedor | Tabla comparativa en [05](05-proveedores-y-scraping.md) + registro en [01](01-arquitectura.md) |
 | Un sitio cambia su HTML | Selectores en [05](05-proveedores-y-scraping.md) + sección de diagnóstico |
 | Cambias hilos o `after` | [07](07-concurrencia-e-hilos.md) + el flujo afectado en [03](03-flujos-de-ejecucion.md) |

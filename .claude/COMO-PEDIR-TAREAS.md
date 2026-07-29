@@ -107,7 +107,7 @@ Verifica con [script sin GUI / GUI / no hace falta].
 | Campo | Por qué |
 |---|---|
 | **Comportamiento observable** | Qué ve o hace el usuario. Es lo que menos ambigüedad deja |
-| **¿Persiste?** | Si hay que guardar algo, **es el dato más importante de la petición**: implica columna nueva → migración → riesgo alto ([11 §2](docs/11-playbooks.md)) |
+| **¿Persiste?** | Si hay que guardar algo, **es el dato más importante de la petición**: implica columna nueva y tocar `AnimeRecord`. La migración de la BD ya es automática ([11 §2](docs/11-playbooks.md)), pero se prueba sobre una copia de tu BD |
 | **Dónde vive en la UI** | Vista nueva de sidebar, ficha de detalle, o dentro de una vista existente |
 | **Alcance del roadmap** | Si es un paso hacia la convivencia anime/manga, dímelo: cambia si generalizo los modelos o no |
 | **Hasta dónde llego** | ¿Diseño y espero tu OK, o implemento del tirón? |
@@ -131,8 +131,8 @@ Vive en <vista / ficha / sidebar nueva>.
 
 ✅ **Bien (grande, con freno)**
 > Quiero calificación personal de 1 a 5 en favoritos, guardada y con ordenación por ella. Sé que
-> implica columna nueva y que no hay migraciones. **Diseña primero** el plan (incluida la migración)
-> y espera mi OK antes de tocar `src/`.
+> implica columna nueva en `AnimeField` y que la migración se aplica sola al arrancar.
+> **Diseña primero** el plan y espera mi OK antes de tocar `src/`.
 
 ❌ **Flojo**
 > Añade puntuaciones a los animes.
@@ -142,7 +142,7 @@ Vive en <vista / ficha / sidebar nueva>.
 ### Regla de oro
 
 **Si la funcionalidad guarda algo, dilo en la primera frase.** Es la diferencia entre 20 minutos y
-una sesión con migración, pruebas sobre copia de tu BD y riesgo de corromper datos existentes.
+una sesión con cambios de esquema y pruebas sobre copia de tu BD.
 
 ---
 
@@ -216,7 +216,7 @@ Ejemplos que funcionan bien:
 > Explícame por qué el orden de los episodios sale al revés entre AnimeAV1 y AnimeFLV, y qué
 > consecuencias tiene. No toques código.
 
-> ¿Qué pasa exactamente si añado una columna a `AnimeField` sin migración, en mi BD que ya tiene
+> ¿Qué pasa exactamente si añado una columna en medio de `AnimeField`, en mi BD que ya tiene
 > 24 animes? Solo dime.
 
 > Enséñame todo lo que corre fuera del hilo de Tkinter y cuál me puede dar problemas.
@@ -291,7 +291,7 @@ Frases cortas que cambian mi comportamiento de forma fiable:
 | «arregla el buscador» | Hay 4 problemas distintos ahí; elegiré uno | «arregla el guard de hilos de `searchAnimes.py`, que `.start()` devuelve `None`» |
 | Pegarme 200 líneas de código | Ya lo leo yo, y me quitas contexto útil | Dame la ruta: `searchAnimes.py:205` |
 | «haz que funcione como antes» | No sé cómo era antes | Descríbeme el comportamiento, o dime el commit |
-| «añade un campo X» sin decir si persiste | Es la diferencia entre 5 minutos y una migración | Dilo en la primera frase |
+| «añade un campo X» sin decir si persiste | Es la diferencia entre 5 minutos y un cambio de esquema | Dilo en la primera frase |
 | «mejora el rendimiento» | Nada está medido; optimizaría a ciegas | «el arranque tarda ~15 s por la precarga de recientes, ¿se puede paralelizar?» |
 | «revisa todo el proyecto» | Sin foco, el resultado es una lista genérica | «revisa la capa de persistencia buscando pérdidas de datos» |
 | Pedir tests | No hay suite y `TESTS/` es material de terceros | «verifícalo con un script en el scratchpad» |
@@ -346,6 +346,5 @@ ciegas fuese inseguro o dejase el trabajo inservible.
 > El dato está en BD, no persiste nada nuevo. Solo `anime_window.py`. Hazlo entero.
 
 **Cambio arriesgado**
-> Quiero añadir `user_rating` a la BD. Sé que no hay migraciones y que mi BD tiene 24 animes reales.
-> Diseña el plan completo — incluida la migración y cómo la probamos sobre una copia — y espera mi
-> OK antes de tocar `src/`.
+> Quiero añadir `user_rating` a la BD. Mi BD tiene 24 animes reales, así que verifica la migración
+> sobre una copia antes de nada. Diseña el plan completo y espera mi OK antes de tocar `src/`.

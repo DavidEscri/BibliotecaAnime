@@ -28,25 +28,43 @@ medio, desplaza todos los valores posteriores.
 **Cómo comprobarlo**: `PRAGMA table_info(ANIMES)` y comparar con `AnimesPersistence.FIELDS`
 ([09 §3](09-verificacion-y-pruebas.md)). ✅ Hoy coinciden.
 
+> ✅ **Mitigada desde 2026-07-30**: `validate_db_integrity()` (trampa 2) detecta el desorden y
+> reconstruye la tabla realineándola con el orden declarado, copiando los datos por nombre de columna.
+> El invariante sigue vigente — el orden de `AnimeField` **es** el contrato — pero reordenarlo ya no
+> corrompe una BD existente: se corrige en el siguiente arranque.
+
 ---
 
-### 2. No hay migraciones — la BD existente nunca se altera ✅
+### 2. Las migraciones son automáticas — declara el esquema, no el `ALTER TABLE` ✅ *(resuelta 2026-07-30)*
 
-**Por qué**: `start()` (`animesPersistence.py:221-227`) solo crea la tabla **si el fichero `.db` no
-existe**.
+**Antes**: `start()` solo creaba la tabla si el `.db` no existía, así que una BD con datos nunca se
+alteraba. Añadir un miembro a `AnimeField` desalineaba silenciosamente todas las lecturas (trampa 1)
+**solo en las instalaciones con biblioteca previa** — funcionaba para quien escribía el cambio y
+rompía para quien ya tenía datos.
 
-**Prueba de que ya ocurrió**: la BD real del usuario declara `anime_id INTEGER` y
-`poster_url VARCHAR(100)`; `AnimeField` hoy dice `VARCHAR(100)` y `VARCHAR(200)`. Alguien cambió el
-enum y la BD se quedó atrás. ✅ Verificado con `PRAGMA table_info`.
+**Ahora**: `start()` llama a `validate_db_integrity()` (`animesPersistence.py`), que compara la BD
+física con `AnimesPersistence.SCHEMA` y aplica la corrección mínima: `CREATE TABLE` si falta la tabla,
+`ALTER TABLE ADD COLUMN` si solo faltan columnas al final, y reconstrucción de la tabla (copiando **por
+nombre de columna**, en una transacción) si cambia el orden o la afinidad de tipo. Copia de seguridad
+en `resources/DB/backups/` antes de la primera modificación.
 
-**Si añades un miembro al enum**: en tu máquina (BD antigua) `SELECT *` devuelve N columnas y
-`FIELDS` espera N+1 → **desalineación silenciosa**, igual que la trampa 1. En una instalación nueva
-funcionará. **Es el peor caso posible: funciona para quien lo escribe y rompe para quien ya tenía
-datos.**
+**Qué sigue siendo tu responsabilidad**:
 
-**Síntoma**: campos desplazados solo en instalaciones con biblioteca previa.
+- **Declarar el cambio en el sitio correcto.** Una columna nueva es un miembro de `AnimeField`; una
+  tabla nueva es un `TableSchema` más en `SCHEMA`. Lo que no está declarado no se migra.
+- **Actualizar `AnimeRecord`** (`to_db_dict` / `from_db_dict`) — la migración toca el esquema, no la
+  serialización.
+- **Valor por defecto**: una columna añadida a registros existentes llega a `NULL` salvo que se declare
+  en `TableSchema.defaults`. `from_db_dict` debe tolerar `None`.
+- **Columnas que ya existen en BD pero no en `SCHEMA` se descartan** al reconstruir (con aviso por
+  consola; quedan en la copia de seguridad).
 
-**Qué hacer**: [11 §2](11-playbooks.md) — hay que emitir un `ALTER TABLE` explícito.
+**Si lo rompes**: el único camino que sigue siendo peligroso es cambiar `AnimeField` y **no** ejecutar
+la app antes de leer datos, o llamar a `query_sql` desde un proceso que no haya pasado por `start()`.
+
+**Cómo comprobarlo**: `PRAGMA table_info(ANIMES)` frente a `AnimesPersistence.FIELDS`
+([09 §3](09-verificacion-y-pruebas.md)). ✅ Verificado sobre copias de la BD real (24 filas) en los
+seis escenarios de migración, incluida la idempotencia y el rollback.
 
 ---
 
@@ -362,8 +380,12 @@ Lo usan `animeflv.py:63,112,172` y `animeav1.py:258` para construir el `anime_id
 
 ## Resumen: las 5 que más duelen
 
-1. **Trampa 2** — añadir una columna rompe silenciosamente las instalaciones con datos previos.
-2. **Trampa 1** — reordenar `AnimeField` corrompe todas las lecturas sin lanzar un solo error.
-3. **Trampa 4** — el orden de `episodes` depende del proveedor y se invierte al guardar.
-4. **Trampa 16** — el póster se ve a 20×20 cada vez que hay que descargarlo.
-5. **Trampa 7** — marcar episodios sin estado asignado no guarda nada, sin avisar.
+1. **Trampa 4** — el orden de `episodes` depende del proveedor y se invierte al guardar.
+2. **Trampa 16** — el póster se ve a 20×20 cada vez que hay que descargarlo.
+3. **Trampa 7** — marcar episodios sin estado asignado no guarda nada, sin avisar.
+4. **Trampa 15** — `get_anime_image()` no busca en `watching/`, así que va a la red sin necesidad.
+5. **Trampa 6** — la ordenación por géneros nunca se aplica desde la GUI (`str` vs enum).
+
+> Las trampas **1** y **2** (desalineación de columnas y ausencia de migraciones) encabezaban esta
+> lista hasta el 2026-07-30. `validate_db_integrity()` las mitiga; el invariante del orden de
+> `AnimeField` sigue vigente, pero ya no corrompe datos en silencio.

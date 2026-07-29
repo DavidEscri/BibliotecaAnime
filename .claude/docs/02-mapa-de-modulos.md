@@ -19,8 +19,8 @@ Todas las líneas citadas corresponden al **árbol de trabajo actual**, no al ú
 | `src/APIs/common/animeProviderMgr.py` | 283 | dominio |
 | `src/APIs/animeav1/animeav1.py` | 345 | infraestructura |
 | `src/APIs/animeflv/animeflv.py` | 245 | infraestructura |
-| `src/dataPersistence/animesPersistence.py` | 503 | dominio/datos |
-| `src/utils/db/sqlite.py` | 141 | infraestructura |
+| `src/dataPersistence/animesPersistence.py` | 552 | dominio/datos |
+| `src/utils/db/sqlite.py` | 446 | infraestructura |
 | `src/utils/utils.py` | 199 | infraestructura |
 | `src/utils/buttons/utilsButtons.py` | 197 | GUI |
 | `src/gui/main_window.py` | 258 | GUI |
@@ -164,22 +164,25 @@ esfuerzo en diagnosticarlo.
 |---|---|
 | `AnimeStatus(Enum)` | `:21-25` — el **valor** es el nombre de la columna |
 | `AnimeField(Enum)` | `:28-55` — `(columna, tipo SQLite)`, props `.column` / `.sql_type` |
-| `AnimeRecord` | `:61-201` |
+| `AnimeRecord` | `:62-201` |
 | `AnimeRecord.to_db_dict()` | `:86-104` — **invierte `episodes`** (`:88`), comprime `watched` (`:89`) |
-| `AnimeRecord.from_db_dict()` | `:109-146` — **no** deshace la inversión |
-| `AnimeRecord.from_anime_info()` | `:151-172` |
-| `_episodes_to_ranges` / `_ranges_to_episodes` | `:177-192` / `:194-201` |
-| `AnimesPersistence` | `:207-491` |
+| `AnimeRecord.from_db_dict()` | `:110-146` — **no** deshace la inversión |
+| `AnimeRecord.from_anime_info()` | `:152-172` |
+| `_episodes_to_ranges` / `_ranges_to_episodes` | `:178-192` / `:195-201` |
+| `AnimesPersistence` | `:207-541` |
 | `FIELDS` / `FIELD_TYPES` / `PRIMARY_KEY` | `:210-212` — derivados del enum |
-| `start()` | `:221-227` — crea la BD **solo si el fichero no existe** |
-| `get_anime_by_anime_id` / `get_watched_episodes` | `:232-241` / `:243-248` |
-| `get_favourite/watching/pending/finished_animes` | `:250-264` |
-| `get_anime_by_genre_and_order` | `:266-302` |
-| `update_watched_episodes` | `:307-327` — **devuelve `False` si el anime no existe** |
-| `update_anime_episodes` | `:329-337` — invierte con `[::-1]` (`:331`) |
-| `update_anime_to_[not_]favourite/watching/finished/pending` | `:342-400` |
-| `_query_by_status` / `_insert_anime` / `_update_flag` / `_set_status` | `:405-487` |
-| `AnimesPersistenceSingleton` | `:497-503` |
+| `SCHEMA: List[TableSchema]` | `:218-224` — **esquema declarado de la BD**; añadir una tabla = añadir un `TableSchema` |
+| `start()` | `:233-245` — crea la BD si falta **y llama siempre a `validate_db_integrity()`** |
+| `validate_db_integrity()` | `:247-273` — ✅ alinea la BD con `SCHEMA`; delega en `ServiceDB.validate_schema` |
+| `get_anime_by_anime_id` / `get_watched_episodes` | `:276-285` / `:287-292` |
+| `get_favourite/watching/pending/finished_animes` | `:294-308` |
+| `get_anime_by_genre_and_order` | `:310-346` |
+| `update_watched_episodes` | `:351-371` — **devuelve `False` si el anime no existe** |
+| `update_anime_episodes` | `:373-381` — invierte con `[::-1]` (`:375`) |
+| `update_anime_to_[not_]favourite/watching/finished/pending` | `:386-444` |
+| `_query_by_status` / `_insert_anime` / `_update_flag` / `_set_status` | `:449-531` |
+| `_create_db_animes()` | `:533-541` — crea **todas** las tablas de `SCHEMA` |
+| `AnimesPersistenceSingleton` | `:547-552` |
 
 **Efectos**: escribe en `resources/DB/DB_Animes.db`. **Salientes**: `APIs.common.models`,
 `utils.db.sqlite.ServiceDB`, `utils.utils.get_resource_path`.
@@ -189,24 +192,40 @@ Todo verificado ✅ sobre una copia de la BD → [04](04-modelo-de-datos.md).
 
 ## `src/utils/db/sqlite.py`
 
-**Responsabilidad**: capa mínima sobre `sqlite3`. Sin ORM, sin pool, sin transacciones.
+**Responsabilidad**: capa mínima sobre `sqlite3` + **motor de migraciones de esquema**. Sin ORM, sin
+pool; transacciones solo en las migraciones.
 
 | Símbolo | Línea | Nota |
 |---|---|---|
-| `SqlUtils.insert_sql(sql, params) -> bool` | `:16-30` | conexión abierta y cerrada por llamada |
-| `SqlUtils.update_sql(sql, params) -> bool` | `:32-46` | ✅ **devuelve `True` aunque no afecte a ninguna fila** |
-| `SqlUtils.query_sql(sql, params, list_field) -> (bool, list)` | `:48-70` | mapea **por posición** `columna[i] → list_field[i]` |
-| `SqlUtils.create_db(sql) -> bool` | `:72-86` | |
-| `SqlUtils.get_conn() -> Connection` | `:88-89` | sin uso en el proyecto 📖 |
-| `ServiceDB.__init__(db_path)` | `:93-98` | crea el directorio padre si falta |
-| `ServiceDB.create_table(...)` | `:100-111` | `CREATE TABLE IF NOT EXISTS` |
-| `ServiceDB.validate_record(...)` | `:113-118` | |
-| `ServiceDB.insert_record_db(...)` | `:120-141` | `"NULL"` literal → `NULL` sin bind (`:134`) |
+| `sqlite_affinity(declared_type) -> str` | `:18-40` | las 5 reglas de afinidad de SQLite; `VARCHAR(100)` y `VARCHAR(200)` → ambas `TEXT` |
+| `TableSchema` | `:43-82` | esquema declarativo: `name`, `fields` **ordenados**, `primary_key`, `defaults` |
+| `TableSchema.create_sql(table_name=None)` | `:73-82` | el parámetro permite crear la tabla temporal de la reconstrucción |
+| `SqlUtils.insert_sql(sql, params) -> bool` | `:90-104` | conexión abierta y cerrada por llamada |
+| `SqlUtils.update_sql(sql, params) -> bool` | `:106-120` | ✅ **devuelve `True` aunque no afecte a ninguna fila** |
+| `SqlUtils.query_sql(sql, params, list_field) -> (bool, list)` | `:122-144` | mapea **por posición** `columna[i] → list_field[i]` |
+| `SqlUtils.create_db(sql) -> bool` | `:146-160` | |
+| `SqlUtils.execute_transaction(statements) -> bool` | `:162-192` | todo o nada, con `ROLLBACK`; usado por las migraciones |
+| `SqlUtils.get_table_names()` | `:194-210` | tablas de usuario (excluye `sqlite_%`) |
+| `SqlUtils.get_table_columns(table)` | `:212-225` | `[(columna, tipo_declarado)]` en **orden físico** |
+| `SqlUtils.get_conn() -> Connection` | `:227-228` | sin uso en el proyecto 📖 |
+| `ServiceDB.__init__(db_path)` | `:232-237` | crea el directorio padre si falta |
+| `ServiceDB.create_table(...)` | `:239-253` | `CREATE TABLE IF NOT EXISTS`; API antigua, hoy sin llamantes |
+| `ServiceDB.validate_schema(schemas, backup=True)` | `:255-292` | orquesta la migración y **re-verifica** al terminar |
+| `ServiceDB.diff_table(schema)` | `:294-330` | `exists` · `missing` · `extra` · `retyped` · `reordered` · `needs_migration` |
+| `ServiceDB.apply_table_migration(schema, diff)` | `:332-357` | elige `CREATE` / `ADD COLUMN` / reconstrucción |
+| `ServiceDB.__rebuild_table(schema, diff)` | `:359-394` | tabla temporal → `INSERT…SELECT` **por nombre** → `DROP` → `RENAME` |
+| `ServiceDB.backup_db()` | `:396-417` | `resources/DB/backups/<nombre>_<timestamp>.db` vía `Connection.backup` |
+| `ServiceDB.validate_record(...)` | `:419-424` | |
+| `ServiceDB.insert_record_db(...)` | `:426-446` | `"NULL"` literal → `NULL` sin bind (`:439`) |
 
-> ⚠️ **Por qué el orden de `FIELDS` importa**: `query_sql` (`:57-63`) recorre la tupla de la fila por
+> ⚠️ **Por qué el orden de `FIELDS` importa**: `query_sql` (`:131-137`) recorre la tupla de la fila por
 > índice y le asigna el nombre de `list_field` en la **misma posición**. Como todas las consultas son
 > `SELECT *`, si el orden de `AnimeField` deja de coincidir con el de las columnas físicas, los
-> valores se asignan a claves equivocadas **sin ningún error**. ✅ Hoy coinciden.
+> valores se asignan a claves equivocadas **sin ningún error**. ✅ Hoy coinciden — y desde el
+> 2026-07-30 `validate_schema` lo **restaura** automáticamente si dejan de coincidir.
+
+> 📌 `ServiceDB` es genérica: cualquier subclase futura obtiene las migraciones declarando su lista de
+> `TableSchema` y llamando a `validate_schema()`.
 
 ---
 

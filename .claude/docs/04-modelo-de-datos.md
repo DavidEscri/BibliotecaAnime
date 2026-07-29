@@ -109,30 +109,43 @@ CREATE TABLE ANIMES (
 )
 ```
 
-### Discrepancias BD real ↔ `AnimeField` actual
+> ⚠️ El `CREATE TABLE` de arriba es el que tenía la BD del usuario **antes** de la migración de
+> 2026-07-30. `validate_db_integrity()` reconstruye la tabla en el primer arranque posterior, dejando
+> `anime_id VARCHAR(100)`. El resto de columnas y el orden no cambian.
 
-| Columna | En la BD real | En `AnimeField` hoy |
-|---|---|---|
-| `anime_id` | **`INTEGER`** | `VARCHAR(100)` |
-| `poster_url` | **`VARCHAR(100)`** | `VARCHAR(200)` |
+### Discrepancias BD real ↔ `AnimeField`, y cómo se resuelven
 
-📖 Esto **es** la política de «no hay migraciones» en acción: `start()` (`:221-227`) solo crea la
-tabla si el fichero `.db` **no existe**. Cuando alguien cambió los tipos en el enum, la BD ya creada
-se quedó como estaba.
+| Columna | En la BD real (pre-migración) | En `AnimeField` | Veredicto |
+|---|---|---|---|
+| `anime_id` | **`INTEGER`** | `VARCHAR(100)` | Afinidad distinta (INTEGER vs TEXT) → **se reconstruye la tabla** |
+| `poster_url` | **`VARCHAR(100)`** | `VARCHAR(200)` | Misma afinidad TEXT → **se ignora**, es cosmético |
 
-✅ **No causa daño hoy** gracias al tipado dinámico de SQLite: los 25 `anime_id` almacenados tienen
-`typeof(anime_id) = 'text'` aunque la columna se declare `INTEGER`. Pero conviene saberlo antes de
-escribir cualquier consulta que asuma el tipo.
+✅ La divergencia de `anime_id` **no causó daño** gracias al tipado dinámico de SQLite: los 24
+`anime_id` almacenados tenían `typeof(anime_id) = 'text'` aunque la columna se declarase `INTEGER`.
+El riesgo era a futuro: un slug puramente numérico se habría guardado como entero y
+`WHERE anime_id = ?` con un `str` habría dejado de encontrarlo.
 
-### Política de migraciones: **no hay**
+### Política de migraciones ✅
+
+Desde 2026-07-30 el esquema declarado es `AnimesPersistence.SCHEMA` (lista de `TableSchema`, derivada
+de `AnimeField` para la tabla `ANIMES`) y `start()` llama a `validate_db_integrity()` en todo arranque.
 
 | Escenario | Qué ocurre |
 |---|---|
-| BD nueva (fichero ausente) | Se crea con el `AnimeField` actual ✅ |
-| BD ya existente + miembro nuevo en el enum | La tabla **no cambia**. `SELECT *` devuelve N columnas y `FIELDS` espera N+1 → **desalineación silenciosa** de todos los campos posteriores |
-| BD existente + tipo cambiado en el enum | Se ignora (caso real de arriba) |
+| BD nueva (fichero ausente) | Se crean **todas** las tablas de `SCHEMA` ✅ |
+| BD existente + miembro nuevo al final del enum | `ALTER TABLE … ADD COLUMN`, sin mover datos ✅ |
+| BD existente + miembro nuevo **en medio** del enum | Reconstrucción: el orden físico se realinea con el declarado, copiando por nombre de columna ✅ |
+| BD existente + tipo cambiado (afinidad distinta) | Reconstrucción ✅ |
+| BD existente + tipo cambiado (misma afinidad) | Se ignora, no se toca la BD ✅ |
+| `TableSchema` nuevo añadido a `SCHEMA` | `CREATE TABLE` sobre la BD existente ✅ |
+| Columna en BD **no declarada** en `SCHEMA` | Se descarta en la reconstrucción, con aviso por consola; queda en la copia de seguridad ⚠️ |
 
-**Receta obligatoria al añadir una columna** → [11 §2](11-playbooks.md).
+La comparación de tipos es **por afinidad SQLite** (`sqlite_affinity()` en `utils/db/sqlite.py`), no
+por texto literal. Antes de la primera modificación se copia el `.db` a
+`resources/DB/backups/DB_Animes_<timestamp>.db`. El proceso es idempotente: sin diferencias no toca la
+BD ni crea copias.
+
+**Receta al añadir una columna** → [11 §2](11-playbooks.md).
 
 ---
 

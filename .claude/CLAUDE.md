@@ -12,9 +12,10 @@ internamente lo pedido usando [`.claude/COMO-PEDIR-TAREAS.md`](COMO-PEDIR-TAREAS
 
 1. **Tipo de tarea** — refactor · funcionalidad · bug · investigación · documentación · release.
    Determina el resto del encuadre.
-2. **¿Persiste algo?** Si roza `AnimeField`, `AnimeRecord` o la serialización → **no hay
-   migraciones** y la BD del usuario tiene datos reales: riesgo alto (`docs/11 §2`). Es lo primero
-   que hay que aclarar, y lo que más cambia el tamaño del trabajo.
+2. **¿Persiste algo?** Si roza `AnimeField`, `AnimeRecord` o la serialización: las migraciones son
+   automáticas desde el 2026-07-30 (`validate_db_integrity()`, `docs/11 §2`), pero la BD del usuario
+   tiene datos reales — hay que declarar el esquema bien y probar sobre una **copia**. Sigue siendo lo
+   primero que hay que aclarar, y lo que más cambia el tamaño del trabajo.
 3. **Ficheros exactos y frontera de alcance.** Las 4 vistas de estado son casi idénticas línea por
    línea: decide si la tarea afecta a una o a las cuatro.
 4. **¿Es una trampa conocida?** Coteja con `docs/10-invariantes-y-trampas.md` (20 trampas con su
@@ -110,7 +111,8 @@ sospechoso es ese payload, no los selectores.
 Tabla única `ANIMES` en `resources/DB/DB_Animes.db`, creada en el primer arranque (`AnimesPersistence.start()`).
 
 - **`AnimeField`** (enum) define columna + tipo SQLite de cada campo; `FIELDS`/`FIELD_TYPES` se derivan de él, así que
-  **añadir una columna es añadir un miembro al enum** (ojo: no hay migraciones — una BD existente no se altera sola).
+  **añadir una columna es añadir un miembro al enum**. `validate_db_integrity()` migra la BD existente
+  en el siguiente arranque (ver más abajo).
 - **`AnimeRecord`** (dataclass) es la representación tipada de una fila. Conversión: `from_db_dict()` /
   `to_db_dict()` / `from_anime_info()`. La GUI trabaja con `AnimeRecord` para lo guardado y con `AnimeInfo` para lo que
   viene de la red — no son intercambiables (`anime_record.anime_id` vs `anime_info.id`, `poster_url` vs `poster`).
@@ -127,6 +129,21 @@ Tabla única `ANIMES` en `resources/DB/DB_Animes.db`, creada en el primer arranq
   excepciones y devuelve `bool`. Los errores se imprimen, no se lanzan. `query_sql` recibe la lista de campos y
   devuelve `List[Dict]` mapeando posición → nombre de columna, así que **el orden de `FIELDS` debe coincidir con el
   orden de las columnas de la tabla**.
+
+**Migraciones automáticas** (desde 2026-07-30). El esquema declarado es `AnimesPersistence.SCHEMA`, una lista de
+`TableSchema` (`utils/db/sqlite.py`); la tabla `ANIMES` se deriva de `AnimeField`. `start()` llama a
+**`validate_db_integrity()`**, que compara la BD física con `SCHEMA` y aplica la corrección mínima:
+
+- tabla ausente → `CREATE TABLE`;
+- solo faltan columnas al final → `ALTER TABLE ADD COLUMN` (sin mover datos);
+- orden o afinidad de tipo distintos → reconstrucción en una transacción, copiando **por nombre de columna**.
+
+Los tipos se comparan **por afinidad SQLite** (`sqlite_affinity()`), no por texto: `VARCHAR(100)` → `VARCHAR(200)` no
+dispara nada. Antes de la primera modificación se copia el `.db` a `resources/DB/backups/`. Es idempotente. Las
+columnas presentes en BD que no estén en `SCHEMA` **se descartan** al reconstruir (quedan en la copia).
+
+Para añadir una columna o una tabla → `docs/11 §2` y `§2b`. **La migración es automática; actualizar `AnimeRecord`
+(`to_db_dict` / `from_db_dict`) no lo es.**
 
 ### 3. GUI (`src/gui/`)
 

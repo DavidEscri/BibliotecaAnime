@@ -171,13 +171,16 @@ El usuario confirma que **AnimeFLV está caído / en desuso**. Detalle en
 
 ## 5. Persistencia: una sola tabla
 
-📖 `dataPersistence/animesPersistence.py:207-212`. Tabla única `ANIMES` en
-`resources/DB/DB_Animes.db`, creada en el primer arranque por `start()` **solo si el fichero no
-existe** (`:221-227`).
+📖 `dataPersistence/animesPersistence.py:207-232`. Tabla única `ANIMES` en
+`resources/DB/DB_Animes.db`. `start()` crea el fichero si no existe y **después llama siempre a
+`validate_db_integrity()`**, que alinea el esquema físico con el declarado.
 
-> ⚠️ **No hay migraciones.** Una BD ya existente nunca se altera. ✅ Verificado: la BD real del
-> usuario declara `anime_id INTEGER` y `poster_url VARCHAR(100)`, mientras que `AnimeField` hoy dice
-> `VARCHAR(100)` y `VARCHAR(200)`. Ver [04 §3](04-modelo-de-datos.md) y trampa 2.
+> ✅ **Sí hay migraciones (desde 2026-07-30).** El esquema declarado vive en
+> `AnimesPersistence.SCHEMA` (lista de `TableSchema`) y `validate_db_integrity()` corrige la BD en
+> caliente: crea tablas que falten, añade columnas con `ALTER TABLE` y reconstruye la tabla cuando
+> cambia el orden o la afinidad de tipo, copiando los datos **por nombre de columna** y dejando una
+> copia de seguridad en `resources/DB/backups/`. Ver [04 §3](04-modelo-de-datos.md),
+> [11 §2](11-playbooks.md) y trampa 2.
 
 ---
 

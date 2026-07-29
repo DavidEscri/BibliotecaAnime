@@ -199,6 +199,52 @@ print("entrada:", [e.id for e in info.episodes], "→ leído:", r.episodes)
 
 ---
 
+## 3b. Probar una migración de esquema
+
+🔴 **Sobre una copia de la BD real, nunca sobre `resources/DB/DB_Animes.db`.** El patrón es
+independiente de la GUI: se instancia `AnimesPersistence` sin pasar por `__init__` y se le inyecta la
+ruta de la copia.
+
+```python
+import os, shutil, sqlite3, sys
+sys.path.insert(0, r"D:\Proyectos Python\BibliotecaAnime\src")
+from dataPersistence.animesPersistence import AnimesPersistence, AnimeField
+from utils.db.sqlite import SqlUtils, TableSchema
+
+shutil.copy(r"D:\Proyectos Python\BibliotecaAnime\resources\DB\DB_Animes.db", "copia.db")
+
+p = AnimesPersistence.__new__(AnimesPersistence)   # sin __init__: no toca get_resource_path
+p.path_db, p._db = "copia.db", SqlUtils("copia.db")
+
+# Simular el esquema futuro sin tocar AnimeField
+p.SCHEMA = [TableSchema("ANIMES",
+                        [(f.column, f.sql_type) for f in AnimeField] + [("user_rating", "INTEGER")],
+                        f"{AnimeField.ID.column} AUTOINCREMENT",
+                        defaults={"user_rating": 0})]
+
+print(p.diff_table(p.SCHEMA[0]))       # qué va a hacer, antes de hacerlo
+print(p.validate_db_integrity())       # aplicarlo
+print([c[1] for c in sqlite3.connect("copia.db").execute("PRAGMA table_info(ANIMES)")])
+print(p.diff_table(p.SCHEMA[0])["needs_migration"])   # False → idempotente
+```
+
+**Qué comprobar siempre**:
+
+- `diff_table()` **antes** de migrar: `missing` / `extra` / `retyped` / `reordered` dicen qué ruta se
+  tomará (`ADD COLUMN` si solo hay `missing` en el sufijo; reconstrucción en cualquier otro caso).
+- El **número de filas** no cambia y una fila conocida conserva sus valores campo a campo (una
+  reconstrucción mal hecha desplaza columnas sin lanzar error — trampa 1).
+- El orden físico coincide con `FIELDS`.
+- Segunda pasada → `needs_migration == False` y **ninguna copia de seguridad nueva**.
+- Existe la copia en `<dir de la BD>/backups/`.
+
+✅ **Resultados del 2026-07-30** (`scratchpad/test_migraciones.py`, 57 comprobaciones, 0 fallos):
+retipado de `anime_id` sobre la BD real con 24 filas (datos idénticos, `sqlite_sequence` conservado),
+columna al final por `ADD COLUMN`, columna en medio por reconstrucción, desorden de columnas, tabla
+nueva `CONFIG`, BD desde cero, idempotencia y rollback ante SQL inválido.
+
+---
+
 ## 4. Probar el fallback de proveedores (sin red)
 
 Proveedores falsos: uno que explota, uno que devuelve vacío y uno que devuelve datos.

@@ -60,68 +60,80 @@ Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ si
 
 ## §2 — Añadir una columna a la BD
 
-> 🔴 **Esta es la operación más peligrosa del proyecto.** Lee las trampas 1 y 2 antes de empezar.
+> ✅ **Ya no hay que escribir la migración a mano** (desde 2026-07-30). `validate_db_integrity()` la
+> deduce del esquema declarado. Lee la trampa 2 para saber qué sigue siendo tu responsabilidad.
 
 **Ficheros a tocar**
 
 | Fichero | Acción |
 |---|---|
-| `src/dataPersistence/animesPersistence.py` | miembro nuevo en `AnimeField` + campo en `AnimeRecord` + `to_db_dict` + `from_db_dict` + **migración** |
+| `src/dataPersistence/animesPersistence.py` | miembro nuevo en `AnimeField` + campo en `AnimeRecord` + `to_db_dict` + `from_db_dict` |
 | `.claude/docs/04-modelo-de-datos.md` | actualizar la tabla de esquema |
 
 **Pasos**
 
-1. **Añade el miembro al FINAL de `AnimeField`** (`:28-47`). Nunca en medio: el orden define el
-   mapeo posicional de `query_sql` (trampa 1).
+1. **Añade el miembro a `AnimeField`** (`:28-47`). Preferiblemente al final: así la migración usa la
+   ruta barata (`ALTER TABLE ADD COLUMN`, sin mover datos) en lugar de reconstruir la tabla. Ponerlo en
+   medio también funciona, pero obliga a reconstruir.
 
    ```python
    USER_RATING = ("user_rating", "INTEGER")
    ```
 
+   `SCHEMA` se deriva de `AnimeField`, así que no hay que tocarla.
+
 2. Añade el campo a `AnimeRecord` (`:69-81`), **con valor por defecto** y **después** de los que ya
    tienen default (regla de las dataclasses). Ojo: `id` es el último campo hoy (`:81`).
 3. Añádelo a `to_db_dict()` (`:90-104`) en la **misma posición** que en el enum.
-4. Añádelo a `from_db_dict()` (`:132-146`) con un default tolerante:
-   `data.get(AnimeField.USER_RATING.column, 0) or 0`.
-5. 🔴 **Escribe la migración.** `start()` (`:221-227`) **no** altera una BD existente. Añade:
+4. Añádelo a `from_db_dict()` (`:132-146`) con un default tolerante — los registros que ya existían
+   recibirán `NULL`: `data.get(AnimeField.USER_RATING.column, 0) or 0`.
+5. **Opcional**: si quieres que los registros existentes reciban un valor concreto en vez de `NULL`,
+   declara el default en el `TableSchema` de `SCHEMA` (`:214-222`). El valor es una **expresión SQL
+   literal**, así que las cadenas van entrecomilladas:
 
    ```python
-   def start(self) -> None:
-       try:
-           if not os.path.isfile(self.path_db):
-               if not self._create_db_animes():
-                   raise Exception(f"Error al crear la base de datos {self.DB_NAME}")
-           else:
-               self._migrate()          # ← nuevo
-       except Exception as e:
-           print(f"Error al empezar la base de datos {self.DB_NAME}: {e}")
-
-   def _migrate(self) -> None:
-       """Añade las columnas de AnimeField que falten en una BD ya creada."""
-       conn = self._db.get_conn()          # sqlite.py:88
-       try:
-           existing = {row[1] for row in conn.execute(f"PRAGMA table_info({self.TABLE_NAME})")}
-           for field in AnimeField:
-               if field.column not in existing:
-                   print(f"Migrando {self.TABLE_NAME}: añadiendo columna {field.column}")
-                   conn.execute(f"ALTER TABLE {self.TABLE_NAME} "
-                                f"ADD COLUMN {field.column} {field.sql_type}")
-           conn.commit()
-       except Exception as e:
-           print(f"Error al migrar {self.TABLE_NAME}: {e}")
-       finally:
-           conn.close()
+   TableSchema(
+       name        = TABLE_NAME,
+       fields      = [(f.column, f.sql_type) for f in AnimeField],
+       primary_key = PRIMARY_KEY,
+       defaults    = {"user_rating": 0, "media_type": "'anime'"},
+   )
    ```
 
-   ⚠️ Este código **no se ha ejecutado**: es la forma correcta según la estructura existente, no una
-   receta verificada. `ALTER TABLE … ADD COLUMN` de SQLite añade siempre **al final**, que es
-   justo lo que la trampa 1 necesita.
+6. Arranca la app una vez (`python src/app.py`). La migración se aplica en `start()` y deja la copia de
+   seguridad en `resources/DB/backups/`.
 
 **Checklist**
 
 - [ ] `PRAGMA table_info(ANIMES)` devuelve las columnas **en el mismo orden** que
       `AnimesPersistence.FIELDS`.
-- [ ] Probado sobre una **copia de la BD real con datos** (no solo una BD vacía).
+- [ ] La consola muestra la línea `Migración: …` en el primer arranque y **nada** en el segundo
+      (idempotencia).
+- [ ] Existe la copia en `resources/DB/backups/`.
+- [ ] Probado sobre una **copia de la BD real con datos** (no solo una BD vacía) —
+      `scratchpad/test_migraciones.py` de la sesión del 2026-07-30 es la plantilla.
+
+---
+
+## §2b — Añadir una tabla nueva
+
+1. Declara su `TableSchema` y añádelo a `AnimesPersistence.SCHEMA` (`:214-222`):
+
+   ```python
+   TableSchema(
+       name        = "CONFIG",
+       fields      = [("key", "VARCHAR(50)"), ("value", "VARCHAR(200)")],
+       primary_key = "key",
+   )
+   ```
+
+2. Añade los métodos de acceso en `AnimesPersistence`. **No reutilices `self.FIELDS`**: es la lista de
+   columnas de `ANIMES`. Pasa a `query_sql` la lista de columnas de *esa* tabla — el emparejamiento es
+   posicional (trampa 1).
+3. Arranca la app: `validate_db_integrity()` crea la tabla, también en BDs que ya tenían datos.
+
+✅ Verificado con una tabla `CONFIG` sobre una copia de la BD real: se crea sin tocar `ANIMES`, y queda
+usable para `insert_sql` / `query_sql`.
 - [ ] Un anime antiguo se lee sin campos desplazados: título, sinopsis y géneros correctos.
 - [ ] Alta de un anime nuevo → la columna se rellena.
 - [ ] Round-trip del campo nuevo (escribir → leer → mismo valor).
@@ -204,7 +216,8 @@ Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ si
    romperás todas las construcciones posicionales existentes.
 2. `AnimeInfo` se construye en: `animeflv.py:62,111,171,228`, `animeav1.py:207,269`. Revisa los seis.
 3. Si debe persistirse, **no basta con el modelo**: hay que tocar `AnimeField`, `AnimeRecord`,
-   `to_db_dict`, `from_db_dict`, `from_anime_info` (`:151-172`) **y la migración** (§2).
+   `to_db_dict`, `from_db_dict` y `from_anime_info` (`:151-172`) — sigue §2. La migración de la BD ya
+   es automática.
 4. Si es opcional y un proveedor no lo tiene, déjalo en `None` — es el patrón de `synopsis`,
    `genres` y `episodes`.
 
