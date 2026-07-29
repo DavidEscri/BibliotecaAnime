@@ -13,7 +13,7 @@ import customtkinter as ctk
 from APIs.common.models import AnimeInfo
 from APIs.common.animeProviderMgr import AnimeProviderManager, AnimeProviderManagerSingleton
 from dataPersistence.animesPersistence import AnimesPersistence, AnimesPersistenceSingleton, AnimeStatus, AnimeRecord
-from gui.anime_window import AnimeWindowViewer
+from gui.anime_window import AnimeWindowViewer, show_anime_info_error
 from utils.buttons import utilsButtons
 from utils.utils import load_image, get_resource_path
 
@@ -129,6 +129,9 @@ class FavouritesButton(utilsButtons.SidebarButton):
 
     def __on_anime_click(self, anime_id: Union[str, int]):
         anime_clicked: AnimeInfo | None = self.anime_provider_mgr.get_anime_info(anime_id)
+        if anime_clicked is None:
+            show_anime_info_error(anime_id)
+            return
         anime_viewer = AnimeWindowViewer(self.main_window, anime_clicked)
         anime_viewer.display_anime_info()
 

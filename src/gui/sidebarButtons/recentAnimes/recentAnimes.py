@@ -12,7 +12,7 @@ import customtkinter as ctk
 from typing import Union
 
 from APIs.common.animeProviderMgr import AnimeProviderManager, AnimeProviderManagerSingleton
-from gui.anime_window import AnimeWindowViewer
+from gui.anime_window import AnimeWindowViewer, show_anime_info_error
 from utils.buttons import utilsButtons
 from utils.utils import load_image
 
@@ -88,13 +88,15 @@ class RecentAnimeButton(utilsButtons.SidebarButton):
 
             def _load_and_show():
                 anime_info = self.anime_provider_mgr.get_anime_info(anime_id)
-                if anime_info is not None:
-                    self.main_window.recent_animes[index] = anime_info
-                    anime_clicked_final = anime_info
-                else:
-                    anime_clicked_final = anime_clicked
+                # Restaurar el cursor antes de cualquier salida, incluida la de error.
                 self.main_window.configure(cursor="")
-                anime_viewer = AnimeWindowViewer(self.main_window, anime_clicked_final)
+                if anime_info is None:
+                    # No se puede caer de vuelta a `anime_clicked`: su falta de
+                    # episodios/sinopsis es justo lo que nos ha traído hasta aquí.
+                    show_anime_info_error(anime_id)
+                    return
+                self.main_window.recent_animes[index] = anime_info
+                anime_viewer = AnimeWindowViewer(self.main_window, anime_info)
                 anime_viewer.display_anime_info()
 
             # Ejecutar en hilo secundario para no congelar la UI durante la petición HTTP

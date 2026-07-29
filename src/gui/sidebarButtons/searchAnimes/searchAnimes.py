@@ -17,7 +17,7 @@ from PIL import Image, ImageSequence
 
 from APIs.common.models import AnimeGenreFilter, AnimeOrderFilter, AnimeInfo
 from APIs.common.animeProviderMgr import AnimeProviderManager, AnimeProviderManagerSingleton
-from gui.anime_window import AnimeWindowViewer
+from gui.anime_window import AnimeWindowViewer, show_anime_info_error
 from utils.buttons import utilsButtons
 from utils.utils import refactor_genre_text, load_image, get_resource_path, download_animes_poster
 
@@ -339,5 +339,8 @@ class SearchButton(utilsButtons.SidebarButton):
     def __on_anime_click(self, anime_id: Union[str, int]):
         # Reemplazar el anime en la lista
         anime_clicked: AnimeInfo | None = self.anime_provider_mgr.get_anime_info(anime_id)
+        if anime_clicked is None:
+            show_anime_info_error(anime_id)
+            return
         anime_viewer = AnimeWindowViewer(self.main_window, anime_clicked)
         anime_viewer.display_anime_info()

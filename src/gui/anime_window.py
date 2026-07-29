@@ -8,7 +8,9 @@ import time
 import webbrowser
 
 import customtkinter as ctk
-from typing import List
+from dataclasses import replace
+from tkinter import messagebox
+from typing import List, Union
 
 from APIs.common.models import AnimeInfo, EpisodeInfo, ServerInfo
 from APIs.common.animeProviderMgr import AnimeProviderManager, AnimeProviderManagerSingleton
@@ -22,9 +24,39 @@ from utils.utils import refactor_genre_text, get_resource_path, get_anime_image,
 # TODO: Al final de la lista de episodios nuevo frame del estilo. "Si te ha gustado One piece, te puede interesar..." y
 #  mostrar 4 animes con los mimos generos.
 
+# TODO: Agregar botón para alternar entre el manga y el anime.
+
+
+def show_anime_info_error(anime_id: Union[str, int]) -> None:
+    """
+    Avisa al usuario de que no se ha podido recuperar la ficha de un anime.
+
+    `AnimeProviderManager.get_anime_info` nunca propaga excepciones: si fallan
+    todos los proveedores devuelve None. Sin este aviso, el clic simplemente no
+    hace nada (Tkinter se traga la excepción del callback) y la aplicación
+    parece colgada.
+
+    :param anime_id: Identificador del anime que no se ha podido cargar.
+    """
+    print(f"No se pudo obtener la información del anime {anime_id}: ningún proveedor respondió")
+    messagebox.showerror(
+        "No se pudo cargar el anime",
+        "No se ha podido obtener la información de este anime.\n\n"
+        "Comprueba tu conexión a internet e inténtalo de nuevo más tarde."
+    )
+
 
 class AnimeWindowViewer:
     def __init__(self, main_window, anime_info: AnimeInfo):
+        if anime_info is None:
+            # Contrato: quien llama debe comprobar el None de get_anime_info y
+            # avisar con show_anime_info_error() en vez de construir la ficha.
+            raise ValueError("AnimeWindowViewer requiere un AnimeInfo; se recibió None")
+        # `AnimeInfo.episodes` es opcional. Se normaliza sobre una copia para no
+        # mutar el objeto cacheado en main_window.recent_animes, cuyo `None` es
+        # justo lo que marca que aún le falta la precarga.
+        if anime_info.episodes is None:
+            anime_info = replace(anime_info, episodes=[])
         self.main_window = main_window
         self.anime_provider_mgr: AnimeProviderManager = AnimeProviderManagerSingleton()
         self.anime_info: AnimeInfo = anime_info
