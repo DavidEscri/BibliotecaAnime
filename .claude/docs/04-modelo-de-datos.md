@@ -173,7 +173,7 @@ importen.
 
 | Proveedor | Orden de `get_anime_info().episodes` | Tras guardar en BD |
 |---|---|---|
-| **AnimeAV1** | **ascendente** 1…1171 (`animeav1.py:205`) | descendente |
+| **AnimeAV1** | **ascendente** 1…1171 (`animeav1.py:227`) | descendente |
 | **AnimeFLV** | **descendente** 1167…1 (`animeflv.py:222-223`) | ascendente |
 
 Es decir: **el orden en BD depende de qué proveedor sirvió el dato**. La inversión solo tiene sentido

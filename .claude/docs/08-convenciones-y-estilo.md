@@ -122,7 +122,7 @@ self.anime_provider_mgr:   AnimeProviderManager = AnimeProviderManagerSingleton(
 | Wrapper | Devuelve | Línea |
 |---|---|---|
 | `AnimeFLVSingleton` | `AnimeFLV` | `animeflv.py:239-245` |
-| `AnimeAV1Singleton` | `AnimeAV1` | `animeav1.py:339-345` |
+| `AnimeAV1Singleton` | `AnimeAV1` | `animeav1.py:361-367` |
 | `AnimesPersistenceSingleton` | `AnimesPersistence` | `animesPersistence.py:497-503` |
 | `AnimeProviderManagerSingleton` | `AnimeProviderManager` | `animeProviderMgr.py:277-283` |
 
@@ -146,7 +146,7 @@ def get_anime_info(self, anime_id: Union[str, int]) -> AnimeInfo | None:   # amb
 ```
 
 - `typing.List/Optional/Union/Dict/Set/Tuple` — mayoritario.
-- Sintaxis 3.10 (`X | None`) — en `animeflv.py:179`, `animeav1.py:155`, `main_window.py:51-56`,
+- Sintaxis 3.10 (`X | None`) — en `animeflv.py:179`, `animeav1.py:177`, `main_window.py:51-56`,
   `searchAnimes.py:41-42`.
 - `tuple[int, int]` en minúscula — `utils.py:166,179`.
 
@@ -164,7 +164,7 @@ en Python es una **tupla literal**, no un tipo. No lo copies; usa `Tuple[bool, l
 ```python
 print(f"Error al descargar el poster de {anime.id}: {e}")          # utils.py:90
 print(f"[{provider.PROVIDER_ID}] Fallo en '{method_name}': {exc}")  # animeProviderMgr.py:228
-print(f"{self.anime_info.title} añadido a favoritos.")              # anime_window.py:192
+print(f"{self.anime_info.title} añadido a favoritos.")              # anime_window.py:223
 ```
 
 - Errores: `f"Error al <acción>: {excepción}"`.

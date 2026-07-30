@@ -2,7 +2,8 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-07-28 · **Commit** `a972850` · árbol **sucio** |
+| **Fecha** | 2026-07-30 · **Commit** `83a8448` · árbol **sucio** |
+| **Última revisión** | 2026-07-30: receta de vista nueva: aviso sobre `get_anime_image` |
 | **Cubre** | recetas operativas sobre los 18 módulos de `src/` + `MiBibliotecaAnime.spec` |
 
 Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ sin verificar.
@@ -44,7 +45,9 @@ Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ si
    añades una séptima vista en `+7`, pasa esas dos a `+9` y `+10`.
 6. Si la vista muestra pósters propios, decide su carpeta en `resources/images/<categoría>/` y
    **añádela a `get_anime_image` (`utils.py:168`)** o el póster se bajará de la red cada vez
-   (trampa 15).
+   (trampa 15). Esa lista tiene hoy las 6 categorías existentes; se olvidó `watching` durante meses,
+   así que es un paso fácil de saltarse. Si además creas un `AnimeStatus` nuevo, la carpeta sale de
+   `status.name.lower()` (`utils.py:53-60`) y el olvido es aún más silencioso.
 
 **Checklist**
 
@@ -160,18 +163,31 @@ usable para `insert_sql` / `query_sql`.
 2. Crea la clase con los **3 atributos obligatorios** ya en el esqueleto — sin ellos el módulo no
    importa (trampa 11).
 3. Implementa los **5 métodos**. Devuelve siempre tipos de `APIs.common.models`.
-4. 🟡 **Fija la codificación** si el sitio no envía `charset` (trampa 14):
+4. 🟡 **Fija la codificación** si el sitio no envía `charset` (trampa 14). Copia el patrón ya
+   implantado en `animeav1.py:37-56`: un `_fetch()` de módulo por el que pasen **todas** las peticiones,
+   en vez de repetir la línea en cada método.
 
    ```python
-   response = requests.get(url, timeout=10)
-   response.encoding = response.apparent_encoding or "utf-8"
+   def _fetch(url: str, **kwargs) -> requests.Response:
+       response = requests.get(url, **kwargs)
+       if "charset" not in response.headers.get("Content-Type", "").lower():
+           response.encoding = "utf-8"
+       return response
    ```
+
+   Comprobar el header primero respeta el charset del servidor si algún día lo declara. **No uses
+   `apparent_encoding`**: es detección estadística, cuesta en páginas grandes y puede fallar; si has
+   verificado el encoding real del sitio, escríbelo.
+
+   Cómo detectar que hace falta: `r.encoding` vale `ISO-8859-1` mientras `r.apparent_encoding` dice
+   `utf-8`, y el texto sale con `Ã­`/`Ã±`/`Ã³`. Afecta a **todo** lo que salga de `response.text`,
+   títulos incluidos — no solo a la sinopsis.
 
 5. Si los slugs de género del sitio difieren de `AnimeGenreFilter`, **traduce dentro del proveedor**
    con un diccionario privado. Quien llama siempre pasa el enum común.
 6. **Documenta el orden de `episodes`** que devuelve `get_anime_info` — afecta al corte `[:25]` de la
    ficha y a lo que se guarda en BD (trampas 4 y 8).
-7. Crea el `<Sitio>Singleton` (patrón en `animeav1.py:339-345`).
+7. Crea el `<Sitio>Singleton` (patrón en `animeav1.py:361-367`).
 8. Registra en `main_window.py:48-49`. **El orden importa**: define la secuencia de fallback.
 
    ```python
@@ -214,7 +230,7 @@ usable para `insert_sql` / `query_sql`.
 
 1. Añade el campo **al final** de la dataclass y **con valor por defecto** (`models.py:86-93`), o
    romperás todas las construcciones posicionales existentes.
-2. `AnimeInfo` se construye en: `animeflv.py:62,111,171,228`, `animeav1.py:207,269`. Revisa los seis.
+2. `AnimeInfo` se construye en: `animeflv.py:62,111,171,228`, `animeav1.py:229,269`. Revisa los seis.
 3. Si debe persistirse, **no basta con el modelo**: hay que tocar `AnimeField`, `AnimeRecord`,
    `to_db_dict`, `from_db_dict` y `from_anime_info` (`:151-172`) — sigue §2. La migración de la BD ya
    es automática.

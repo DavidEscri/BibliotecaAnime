@@ -2,9 +2,10 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-07-28 |
-| **Commit** | `a972850` |
-| **Árbol de trabajo** | **sucio** — 4 ficheros modificados sin commitear + 4 PNG sin trackear (ver [12-deuda-tecnica-y-roadmap.md](12-deuda-tecnica-y-roadmap.md)) |
+| **Fecha** | 2026-07-30 |
+| **Commit** | `83a8448` |
+| **Árbol de trabajo** | **sucio** — 3 ficheros con solo comentarios TODO + 4 PNG sin trackear (ver [12-deuda-tecnica-y-roadmap.md](12-deuda-tecnica-y-roadmap.md)) |
+| **Última revisión** | 2026-07-30 — bugs A4, A5, B1 y B5 resueltos (`1bfdf0f`, `94b497e`, `83a8448`); trampas 10, 14, 15 y 16 marcadas como resueltas y **todas** las citas `fichero:línea` de `animeav1.py` y `anime_window.py` reubicadas |
 | **Cubre** | los **34 ficheros `.py`** de `src/`: 17 módulos reales + 17 `__init__.py` (16 vacíos y 1 con un stub muerto) |
 
 `.claude/CLAUDE.md` es el **resumen de entrada** (qué es el proyecto, comandos, arquitectura en una
@@ -89,6 +90,8 @@ Esta documentación caduca. Puntos de mantenimiento concretos:
 | Un sitio cambia su HTML | Selectores en [05](05-proveedores-y-scraping.md) + sección de diagnóstico |
 | Cambias hilos o `after` | [07](07-concurrencia-e-hilos.md) + el flujo afectado en [03](03-flujos-de-ejecucion.md) |
 | Cierras un TODO | Quítalo de [12](12-deuda-tecnica-y-roadmap.md) (tiene `fichero:línea`, se desincroniza rápido) |
+| **Arreglas un bug listado en [12 §4](12-deuda-tecnica-y-roadmap.md)** | Muévelo a «✅ Resuelto» **sin reutilizar su identificador**, marca su trampa en [10](10-invariantes-y-trampas.md) como resuelta **conservando el número** y el invariante que quede vivo, y actualiza el checklist de [09](09-verificacion-y-pruebas.md) para que compruebe la **no regresión** |
+| **Insertas o borras líneas en un módulo muy citado** | `animeav1.py` y `anime_window.py` acumulan ~50 citas entre todos los documentos. Reubícalas comparando el **contenido** de cada línea entre la versión vieja y la nueva, no sumando un desplazamiento a ojo: no es uniforme, y las citas cortas (`:205`) se escapan de cualquier búsqueda por nombre de fichero |
 
 **Al revisar**: relee las cabeceras de metadatos. Si el commit que citan es muy anterior al `HEAD`
 actual, asume que las líneas citadas se han desplazado y reverifica antes de fiarte de un número

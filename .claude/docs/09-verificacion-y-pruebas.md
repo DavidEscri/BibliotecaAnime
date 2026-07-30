@@ -2,7 +2,8 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-07-28 · **Commit** `a972850` · árbol **sucio** |
+| **Fecha** | 2026-07-30 · **Commit** `83a8448` · árbol **sucio** |
+| **Última revisión** | 2026-07-30: resultados de `get_anime_image` y checklist de la ficha, tras `83a8448` y `94b497e` |
 | **Cubre** | procedimiento; scripts ejecutados el 2026-07-28 contra el código de `src/` |
 
 Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ sin verificar.
@@ -326,7 +327,7 @@ u.download_animes_poster(d, animes[:1]); print("tras purga:", sorted(os.listdir(
 | Tamaño en disco | **130×185 JPEG** exacto |
 | Segunda llamada (ya cacheado) | **0,00 s**, `mtime` intacto |
 | Llamada con lista reducida | el póster sobrante **se borra** |
-| `get_anime_image` con el póster solo en `watching/` | ⚠️ **va a la red** (0,12 s) y devuelve un `CTkImage` de **20×20** |
+| `get_anime_image` con el póster solo en `watching/` | ✅ **0,01 s desde disco**, `(195, 275)` — desde `83a8448`. Antes iba a la red (0,12 s) y devolvía **20×20** |
 | `get_anime_image` con el póster en `favourite/` | 0,009 s, `(195, 275)` ✅ |
 | `load_image` con ruta inexistente | placeholder gris `(130, 185)` |
 | `os.remove` con un `CTkImage` vivo | **`PermissionError`** hasta `del` + `gc.collect()` |
@@ -389,9 +390,12 @@ Sin tests automáticos, esto es lo que hay. Marca lo que compruebes.
 
 ### Ficha de detalle
 - [ ] Póster, título, sinopsis y géneros.
-- [ ] ⚠️ Si el póster **no** está en `favourite/finished/pending/recent_animes/search`, se ve
-      **diminuto (20×20)** — trampa 16.
-- [ ] ⚠️ Sinopsis de AnimeAV1: comprobar tildes («título» vs «tÃ­tulo») — [05 §7](05-proveedores-y-scraping.md).
+- [ ] El póster se ve a tamaño correcto también en un anime que **solo** esté en «viendo»
+      (regresión de las trampas 15 y 16, resueltas en `83a8448`).
+- [ ] Sinopsis de AnimeAV1 **con tildes correctas** («título», no «tÃ­tulo») — regresión de la
+      trampa 14, resuelta en `94b497e`. Ver [05 §7](05-proveedores-y-scraping.md).
+- [ ] Con la red caída, hacer clic en un anime muestra un **diálogo de error** y no deja la app
+      muda — regresión de la trampa 10, resuelta en `1bfdf0f`.
 - [ ] Los 4 botones cambian de texto y de acción al pulsarlos.
 - [ ] Activar «viendo» desactiva «finalizado» y «pendiente» en la propia UI.
 - [ ] Aparecen **25** episodios como máximo.

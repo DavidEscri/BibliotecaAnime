@@ -2,7 +2,8 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-07-28 · **Commit** `a972850` · árbol **sucio** |
+| **Fecha** | 2026-07-30 · **Commit** `83a8448` · árbol **sucio** |
+| **Última revisión** | 2026-07-30: §7 reescrito: el bug de codificación está resuelto (`_fetch`, `94b497e`) |
 | **Cubre** | `src/APIs/common/animeProviderMgr.py`, `src/APIs/common/models.py`, `src/APIs/animeav1/animeav1.py`, `src/APIs/animeflv/animeflv.py` |
 
 Procedencia: ✅ verificado en ejecución contra los sitios reales el 2026-07-28 · 📖 leído en código ·
@@ -72,13 +73,13 @@ NotImplementedError: Incompleto debe definir el atributo de clase 'PROVIDER_ID'
 | Formato de `anime_id` | slug: `one-piece` | slug: `one-piece-tv` |
 | `get_recent_animes` | ✅ 20 resultados | ✅ 24 resultados |
 | `get_anime_info` | ✅ 1171 eps, 4 géneros | ✅ 1167 eps, 7 géneros |
-| **Orden de `episodes`** | ✅ **ascendente** 1…N (`:205`) | ✅ **descendente** N…1 (`:222-223`) |
+| **Orden de `episodes`** | ✅ **ascendente** 1…N (`:227`) | ✅ **descendente** N…1 (`:222-223`) |
 | `search_animes_by_query("naruto")` | ✅ 19 res., `last_page=1` | ✅ 12 res., `last_page=1` |
 | `search_..._by_genres_and_order` | ✅ 20 res., `last_page=50` | ✅ 24 res., `last_page=79` |
 | `get_anime_episode_servers` | ✅ 5 servidores | ❌ **`[]`** |
-| Orden `ALFABÉTICAMENTE` | cliente, `sorted(title.lower())` (`:328-329`) | servidor, `&order=title` |
-| Orden `CALIFICACIÓN` | ⚠️ **no soportado**, avisa y devuelve el orden del sitio (`:330-335`) | servidor, `&order=rating` |
-| Reintentos en `get_anime_info` | 3, timeout 5 s, `sleep(1)` (`:162-219`) | 3, timeout 2 s, `sleep(1)` (`:186-233`) |
+| Orden `ALFABÉTICAMENTE` | cliente, `sorted(title.lower())` (`:350-351`) | servidor, `&order=title` |
+| Orden `CALIFICACIÓN` | ⚠️ **no soportado**, avisa y devuelve el orden del sitio (`:352-357`) | servidor, `&order=rating` |
+| Reintentos en `get_anime_info` | 3, timeout 5 s, `sleep(1)` (`:184-241`) | 3, timeout 2 s, `sleep(1)` (`:186-233`) |
 | Estado general | **operativo** | **caído / en desuso** (confirmado por el usuario) |
 
 > ✅ **Los géneros de ambos sitios ya coinciden con los slugs de `AnimeGenreFilter`**
@@ -96,7 +97,7 @@ inyecta los datos como **objeto JS (no JSON estricto)** dentro de un `<script>` 
 ### Cómo se extrae
 
 ```python
-# animeav1.py:228-240
+# animeav1.py:250-259
 for script in soup.find_all("script"):
     content = script.string or script.get_text() or ""
     if "kit.start(app, element, {" in content:      # :34, :236
@@ -142,13 +143,13 @@ downloads:{SUB…
 
 | Campo de `AnimeInfo` | Origen | Línea | Verificado |
 |---|---|---|---|
-| `title` | **payload** `re.search(r'title:\s*"(.+?)",')` | `:177,181-182` | ✅ `"One Piece"` |
-| `synopsis` | **payload** `r'synopsis:\s*"(.*?)",'` + des-escape `\n` y `\"` | `:178,183-184` | ✅ |
-| `episodes` | **payload** `r'episodesCount:\s*(\d+),'` → `[1..N]` | `:179,185-186,205` | ✅ 1171 |
-| `poster` | **DOM** `main figure img` → `src` | `:197-198` | ✅ (en el payload es `poster:null`) |
-| `genres` | **DOM** `main a[href*='genre=']` → `?genre=` | `:200`, `:292-309` | ✅ `['accion','aventura','fantasia','shounen']` |
-| `id` | el `anime_id` que se pasó | `:208` | ✅ |
-| servidores | **payload** `r"embeds:\s*.*?SUB:\s*(\[.*?\])"` | `:126` | ✅ 5 servidores |
+| `title` | **payload** `re.search(r'title:\s*"(.+?)",')` | `:199,203-204` | ✅ `"One Piece"` |
+| `synopsis` | **payload** `r'synopsis:\s*"(.*?)",'` + des-escape `\n` y `\"` | `:200,205-206` | ✅ |
+| `episodes` | **payload** `r'episodesCount:\s*(\d+),'` → `[1..N]` | `:201,207-208,227` | ✅ 1171 |
+| `poster` | **DOM** `main figure img` → `src` | `:219-220` | ✅ (en el payload es `poster:null`) |
+| `genres` | **DOM** `main a[href*='genre=']` → `?genre=` | `:222`, `:314-331` | ✅ `['accion','aventura','fantasia','shounen']` |
+| `id` | el `anime_id` que se pasó | `:230` | ✅ |
+| servidores | **payload** `r"embeds:\s*.*?SUB:\s*(\[.*?\])"` | `:148` | ✅ 5 servidores |
 
 > ⚠️ **Nota**: los géneros **están en el payload** (`genres:[{…,slug:"accion",…}]`) pero el código los
 > saca del **DOM**. Si algún día el DOM cambia y el payload no, hay un origen alternativo ya
@@ -156,7 +157,7 @@ downloads:{SUB…
 
 ### Fallbacks al DOM
 
-📖 `:188-203`. Si el payload no da un campo:
+📖 `:210-222`. Si el payload no da un campo:
 
 | Campo | Fallback | Línea |
 |---|---|---|
@@ -285,31 +286,53 @@ hidratación, no los selectores CSS**.
 
 ---
 
-## 7. ⚠️ Bug de codificación en AnimeAV1 (visible para el usuario)
+## 7. Codificación: por qué todo el scraping pasa por `_fetch()`
 
-✅ **Verificado end-to-end el 2026-07-28.**
+✅ **Resuelto el 2026-07-30** (commit `94b497e`). Diagnosticado el 2026-07-28; se documenta el porqué
+porque la causa **sigue estando en el sitio**, no en el código: si alguien añade una petición directa,
+el bug vuelve.
 
-`animeav1.com` responde `Content-Type: text/html` **sin `charset`**. `requests` aplica entonces el
-valor por defecto de HTTP, `ISO-8859-1`, aunque el contenido real es UTF-8
-(`r.apparent_encoding == 'utf-8'`). Como `animeav1.py:169` hace
-`BeautifulSoup(response.text, "html.parser")` sobre un texto **ya mal decodificado**, el mojibake
-llega intacto a `AnimeInfo.synopsis`:
+`animeav1.com` responde `Content-Type: text/html` **sin `charset`**. Ante esa ausencia, `requests`
+aplica el defecto de la RFC 2616, `ISO-8859-1`, aunque el contenido real es UTF-8
+(`r.apparent_encoding == 'utf-8'`). Todo lo que saliera de `response.text` llegaba mal decodificado:
 
 ```
 AnimeAV1Singleton().get_anime_info("one-piece").synopsis
-# → "…One Piece y el tÃ­tulo de Rey de los Piratas que lo acompaÃ±a."
-#      esperado:      "título"                            "acompaña"
+# antes → "…One Piece y el tÃ­tulo de Rey de los Piratas que lo acompaÃ±a."
+# ahora → "…One Piece y el título de Rey de los Piratas que lo acompaña."
 ```
 
-**Alcance**:
+**El helper** (`animeav1.py:37-56`) — lo usan las **5** llamadas de scraping del módulo:
 
-- ✅ Afecta a `synopsis` (se muestra en la ficha **y se persiste en BD** al guardar un estado).
-- ✅ **No** afecta a `genres` (slugs ASCII: `accion`, `fantasia`) ni a los `id`.
-- ⚠️ Afectaría a `title` en animes con tildes; no comprobado con un título acentuado concreto.
-- ⚠️ No comprobado si AnimeFLV tiene el mismo problema.
+```python
+def _fetch(url: str, **kwargs) -> requests.Response:
+    response = requests.get(url, **kwargs)
+    if "charset" not in response.headers.get("Content-Type", "").lower():
+        response.encoding = "utf-8"
+    return response
+```
 
-**Arreglo de una línea** (fuera del alcance de esta documentación — no se ha aplicado):
-fijar `response.encoding = response.apparent_encoding` (o `"utf-8"`) antes de leer `response.text`.
+Se fija UTF-8 **solo si el servidor no declara charset**, para respetar el suyo si algún día empieza a
+declararlo. No se usa `apparent_encoding` (detección estadística): es más lento en páginas grandes y
+puede acertar mal, mientras que aquí el encoding real del sitio es un hecho verificado.
+
+**Alcance del bug, ya cerrado**:
+
+| Campo | ¿Afectado? | |
+|---|---|---|
+| `synopsis` | ✅ sí | se mostraba **y se persistía en BD** |
+| `title` | ✅ sí | sale del DOM (`animeav1.py:293`), del mismo `response.text`. La versión anterior de esta sección lo daba por no comprobado |
+| `genres` | ✅ no | slugs ASCII (`accion`, `fantasia`) |
+| `id` | ✅ no | slugs ASCII |
+
+⚠️ Sigue sin comprobarse si AnimeFLV tiene el mismo problema — está en desuso y no sirve servidores
+([§2](#2-estado-de-los-proveedores)), así que no se ha diagnosticado.
+
+> **Invariante**: debe haber **exactamente una** aparición de `requests.get` en `animeav1.py`, la de
+> dentro de `_fetch`. Comprobable con `grep -c "requests.get" src/APIs/animeav1/animeav1.py` → `1`.
+>
+> **Y el código no repara lo ya guardado**: al arreglarlo había 3 filas con la sinopsis rota en la BD
+> real, que hubo que re-descargar aparte ([12 §1](12-deuda-tecnica-y-roadmap.md)).
 
 ---
 
@@ -322,7 +345,7 @@ Pasos detallados con checklist en [11 §3](11-playbooks.md). Resumen:
 3. `class MiSitio(AnimeProvider)` con `PROVIDER_ID`, `PROVIDER_NAME`, `BASE_URL` **y los 5 métodos**.
 4. Devolver siempre `AnimeInfo` / `EpisodeInfo` / `ServerInfo` de `APIs.common.models`.
 5. Traducir géneros dentro del proveedor si los slugs difieren de `AnimeGenreFilter`.
-6. Crear `MiSitioSingleton` siguiendo el patrón de `animeav1.py:339-345`.
+6. Crear `MiSitioSingleton` siguiendo el patrón de `animeav1.py:361-367`.
 7. Registrarlo en `gui/main_window.py:48-49`.
 8. Añadir `APIs.<sitio>.<sitio>` a `hiddenimports` de `MiBibliotecaAnime.spec` ([trampa 18](10-invariantes-y-trampas.md)).
 9. Verificar con el script de [09 §2](09-verificacion-y-pruebas.md), incluido el **orden de

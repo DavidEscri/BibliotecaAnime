@@ -53,9 +53,9 @@ cierra sin colgarse.
 | Clic en anime **desde las otras vistas** | 🖥️ **UI** ⚠️ | `favouriteAnimes.py:131` y homólogos |
 | Búsquedas del buscador | 🧵 daemon | `searchAnimes.py:205-215` |
 | Búsqueda dentro de las vistas de estado | 🖥️ **UI** ⚠️ | `favouriteAnimes.py:82` y homólogos |
-| **Servidores de un episodio** | 🖥️ **UI** ⚠️ | `anime_window.py:459` |
-| Todas las escrituras en BD | 🖥️ UI (desde callbacks) | `anime_window.py:190-250` |
-| Descarga/borrado de pósters por estado | 🖥️ UI ⚠️ | `anime_window.py:191, 198, 205…` |
+| **Servidores de un episodio** | 🖥️ **UI** ⚠️ | `anime_window.py:490` |
+| Todas las escrituras en BD | 🖥️ UI (desde callbacks) | `anime_window.py:221-281` |
+| Descarga/borrado de pósters por estado | 🖥️ UI ⚠️ | `anime_window.py:222, 198, 205…` |
 
 ---
 
@@ -147,7 +147,7 @@ t.start()
 
 ### C5 — HTTP en el hilo de UI al abrir servidores 📖
 
-`anime_window.py:459` llama a `get_anime_episode_servers` en el callback del botón. ✅ Con AnimeAV1
+`anime_window.py:490` llama a `get_anime_episode_servers` en el callback del botón. ✅ Con AnimeAV1
 tarda ~0,2 s; si AnimeAV1 falla y entra el fallback a AnimeFLV, se suman los timeouts de ambos
 proveedores con la ventana congelada.
 

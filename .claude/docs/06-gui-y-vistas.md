@@ -2,7 +2,8 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-07-28 · **Commit** `a972850` · árbol **sucio** |
+| **Fecha** | 2026-07-30 · **Commit** `83a8448` · árbol **sucio** |
+| **Última revisión** | 2026-07-30: patrón `__on_anime_click` con la guarda del `None` (`1bfdf0f`) |
 | **Cubre** | `src/gui/main_window.py`, `src/gui/anime_window.py`, `src/gui/sidebarButtons/**`, `src/utils/buttons/utilsButtons.py` |
 
 Procedencia: ✅ verificado en ejecución (arranque real de la GUI) · 📖 leído en código · ⚠️ sin verificar.
@@ -156,6 +157,22 @@ Cada una: `__show_browser()` monta buscador + `AccordionFilterButton` + `__displ
 `__search_anime()` consulta **la red** y filtra contra la BD por el flag correspondiente;
 `__display_animes()` pinta la rejilla; `__on_anime_click()` pide `get_anime_info` y abre la ficha.
 
+**`__on_anime_click` es idéntico en las cinco** y desde `1bfdf0f` (2026-07-30) incluye la guarda del
+`None` — cópiala tal cual al crear una vista nueva, o el clic no hará nada cuando falle la red
+([10, trampa 10](10-invariantes-y-trampas.md)):
+
+```python
+def __on_anime_click(self, anime_id: Union[str, int]):
+    anime_clicked: AnimeInfo | None = self.anime_provider_mgr.get_anime_info(anime_id)
+    if anime_clicked is None:
+        show_anime_info_error(anime_id)      # de gui.anime_window
+        return
+    AnimeWindowViewer(self.main_window, anime_clicked).display_anime_info()
+```
+
+La carpeta de pósters de la columna 3 debe estar además en `get_anime_image` (`utils.py:168`); a
+`watching` se le olvidó durante meses ([11 §1](11-playbooks.md)).
+
 > ⚠️ **`__search_anime` funciona al revés de lo que uno espera**: en vez de buscar en la biblioteca
 > local, hace `search_animes_by_query` **contra el proveedor** y luego descarta los resultados que no
 > estén en BD con ese flag (`favouriteAnimes.py:82-95`). Sin conexión, el buscador local no encuentra
@@ -189,10 +206,10 @@ title_label.grid(row=(row*2) + 1, column=column, padx=10, pady=(5, 10),  sticky=
 
 | Fila | Contenido | Dónde |
 |---|---|---|
-| 0 | buscador / póster de la ficha | `favouriteAnimes.py:42`, `anime_window.py:80` |
-| 1-2 | filtros de género / sinopsis + géneros | `utilsButtons.py:106,128`, `anime_window.py:111,124` |
-| 3 | frame de estados (los 4 botones) | `anime_window.py:130` |
-| 4 | lista de episodios | `anime_window.py:254` |
+| 0 | buscador / póster de la ficha | `favouriteAnimes.py:42`, `anime_window.py:111` |
+| 1-2 | filtros de género / sinopsis + géneros | `utilsButtons.py:106,128`, `anime_window.py:142,124` |
+| 3 | frame de estados (los 4 botones) | `anime_window.py:161` |
+| 4 | lista de episodios | `anime_window.py:285` |
 | 5 | rejilla de resultados | `favouriteAnimes.py:103`, `searchAnimes.py:237` |
 | 6 | paginación / frame de carga | `searchAnimes.py:179,270` |
 
@@ -201,7 +218,7 @@ compartan `content_frame`.
 
 ### La ficha de detalle
 
-📖 `anime_window.py:63-126`. Columnas con pesos `1 / 4 / 1 / 1` (`:70-73`); la sinopsis y los géneros
+📖 `anime_window.py:94-157`. Columnas con pesos `1 / 4 / 1 / 1` (`:70-73`); la sinopsis y los géneros
 usan `wraplength = content_frame.winfo_width() - 275` (`:107`, `:120`).
 
 ⚠️ `info_frame` fuerza `fg_color="white"` (`:79`) — **no se adapta al tema oscuro**.
@@ -243,7 +260,7 @@ oscuro del sistema, el texto de la sidebar nace negro sobre fondo oscuro.
 
 ## 6. `AnimeWindowViewer` — no es una ventana
 
-📖 `anime_window.py:27-40`. Reemplaza el contenido de `content_frame`; **no crea un `Toplevel`**.
+📖 `anime_window.py:49-71`. Reemplaza el contenido de `content_frame`; **no crea un `Toplevel`**.
 Por eso **no hay botón «volver»**: se vuelve pulsando otra vez en la sidebar.
 
 Composición vertical:
@@ -274,7 +291,7 @@ Composición vertical:
 | Clase | Línea | Uso |
 |---|---|---|
 | `BaseButton` | `:14-21` | base de todos |
-| `EpisodeButton` | `:24-34` | `anime_window.py:304` |
+| `EpisodeButton` | `:24-34` | `anime_window.py:335` |
 | `SearchButton` | `:37-44` | las 4 vistas de estado ⚠️ **homónimo** del `SearchButton` de la sidebar (`searchAnimes.py:34`) |
 | `ApplyFiltersButton` | `:47-54` | `searchAnimes.py:142` |
 | `SidebarButton` | `:57-83` | las 6 vistas |

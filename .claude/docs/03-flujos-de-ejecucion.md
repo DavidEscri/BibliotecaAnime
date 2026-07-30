@@ -2,7 +2,8 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-07-28 · **Commit** `a972850` · árbol **sucio** |
+| **Fecha** | 2026-07-30 · **Commit** `83a8448` · árbol **sucio** |
+| **Última revisión** | 2026-07-30: flujos 3a, 3b y 3c actualizados tras `1bfdf0f` y `83a8448` |
 | **Cubre** | `main_window.py`, `anime_window.py`, `recentAnimes.py`, `searchAnimes.py`, las 4 vistas de estado, `animeProviderMgr.py`, `animesPersistence.py`, `utils.py` |
 
 Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ sin verificar.
@@ -115,26 +116,45 @@ sequenceDiagram
     U->>V: clic en el póster  (bind :70)
     V->>V: localizar índice en recent_animes :83
     alt ya precargado (synopsis/genres/episodes != None)
-        V->>AW: AnimeWindowViewer(...).display_anime_info() :104-105
+        V->>AW: AnimeWindowViewer(...).display_anime_info() :106-107
     else falta info
         V->>V: cursor="watch"; update() :87-88
-        V->>T: Thread(_load_and_show).start() :102
+        V->>T: Thread(_load_and_show).start() :104
         T->>MGR: get_anime_info(anime_id) :91
         MGR-->>T: AnimeInfo | None
-        T->>V: recent_animes[index] = anime_info :93
-        T->>V: cursor="" :97
-        T->>AW: display_anime_info() :98-99  ⚠️ widgets desde hilo daemon
+        T->>V: cursor="" :93  (antes de cualquier salida)
+        alt None → todos los proveedores fallaron
+            T->>U: show_anime_info_error(anime_id) :97 y return
+        else AnimeInfo
+            T->>V: recent_animes[index] = anime_info :99
+            T->>AW: display_anime_info() :100-101  ⚠️ widgets desde hilo daemon
+        end
     end
 ```
 
+> ✅ **Corregido en `1bfdf0f`** (2026-07-30). Antes, cuando `get_anime_info` devolvía `None`, esta vista
+> caía de vuelta al objeto obsoleto de `recent_animes` — cuyo `.episodes` es precisamente `None`, que es
+> lo que la trajo a esta rama — y petaba igual que las otras cinco. El cursor `watch` se restaura ahora
+> **antes** de cualquier salida; antes se quedaba clavado si la construcción de la ficha fallaba.
+
 ### 3b. Desde favoritos / finalizados / viendo / pendientes / buscador (**bloqueante**)
 
-📖 `favouriteAnimes.py:130-133` y homólogos. Llaman a `get_anime_info(anime_id)` **directamente en el
+📖 `favouriteAnimes.py:130-136` y homólogos. Llaman a `get_anime_info(anime_id)` **directamente en el
 hilo de UI** → la ventana se congela durante la petición. Ver [07 §4](07-concurrencia-e-hilos.md).
 
-> ⚠️ Si `get_anime_info` devuelve `None` (todos los proveedores fallan), estas vistas construyen
-> `AnimeWindowViewer(main_window, None)` y `anime_window.py:31` peta con `AttributeError`. No
-> verificado en ejecución, pero el camino es directo en el código.
+Si `get_anime_info` devuelve `None` (fallan todos los proveedores), la vista **no** construye la ficha:
+avisa con `show_anime_info_error(anime_id)` (`anime_window.py:30-46`) y vuelve.
+
+```python
+anime_clicked: AnimeInfo | None = self.anime_provider_mgr.get_anime_info(anime_id)
+if anime_clicked is None:
+    show_anime_info_error(anime_id)
+    return
+```
+
+> ✅ Hasta `1bfdf0f` (2026-07-30) estas vistas construían `AnimeWindowViewer(main_window, None)`, que
+> petaba con `AttributeError` — y Tkinter se tragaba la excepción, así que el clic no hacía nada.
+> Verificado el 2026-07-30 simulando la caída total de proveedores. Ver trampa 10.
 
 ### 3c. Qué hace la ficha al mostrarse
 
@@ -146,34 +166,34 @@ sequenceDiagram
     participant FS as resources/images/*
     participant NET as red
 
-    AW->>AW: display_anime_info() :42
-    AW->>AW: main_window.clear_frame() :43
-    AW->>P: get_anime_by_anime_id(id) :48
+    AW->>AW: display_anime_info() :73
+    AW->>AW: main_window.clear_frame() :74
+    AW->>P: get_anime_by_anime_id(id) :79
     P->>DB: SELECT * FROM ANIMES WHERE anime_id = ?
     DB-->>P: fila | ninguna
     alt existe en BD
-        AW->>P: si len(episodes) difiere → update_anime_episodes() :51-52
+        AW->>P: si len(episodes) difiere → update_anime_episodes() :82-83
         P->>DB: UPDATE ANIMES SET episodes = ?
-        AW->>P: get_watched_episodes(id) :59
-        AW->>AW: watched_status[ep.id] = ep.id in watched :60-61
+        AW->>P: get_watched_episodes(id) :90
+        AW->>AW: watched_status[ep.id] = ep.id in watched :91-92
     end
-    AW->>AW: __display_anime_info() :45 → clear_frame() + time.sleep(0.1) :64-65
-    AW->>FS: get_anime_image(anime_info) :76
-    alt póster en favourite/finished/pending/recent_animes/search
+    AW->>AW: __display_anime_info() :75 → clear_frame() + time.sleep(0.1) :95-96
+    AW->>FS: get_anime_image(anime_info) :107
+    alt póster en alguna de las 6 carpetas de estado/caché
         FS-->>AW: CTkImage (195,275)
-    else no está en esas 5 carpetas
-        AW->>NET: requests.get(anime.poster) (utils.py:176)
-        NET-->>AW: CTkImage ⚠️ sin size= → se ve a 20×20
+    else no está en ninguna
+        AW->>NET: requests.get(anime.poster, timeout=10) (utils.py:176)
+        NET-->>AW: CTkImage (195,275) con size= explícito
     end
-    AW->>AW: __show_anime_status() :126 → __display_anime_status() :133
-    AW->>AW: __show_anime_episodes() :187 → __display_episodes() :260
+    AW->>AW: __show_anime_status() :157 → __display_anime_status() :166
+    AW->>AW: __show_anime_episodes() :218 → __display_episodes() :293
 ```
 
 ---
 
 ## 4. Marcar / desmarcar un episodio
 
-📖 `anime_window.py:399-452`. Es el flujo más delicado del proyecto.
+📖 `anime_window.py:430-483`. Es el flujo más delicado del proyecto.
 
 ```mermaid
 flowchart TD
@@ -221,7 +241,7 @@ flowchart TD
 
 ## 5. Cambios de estado (los 4 botones)
 
-📖 `anime_window.py:189-250` + `animesPersistence.py:342-400`. ✅ Máquina de estados verificada
+📖 `anime_window.py:220-281` + `animesPersistence.py:342-400`. ✅ Máquina de estados verificada
 completa sobre una copia de la BD.
 
 ```mermaid
@@ -265,7 +285,7 @@ anime no está en BD, ✅ `update_sql` devuelve `True` sin haber tocado nada. `a
 
 ⚠️ **El póster no se mueve de categoría.** Al hacer `remove_from_finished` el anime pasa a
 *pendiente* en BD (`:377-389`) pero su póster se borra de `finished/` y **no** se crea en `pending/`
-(`anime_window.py:213-214`) → la vista «pendientes» lo muestra en gris. Deuda B7 en
+(`anime_window.py:244-245`) → la vista «pendientes» lo muestra en gris. Deuda B7 en
 [12 §4](12-deuda-tecnica-y-roadmap.md).
 
 ---

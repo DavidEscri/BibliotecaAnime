@@ -2,8 +2,9 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-07-28 · **Commit** `a972850` · árbol **sucio** |
+| **Fecha** | 2026-07-30 · **Commit** `83a8448` · árbol **sucio** (TODOs sin commitear en `main_window.py`, `recentAnimes.py`, `utilsButtons.py`) |
 | **Cubre** | los 18 módulos con contenido de `src/` + `MiBibliotecaAnime.spec` + `requirements.txt` |
+| **Última revisión** | 2026-07-30: trampas **10**, **14**, **15** y **16** resueltas; citas `fichero:línea` reubicadas tras los commits `1bfdf0f`, `94b497e` y `83a8448` |
 
 Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ sin verificar.
 
@@ -90,7 +91,7 @@ a mano, el siguiente `update_watched_episodes` lo pisa.
 ✅ Verificado: entrada `[1..10]` → BD `[10..1]` → leído `[10..1]`.
 
 **Agravante**: el orden depende del **proveedor**. AnimeAV1 devuelve episodios **ascendentes**
-(`animeav1.py:205`), AnimeFLV **descendentes** (`animeflv.py:222-223`). Es decir, el mismo anime
+(`animeav1.py:227`), AnimeFLV **descendentes** (`animeflv.py:222-223`). Es decir, el mismo anime
 guardado desde un proveedor u otro queda **al revés** en BD.
 
 **Síntoma**: `anime_record.episodes[0]` es el último episodio, no el primero. Lógicas de «por dónde
@@ -147,7 +148,7 @@ los switches están todos apagados. **Sin ningún mensaje.**
 
 ### 8. Solo se muestran los **25** primeros episodios 📖
 
-`anime_window.py:263` → `self.anime_info.episodes[:25]`. (El comentario de `:302` dice «24»; el
+`anime_window.py:294` → `self.anime_info.episodes[:25]`. (El comentario de `:302` dice «24»; el
 código dice 25.)
 
 **Interactúa con la trampa 4**: ✅ con AnimeAV1 (ascendente) verás los episodios **1-25**; con
@@ -175,16 +176,37 @@ reproducido.
 
 ---
 
-### 10. `AnimeInfo.episodes` no puede ser `None` al abrir la ficha 📖
+### ~~10. `AnimeInfo.episodes` no puede ser `None` al abrir la ficha~~ ✅ **Resuelto (2026-07-30, `1bfdf0f`)**
 
-`anime_window.py:33` itera `self.anime_info.episodes` en el constructor.
+Era el bug B5. El constructor iteraba `self.anime_info.episodes` sin ninguna guarda, y **las 6 vistas**
+pasaban directamente el resultado de `get_anime_info`, que devuelve `None` cuando fallan *todos* los
+proveedores. Síntoma: `AttributeError: 'NoneType' object has no attribute 'episodes'`, que Tkinter se
+tragaba — así que el clic simplemente **no hacía nada**, sin ningún mensaje.
 
-`recentAnimes.py:86` sí lo comprueba antes; **las otras 5 vistas no** — llaman a `get_anime_info` y
-pasan el resultado directamente (`favouriteAnimes.py:131-132` y homólogos). Si el manager devuelve
-`None` (todos los proveedores fallan), `AnimeWindowViewer(mw, None)` peta en `:31`.
+**Contrato vigente** (📖 `anime_window.py:30-64`), en tres capas:
 
-**Síntoma**: `TypeError: 'NoneType' object is not iterable` o
-`AttributeError: 'NoneType' object has no attribute 'episodes'` al hacer clic sin conexión.
+| Capa | Dónde | Qué hace |
+|---|---|---|
+| Aviso al usuario | `show_anime_info_error()` `anime_window.py:30-46` | `print` + `messagebox.showerror` |
+| Guarda en los 6 clics | `favouriteAnimes.py:132-134` y homólogos | `if anime_clicked is None: show_anime_info_error(...); return` |
+| Contrato del constructor | `anime_window.py:51-59` | `None` → `ValueError`; `episodes=None` → `replace(…, episodes=[])` |
+
+**Si lo rompes**: al añadir una vista nueva, olvidar la guarda devuelve el síntoma original. La única
+señal será el `ValueError` en consola, porque Tkinter sigue tragándose la excepción del callback.
+
+⚠️ La normalización de `episodes` se hace sobre **una copia** (`dataclasses.replace`), no muta el
+`AnimeInfo` recibido. Es deliberado: el `None` del objeto cacheado en `main_window.recent_animes` es
+justo lo que marca que aún le falta la precarga (`main_window.py:235`), y ponerlo a `[]` lo daría por
+precargado para siempre.
+
+> **Corrección a la versión anterior de esta trampa**: decía que `recentAnimes.py` «sí lo comprueba
+> antes». Solo a medias — comprobaba el `None` pero luego caía de vuelta al objeto obsoleto, cuyo
+> `.episodes` es precisamente `None`, así que petaba igual por la otra puerta. Ahora muestra el error y
+> no abre la ficha (`recentAnimes.py:90-101`), y además restaura el cursor `watch` antes de cualquier
+> salida — antes se quedaba clavado si la construcción de la ficha fallaba.
+
+✅ Verificado el 2026-07-30 simulando la caída total de proveedores sobre el `__on_anime_click` real de
+`favouriteAnimes`: sale el diálogo y no se propaga excepción.
 
 ---
 
@@ -228,61 +250,95 @@ sin ningún aviso. `get()` sí lanza `UnknownProviderError` (`:169-170`) — per
 
 ---
 
-### 14. AnimeAV1 devuelve texto mal codificado ✅
+### ~~14. AnimeAV1 devuelve texto mal codificado~~ ✅ **Resuelto (2026-07-30, `94b497e`)**
 
-`animeav1.com` responde `Content-Type: text/html` **sin `charset`** → `requests` asume `ISO-8859-1` →
-`response.text` sale con mojibake y llega así a `AnimeInfo.synopsis`.
+Era el bug A5. `animeav1.com` responde `Content-Type: text/html` **sin `charset`**, así que requests
+aplicaba el defecto de la RFC 2616 (`ISO-8859-1`) y `response.text` salía con mojibake:
 
 ```
 "…One Piece y el tÃ­tulo de Rey de los Piratas que lo acompaÃ±a."
 ```
 
-**Alcance** ✅: afecta a `synopsis` (se muestra **y se persiste en BD**). No afecta a `genres` (slugs
-ASCII) ni a los `id`. ⚠️ Afectaría a `title` con tildes; no comprobado.
+**Arreglo**: todo el scraping pasa por `_fetch()` (📖 `animeav1.py:37-56`), que fija UTF-8 **solo si el
+servidor no declara charset**, de modo que si algún día lo declara se respeta el suyo:
 
-**Síntoma**: sinopsis con `Ã­`, `Ã±`, `Ã³` en la ficha y en la BD.
+```python
+response = requests.get(url, **kwargs)
+if "charset" not in response.headers.get("Content-Type", "").lower():
+    response.encoding = "utf-8"
+```
 
-Detalle y arreglo sugerido en [05 §7](05-proveedores-y-scraping.md).
+**Invariante que queda**: debe haber **exactamente una** aparición de `requests.get` en el módulo, la de
+dentro de `_fetch`. Añadir una petición directa reintroduce el bug solo en esa ruta.
+
+**Corrección de alcance**: la versión anterior de esta trampa decía que solo afectaba a `synopsis` y
+daba `title` por no comprobado. ✅ Verificado el 2026-07-30: **también afectaba a `title`**, porque
+`__parse_anime_cards` lo saca del DOM (`animeav1.py:293`), que sale del mismo `response.text`. No
+afectaba a `genres` (slugs ASCII) ni a los `id`.
+
+✅ Verificado contra el sitio real: ficha, portada y búsqueda, 0 marcadores `Ã`/`Â` en los tres casos.
+
+> **Datos ya contaminados**: 3 de las 25 filas de la BD real tenían la sinopsis rota de antes del
+> arreglo. Se repararon el 2026-07-30 re-descargando la ficha con el scraper ya corregido (copia previa
+> en `resources/DB/backups/DB_Animes_20260730_013507.db`). La diferencia de longitud coincidió
+> exactamente con el número de marcadores en las 3, confirmando que el texto solo cambió en eso.
+> **Si el scraper vuelve a romperse así, la BD se contamina otra vez**: el arreglo del código no
+> repara lo ya guardado.
 
 ---
 
 ## Imágenes y recursos
 
-### 15. `get_anime_image()` **no** busca en `resources/images/watching/` ✅
+### ~~15. `get_anime_image()` **no** busca en `resources/images/watching/`~~ ✅ **Resuelto (2026-07-30, `83a8448`)**
 
-`utils.py:168`:
+Era el bug B1. La lista de `utils.py:168` omitía `watching`, pese a que
+`download_anime_poster_by_status(AnimeStatus.WATCHING, …)` guarda ahí (`utils.py:53-60`,
+`status.name.lower()` → `"watching"`). Ahora incluye las **6** categorías:
 
 ```python
-subfolders = ["favourite", "finished", "pending", "recent_animes", "search"]
+subfolders = ["favourite", "watching", "finished", "pending", "recent_animes", "search"]
 ```
 
-**Falta `watching`** — pese a que `download_anime_poster_by_status(AnimeStatus.WATCHING, …)` guarda
-ahí (`:53-60`, `status.name.lower()` → `"watching"`).
+**Invariante que queda**: toda carpeta a la que escriba `download_anime_poster_by_status` debe estar en
+esta lista. Como el nombre sale de `AnimeStatus.name.lower()`, **añadir un estado nuevo obliga a tocar
+`utils.py:168`** ([11 §1](11-playbooks.md)).
 
-✅ Verificado: con el póster **solo** en `watching/`, `get_anime_image` **va a la red** (0,12 s) en vez
-de leerlo del disco.
-
-**Síntoma**: la ficha de un anime que solo está en «viendo» tarda más y depende de la conexión.
-Combinado con la trampa 16, se ve además diminuto.
+✅ Verificado el 2026-07-30 con `one-piece-gyojin-touhen`, que en la BD real está **solo** en
+`watching/`: se resuelve desde disco pasándole a propósito una URL inválida — si hubiera caído a la
+rama de red, habría fallado la conexión.
 
 ---
 
-### 16. La rama de red de `get_anime_image()` olvida `size=` ✅
+### ~~16. La rama de red de `get_anime_image()` olvida `size=`~~ ✅ **Resuelto (2026-07-30, `83a8448`)**
+
+Era el bug A4. La trampa de fondo **sigue viva para cualquier código nuevo**: `CTkImage` maneja dos
+tamaños independientes.
+
+| | Qué es | Quién lo fija |
+|---|---|---|
+| PIL interno | píxeles reales de la imagen | `Image.open(...)` / `.resize(...)` |
+| `size=` | **lo que se pinta**; defecto `(20, 20)` | el parámetro de `CTkImage` |
+
+`.resize((195, 275))` sin `size=` producía un PIL de 195×275 renderizado a 20×20: el redimensionado se
+hacía y se tiraba. Ahora (`utils.py:176-177`) la rama de red se comporta igual que `load_image()`:
 
 ```python
-# utils.py:176-177
-response = requests.get(anime.poster)
-return ctk.CTkImage(Image.open(BytesIO(response.content)).resize(image_size))
-#                   ↑ redimensiona el PIL, pero NO pasa size= al CTkImage
+response = requests.get(anime.poster, timeout=_REQUEST_TIMEOUT)
+return ctk.CTkImage(Image.open(BytesIO(response.content)), size=image_size)
 ```
 
-`CTkImage` sin `size=` usa su valor por defecto. ✅ Verificado: devuelve un `CTkImage` de **20×20** en
-vez de `(195, 275)`.
+Se pasa el PIL **sin redimensionar** a propósito: del escalado se encarga CTk, y conservar la
+resolución original se ve mejor en HiDPI, que es justo para lo que existe `size=`.
 
-**Síntoma**: en la ficha de detalle, el póster aparece como un **cuadradito diminuto** siempre que
-haya que descargarlo (es decir, siempre que el anime solo esté en «viendo», o no esté cacheado).
+**Si lo rompes**: cualquier `CTkImage(...)` sin `size=` en código nuevo sale a 20×20. El síntoma es un
+cuadradito diminuto, **no un error**.
 
-**Arreglo**: `ctk.CTkImage(Image.open(BytesIO(response.content)), size=image_size)`.
+✅ Verificado el 2026-07-30 contra un póster real de AnimeAV1: `(195, 275)` pintado, PIL de origen
+225×350 conservado.
+
+> En el mismo cambio se añadió `timeout=_REQUEST_TIMEOUT`: era la única petición del módulo sin timeout
+> y corre **en el hilo de UI** (`anime_window.py:107`), así que un servidor de imágenes colgado
+> congelaba la aplicación indefinidamente.
 
 ---
 
@@ -371,7 +427,7 @@ if type(text) is type(prefix_text):
 # ← falta el else: devuelve None implícitamente
 ```
 
-Lo usan `animeflv.py:63,112,172` y `animeav1.py:258` para construir el `anime_id`.
+Lo usan `animeflv.py:63,112,172` y `animeav1.py:280` para construir el `anime_id`.
 
 **Síntoma**: `anime.id` vale `None` → el póster se guarda como `None.jpg` y la ficha no carga.
 ⚠️ No reproducido; con las entradas actuales ambos argumentos son siempre `str`.
@@ -381,11 +437,15 @@ Lo usan `animeflv.py:63,112,172` y `animeav1.py:258` para construir el `anime_id
 ## Resumen: las 5 que más duelen
 
 1. **Trampa 4** — el orden de `episodes` depende del proveedor y se invierte al guardar.
-2. **Trampa 16** — el póster se ve a 20×20 cada vez que hay que descargarlo.
-3. **Trampa 7** — marcar episodios sin estado asignado no guarda nada, sin avisar.
-4. **Trampa 15** — `get_anime_image()` no busca en `watching/`, así que va a la red sin necesidad.
-5. **Trampa 6** — la ordenación por géneros nunca se aplica desde la GUI (`str` vs enum).
+2. **Trampa 7** — marcar episodios sin estado asignado no guarda nada, sin avisar.
+3. **Trampa 6** — la ordenación por géneros nunca se aplica desde la GUI (`str` vs enum).
+4. **Trampa 8** — solo se muestran los 25 primeros episodios, y el corte cambia según el proveedor.
+5. **Trampa 17** — la purga de pósters borra todo lo que no esté en la lista actual.
 
-> Las trampas **1** y **2** (desalineación de columnas y ausencia de migraciones) encabezaban esta
-> lista hasta el 2026-07-30. `validate_db_integrity()` las mitiga; el invariante del orden de
-> `AnimeField` sigue vigente, pero ya no corrompe datos en silencio.
+> **Trampas retiradas de esta lista el 2026-07-30**, todas por estar resueltas: **1** y **2**
+> (desalineación de columnas y ausencia de migraciones, mitigadas por `validate_db_integrity()`),
+> **15** y **16** (el póster a 20×20 y la carpeta `watching/` olvidada), **10** (clic sin comprobar
+> `None`) y **14** (mojibake de AnimeAV1).
+>
+> Las entradas **no se renumeran ni se borran**: otros documentos las citan por número. Una trampa
+> resuelta se marca tachada y conserva su invariante vigente, si le queda alguno.

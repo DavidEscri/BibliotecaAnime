@@ -170,8 +170,9 @@ Marcar un episodio como visto es **acumulativo**: marca todos los anteriores has
 episodio. Conserva en BD los episodios posteriores ya vistos.
 
 **Imágenes** (`utils/utils.py`): los pósters se guardan como `{anime_id}.jpg` en `resources/images/<categoría>/`,
-redimensionados a `(130, 185)`; la ficha de detalle los pide a `(195, 275)`. `get_anime_image()` busca en
-`favourite`, `finished`, `pending`, `recent_animes` y `search` antes de bajarlo de la red. Las descargas van en un
+redimensionados a `(130, 185)`; la ficha de detalle los pide a `(195, 275)`. `get_anime_image()` busca en las **6**
+categorías (`favourite`, `watching`, `finished`, `pending`, `recent_animes` y `search`) antes de bajarlo de la
+red, y en esa rama pasa `size=` explícito — sin él `CTkImage` pinta a 20×20. Las descargas van en un
 `ThreadPoolExecutor` de 8 workers y borran del disco lo que ya no está en la lista actual.
 
 ### 4. Concurrencia
@@ -264,5 +265,8 @@ cambian mi comportamiento): [`.claude/COMO-PEDIR-TAREAS.md`](COMO-PEDIR-TAREAS.m
 
 > **Correcciones a este fichero** detectadas al auditarlo (detalle en
 > [docs/12 §3](docs/12-deuda-tecnica-y-roadmap.md)): no todos los `update_*` devuelven `False` si el
-> anime no existe; `get_anime_image()` **no** busca en `resources/images/watching/`; el orden de
-> `episodes` antes de invertirse **depende del proveedor**.
+> anime no existe; el orden de `episodes` antes de invertirse **depende del proveedor**.
+>
+> La tercera corrección (`get_anime_image()` no buscaba en `resources/images/watching/`) quedó
+> **resuelta el 2026-07-30** en `83a8448`, junto con el póster a 20×20; el texto de arriba ya refleja
+> el comportamiento actual.

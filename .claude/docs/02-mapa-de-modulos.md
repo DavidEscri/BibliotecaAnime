@@ -2,7 +2,8 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-07-28 · **Commit** `a972850` · árbol **sucio** |
+| **Fecha** | 2026-07-30 · **Commit** `83a8448` · árbol **sucio** |
+| **Última revisión** | 2026-07-30: fichas de `animeav1.py` (v0.3, `_fetch`), `anime_window.py` (`show_anime_info_error`) y `utils.py` (v0.2) tras `1bfdf0f`, `94b497e` y `83a8448` |
 | **Cubre** | los 34 ficheros `.py` de `src/` (18 con contenido + 16 `__init__.py` vacíos) |
 
 Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ sin verificar.
@@ -17,19 +18,19 @@ Todas las líneas citadas corresponden al **árbol de trabajo actual**, no al ú
 | `src/app.py` | 17 | arranque |
 | `src/APIs/common/models.py` | 93 | dominio |
 | `src/APIs/common/animeProviderMgr.py` | 283 | dominio |
-| `src/APIs/animeav1/animeav1.py` | 345 | infraestructura |
+| `src/APIs/animeav1/animeav1.py` | 366 | infraestructura |
 | `src/APIs/animeflv/animeflv.py` | 245 | infraestructura |
 | `src/dataPersistence/animesPersistence.py` | 552 | dominio/datos |
 | `src/utils/db/sqlite.py` | 446 | infraestructura |
-| `src/utils/utils.py` | 199 | infraestructura |
+| `src/utils/utils.py` | 198 | infraestructura |
 | `src/utils/buttons/utilsButtons.py` | 197 | GUI |
 | `src/gui/main_window.py` | 258 | GUI |
-| `src/gui/anime_window.py` | 484 | GUI |
-| `src/gui/sidebarButtons/recentAnimes/recentAnimes.py` | 105 | GUI |
-| `src/gui/sidebarButtons/favouriteAnimes/favouriteAnimes.py` | 136 | GUI |
-| `src/gui/sidebarButtons/finishedAnimes/finishedAnimes.py` | 133 | GUI |
-| `src/gui/sidebarButtons/watchingAnimes/watchingAnimes.py` | 135 | GUI |
-| `src/gui/sidebarButtons/pendingAnimes/pendingAnimes.py` | 135 | GUI |
+| `src/gui/anime_window.py` | 514 | GUI |
+| `src/gui/sidebarButtons/recentAnimes/recentAnimes.py` | 106 | GUI |
+| `src/gui/sidebarButtons/favouriteAnimes/favouriteAnimes.py` | 138 | GUI |
+| `src/gui/sidebarButtons/finishedAnimes/finishedAnimes.py` | 135 | GUI |
+| `src/gui/sidebarButtons/watchingAnimes/watchingAnimes.py` | 137 | GUI |
+| `src/gui/sidebarButtons/pendingAnimes/pendingAnimes.py` | 137 | GUI |
 | `src/gui/sidebarButtons/searchAnimes/searchAnimes.py` | 342 | GUI |
 | `src/gui/sidebarButtons/watchingAnimes/__init__.py` | 2 | **código muerto** |
 
@@ -112,21 +113,25 @@ Semántica exacta y casos límite verificados: [05 §5](05-proveedores-y-scrapin
 
 ## `src/APIs/animeav1/animeav1.py` — proveedor **por defecto**
 
-**Responsabilidad**: scraping de `animeav1.com` (SvelteKit).
+**Responsabilidad**: scraping de `animeav1.com` (SvelteKit). **v0.3** desde el 2026-07-30 (`94b497e`).
 **Constantes**: `BASE_URL` `:28`, `CATALOG_URL=/catalogo` `:29`, `MEDIA_URL=/media` `:30`,
 `_SVELTE_PAYLOAD_MARKER = "kit.start(app, element, {"` `:34`.
 
+**Helper de módulo**: `_fetch(url, **kwargs) -> Response` `:37-56`. **Único punto del módulo que llama
+a `requests.get`**; fuerza UTF-8 cuando el sitio no declara charset. Los 5 métodos de red pasan por él
+— saltárselo reintroduce el mojibake ([05 §7](05-proveedores-y-scraping.md), trampa 14).
+
 | Método público | Línea | Efecto de red |
 |---|---|---|
-| `search_animes_by_genres_and_order` | `:43-73` | `GET /catalogo?genre=…&page=N` |
-| `search_animes_by_query` | `:75-103` | `GET /catalogo?search=…&page=N` |
-| `get_anime_episode_servers` | `:105-137` | `GET /media/{slug}/{n}`, timeout 10 |
-| `get_recent_animes` | `:139-153` | `GET /`, timeout 10 |
-| `get_anime_info` | `:155-222` | `GET /media/{slug}`, timeout 5, **3 intentos** con `sleep(1)` |
+| `search_animes_by_genres_and_order` | `:65-95` | `GET /catalogo?genre=…&page=N` |
+| `search_animes_by_query` | `:97-125` | `GET /catalogo?search=…&page=N` |
+| `get_anime_episode_servers` | `:127-159` | `GET /media/{slug}/{n}`, timeout 10 |
+| `get_recent_animes` | `:161-175` | `GET /`, timeout 10 |
+| `get_anime_info` | `:177-244` | `GET /media/{slug}`, timeout 5, **3 intentos** con `sleep(1)` |
 
-**Helpers privados**: `__extract_svelte_payload` `:228-240` · `__parse_anime_cards` `:242-276` ·
-`__get_last_page` `:278-290` · `__extract_genres` `:292-309` · `__count_episodes_from_dom` `:311-324` ·
-`__apply_client_side_order` `:326-336`. Singleton `:339-345`.
+**Helpers privados**: `__extract_svelte_payload` `:250-262` · `__parse_anime_cards` `:264-298` ·
+`__get_last_page` `:300-312` · `__extract_genres` `:314-331` · `__count_episodes_from_dom` `:333-346` ·
+`__apply_client_side_order` `:348-358`. Singleton `:361-367`.
 
 **Salientes**: `utils.utils.removeprefix` (`:24`), `APIs.common.*`.
 ✅ Verificado: los 5 métodos funcionan. Detalle del payload en [05 §2](05-proveedores-y-scraping.md).
@@ -243,14 +248,15 @@ pool; transacciones solo en las migraciones.
 | `remove_anime_poster_by_status(status, anime)` | `:62-69` | borra ese fichero; si no existe, imprime y vuelve |
 | `download_animes_poster(images_path, animes)` | `:71-105` | descarga las que faltan (8 hilos) y **purga huérfanas** `:97-105` |
 | `download_images_progress(images_path, recent_animes, progress_bar, progress_label)` | `:107-163` | igual + progreso 90 %→100 % `:126`; **toca widgets Tk desde workers** |
-| `get_anime_image(anime, image_size=(195,275)) -> CTkImage` | `:166-177` | busca en `favourite`, `finished`, `pending`, `recent_animes`, `search` `:168` |
+| `get_anime_image(anime, image_size=(195,275)) -> CTkImage` | `:166-177` | busca en las **6** categorías `:168`; si no está en ninguna, la baja de la red `:176-177` |
 | `load_image(image_path, image_size=(130,185))` | `:179-182` | placeholder gris si no existe |
 | `get_resource_path(relative_path)` | `:185-199` | `sys._MEIPASS` si está congelado; si no, raíz calculada desde este fichero |
 
-> ✅ **Dos bugs verificados** en `get_anime_image`: (1) la lista de carpetas **omite `watching`**, así
-> que un póster que solo esté ahí se vuelve a bajar de la red; (2) la rama de red (`:176-177`)
-> construye `ctk.CTkImage(...)` **sin `size=`**, así que el póster se renderiza a **20×20 px** en vez
-> de 195×275. Ver trampas 15 y 16.
+> ✅ **Los dos bugs que tenía `get_anime_image` están resueltos** (2026-07-30, `83a8448`): la lista de
+> carpetas incluye ya `watching` (era B1) y la rama de red pasa `size=` (era A4, el póster salía a
+> 20×20). Ver trampas [15 y 16](10-invariantes-y-trampas.md), que conservan el invariante vigente:
+> **toda carpeta a la que escriba `download_anime_poster_by_status` debe estar en `:168`**, y todo
+> `CTkImage` nuevo necesita `size=` explícito.
 
 ---
 
@@ -304,21 +310,27 @@ pool; transacciones solo en las migraciones.
 **Responsabilidad**: `AnimeWindowViewer` — la ficha de detalle. **No es una ventana**: reemplaza el
 contenido de `content_frame`.
 
+**Función de módulo** (pública, la importan las 6 vistas):
+
+| Función | Línea | Nota |
+|---|---|---|
+| `show_anime_info_error(anime_id)` | `:30-46` | `print` + `messagebox.showerror`. Se llama cuando `get_anime_info` devuelve `None`; sin ella, el clic no hacía nada (trampa 10) |
+
 | Método | Línea | Nota |
 |---|---|---|
-| `__init__(main_window, anime_info)` | `:28-40` | `:33` itera `anime_info.episodes` → **`TypeError` si es `None`** |
-| `display_anime_info()` | `:42-45` | punto de entrada |
-| `__load_anime_status()` | `:47-61` | si cambió el nº de episodios, los actualiza en BD `:51-52` |
-| `__display_anime_info()` | `:63-126` | póster + título + sinopsis + géneros |
-| `__display_anime_status()` | `:135-187` | los 4 botones de estado |
-| `add_to_*` / `remove_from_*` | `:189-250` | BD + póster en disco + refresco |
-| `__display_episodes(episodes_to_show=None)` | `:262-328` | **`[:25]`** en `:263` |
-| `__toggle_sort_order` | `:351-361` | ordena `anime_info.episodes` **in place** |
-| `__search_episodes` | `:363-377` | filtra por número exacto |
-| `__previous_episode` / `__next_episode` | `:379-397` | |
-| `__toggle_episode_switch(episode_id)` | `:399-452` | marcado **acumulativo**; desmarcado unitario |
-| `__toggle_servers_frame` | `:454-479` | ⚠️ **HTTP en el hilo de UI** (`:459`) |
-| `__play_video(url)` | `:481-482` | `webbrowser.open` |
+| `__init__(main_window, anime_info)` | `:50-71` | **contrato**: `None` → `ValueError` `:51-54`; `episodes=None` → `replace(…, episodes=[])` sobre una copia `:58-59` |
+| `display_anime_info()` | `:73-76` | punto de entrada |
+| `__load_anime_status()` | `:78-92` | si cambió el nº de episodios, los actualiza en BD `:82-83` |
+| `__display_anime_info()` | `:94-157` | póster + título + sinopsis + géneros |
+| `__show_anime_status()` / `__display_anime_status()` | `:159-218` | los 4 botones de estado |
+| `add_to_*` / `remove_from_*` | `:220-281` | BD + póster en disco + refresco |
+| `__display_episodes(episodes_to_show=None)` | `:293-359` | **`[:25]`** en `:294` |
+| `__toggle_sort_order` | `:382-392` | ordena `anime_info.episodes` **in place** |
+| `__search_episodes` | `:394-408` | filtra por número exacto |
+| `__previous_episode` / `__next_episode` | `:410-428` | |
+| `__toggle_episode_switch(episode_id)` | `:430-483` | marcado **acumulativo**; desmarcado unitario |
+| `__toggle_servers_frame` | `:485-510` | ⚠️ **HTTP en el hilo de UI** (`:490`) |
+| `__play_video(url)` | `:512-513` | `webbrowser.open` |
 
 ---
 
