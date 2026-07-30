@@ -1,9 +1,10 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "gui"
-__module__ = "anime_wnidow.py"
-__version__ = "0.1"
+__module__ = "anime_window.py"
+__version__ = "0.2"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
+import threading
 import time
 import webbrowser
 
@@ -47,28 +48,84 @@ def show_anime_info_error(anime_id: Union[str, int]) -> None:
 
 
 class AnimeWindowViewer:
-    def __init__(self, main_window, anime_info: AnimeInfo):
+    """Ficha de detalle de un anime. No es una ventana: reemplaza el contenido de
+    ``main_window.content_frame``.
+
+    **Maneja dos identidades distintas del mismo anime**, y confundirlas duplica
+    datos en la biblioteca del usuario:
+
+    - *Identidad de visualización* (``self.anime_info``): la del proveedor que se
+      esté mostrando ahora mismo. Cambia si el usuario usa el selector de
+      proveedor de la ficha. De aquí salen título, sinopsis, géneros, episodios y
+      servidores.
+    - *Identidad de persistencia* (``self.persistence_anime_id`` y
+      ``self.persistence_poster_url``): la del ``AnimeInfo`` con el que se **abrió**
+      la ficha. **Nunca cambia.** Es la que se usa en toda operación de BD y en
+      todo fichero de póster.
+
+    El motivo es que ``AnimeInfo.id`` es el *slug* del sitio, no un identificador
+    universal: el mismo anime es "one-piece-gyojin-touhen" en AnimeAV1 y
+    "one-piece" en AnimeFLV. Si al cambiar de proveedor se persistiera con el id
+    nuevo, «añadir a favoritos» insertaría una **fila nueva** en ANIMES y el mismo
+    anime aparecería dos veces en la biblioteca.
+
+    Ver .claude/docs/13-selector-de-proveedor.md (decisión D5).
+    """
+
+    def __init__(self, main_window, anime_info: AnimeInfo, provider_id: str = None):
+        """
+        :param anime_info: ficha del anime. No puede ser ``None``.
+        :param provider_id: proveedor que sirvió esa ficha. Si se omite se asume el
+            predeterminado, que es correcto salvo que el fallback haya entrado en
+            juego; quien lo sepa debería pasarlo (``get_anime_info_with_provider``).
+        """
         if anime_info is None:
             # Contrato: quien llama debe comprobar el None de get_anime_info y
             # avisar con show_anime_info_error() en vez de construir la ficha.
             raise ValueError("AnimeWindowViewer requiere un AnimeInfo; se recibió None")
-        # `AnimeInfo.episodes` es opcional. Se normaliza sobre una copia para no
-        # mutar el objeto cacheado en main_window.recent_animes, cuyo `None` es
-        # justo lo que marca que aún le falta la precarga.
-        if anime_info.episodes is None:
-            anime_info = replace(anime_info, episodes=[])
         self.main_window = main_window
         self.anime_provider_mgr: AnimeProviderManager = AnimeProviderManagerSingleton()
-        self.anime_info: AnimeInfo = anime_info
+        self.anime_info: AnimeInfo = self.__with_episodes(anime_info)
+        self.provider_id: str | None = provider_id or self.anime_provider_mgr.get_default_provider_id()
+
+        # Identidad de persistencia: se congela aquí y no se vuelve a tocar.
+        self.persistence_anime_id: str = str(anime_info.id)
+        self.persistence_poster_url: str = anime_info.poster
+
         self.episode_switches: list = []
         self.watched_status = {episode.id: False for episode in self.anime_info.episodes}
         self.sort_descending: bool = True
         self.__anime_status_frame = None
         self.__list_episodes_frame = None
+        self.__provider_optionmenu = None
+        self.__changing_provider: bool = False
         self.__anime_is_favourite: bool = False
         self.__anime_is_finished: bool = False
         self.__anime_is_watching: bool = False
         self.__anime_is_pending: bool = False
+
+    @staticmethod
+    def __with_episodes(anime_info: AnimeInfo) -> AnimeInfo:
+        """Normaliza ``episodes=None`` a lista vacía, **sobre una copia**.
+
+        No se muta el original porque puede ser el objeto cacheado en
+        ``main_window.recent_animes``, donde ese ``None`` es justo lo que marca que
+        aún le falta la precarga.
+        """
+        if anime_info.episodes is None:
+            return replace(anime_info, episodes=[])
+        return anime_info
+
+    def __persistence_anime_info(self) -> AnimeInfo:
+        """Copia de la ficha actual con la **identidad de persistencia**.
+
+        Es lo que hay que pasar a `animes_persistence` y a los helpers de póster,
+        que leen ``.id`` y ``.poster`` del ``AnimeInfo`` que reciben. Sin esto, un
+        cambio de proveedor duplicaría la fila en ANIMES.
+        """
+        return replace(self.anime_info,
+                       id=self.persistence_anime_id,
+                       poster=self.persistence_poster_url)
 
     def display_anime_info(self):
         self.main_window.clear_frame()
@@ -76,18 +133,20 @@ class AnimeWindowViewer:
         self.__display_anime_info()
 
     def __load_anime_status(self):
-        anime_record: AnimeRecord = self.main_window.animes_persistence.get_anime_by_anime_id(self.anime_info.id)
+        anime_record: AnimeRecord = self.main_window.animes_persistence.get_anime_by_anime_id(
+            self.persistence_anime_id)
         if anime_record is None:
             return
         if len(anime_record.episodes) != len(self.anime_info.episodes):
-            self.main_window.animes_persistence.update_anime_episodes(self.anime_info.id, self.anime_info.episodes)
+            self.main_window.animes_persistence.update_anime_episodes(self.persistence_anime_id,
+                                                                      self.anime_info.episodes)
         self.__anime_is_favourite = anime_record.is_favourite
         self.__anime_is_finished = anime_record.is_finished
         self.__anime_is_watching = anime_record.is_watching
         self.__anime_is_pending = anime_record.is_pending
 
         # Restaurar episodios vistos desde la BD
-        watched_ids = self.main_window.animes_persistence.get_watched_episodes(self.anime_info.id)
+        watched_ids = self.main_window.animes_persistence.get_watched_episodes(self.persistence_anime_id)
         for episode in self.anime_info.episodes:
             self.watched_status[episode.id] = episode.id in watched_ids
 
@@ -95,20 +154,27 @@ class AnimeWindowViewer:
         self.main_window.clear_frame()
         time.sleep(0.1)
         # Configuración inicial del layout en content_frame
-        self.main_window.content_frame.grid_rowconfigure(0, weight=1)
+        # Fila 0: selector de proveedor. Ocupa su propia fila y abarca las columnas
+        # 1-3 a propósito: si se metiera en las columnas 2-3 de la fila del título,
+        # les reservaría ancho y la sinopsis —cuyo `wraplength` va calculado a mano
+        # sobre el ancho del content_frame— se vería recortada por la derecha.
+        self.main_window.content_frame.grid_rowconfigure(0, weight=0)
         self.main_window.content_frame.grid_rowconfigure(1, weight=1)
         self.main_window.content_frame.grid_rowconfigure(2, weight=1)
+        self.main_window.content_frame.grid_rowconfigure(3, weight=1)
         self.main_window.content_frame.grid_columnconfigure(0, weight=1)
         self.main_window.content_frame.grid_columnconfigure(1, weight=4)  # Espacio más amplio para el título, sinopsis, y géneros
         self.main_window.content_frame.grid_columnconfigure(2, weight=1)  # Añadir espacio para los botones
         self.main_window.content_frame.grid_columnconfigure(3, weight=1)  # Añadir espacio para los botones
 
-        # Cargar la imagen del póster
-        anime_image = get_anime_image(self.anime_info)
+        # Cargar la imagen del póster. Se pide con la identidad de persistencia para
+        # que siga encontrando el `{anime_id}.jpg` ya cacheado aunque se esté
+        # mostrando la ficha de otro proveedor.
+        anime_image = get_anime_image(self.__persistence_anime_info())
 
         # Crear el frame para contener el póster y la información
         info_frame = ctk.CTkFrame(self.main_window.content_frame, fg_color="white")
-        info_frame.grid(row=0, column=0, rowspan=3, sticky=ctk.NW, padx=10, pady=10)
+        info_frame.grid(row=0, column=0, rowspan=4, sticky=ctk.NW, padx=10, pady=10)
 
         # Etiqueta para mostrar la imagen (póster)
         poster_label = ctk.CTkLabel(
@@ -127,7 +193,7 @@ class AnimeWindowViewer:
             justify="left",
             anchor="w",
         )
-        title_label.grid(row=0, column=1, sticky=ctk.NW, padx=5, pady=(5, 0))
+        title_label.grid(row=1, column=1, sticky=ctk.NW, padx=5, pady=(5, 0))
 
         # Etiqueta para la sinopsis del anime
         synopsis_label = ctk.CTkLabel(
@@ -139,7 +205,7 @@ class AnimeWindowViewer:
             justify="left",
             anchor="w"
         )
-        synopsis_label.grid(row=1, column=1, sticky=ctk.NW, padx=(5, 10), pady=(10, 0))
+        synopsis_label.grid(row=2, column=1, sticky=ctk.NW, padx=(5, 10), pady=(10, 0))
 
         # Etiqueta para los géneros del anime
         genres_text = ', '.join(refactor_genre_text(genre) for genre in self.anime_info.genres)
@@ -152,13 +218,102 @@ class AnimeWindowViewer:
             justify="left",
             anchor="w"
         )
-        genres_label.grid(row=2, column=1, sticky=ctk.EW, padx=(5, 10), pady=(20, 0))
+        genres_label.grid(row=3, column=1, sticky=ctk.EW, padx=(5, 10), pady=(20, 0))
 
+        self.__show_provider_selector()
         self.__show_anime_status()
+
+    # ------------------------------------------------------------------
+    # Selector de proveedor de la ficha
+    # ------------------------------------------------------------------
+    def __show_provider_selector(self):
+        """Desplegable para ver esta misma ficha desde otro proveedor.
+
+        Muestra **quién sirvió realmente** esta ficha, no el predeterminado: es lo
+        que hace visible el fallback silencioso de ``call_with_fallback``.
+        """
+        provider_frame = ctk.CTkFrame(self.main_window.content_frame, fg_color="transparent")
+        provider_frame.grid(row=0, column=1, columnspan=3, sticky=ctk.E, padx=(5, 10), pady=(5, 0))
+
+        provider_title = ctk.CTkLabel(
+            provider_frame,
+            text="Proveedor:",
+            font=ctk.CTkFont(size=14),
+            anchor="e"
+        )
+        provider_title.grid(row=0, column=0, sticky=ctk.E, padx=(0, 5))
+
+        provider_names = self.anime_provider_mgr.get_provider_names()
+        self.__provider_optionmenu = ctk.CTkOptionMenu(
+            provider_frame,
+            values=list(provider_names.values()),
+            width=140,
+            command=self.__change_provider_event
+        )
+        self.__provider_optionmenu.grid(row=0, column=1, sticky=ctk.E)
+        if self.provider_id is not None:
+            self.__provider_optionmenu.set(self.anime_provider_mgr.get_provider_name(self.provider_id))
+
+    def __change_provider_event(self, provider_name: str):
+        """Cambia de proveedor **solo para esta ficha**.
+
+        No toca el predeterminado global ni se persiste: es una acción exploratoria
+        («a ver si este otro sitio tiene servidores que funcionen»), no una
+        preferencia.
+        """
+        provider_id = self.anime_provider_mgr.get_provider_id_by_name(provider_name)
+        if provider_id is None or provider_id == self.provider_id:
+            return
+        if self.__changing_provider:
+            print("Ya hay un cambio de proveedor en curso, se ignora")
+            return
+        self.__changing_provider = True
+        self.main_window.configure(cursor="watch")
+        threading.Thread(target=self.__resolve_provider_worker, args=(provider_id,), daemon=True).start()
+
+    def __resolve_provider_worker(self, provider_id: str):
+        """Parte de red del cambio de proveedor. Hilo daemon: no toca widgets.
+
+        Cuesta dos peticiones (buscar el anime por título en el proveedor destino y
+        traer su ficha), de ahí el hilo y el cursor de espera.
+        """
+        resolved = None
+        try:
+            resolved = self.anime_provider_mgr.resolve_anime_in_provider(self.anime_info, provider_id)
+        except Exception as e:
+            print(f"Error al resolver {self.anime_info.title!r} en {provider_id}: {e}")
+        self.main_window.after(0, self.__on_provider_resolved, provider_id, resolved)
+
+    def __on_provider_resolved(self, provider_id: str, resolved: AnimeInfo | None):
+        """Parte de UI del cambio de proveedor. Corre en el hilo de Tkinter."""
+        self.__changing_provider = False
+        self.main_window.configure(cursor="")
+
+        if resolved is None:
+            provider_name = self.anime_provider_mgr.get_provider_name(provider_id)
+            messagebox.showwarning(
+                "Proveedor sin resultados",
+                f"«{self.anime_info.title}» no se ha encontrado en {provider_name}.\n\n"
+                f"Se mantiene el proveedor actual."
+            )
+            # Devolver el desplegable a su valor real: el usuario no ha cambiado nada.
+            if self.__provider_optionmenu is not None and self.__provider_optionmenu.winfo_exists():
+                self.__provider_optionmenu.set(self.anime_provider_mgr.get_provider_name(self.provider_id))
+            return
+
+        # Solo cambia la identidad de VISUALIZACIÓN. persistence_anime_id y
+        # persistence_poster_url siguen apuntando al anime con el que se abrió la
+        # ficha, así que la BD y los pósters no se duplican (decisión D5).
+        self.provider_id = provider_id
+        self.anime_info = self.__with_episodes(resolved)
+        self.watched_status = {episode.id: False for episode in self.anime_info.episodes}
+        self.episode_switches.clear()
+        self.sort_descending = True
+        self.display_anime_info()
 
     def __show_anime_status(self):
         self.__anime_status_frame = ctk.CTkFrame(self.main_window.content_frame)
-        self.__anime_status_frame.grid(row=3, column=0, columnspan=4, sticky=ctk.NSEW, padx=10, pady=10)
+        self.__anime_status_frame.grid(row=4, column=0, columnspan=4, sticky=ctk.NSEW, padx=10, pady=10)
         self.__anime_status_frame.grid_columnconfigure((0, 1, 2, 3), weight=1)
 
         self.__display_anime_status()
@@ -217,23 +372,32 @@ class AnimeWindowViewer:
 
         self.__show_anime_episodes()
 
+    # ------------------------------------------------------------------
+    # Botones de estado
+    #
+    # Todos usan __persistence_anime_info() y persistence_anime_id, nunca
+    # self.anime_info directamente: si no, cambiar de proveedor y pulsar uno de
+    # estos botones crearía una fila nueva en ANIMES para el mismo anime.
+    # ------------------------------------------------------------------
     def add_to_favorites(self):
-        self.main_window.animes_persistence.update_anime_to_favourite(self.anime_info)
-        download_anime_poster_by_status(AnimeStatus.FAVOURITE, self.anime_info)
+        anime_info = self.__persistence_anime_info()
+        self.main_window.animes_persistence.update_anime_to_favourite(anime_info)
+        download_anime_poster_by_status(AnimeStatus.FAVOURITE, anime_info)
         print(f"{self.anime_info.title} añadido a favoritos.")
         self.__anime_is_favourite = True
         self.__display_anime_status()
 
     def remove_from_favorites(self):
-        self.main_window.animes_persistence.update_anime_to_not_favourite(self.anime_info.id)
-        remove_anime_poster_by_status(AnimeStatus.FAVOURITE, self.anime_info)
+        self.main_window.animes_persistence.update_anime_to_not_favourite(self.persistence_anime_id)
+        remove_anime_poster_by_status(AnimeStatus.FAVOURITE, self.__persistence_anime_info())
         print(f"{self.anime_info.title} eliminado de favoritos.")
         self.__anime_is_favourite = False
         self.__display_anime_status()
 
     def add_to_finished(self):
-        self.main_window.animes_persistence.update_anime_to_finished(self.anime_info)
-        download_anime_poster_by_status(AnimeStatus.FINISHED, self.anime_info)
+        anime_info = self.__persistence_anime_info()
+        self.main_window.animes_persistence.update_anime_to_finished(anime_info)
+        download_anime_poster_by_status(AnimeStatus.FINISHED, anime_info)
         print(f"{self.anime_info.title} añadido a finalizados.")
         self.__anime_is_finished = True
         self.__anime_is_watching = False
@@ -241,16 +405,17 @@ class AnimeWindowViewer:
         self.__display_anime_status()
 
     def remove_from_finished(self):
-        self.main_window.animes_persistence.update_anime_to_not_finished(self.anime_info.id)
-        remove_anime_poster_by_status(AnimeStatus.FINISHED, self.anime_info)
+        self.main_window.animes_persistence.update_anime_to_not_finished(self.persistence_anime_id)
+        remove_anime_poster_by_status(AnimeStatus.FINISHED, self.__persistence_anime_info())
         print(f"{self.anime_info.title} eliminado de finalizados.")
         self.__anime_is_finished = False
         self.__anime_is_pending = True
         self.__display_anime_status()
 
     def add_to_watching(self):
-        self.main_window.animes_persistence.update_anime_to_watching(self.anime_info)
-        download_anime_poster_by_status(AnimeStatus.WATCHING, self.anime_info)
+        anime_info = self.__persistence_anime_info()
+        self.main_window.animes_persistence.update_anime_to_watching(anime_info)
+        download_anime_poster_by_status(AnimeStatus.WATCHING, anime_info)
         print(f"{self.anime_info.title} añadido a viendo.")
         self.__anime_is_finished = False
         self.__anime_is_watching = True
@@ -258,15 +423,16 @@ class AnimeWindowViewer:
         self.__display_anime_status()
 
     def remove_from_watching(self):
-        self.main_window.animes_persistence.update_anime_to_not_watching(self.anime_info.id)
-        remove_anime_poster_by_status(AnimeStatus.WATCHING, self.anime_info)
+        self.main_window.animes_persistence.update_anime_to_not_watching(self.persistence_anime_id)
+        remove_anime_poster_by_status(AnimeStatus.WATCHING, self.__persistence_anime_info())
         print(f"{self.anime_info.title} eliminado de viendo.")
         self.__anime_is_watching = False
         self.__display_anime_status()
 
     def add_to_pending(self):
-        self.main_window.animes_persistence.update_anime_to_pending(self.anime_info)
-        download_anime_poster_by_status(AnimeStatus.PENDING, self.anime_info)
+        anime_info = self.__persistence_anime_info()
+        self.main_window.animes_persistence.update_anime_to_pending(anime_info)
+        download_anime_poster_by_status(AnimeStatus.PENDING, anime_info)
         print(f"{self.anime_info.title} añadido a pendientes.")
         self.__anime_is_finished = False
         self.__anime_is_watching = False
@@ -274,15 +440,15 @@ class AnimeWindowViewer:
         self.__display_anime_status()
 
     def remove_from_pending(self):
-        self.main_window.animes_persistence.update_anime_to_not_pending(self.anime_info.id)
-        remove_anime_poster_by_status(AnimeStatus.PENDING, self.anime_info)
+        self.main_window.animes_persistence.update_anime_to_not_pending(self.persistence_anime_id)
+        remove_anime_poster_by_status(AnimeStatus.PENDING, self.__persistence_anime_info())
         print(f"{self.anime_info.title} eliminado de pendientes.")
         self.__anime_is_pending = False
         self.__display_anime_status()
 
     def __show_anime_episodes(self):
         self.__list_episodes_frame = ctk.CTkFrame(self.main_window.content_frame)
-        self.__list_episodes_frame.grid(row=4, column=0, columnspan=4, sticky=ctk.NSEW, pady=(10, 5), padx=10)
+        self.__list_episodes_frame.grid(row=5, column=0, columnspan=4, sticky=ctk.NSEW, pady=(10, 5), padx=10)
         self.__list_episodes_frame.grid_columnconfigure(0, weight=1)
         self.__list_episodes_frame.grid_columnconfigure(1, weight=1)
         self.__list_episodes_frame.grid_columnconfigure(2, weight=3)
@@ -297,7 +463,7 @@ class AnimeWindowViewer:
 
         self.episode_switches.clear()
 
-        bd_watched = self.main_window.animes_persistence.get_watched_episodes(self.anime_info.id)
+        bd_watched = self.main_window.animes_persistence.get_watched_episodes(self.persistence_anime_id)
         for episode_info in episodes_to_show:
             self.watched_status[episode_info.id] = episode_info.id in bd_watched
 
@@ -462,7 +628,7 @@ class AnimeWindowViewer:
                 self.episode_switches[index].deselect()
 
         # --- 2. Calcular el conjunto COMPLETO a persistir ---
-        bd_watched = self.main_window.animes_persistence.get_watched_episodes(self.anime_info.id)
+        bd_watched = self.main_window.animes_persistence.get_watched_episodes(self.persistence_anime_id)
 
         if marking_as_watched:
             # Al marcar como visto: todos los episodios desde el inicio hasta
@@ -480,15 +646,34 @@ class AnimeWindowViewer:
             # Al desmarcar: eliminar solo este episodio, el resto se preserva intacto
             merged = bd_watched - {episode_id}
 
-        self.main_window.animes_persistence.update_watched_episodes(self.anime_info.id, merged)
+        self.main_window.animes_persistence.update_watched_episodes(self.persistence_anime_id, merged)
 
     def __toggle_servers_frame(self, episode_info: EpisodeInfo, servers_frames, current_row: int):
         if episode_info.id in servers_frames:
             servers_frames[episode_info.id].destroy()
             del servers_frames[episode_info.id]
         else:
-            servers_info: List[ServerInfo] = self.anime_provider_mgr.get_anime_episode_servers(episode_info.anime,
-                                                                                         episode_info.id)
+            # strict=True y provider_id explícito: `episode_info.anime` es el slug del
+            # proveedor que sirvió esta ficha, así que pedir los servidores a otro
+            # sitio con ese slug no devolvería nada útil. Sin esto, el selector de
+            # proveedor mentiría: diría "AnimeFLV" y abriría servidores de AnimeAV1.
+            servers_info: List[ServerInfo] = self.anime_provider_mgr.get_anime_episode_servers(
+                episode_info.anime,
+                episode_info.id,
+                provider_id=self.provider_id,
+                strict=True
+            )
+            if not servers_info:
+                provider_name = self.anime_provider_mgr.get_provider_name(self.provider_id)
+                print(f"[{self.provider_id}] Sin servidores para el episodio "
+                      f"{episode_info.id} de {episode_info.anime}")
+                messagebox.showinfo(
+                    "Sin servidores disponibles",
+                    f"{provider_name} no ofrece servidores para el episodio "
+                    f"{episode_info.id}.\n\nPrueba a cambiar de proveedor en el "
+                    f"desplegable de arriba a la derecha."
+                )
+                return
             # Crear un nuevo frame solo para los servidores
             new_server_frame = ctk.CTkFrame(
                 self.__list_episodes_frame,

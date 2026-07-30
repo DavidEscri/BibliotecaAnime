@@ -1,9 +1,12 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "APIs.common"
-__module__ = "animeProvider.py"
-__version__ = "0.1"
+__module__ = "animeProviderMgr.py"
+__version__ = "0.2"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
+import difflib
+import re
+import unicodedata
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional, Tuple, Union
 import requests
@@ -120,19 +123,29 @@ class AnimeProviderManager:
         prueba con el resto de proveedores registrados en orden hasta obtener
         una respuesta válida.
 
-    Uso típico (por ejemplo en main_window.py, al arrancar la aplicación):
+    Uso típico (tal y como está hoy en main_window.py, al arrancar la aplicación):
 
         manager = AnimeProviderManagerSingleton()
-        manager.register(AnimeFLVSingleton(), default=True)
-        manager.register(AnimeAV1Singleton())
+        manager.register(AnimeAV1Singleton(), default=True)
+        manager.register(AnimeFLVSingleton())
         # más adelante: manager.register(MonosChinos2Singleton())
 
-    Y luego, en vez de llamar directamente a AnimeFLVSingleton().get_recent_animes(),
+    Y luego, en vez de llamar directamente a AnimeAV1Singleton().get_recent_animes(),
     cualquier parte de la app puede llamar a:
 
-        manager.get_recent_animes()                       # usa el predeterminado, con fallback
-        manager.get_recent_animes(provider_id="animeav1")  # fuerza un proveedor concreto
+        manager.get_recent_animes()                        # usa el predeterminado, con fallback
+        manager.get_recent_animes(provider_id="animeflv")  # fuerza un proveedor concreto
+
+    El predeterminado no es solo un detalle de arranque: es una **preferencia del
+    usuario** persistida en DB_user.db y aplicada con set_default() antes de la
+    primera petición (ver dataPersistence/userPersistence.py y
+    .claude/docs/13-selector-de-proveedor.md).
     """
+
+    #: Umbral de similitud de títulos por debajo del cual resolve_anime_in_provider
+    #: considera que el anime NO existe en el proveedor destino. Preferir un falso
+    #: negativo ("no lo encuentro") a abrir un anime equivocado.
+    TITLE_MATCH_THRESHOLD: float = 0.75
 
     def __init__(self):
         self._providers: Dict[str, AnimeProvider] = {}
@@ -172,6 +185,31 @@ class AnimeProviderManager:
 
     def list_providers(self) -> List[str]:
         return list(self._providers.keys())
+
+    def get_provider_name(self, provider_id: str) -> str:
+        """Nombre legible de un proveedor. Si no está registrado, devuelve su id."""
+        provider = self._providers.get(provider_id)
+        return provider.PROVIDER_NAME if provider is not None else provider_id
+
+    def get_provider_names(self) -> Dict[str, str]:
+        """Devuelve ``{PROVIDER_ID: PROVIDER_NAME}`` en orden de registro.
+
+        Es la **única** fuente del contenido de los desplegables de proveedor de
+        la interfaz: la GUI no debe construir esa lista a mano. Cuando existan
+        proveedores de manga, el filtrado por tipo de medio se hará aquí.
+        """
+        return {pid: provider.PROVIDER_NAME for pid, provider in self._providers.items()}
+
+    def get_provider_id_by_name(self, provider_name: str) -> Optional[str]:
+        """Traduce un ``PROVIDER_NAME`` de vuelta a su ``PROVIDER_ID``.
+
+        Los widgets muestran el nombre legible pero el resto del código trabaja
+        con ids; esto cierra ese círculo sin que la GUI mantenga su propio mapa.
+        """
+        for pid, provider in self._providers.items():
+            if provider.PROVIDER_NAME == provider_name:
+                return pid
+        return None
 
     def list_available_providers(self) -> List[str]:
         """Subconjunto de proveedores registrados que responden ahora mismo (is_available)."""
@@ -255,6 +293,20 @@ class AnimeProviderManager:
         result, _ = self.call_with_fallback("get_anime_info", anime_id, provider_id=provider_id, strict=strict)
         return result
 
+    def get_anime_info_with_provider(self, anime_id, provider_id: str = None,
+                                     strict: bool = False) -> Tuple[Optional[AnimeInfo], Optional[str]]:
+        """Como ``get_anime_info``, pero devuelve también **quién** sirvió la ficha.
+
+        El fallback es silencioso por diseño: quien llama pide el predeterminado y
+        puede recibir datos de otro proveedor sin enterarse. La ficha de detalle
+        necesita saberlo para dos cosas: mostrarlo en su selector de proveedor y
+        pedir los servidores de vídeo al proveedor correcto (si no, pediría los
+        servidores de un sitio con el slug de otro).
+
+        :return: ``(AnimeInfo, provider_id)``, o ``(None, None)`` si nadie respondió.
+        """
+        return self.call_with_fallback("get_anime_info", anime_id, provider_id=provider_id, strict=strict)
+
     def search_animes_by_query(self, query: str = None, page: int = None, provider_id: str = None,
                                strict: bool = False):
         result, _ = self.call_with_fallback("search_animes_by_query", query, page,
@@ -272,6 +324,87 @@ class AnimeProviderManager:
         result, _ = self.call_with_fallback("get_anime_episode_servers", anime_id, episode_id,
                                             provider_id=provider_id, strict=strict)
         return result if result is not None else []
+
+    # ------------------------------------------------------------------
+    # Identidad de un anime entre proveedores
+    # ------------------------------------------------------------------
+    @staticmethod
+    def normalize_title(title: str) -> str:
+        """Normaliza un título para poder compararlo entre sitios distintos.
+
+        Pasa a minúsculas, quita tildes y reduce cualquier otro carácter a un
+        espacio: "Ataque a los Titanes: Final" y "ataque-a-los-titanes final"
+        acaban siendo la misma cadena.
+        """
+        if not title:
+            return ""
+        decomposed = unicodedata.normalize("NFKD", title)
+        without_accents = "".join(char for char in decomposed if not unicodedata.combining(char))
+        return re.sub(r"[^a-z0-9]+", " ", without_accents.lower()).strip()
+
+    def resolve_anime_in_provider(self, anime_info: AnimeInfo, provider_id: str,
+                                  threshold: float = None) -> Optional[AnimeInfo]:
+        """Busca el equivalente de un anime en otro proveedor y devuelve su ficha.
+
+        ``AnimeInfo.id`` es el *slug* del sitio, no un identificador universal: el
+        mismo anime es "one-piece" en AnimeAV1 y "one-piece-tv" en
+        AnimeFLV. Por eso no se puede reutilizar el id al cambiar de proveedor;
+        hay que volver a localizar el anime por su título.
+
+        Cuesta **dos peticiones HTTP** (buscar + ficha), así que debe llamarse
+        siempre desde un hilo secundario, nunca desde el hilo de Tkinter.
+
+        Se prefiere un falso negativo a un falso positivo: si la mejor coincidencia
+        no llega al umbral, devuelve ``None`` en vez de abrir otro anime parecido.
+
+        :param anime_info: ficha del anime tal y como se está viendo ahora.
+        :param provider_id: proveedor en el que se quiere localizar.
+        :param threshold: similitud mínima; por defecto ``TITLE_MATCH_THRESHOLD``.
+        :return: ``AnimeInfo`` del proveedor destino, o ``None``. Nunca lanza.
+        """
+        if provider_id not in self._providers:
+            print(f"No se puede resolver el anime: proveedor desconocido {provider_id!r}")
+            return None
+
+        threshold = self.TITLE_MATCH_THRESHOLD if threshold is None else threshold
+        target_title = self.normalize_title(anime_info.title)
+        if not target_title:
+            print("No se puede resolver el anime: no tiene título con el que buscar")
+            return None
+
+        # strict=True: buscar en OTRO proveedor y que el fallback nos devuelva
+        # resultados del actual no resolvería nada, solo confundiría.
+        candidates, _ = self.search_animes_by_query(anime_info.title, provider_id=provider_id,
+                                                    strict=True)
+        if not candidates:
+            print(f"[{provider_id}] Sin resultados al buscar {anime_info.title!r}")
+            return None
+
+        best_candidate: Optional[AnimeInfo] = None
+        best_ratio: float = 0.0
+        for candidate in candidates:
+            candidate_title = self.normalize_title(candidate.title)
+            if candidate_title == target_title:
+                best_candidate, best_ratio = candidate, 1.0
+                break
+            ratio = difflib.SequenceMatcher(None, target_title, candidate_title).ratio()
+            if ratio > best_ratio:
+                best_candidate, best_ratio = candidate, ratio
+
+        if best_candidate is None or best_ratio < threshold:
+            print(f"[{provider_id}] {anime_info.title!r} no encontrado "
+                  f"(mejor coincidencia {best_ratio:.2f} < {threshold})")
+            return None
+
+        resolved = self.get_anime_info(best_candidate.id, provider_id=provider_id, strict=True)
+        if resolved is None:
+            print(f"[{provider_id}] {best_candidate.id!r} apareció en la búsqueda "
+                  f"pero su ficha no se pudo obtener")
+            return None
+
+        print(f"[{provider_id}] {anime_info.title!r} resuelto como {resolved.title!r} "
+              f"(id={resolved.id!r}, similitud {best_ratio:.2f})")
+        return resolved
 
 
 class AnimeProviderManagerSingleton:

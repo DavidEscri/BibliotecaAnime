@@ -128,9 +128,13 @@ class FinishedAnimeButton(utilsButtons.SidebarButton):
             title_label.grid(row=(row * 2) + 1, column=column, padx=10, pady=(5, 10), sticky=ctk.N)
 
     def __on_anime_click(self, anime_id: Union[str, int]):
-        anime_clicked: AnimeInfo | None = self.anime_provider_mgr.get_anime_info(anime_id)
+        # ..._with_provider en vez de get_anime_info: la ficha necesita saber QUIÉN
+        # sirvió estos datos, tanto para mostrarlo en su selector de proveedor como
+        # para pedir los servidores de vídeo al sitio correcto. El fallback puede
+        # haber servido un proveedor distinto al predeterminado.
+        anime_clicked, provider_id = self.anime_provider_mgr.get_anime_info_with_provider(anime_id)
         if anime_clicked is None:
             show_anime_info_error(anime_id)
             return
-        anime_viewer = AnimeWindowViewer(self.main_window, anime_clicked)
+        anime_viewer = AnimeWindowViewer(self.main_window, anime_clicked, provider_id)
         anime_viewer.display_anime_info()

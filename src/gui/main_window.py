@@ -17,6 +17,7 @@ from APIs.animeflv.animeflv import AnimeFLVSingleton
 from APIs.common.animeProviderMgr import AnimeProviderManagerSingleton, AnimeProviderManager
 from APIs.common.models import AnimeInfo
 from dataPersistence.animesPersistence import AnimesPersistenceSingleton, AnimesPersistence, AnimeRecord
+from dataPersistence.userPersistence import UserPersistenceSingleton, UserPersistence
 from gui.sidebarButtons.favouriteAnimes.favouriteAnimes import FavouritesButton
 from gui.sidebarButtons.finishedAnimes.finishedAnimes import FinishedAnimeButton
 from gui.sidebarButtons.pendingAnimes.pendingAnimes import PendingAnimeButton
@@ -25,7 +26,9 @@ from gui.sidebarButtons.searchAnimes.searchAnimes import SearchButton, AnimeSear
 from gui.sidebarButtons.watchingAnimes.watchingAnimes import WatchingAnimeButton
 from utils.buttons.utilsButtons import SidebarButton
 
-from utils.utils import get_resource_path, download_images_progress
+from utils.utils import get_resource_path, download_images_progress, download_animes_poster
+
+# TODO: Cambiar BibliotecaAnime y los botones de viendo, pendiente, finalizado... eliminar la palabra Anime
 
 
 class MainWindow(ctk.CTk):
@@ -42,6 +45,22 @@ class MainWindow(ctk.CTk):
         self.anime_provider_mgr: AnimeProviderManager = AnimeProviderManagerSingleton()
         self.anime_provider_mgr.register(AnimeAV1Singleton(), default=True)
         self.anime_provider_mgr.register(AnimeFLVSingleton())
+
+        # Las preferencias se leen aquí, de forma síncrona, y no en load_animes():
+        # el desplegable de proveedor tiene que nacer ya con el valor guardado, y el
+        # predeterminado tiene que estar aplicado antes del primer get_recent_animes().
+        # Es SQLite local, no red: son milisegundos.
+        self.user_persistence: UserPersistence = UserPersistenceSingleton()
+        self.user_persistence.start()
+        self.__apply_saved_provider_preference()
+
+        self.__provider_optionmenu: ctk.CTkOptionMenu | None = None
+        # Guarda para que dos cambios seguidos de proveedor no lancen dos hilos que
+        # se pisen al escribir self.recent_animes.
+        self.__reloading_recent_animes: bool = False
+        # Se incrementa en cada recarga: la precarga en segundo plano comprueba que
+        # su generación sigue vigente antes de escribir en la lista.
+        self.__recent_animes_generation: int = 0
 
         self.__recent_animes_button: RecentAnimeButton | None = None
         self.__favourites_animes_button: FavouritesButton | None = None
@@ -129,21 +148,134 @@ class MainWindow(ctk.CTk):
         self.__pending_animes_button: PendingAnimeButton = PendingAnimeButton(self, icon_path, sidebar_button_row + 5, sidebar_button_column)
         self.__search_animes_button: SearchButton = SearchButton(self, icon_path, sidebar_button_row + 6, sidebar_button_column)
 
-        appearance_mode_label = ctk.CTkLabel(
+        provider_label = ctk.CTkLabel(
             self.sidebar_frame,
-            text="",
+            text="Proveedor de anime:",
             anchor="w"
         )
-        appearance_mode_label.grid(row=sidebar_button_row + 8, column=sidebar_button_column, padx=20, pady=(10, 0))
+        # Ojo con las filas: create_sidebar_frame() da weight=1 a la fila 8, que es el
+        # espaciador que empuja estos controles al fondo. Con sidebar_button_row=1,
+        # el primer hueco utilizable por debajo del espaciador es row + 8 == 9.
+        provider_label.grid(row=sidebar_button_row + 8, column=sidebar_button_column, padx=20, pady=(10, 0))
+
+        # El contenido del desplegable sale SIEMPRE del manager: la GUI no mantiene
+        # su propia lista de proveedores. Cuando existan proveedores de manga, el
+        # filtrado por tipo de medio se hará en get_provider_names().
+        provider_names = self.anime_provider_mgr.get_provider_names()
+        self.__provider_optionmenu = ctk.CTkOptionMenu(
+            self.sidebar_frame,
+            values=list(provider_names.values()),
+            command=self.change_anime_provider_event
+        )
+        self.__provider_optionmenu.grid(row=sidebar_button_row + 9, column=sidebar_button_column,
+                                        padx=20, pady=(5, 0))
+        current_provider_id = self.anime_provider_mgr.get_default_provider_id()
+        if current_provider_id is not None:
+            self.__provider_optionmenu.set(self.anime_provider_mgr.get_provider_name(current_provider_id))
+
+        appearance_mode_label = ctk.CTkLabel(
+            self.sidebar_frame,
+            text="Apariencia:",
+            anchor="w"
+        )
+        appearance_mode_label.grid(row=sidebar_button_row + 10, column=sidebar_button_column, padx=20, pady=(10, 0))
 
         appearance_mode_optionemenu = ctk.CTkOptionMenu(
             self.sidebar_frame,
             values=["Light", "Dark", "System"],
             command=self.change_appearance_mode_event
         )
-        appearance_mode_optionemenu.grid(row=sidebar_button_row + 9, column=sidebar_button_column, padx=20, pady=(10, 20))
+        appearance_mode_optionemenu.grid(row=sidebar_button_row + 11, column=sidebar_button_column, padx=20, pady=(5, 20))
         appearance_mode_optionemenu.set("System")
         ctk.set_appearance_mode("System")
+
+    # ------------------------------------------------------------------
+    # Proveedor de anime
+    # ------------------------------------------------------------------
+    def __apply_saved_provider_preference(self) -> None:
+        """Aplica el proveedor predeterminado guardado en DB_user.db, si lo hay.
+
+        Si no hay preferencia, o apunta a un proveedor que ya no está registrado
+        (p.ej. se retiró del código), se deja el predeterminado del registro y se
+        avisa por consola. Una preferencia obsoleta no puede impedir arrancar.
+        """
+        saved_provider_id = self.user_persistence.get_default_provider_id()
+        if saved_provider_id is None:
+            print(f"Sin preferencia de proveedor guardada, se usa "
+                  f"{self.anime_provider_mgr.get_default_provider_id()}")
+            return
+        try:
+            self.anime_provider_mgr.set_default(saved_provider_id)
+            print(f"Proveedor predeterminado del usuario: {saved_provider_id}")
+        except Exception as e:
+            print(f"La preferencia de proveedor guardada ({saved_provider_id}) no es válida: {e}")
+
+    def change_anime_provider_event(self, new_provider_name: str) -> None:
+        """Cambia el proveedor predeterminado, lo persiste y recarga los recientes."""
+        provider_id = self.anime_provider_mgr.get_provider_id_by_name(new_provider_name)
+        if provider_id is None:
+            print(f"Proveedor no reconocido: {new_provider_name!r}")
+            return
+        if provider_id == self.anime_provider_mgr.get_default_provider_id():
+            return
+
+        self.anime_provider_mgr.set_default(provider_id)
+        if not self.user_persistence.set_default_provider_id(provider_id):
+            # El cambio vale para esta sesión aunque no se haya podido guardar.
+            print(f"El proveedor {provider_id} no se pudo guardar como preferencia")
+        print(f"Proveedor de anime cambiado a {new_provider_name}")
+        self.__reload_recent_animes()
+
+    def __reload_recent_animes(self) -> None:
+        """Vuelve a pedir los animes recientes al proveedor recién elegido.
+
+        Sin esto el selector parecería no hacer nada: la portada seguiría mostrando
+        el catálogo del proveedor anterior hasta reiniciar la aplicación.
+        """
+        if self.__reloading_recent_animes:
+            print("Ya hay una recarga de animes recientes en curso, se ignora el cambio")
+            return
+        self.__reloading_recent_animes = True
+        self.__recent_animes_generation += 1
+        self.configure(cursor="watch")
+        threading.Thread(target=self.__reload_recent_animes_worker,
+                         args=(self.__recent_animes_generation,), daemon=True).start()
+
+    def __reload_recent_animes_worker(self, generation: int) -> None:
+        """Parte de red de la recarga. Corre en un hilo daemon: no toca widgets.
+
+        El resultado se devuelve al hilo de Tkinter con after(0, ...) en vez de
+        pintar desde aquí, que es lo que hace el arranque y lo que provoca el
+        riesgo descrito en docs/07 (A6/R3).
+        """
+        recent_animes: List[AnimeInfo] = []
+        try:
+            recent_animes = self.anime_provider_mgr.get_recent_animes()
+            if recent_animes:
+                download_animes_poster(self.images_path, recent_animes)
+        except Exception as e:
+            print(f"Error al recargar los animes recientes: {e}")
+            recent_animes = []
+        self.after(0, self.__on_recent_animes_reloaded, recent_animes, generation)
+
+    def __on_recent_animes_reloaded(self, recent_animes: List[AnimeInfo], generation: int) -> None:
+        """Parte de UI de la recarga. Corre en el hilo de Tkinter."""
+        self.__reloading_recent_animes = False
+        self.configure(cursor="")
+        if generation != self.__recent_animes_generation:
+            # Llegó tarde: hubo otro cambio de proveedor por medio.
+            return
+        if not recent_animes:
+            messagebox.showwarning(
+                "Aviso!",
+                "No se pudieron obtener los animes recientes del proveedor seleccionado.\n\n"
+                "El proveedor queda cambiado para las próximas búsquedas."
+            )
+            return
+        self.recent_animes = recent_animes
+        self.__recent_animes_button.show_frame()
+        threading.Thread(target=self.__preload_recent_animes_info,
+                         args=(generation,), daemon=True).start()
 
     def change_appearance_mode_event(self, new_appearance_mode):
         ctk.set_appearance_mode(new_appearance_mode)
@@ -216,23 +348,33 @@ class MainWindow(ctk.CTk):
 
         # Precargar el detalle de cada anime reciente en segundo plano para que
         # el clic del usuario sea instantáneo en lugar de bloquear la UI.
-        threading.Thread(target=self.__preload_recent_animes_info, daemon=True).start()
+        threading.Thread(target=self.__preload_recent_animes_info,
+                         args=(self.__recent_animes_generation,), daemon=True).start()
 
-    def __preload_recent_animes_info(self):
+    def __preload_recent_animes_info(self, generation: int):
         """Rellena synopsis, géneros y episodios de los animes recientes en segundo plano.
 
         Se ejecuta en un hilo daemon tras mostrar la pantalla principal.
         Escribe cada resultado directamente en self.recent_animes[index]; la
         asignación de un elemento de lista es atómica en CPython (GIL), por lo
         que no se necesita Lock.
+
+        ``generation`` es el número de recarga con el que arrancó esta precarga: si
+        el usuario cambia de proveedor por medio, self.recent_animes pasa a ser
+        otra lista y los índices de esta ya no significan nada, así que se aborta
+        en vez de escribir el anime equivocado en la posición equivocada.
         """
-        for index, anime in enumerate(self.recent_animes):
+        recent_animes = self.recent_animes
+        for index, anime in enumerate(recent_animes):
+            if generation != self.__recent_animes_generation:
+                print("Precarga de animes recientes abortada: la lista ha cambiado")
+                return
             if anime.synopsis is not None and anime.genres is not None and anime.episodes is not None:
                 # Ya precargado (p.ej. segunda apertura en la misma sesión)
                 continue
             try:
                 anime_info = self.anime_provider_mgr.get_anime_info(anime.id)
-                if anime_info is not None:
+                if anime_info is not None and generation == self.__recent_animes_generation:
                     self.recent_animes[index] = anime_info
             except Exception as e:
                 print(f"Error al precargar info del anime {anime.id}: {e}")

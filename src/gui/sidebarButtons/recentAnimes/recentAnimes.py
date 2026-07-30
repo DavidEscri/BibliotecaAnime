@@ -87,7 +87,9 @@ class RecentAnimeButton(utilsButtons.SidebarButton):
             self.main_window.update()
 
             def _load_and_show():
-                anime_info = self.anime_provider_mgr.get_anime_info(anime_id)
+                # ..._with_provider: la ficha necesita saber quién sirvió los datos
+                # para pedir los servidores de vídeo al sitio correcto.
+                anime_info, provider_id = self.anime_provider_mgr.get_anime_info_with_provider(anime_id)
                 # Restaurar el cursor antes de cualquier salida, incluida la de error.
                 self.main_window.configure(cursor="")
                 if anime_info is None:
@@ -96,11 +98,13 @@ class RecentAnimeButton(utilsButtons.SidebarButton):
                     show_anime_info_error(anime_id)
                     return
                 self.main_window.recent_animes[index] = anime_info
-                anime_viewer = AnimeWindowViewer(self.main_window, anime_info)
+                anime_viewer = AnimeWindowViewer(self.main_window, anime_info, provider_id)
                 anime_viewer.display_anime_info()
 
             # Ejecutar en hilo secundario para no congelar la UI durante la petición HTTP
             threading.Thread(target=_load_and_show, daemon=True).start()
             return
+        # Este anime ya venía precargado, así que lo sirvió el proveedor que estaba
+        # activo en ese momento; se deja que el viewer asuma el predeterminado.
         anime_viewer = AnimeWindowViewer(self.main_window, anime_clicked)
         anime_viewer.display_anime_info()
