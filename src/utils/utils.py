@@ -1,7 +1,7 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "utils"
 __module__ = "utils.py"
-__version__ = "0.1"
+__version__ = "0.2"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 import os
@@ -165,7 +165,7 @@ def download_images_progress(images_path, recent_animes, progress_bar: ctk.CTkPr
 
 def get_anime_image(anime, image_size: tuple[int, int] = (195, 275)) -> ctk.CTkImage:
     base_dir = get_resource_path("resources/images")
-    subfolders = ["favourite", "finished", "pending", "recent_animes", "search"]
+    subfolders = ["favourite", "watching", "finished", "pending", "recent_animes", "search"]
     for subfolder in subfolders:
         folder_path = os.path.join(base_dir, subfolder)
         if not os.path.exists(folder_path) or not os.path.isdir(folder_path):
@@ -173,8 +173,8 @@ def get_anime_image(anime, image_size: tuple[int, int] = (195, 275)) -> ctk.CTkI
         image_path = os.path.join(folder_path, f"{anime.id}.jpg")
         if os.path.exists(image_path):
             return load_image(image_path, image_size)
-    response = requests.get(anime.poster)
-    return ctk.CTkImage(Image.open(BytesIO(response.content)).resize(image_size))
+    response = requests.get(anime.poster, timeout=_REQUEST_TIMEOUT)
+    return ctk.CTkImage(Image.open(BytesIO(response.content)), size=image_size)
 
 def load_image(image_path: str, image_size: tuple[int, int] = (130, 185)):
     if os.path.exists(image_path):
