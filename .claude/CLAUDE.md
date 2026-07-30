@@ -98,6 +98,13 @@ self.anime_provider_mgr.register(AnimeAV1Singleton(), default=True)
 self.anime_provider_mgr.register(AnimeFLVSingleton())
 ```
 
+Ese predeterminado **lo puede cambiar el usuario** y se persiste en `DB_user.db`: `MainWindow.__init__`
+llama a `set_default()` con la preferencia guardada antes de la primera petición. Hay **dos** selectores:
+el de la sidebar (global, persistido, **con fallback**) y el de la ficha de detalle (solo esa ficha, no
+se persiste, **`strict=True`**). Cambiar de proveedor en una ficha exige **re-resolver** el anime por
+título con `resolve_anime_in_provider()`, porque `AnimeInfo.id` es el slug del sitio y no un
+identificador universal. Detalle y decisiones: [`docs/13`](docs/13-selector-de-proveedor.md).
+
 **Añadir un proveedor nuevo**: heredar de `AnimeProvider` en `APIs/<sitio>/`, implementar los 5 métodos devolviendo
 tipos de `APIs.common.models`, crear su `...Singleton` y registrarlo en `MainWindow`.
 
@@ -107,6 +114,16 @@ SvelteKit**, así que `animeav1.py` extrae con regex el payload de hidratación 
 sospechoso es ese payload, no los selectores.
 
 ### 2. Persistencia (`src/dataPersistence/animesPersistence.py` + `src/utils/db/sqlite.py`)
+
+Dos bases de datos SQLite en `resources/DB/`, cada una con su clase derivada de `ServiceDB` y su propio
+`SCHEMA` declarativo:
+
+| BD | Clase | Contenido | Reemplazable |
+|---|---|---|---|
+| `DB_Animes.db` | `AnimesPersistence` | Tabla `ANIMES`: la **biblioteca real del usuario** | ❌ irrecuperable |
+| `DB_user.db` | `UserPersistence` | Tabla `USER_SETTINGS` (clave/valor): preferencias, hoy el proveedor predeterminado | ✅ se regenera |
+
+Detalle de `DB_user.db` y de por qué está separada: [`docs/13`](docs/13-selector-de-proveedor.md).
 
 Tabla única `ANIMES` en `resources/DB/DB_Animes.db`, creada en el primer arranque (`AnimesPersistence.start()`).
 
@@ -149,10 +166,12 @@ Para añadir una columna o una tabla → `docs/11 §2` y `§2b`. **La migración
 
 `MainWindow` (CTk) es el **hub compartido**: mantiene `content_frame` (un `CTkScrollableFrame` único que todas las
 vistas reutilizan), `sidebar_frame`, las listas cacheadas (`recent_animes`, `favourite_animes`, …),
-`animes_persistence`, `anime_provider_mgr` y `last_search_instance`. Cada vista recibe `main_window` y muta ese estado
-directamente; no hay router ni gestor de vistas.
+`animes_persistence`, `user_persistence`, `anime_provider_mgr` y `last_search_instance`. Cada vista recibe
+`main_window` y muta ese estado directamente; no hay router ni gestor de vistas.
 
 Arranque:
+0. `__init__` registra los proveedores y arranca `UserPersistence` **de forma síncrona** para aplicar el proveedor
+   predeterminado del usuario antes de la primera petición y de construir el desplegable (es SQLite local, no red).
 1. `show_loading_screen()` pinta el GIF + barra de progreso y lanza un hilo daemon.
 2. Ese hilo: `load_animes()` (BD, 0→40 %) → `get_recent_animes()` del manager → `download_images_progress()`
    (90→100 %) → `RecentAnimeButton.show_frame()`, que además revela la sidebar.
@@ -165,9 +184,16 @@ construir widgets en `main_window.content_frame` → `__on_anime_click()` → `A
 Para una vista nueva: heredar de `SidebarButton`, implementar `show_frame()` y registrarla en `load_sidebar_buttons()`.
 
 **`AnimeWindowViewer`** (`gui/anime_window.py`) no es una ventana: reemplaza el contenido de `content_frame`. Muestra
-póster + sinopsis + géneros, los 4 botones de estado y la lista de episodios (**los 25 primeros**, `[:25]`).
+selector de proveedor + póster + sinopsis + géneros, los 4 botones de estado y la lista de episodios
+(**los 25 primeros**, `[:25]`).
 Marcar un episodio como visto es **acumulativo**: marca todos los anteriores hasta ése; desmarcar afecta solo a ese
 episodio. Conserva en BD los episodios posteriores ya vistos.
+
+⚠️ Maneja **dos identidades del mismo anime** y confundirlas duplica filas en la biblioteca del usuario:
+`anime_info` es la del proveedor que se está mostrando (cambia con el selector), mientras que
+`persistence_anime_id` / `persistence_poster_url` son las de apertura y **no cambian nunca**. Toda
+operación de BD y de póster usa las segundas, vía `__persistence_anime_info()`. Es la
+[trampa 21](docs/10-invariantes-y-trampas.md).
 
 **Imágenes** (`utils/utils.py`): los pósters se guardan como `{anime_id}.jpg` en `resources/images/<categoría>/`,
 redimensionados a `(130, 185)`; la ficha de detalle los pide a `(195, 275)`. `get_anime_image()` busca en las **6**
@@ -208,9 +234,12 @@ red, y en esa rama pasa `size=` explícito — sin él `CTkImage` pinta a 20×20
   `gui.anime_window`). Revísalo antes de empaquetar y al añadir módulos o carpetas de `resources/` (sección `datas`).
 - La versión de la app vive en `APP_VERSION` dentro del `.spec`.
 - `resources/DB/` y las carpetas de pósters están en `.gitignore`: se generan en tiempo de ejecución.
-- Hay `# TODO:` en el código que marcan trabajo en curso: `main_window.py` (selector de proveedor con preferencia
-  persistida, renombrado de botones), `anime_window.py` (recomendaciones por género, alternar anime/manga),
-  `recentAnimes.py` (renombrar a «nuevos lanzamientos»), `utilsButtons.py` (color de texto en modo oscuro).
+- Hay `# TODO:` en el código que marcan trabajo en curso: `main_window.py` (renombrado de botones),
+  `anime_window.py` (recomendaciones por género, alternar anime/manga), `recentAnimes.py` (renombrar a
+  «nuevos lanzamientos»), `utilsButtons.py` (color de texto en modo oscuro). El del selector de proveedor
+  se cerró el 2026-07-30.
+- **`MiBibliotecaAnime.spec` empaqueta `resources/DB`**, así que el `.exe` distribuye la biblioteca **y ahora
+  también las preferencias** del desarrollador. Ver A3/C11 en [`docs/12 §4`](docs/12-deuda-tecnica-y-roadmap.md).
 - En `resources/images/utils/` ya existen los iconos `viendo_light/dark.png` y `pendientes_light/dark.png`, pero su uso
   está comentado en `watchingAnimes.py` y `pendingAnimes.py` (siguen con el icono único).
 
@@ -219,9 +248,13 @@ red, y en esa rama pasa `size=` explícito — sin él `CTkImage` pinta a 20×20
 ## Roadmap
 
 - Renombrar «animes recientes» a **nuevos lanzamientos**.
+- **Integrar más proveedores** (JKAnime, MonosChinos2, TioAnime) — es ahora lo primero: AnimeAV1 es el único
+  operativo, y sin un segundo proveedor sano no se puede verificar de verdad la resolución *cross-provider*
+  del selector ([`docs/12 §6`](docs/12-deuda-tecnica-y-roadmap.md)).
 - **Convivencia anime + manga**:
   - Desplegable en la esquina inferior izquierda para elegir *animes / mangas / ambos*, accesible desde todas las
-    pestañas salvo la ficha de detalle, con opción de fijar la elección por defecto.
+    pestañas salvo la ficha de detalle, con opción de fijar la elección por defecto. La preferencia ya tiene dónde
+    guardarse: una fila más en `USER_SETTINGS`, sin migración ([`docs/11 §2c`](docs/11-playbooks.md)).
   - Nuevos lanzamientos a dos columnas (animes / mangas) si se eligen ambos, en cascada y con pósters más grandes,
     3 por fila; si no, listado único como ahora.
   - Quitar «Anime» del nombre de las pestañas favoritos / viendo / pendientes / finalizados y paginarlas de 10 en 10,
@@ -259,6 +292,7 @@ cambian mi comportamiento): [`.claude/COMO-PEDIR-TAREAS.md`](COMO-PEDIR-TAREAS.m
 | [docs/10-invariantes-y-trampas.md](docs/10-invariantes-y-trampas.md) | **Empieza por aquí.** 20 trampas con síntoma observable |
 | [docs/11-playbooks.md](docs/11-playbooks.md) | Recetas: añadir vista, columna, proveedor, campo; empaquetar |
 | [docs/12-deuda-tecnica-y-roadmap.md](docs/12-deuda-tecnica-y-roadmap.md) | TODOs con `fichero:línea`, discrepancias, riesgos, roadmap técnico |
+| [docs/13-selector-de-proveedor.md](docs/13-selector-de-proveedor.md) | Selector de proveedor (sidebar + ficha) y `DB_user.db`. **Léelo antes de tocar `animeProviderMgr.py`, `main_window.py` o `anime_window.py`** |
 
 > Los documentos marcan la procedencia de cada afirmación: ✅ verificado en ejecución ·
 > 📖 leído en código · ⚠️ sin verificar.

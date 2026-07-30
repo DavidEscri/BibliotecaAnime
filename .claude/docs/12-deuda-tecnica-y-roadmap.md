@@ -43,19 +43,20 @@ antes del arreglo de A5. Se re-descargaron con el scraper corregido; copia previ
 
 ## 2. TODOs reales en el código
 
-📖 Los 6 que existen, con `fichero:línea`:
+📖 Quedan **5** vivos (el #4 se cerró el 2026-07-30), con `fichero:línea`:
 
 | # | Ubicación | Contenido | Documento afectado |
 |---|---|---|---|
 | 1 | `gui/anime_window.py:24-25` | Al final de la lista de episodios, frame «Si te ha gustado X, te puede interesar…» con 4 animes del mismo género | [06](06-gui-y-vistas.md), [03](03-flujos-de-ejecucion.md) |
 | 2 | `gui/anime_window.py:27` | Botón para alternar entre manga y anime | [06](06-gui-y-vistas.md), [01](01-arquitectura.md) |
 | 3 | `gui/main_window.py:30` | Quitar la palabra «Anime» de los nombres de botones y del título | [06](06-gui-y-vistas.md) |
-| 4 | `gui/main_window.py:31-34` | `CTkOptionMenu` para elegir proveedor, con preferencia persistida en **una tabla nueva** de configuración; preparado para proveedores de manga | [04](04-modelo-de-datos.md), [05](05-proveedores-y-scraping.md), [11 §2](11-playbooks.md) |
+| ~~4~~ | ~~`gui/main_window.py:31-34`~~ | ✅ **Cerrado el 2026-07-30**: selector de proveedor en la sidebar **y** en la ficha, con la preferencia persistida en la BD nueva `DB_user.db`. El TODO se ha borrado del código. Ver **[13](13-selector-de-proveedor.md)** | **[13](13-selector-de-proveedor.md)**, [04 §0](04-modelo-de-datos.md), [05 §5b](05-proveedores-y-scraping.md) |
 | 5 | `utils/buttons/utilsButtons.py:56` | El color del texto debe cambiar a blanco en apariencia oscura | [06 §5](06-gui-y-vistas.md) |
 | 6 | `gui/sidebarButtons/recentAnimes/recentAnimes.py:19` | Renombrar «recientes» a «nuevos lanzamientos» | [06](06-gui-y-vistas.md) |
 
-> El TODO #4 es el más caro: implica **la primera tabla nueva** del proyecto. Ya es viable — basta
-> declarar su `TableSchema` en `AnimesPersistence.SCHEMA` ([11 §2b](11-playbooks.md)).
+> El TODO #4 era el más caro: implicaba **la primera BD nueva** del proyecto (`DB_user.db`), además de
+> tocar el manager de proveedores, la ficha de detalle y los 6 puntos de clic. **Cerrado el
+> 2026-07-30**; decisiones de diseño y lo que quedó fuera, en [13](13-selector-de-proveedor.md).
 
 ---
 
@@ -191,6 +192,12 @@ mecanismo de fallback existe pero hoy no tiene a dónde caer. Además, el parseo
 aviso, y el fallback al DOM solo cubre `title`, `synopsis` y el conteo de episodios — **no** los
 servidores. Integrar un tercer proveedor es una medida de resiliencia, no un capricho.
 
+🚧 **Mitigación parcial en curso (2026-07-30)**: el selector de proveedor ([13](13-selector-de-proveedor.md))
+no añade proveedores, pero da al usuario la palanca para **saltarse** el que esté roto —
+tanto de forma global como por anime desde la propia ficha— y hace **visible** qué proveedor sirvió
+realmente cada ficha, que hoy el fallback oculta. La medida de fondo sigue siendo integrar un tercer
+proveedor.
+
 **Agravado el 2026-07-30** por lo aprendido al arreglar A5: el proveedor no solo puede romperse
 devolviendo *nada* (lo que el fallback sí cubre), sino devolviendo **datos silenciosamente corruptos**.
 El mojibake pasó los controles de `call_with_fallback` —había resultado, no vacío, sin excepción— y se
@@ -215,7 +222,7 @@ Roadmap declarado en `.claude/CLAUDE.md` y `README.md:124-130`.
 |---|---|---|---|
 | **Renombrar «recientes» → «nuevos lanzamientos»** | `recentAnimes.py:19,24`, `main_window.py:30` | ninguno — es el más barato | [06](06-gui-y-vistas.md), [02](02-mapa-de-modulos.md) |
 | **Quitar «Anime» de los nombres de pestañas** | las 6 vistas + `main_window.py:105` | ninguno | [06](06-gui-y-vistas.md) |
-| **Selector de proveedor con preferencia persistida** | `main_window.py:144-151`, **tabla nueva** en `animesPersistence.py` | ✅ desbloqueado — sigue [11 §2b](11-playbooks.md) | [04](04-modelo-de-datos.md), [05](05-proveedores-y-scraping.md), [11 §2b](11-playbooks.md) |
+| ~~**Selector de proveedor con preferencia persistida**~~ | ✅ **Hecho el 2026-07-30**: `userPersistence.py` (nuevo), `animeProviderMgr.py` v0.2, `main_window.py`, `anime_window.py` v0.2 y los 6 puntos de clic | — | **[13](13-selector-de-proveedor.md)** |
 | **Calificación personal en favoritos + ordenar por ella** | `AnimeField`, `AnimeRecord`, `anime_window.py`, `favouriteAnimes.py` | arreglar B2 (`str` vs enum); la migración ya es automática | [04](04-modelo-de-datos.md), [06](06-gui-y-vistas.md) |
 | **Paginar favoritos/viendo/pendientes/finalizados de 10 en 10** | las 4 vistas de estado; reutilizar `searchAnimes.py:267-324` | extraer la paginación a `utilsButtons.py` | [06](06-gui-y-vistas.md), [03](03-flujos-de-ejecucion.md) |
 | **«Viendo» en cascada con el último capítulo visto** | `watchingAnimes.py` | ya está en BD (`last_watched_episode`) — barato | [06](06-gui-y-vistas.md) |
@@ -233,14 +240,19 @@ Roadmap declarado en `.claude/CLAUDE.md` y `README.md:124-130`.
 *(Revisado el 2026-07-30. ~~A1~~, ~~A2~~, ~~A4~~, ~~A5~~, ~~B1~~ y ~~B5~~ ya pagadas: ver
 [§4 → Resuelto](#-resuelto).)*
 
-1. **Selector de proveedor con preferencia persistida** (TODO #4) — es lo que mejor paga ahora:
-   estrena la infraestructura de migración con **una tabla nueva de verdad** (hasta hoy solo se ha
-   ejercitado retipando `ANIMES`), es prerequisito del desplegable anime/manga, y da control manual
-   sobre el proveedor, lo que mitiga en parte R2.
-2. **Integrar un tercer proveedor** — mitiga R2 de raíz y valida que la abstracción aguanta.
+1. ~~**Selector de proveedor con preferencia persistida** (TODO #4)~~ — ✅ **hecho el 2026-07-30**
+   ([13](13-selector-de-proveedor.md)). Estrenó la infraestructura de esquema declarativo con **una BD
+   nueva** (`DB_user.db`), dejó el sitio donde guardar la futura preferencia anime/manga y dio control
+   manual sobre el proveedor.
+2. **Integrar un tercer proveedor** — ahora es **lo primero**. Mitiga R2 de raíz, valida que la
+   abstracción aguanta y es lo único que permite verificar de verdad la resolución *cross-provider*
+   del selector, que hoy solo está probada con un proveedor falso ([05 §5b](05-proveedores-y-scraping.md)).
 3. **Arreglar B2** — barato, y desbloquea dos puntos del roadmap (recomendaciones por género, ordenar
    favoritos por calificación).
-4. **Entonces** abordar la convivencia anime/manga, que es la refactorización grande.
+4. **Considerar la columna `provider_id` en `ANIMES`** ([13 §8](13-selector-de-proveedor.md)): hoy el
+   fallback tapa el desajuste de slugs a costa de una petición perdida por clic. Con un tercer
+   proveedor registrado, ese coste se multiplica y la columna empieza a pagarse.
+5. **Entonces** abordar la convivencia anime/manga, que es la refactorización grande.
 
 **A3** queda fuera de ese orden porque su urgencia depende de si vas a distribuir el `.exe`: mientras
 no empaquetes, no molesta; en cuanto empaquetes, es lo primero (ver la nota de reevaluación en §4).

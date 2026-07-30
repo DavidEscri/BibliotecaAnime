@@ -204,24 +204,50 @@ title_label.grid(row=(row*2) + 1, column=column, padx=10, pady=(5, 10),  sticky=
 
 📖 Convención implícita, no documentada en el código:
 
-| Fila | Contenido | Dónde |
+| Fila | Contenido en las vistas de lista | Contenido en la ficha de detalle |
 |---|---|---|
-| 0 | buscador / póster de la ficha | `favouriteAnimes.py:42`, `anime_window.py:111` |
-| 1-2 | filtros de género / sinopsis + géneros | `utilsButtons.py:106,128`, `anime_window.py:142,124` |
-| 3 | frame de estados (los 4 botones) | `anime_window.py:161` |
-| 4 | lista de episodios | `anime_window.py:285` |
-| 5 | rejilla de resultados | `favouriteAnimes.py:103`, `searchAnimes.py:237` |
-| 6 | paginación / frame de carga | `searchAnimes.py:179,270` |
+| 0 | buscador | **selector de proveedor** + póster (`rowspan=4`) |
+| 1-2 | filtros de género | título · sinopsis |
+| 3 | — | géneros |
+| 4 | — | frame de estados (los 4 botones) |
+| 5 | rejilla de resultados | lista de episodios |
+| 6 | paginación / frame de carga | — |
 
 Si añades una vista, **respeta estas filas** o el layout se solapará con el de otras vistas que
 compartan `content_frame`.
 
+> ⚠️ Las filas de la ficha **se desplazaron una posición el 2026-07-30** al introducir el selector de
+> proveedor: estados 3 → 4, episodios 4 → 5. Si encuentras una cita `anime_window.py:<línea>` que
+> hable de la fila 3 o 4, es anterior a ese cambio.
+
 ### La ficha de detalle
 
-📖 `anime_window.py:94-157`. Columnas con pesos `1 / 4 / 1 / 1` (`:70-73`); la sinopsis y los géneros
-usan `wraplength = content_frame.winfo_width() - 275` (`:107`, `:120`).
+📖 Columnas con pesos `1 / 4 / 1 / 1`; la sinopsis y los géneros usan
+`wraplength = content_frame.winfo_width() - 275`.
 
-⚠️ `info_frame` fuerza `fg_color="white"` (`:79`) — **no se adapta al tema oscuro**.
+⚠️ **Ese `wraplength` calculado a mano es una trampa de layout**: cualquier widget nuevo que reserve
+ancho en las columnas 1-3 recorta el texto de la sinopsis por la derecha, porque el `wraplength` se
+fija sobre el ancho del `content_frame` entero y no sobre el de la celda. Por eso el selector de
+proveedor ocupa **su propia fila** (`row=0, column=1, columnspan=3, sticky=E`) en vez de compartir la
+fila del título: al abarcar las tres columnas no obliga a ninguna a reservar ancho. Ver
+[trampa 22](10-invariantes-y-trampas.md) y [13 §4](13-selector-de-proveedor.md).
+
+⚠️ `info_frame` fuerza `fg_color="white"` — **no se adapta al tema oscuro**.
+
+### Los dos selectores de proveedor
+
+📖 Introducidos el 2026-07-30 ([13](13-selector-de-proveedor.md)). Son distintos a propósito:
+
+| | Sidebar (`main_window.py`) | Ficha (`anime_window.py`) |
+|---|---|---|
+| Ámbito | **Global**, todas las peticiones | **Solo esta ficha** |
+| ¿Persiste? | Sí, en `DB_user.db` | No |
+| Fallback | **Activo** — si no, los animes guardados con el slug de otro proveedor dejarían de abrirse | `strict=True` — si el usuario pide los servidores de X, servirle los de Y sería mentirle |
+| Al cambiar | Recarga la lista de recientes y navega a esa vista | Re-resuelve el anime por título en el proveedor destino y repinta |
+| Qué muestra | El predeterminado | **Quién sirvió realmente esta ficha** (hace visible el fallback) |
+
+Ambos se pueblan **solo** desde `AnimeProviderManager.get_provider_names()`: la GUI no mantiene su
+propia lista de proveedores.
 
 ---
 

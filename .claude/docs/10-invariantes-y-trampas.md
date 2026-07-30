@@ -434,13 +434,62 @@ Lo usan `animeflv.py:63,112,172` y `animeav1.py:280` para construir el `anime_id
 
 ---
 
+## Proveedor seleccionable *(añadidas 2026-07-30)*
+
+### 21. En la ficha, `anime_info.id` **no** es la clave de la biblioteca ✅
+
+`AnimeWindowViewer` maneja **dos identidades** del mismo anime, y confundirlas **escribe filas
+duplicadas en la biblioteca real del usuario**:
+
+| Atributo | Qué es | Cambia al cambiar de proveedor |
+|---|---|---|
+| `self.anime_info.id` | slug del proveedor que se está **mostrando** | **sí** |
+| `self.persistence_anime_id` | slug con el que se **abrió** la ficha | **no, nunca** |
+
+`AnimeInfo.id` es el slug del sitio, no un identificador universal: el mismo anime es
+`one-piece-gyojin-touhen` en AnimeAV1 y `one-piece` en AnimeFLV.
+
+**Regla**: en `anime_window.py`, **toda** llamada a `animes_persistence` y a
+`download/remove_anime_poster_by_status` usa `self.persistence_anime_id` o
+`self.__persistence_anime_info()`. Nunca `self.anime_info` a secas.
+
+**Síntoma si se incumple**: cambias de proveedor en la ficha, pulsas «Añadir a favoritos» y el anime
+aparece **dos veces** en la vista de favoritos, con dos pósters en disco; o pulsas «Eliminar de
+favoritos» y no desaparece, porque se ha desmarcado una fila distinta de la que ve la vista.
+
+✅ Verificado el 2026-07-30 sobre una copia de la BD real (25 filas): tras cambiar de proveedor y
+pulsar los 8 botones de estado, siguen habiendo 25 filas y ninguna con el slug del otro proveedor.
+Ver [13 D5](13-selector-de-proveedor.md) y el script de [09](09-verificacion-y-pruebas.md).
+
+### 22. El `wraplength` de la ficha se calcula sobre el `content_frame`, no sobre la celda 📖
+
+La sinopsis y los géneros fijan `wraplength = content_frame.winfo_width() - 275`. Ese número **no sabe
+nada del reparto real de columnas**, así que cualquier widget nuevo que reserve ancho en las columnas
+1-3 hace que el texto se pinte más ancho que su celda y **se recorte por la derecha**.
+
+**Síntoma**: la sinopsis aparece cortada a media palabra en el borde derecho (`…termina a bordo`,
+`…Luffy es un`) sin ningún error por consola.
+
+✅ Ocurrió de verdad al colocar el selector de proveedor en `row=0, column=2, columnspan=2`. La
+solución fue darle **su propia fila** abarcando las columnas 1-3, que no obliga a ninguna columna a
+reservar ancho. Si añades algo a la derecha del título, compruébalo con una captura, no a ojo:
+el layout no lanza ningún aviso.
+
+**Invariante vivo**: mientras el `wraplength` siga siendo un número calculado a mano, la fila 0 de la
+ficha es el único sitio seguro para meter controles a la derecha.
+
+---
+
 ## Resumen: las 5 que más duelen
 
-1. **Trampa 4** — el orden de `episodes` depende del proveedor y se invierte al guardar.
-2. **Trampa 7** — marcar episodios sin estado asignado no guarda nada, sin avisar.
-3. **Trampa 6** — la ordenación por géneros nunca se aplica desde la GUI (`str` vs enum).
-4. **Trampa 8** — solo se muestran los 25 primeros episodios, y el corte cambia según el proveedor.
+1. **Trampa 21** — en la ficha, `anime_info.id` no es la clave de la BD; confundirlas duplica filas
+   en la biblioteca real.
+2. **Trampa 4** — el orden de `episodes` depende del proveedor y se invierte al guardar.
+3. **Trampa 7** — marcar episodios sin estado asignado no guarda nada, sin avisar.
+4. **Trampa 6** — la ordenación por géneros nunca se aplica desde la GUI (`str` vs enum).
 5. **Trampa 17** — la purga de pósters borra todo lo que no esté en la lista actual.
+
+*(Cae de la lista la trampa 8 —solo 25 episodios—, que sigue vigente pero duele menos que la 21.)*
 
 > **Trampas retiradas de esta lista el 2026-07-30**, todas por estar resueltas: **1** y **2**
 > (desalineación de columnas y ausencia de migraciones, mitigadas por `validate_db_integrity()`),

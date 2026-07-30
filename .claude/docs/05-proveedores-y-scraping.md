@@ -268,6 +268,49 @@ Ningún proveedor devolvió resultados para 'get_recent_animes'     # :241
 
 ---
 
+## 5b. Elegir proveedor: preferencia global vs. puntual *(2026-07-30)*
+
+Desde la tarea del selector ([13](13-selector-de-proveedor.md)) el proveedor ya no lo decide solo el
+registro de `MainWindow`: hay **tres niveles**, de menos a más específico.
+
+| Nivel | Quién lo fija | Fallback | Persiste |
+|---|---|---|---|
+| Registro en código | `main_window.__init__` → `register(AnimeAV1Singleton(), default=True)` | — | — |
+| **Preferencia del usuario** | desplegable de la sidebar → `set_default()` + `DB_user.db` | **activo** | ✅ sí |
+| **Puntual, por ficha** | desplegable de la ficha de detalle | `strict=True` | ❌ no |
+
+**Por qué la preferencia global conserva el fallback**: `ANIMES.anime_id` guarda el *slug* del
+proveedor que sirvió cada anime. Si el usuario elige un proveedor distinto y se usara `strict`, el clic
+en un anime guardado dejaría de resolver. Con fallback degrada a una petición perdida.
+
+**Por qué la puntual es `strict`**: si el usuario pide explícitamente los servidores de un sitio y el
+fallback le sirve los de otro, el selector miente. Aquí el silencio del fallback es un defecto.
+
+### Identidad de un anime entre proveedores
+
+`AnimeInfo.id` es el *slug* del sitio: el mismo anime es `one-piece-gyojin-touhen` en AnimeAV1 y
+`one-piece` en AnimeFLV. **No se puede reutilizar el id al cambiar de proveedor.**
+`resolve_anime_in_provider(anime_info, provider_id)` hace la traducción:
+
+1. `search_animes_by_query(título, provider_id=…, strict=True)`.
+2. Compara con `normalize_title()` (minúsculas, sin tildes, resto a espacios).
+3. Coincidencia exacta normalizada → gana; si no, mejor `difflib.SequenceMatcher.ratio()` ≥
+   `TITLE_MATCH_THRESHOLD` (**0.75**).
+4. `get_anime_info(match.id, provider_id=…, strict=True)`.
+
+Prefiere **no encontrar** a encontrar mal: por debajo del umbral devuelve `None`.
+
+✅ Verificado el 2026-07-30: con un proveedor falso, un título con una letra menos da 0.968 (se acepta)
+y un título sin relación 0.35 (se rechaza). Contra AnimeAV1 real, un título largo con puntuación
+(`Kimetsu no Yaiba Movie 1: Mugenjou-hen - Akaza Sairai`) resuelve al mismo slug con similitud 1.00.
+
+⚠️ **Lo que no se ha podido verificar**: una resolución cruzada real entre **dos** proveedores
+distintos. AnimeFLV está en desuso, así que hoy no hay un segundo proveedor sano contra el que probarlo.
+El umbral 0.75 sigue siendo, por tanto, una estimación calibrada solo con datos sintéticos: revísalo al
+integrar el tercer proveedor.
+
+---
+
 ## 6. Síntomas típicos de rotura y cómo diagnosticarlos
 
 | Síntoma en la app | Causa probable | Cómo confirmarlo |

@@ -411,6 +411,30 @@ Sin tests automáticos, esto es lo que hay. Marca lo que compruebes.
 - [ ] ⚠️ Arrancando en modo oscuro, el texto de la sidebar nace **negro** hasta que se cambia a mano
       (TODO en `utilsButtons.py:56`).
 
+### Selector de proveedor *(2026-07-30, [13](13-selector-de-proveedor.md))*
+
+**Sidebar**
+- [ ] Arranque con `DB_user.db` borrada: se crea, el desplegable muestra **AnimeAV1**, la app funciona.
+      El log debe decir «Sin preferencia de proveedor guardada, se usa animeav1».
+- [ ] Cambiar de proveedor → la portada de recientes se repuebla y se navega a esa vista.
+- [ ] Cerrar y reabrir → el desplegable **recuerda** la elección. El log debe decir «Proveedor
+      predeterminado del usuario: \<id\>».
+- [ ] La sinopsis de la ficha **no** queda recortada por la derecha (trampa 22).
+- [ ] El selector de proveedor no se solapa con el de apariencia (la fila 8 del sidebar es el
+      espaciador con `weight=1`).
+
+**Ficha de detalle**
+- [ ] Abrir una ficha desde **cada una** de las 6 vistas: el desplegable muestra quién sirvió los datos.
+- [ ] Cambiar de proveedor: título/sinopsis/episodios se rehacen y el póster **no** se duplica en disco.
+- [ ] 🔴 **La prueba que importa** (trampa 21): con un anime ya en favoritos, cambiar de proveedor y
+      pulsar «Eliminar de favoritos» → **desaparece** de la vista de favoritos. Si en su lugar aparece
+      un duplicado, la identidad de persistencia está mal.
+- [ ] Desplegar servidores tras cambiar de proveedor → son los del proveedor **elegido** (compruébalo
+      por el dominio de la URL).
+- [ ] Cambiar de proveedor con la red caída → `messagebox` y el desplegable **vuelve** a su valor
+      anterior; la app no se cuelga.
+- [ ] `SELECT COUNT(*) FROM ANIMES` antes y después de toda la sesión → **el mismo número**.
+
 ---
 
 ## 8. Limpieza
@@ -425,3 +449,22 @@ git status    # debe mostrar SOLO lo que tenías antes de empezar
 - `resources/DB/DB_Animes.db` con el `LastWriteTime` original.
 - ⚠️ Si has ejecutado la app, `resources/images/recent_animes/` **habrá cambiado** (se re-cachean
   pósters). Está en `.gitignore`, así que no ensucia `git status`.
+- ⚠️ Si has ejecutado la app, `resources/DB/DB_user.db` **existirá** (se crea en el primer arranque).
+  Es desechable y está en `.gitignore`. Para volver al estado prístino basta con borrar sus filas:
+  `DELETE FROM USER_SETTINGS`.
+- ⚠️ Si has lanzado la app desde un script en segundo plano, **comprueba que no queda ningún proceso
+  vivo**: `Get-Process python`. La app no termina sola y una instancia huérfana sigue sirviendo la
+  ventana y bloqueando la BD.
+
+### Capturar la ventana de la app sin robar el foco
+
+Útil para verificar layout (es la única forma de detectar la trampa 22, que no lanza ningún error):
+
+```powershell
+# El objeto de Start-Process no publica MainWindowHandle con Tk: buscar por titulo.
+$win = Get-Process | Where-Object { $_.MainWindowTitle -eq "Mi Biblioteca de Anime" }
+# Capturar con PrintWindow(h, hdc, 2) -> PW_RENDERFULLCONTENT: funciona aunque
+# la ventana este tapada y NO la trae al frente.
+```
+
+⚠️ **No** hagas una captura de pantalla completa para esto: recoge todo lo que el usuario tenga abierto.

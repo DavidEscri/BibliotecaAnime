@@ -2,11 +2,53 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-07-28 · **Commit** `a972850` · árbol **sucio** |
-| **Cubre** | `src/APIs/common/models.py`, `src/dataPersistence/animesPersistence.py`, `src/utils/db/sqlite.py` |
+| **Fecha** | 2026-07-30 · **Commit base** `c337fb9` · árbol **sucio** |
+| **Cubre** | `src/APIs/common/models.py`, `src/dataPersistence/animesPersistence.py`, `src/dataPersistence/userPersistence.py`, `src/utils/db/sqlite.py` |
 
-Procedencia: ✅ verificado en ejecución (sobre una **copia** de la BD real, 24 filas) · 📖 leído en
+Procedencia: ✅ verificado en ejecución (sobre una **copia** de la BD real, 24-25 filas) · 📖 leído en
 código · ⚠️ sin verificar.
+
+---
+
+## 0. Las dos bases de datos
+
+✅ Desde el 2026-07-30 hay **dos** ficheros SQLite en `resources/DB/`, cada uno con su clase derivada
+de `ServiceDB` y su propia lista `SCHEMA`. El motor de migración de `utils/db/sqlite.py` es genérico y
+sirve a las dos por igual.
+
+| BD | Clase | Tablas | Naturaleza |
+|---|---|---|---|
+| `DB_Animes.db` | `AnimesPersistence` | `ANIMES` | La **biblioteca real** del usuario. Irrecuperable: nunca escribir desde un script |
+| `DB_user.db` | `UserPersistence` | `USER_SETTINGS` | Preferencias. **Desechable**: se puede borrar y se regenera vacía |
+
+### `USER_SETTINGS` — clave/valor
+
+📖 `userPersistence.py`. Esquema deliberadamente genérico: añadir una preferencia es **una fila nueva**,
+no una migración.
+
+| # | Columna | Tipo | Contenido |
+|---|---|---|---|
+| 1 | `setting_key` | `VARCHAR(100)` | Valor de `UserSettingKey`. **PRIMARY KEY** |
+| 2 | `setting_value` | `TEXT` | Valor, siempre como texto; quien lee convierte |
+| 3 | `updated_at` | `VARCHAR(30)` | ISO-8601 de la última escritura, para depurar |
+
+Claves declaradas en `UserSettingKey`:
+
+| Clave | Valor | Estado |
+|---|---|---|
+| `default_anime_provider` | `PROVIDER_ID` (`"animeav1"`, `"animeflv"`) | ✅ en uso |
+| `default_manga_provider` | `PROVIDER_ID` de manga | 🔮 reservada (comentada en el enum) |
+
+`set_setting()` hace **upsert** (`INSERT … ON CONFLICT(setting_key) DO UPDATE`), así que la primera
+escritura y las siguientes son la misma operación. ✅ Verificado: escribir 4 veces deja 1 fila.
+
+**Tolerancia a fallos por diseño**: si `DB_user.db` no se puede abrir, `UserPersistence.available`
+queda a `False`, `get_setting()` devuelve el valor por defecto que le pasen y `set_setting()` devuelve
+`False`. La aplicación arranca igual con el proveedor predeterminado del código. ✅ Verificado con una
+ruta imposible.
+
+Razonamiento de por qué es una BD aparte y no una tabla de `DB_Animes.db`:
+[13 D1](13-selector-de-proveedor.md).
 
 ---
 

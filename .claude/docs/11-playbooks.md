@@ -144,6 +144,46 @@ usable para `insert_sql` / `query_sql`.
 
 ---
 
+## §2c — Añadir una preferencia de usuario
+
+✅ Desde el 2026-07-30 existe `DB_user.db` ([04 §0](04-modelo-de-datos.md),
+[13](13-selector-de-proveedor.md)). Es una tabla **clave/valor**, así que una preferencia nueva **no es
+una migración**: son 3 pasos y ninguno toca el esquema.
+
+1. Añade un miembro a `UserSettingKey` en `userPersistence.py`:
+
+   ```python
+   class UserSettingKey(Enum):
+       DEFAULT_ANIME_PROVIDER = "default_anime_provider"
+       MEDIA_TYPE_FILTER      = "media_type_filter"   # ← nueva
+   ```
+
+2. Si la preferencia se usa desde varios sitios, añade un **atajo tipado** en `UserPersistence` en vez
+   de dejar `get_setting(UserSettingKey.…)` disperso por la GUI:
+
+   ```python
+   def get_media_type_filter(self) -> Optional[str]:
+       return self.get_setting(UserSettingKey.MEDIA_TYPE_FILTER)
+
+   def set_media_type_filter(self, value: str) -> bool:
+       return self.set_setting(UserSettingKey.MEDIA_TYPE_FILTER, value)
+   ```
+
+3. Léela donde haga falta vía `main_window.user_persistence`. **Si el widget que la muestra se
+   construye en `load_sidebar_buttons()`, la lectura tiene que estar hecha antes** — por eso
+   `UserPersistence.start()` se llama de forma síncrona en `__init__` ([13 D7](13-selector-de-proveedor.md)).
+
+**Checklist**
+
+- [ ] El valor se guarda como **texto**; si es booleano o número, la conversión es de quien lee.
+- [ ] La aplicación arranca con `DB_user.db` **borrada** (se regenera vacía).
+- [ ] La aplicación arranca con la preferencia guardada **inválida** (p.ej. un `provider_id` que ya no
+      existe): debe avisar por consola y seguir con el valor por defecto, no petar.
+- [ ] Round-trip: escribir → cerrar → abrir → sigue ahí.
+- [ ] `DB_Animes.db` no se ha tocado.
+
+---
+
 ## §3 — Añadir un proveedor nuevo
 
 **Ficheros a tocar**

@@ -17,24 +17,29 @@ Todas las líneas citadas corresponden al **árbol de trabajo actual**, no al ú
 |---|---:|---|
 | `src/app.py` | 17 | arranque |
 | `src/APIs/common/models.py` | 93 | dominio |
-| `src/APIs/common/animeProviderMgr.py` | 283 | dominio |
+| `src/APIs/common/animeProviderMgr.py` | 415 | dominio |
 | `src/APIs/animeav1/animeav1.py` | 366 | infraestructura |
 | `src/APIs/animeflv/animeflv.py` | 245 | infraestructura |
-| `src/dataPersistence/animesPersistence.py` | 552 | dominio/datos |
+| `src/dataPersistence/animesPersistence.py` | 553 | dominio/datos |
+| `src/dataPersistence/userPersistence.py` | 251 | dominio/datos |
 | `src/utils/db/sqlite.py` | 446 | infraestructura |
 | `src/utils/utils.py` | 198 | infraestructura |
 | `src/utils/buttons/utilsButtons.py` | 197 | GUI |
-| `src/gui/main_window.py` | 258 | GUI |
-| `src/gui/anime_window.py` | 514 | GUI |
-| `src/gui/sidebarButtons/recentAnimes/recentAnimes.py` | 106 | GUI |
-| `src/gui/sidebarButtons/favouriteAnimes/favouriteAnimes.py` | 138 | GUI |
-| `src/gui/sidebarButtons/finishedAnimes/finishedAnimes.py` | 135 | GUI |
-| `src/gui/sidebarButtons/watchingAnimes/watchingAnimes.py` | 137 | GUI |
-| `src/gui/sidebarButtons/pendingAnimes/pendingAnimes.py` | 137 | GUI |
-| `src/gui/sidebarButtons/searchAnimes/searchAnimes.py` | 342 | GUI |
+| `src/gui/main_window.py` | 394 | GUI |
+| `src/gui/anime_window.py` | 699 | GUI |
+| `src/gui/sidebarButtons/recentAnimes/recentAnimes.py` | 110 | GUI |
+| `src/gui/sidebarButtons/favouriteAnimes/favouriteAnimes.py` | 142 | GUI |
+| `src/gui/sidebarButtons/finishedAnimes/finishedAnimes.py` | 139 | GUI |
+| `src/gui/sidebarButtons/watchingAnimes/watchingAnimes.py` | 141 | GUI |
+| `src/gui/sidebarButtons/pendingAnimes/pendingAnimes.py` | 141 | GUI |
+| `src/gui/sidebarButtons/searchAnimes/searchAnimes.py` | 348 | GUI |
 | `src/gui/sidebarButtons/watchingAnimes/__init__.py` | 2 | **código muerto** |
 
 Los otros 16 `__init__.py` están **vacíos** (0 bytes) y solo marcan paquete.
+
+> Recuentos actualizados el 2026-07-30 tras la tarea del selector de proveedor
+> ([13](13-selector-de-proveedor.md)), que añade `userPersistence.py` y toca 9 módulos más.
+> **18 módulos reales** (antes 17).
 
 ---
 
@@ -103,11 +108,47 @@ Los otros 16 `__init__.py` están **vacíos** (0 bytes) y solo marcan paquete.
 | `_ordered_providers(provider_id=None)` | `:180-191` | preferido primero, resto por orden de registro |
 | `__is_empty_result(result)` | `:193-202` | `None`, `[]`, o `([], …)` cuentan como vacío |
 | `call_with_fallback(...) -> (Any, Optional[str])` | `:204-242` | devuelve `(None, None)` si todos fallan |
-| wrappers `get_recent_animes`, `get_anime_info`, `search_animes_by_query`, `search_animes_by_genres_and_order`, `get_anime_episode_servers` | `:250-274` | mismos nombres que el contrato + `provider_id=`, `strict=` |
-| `AnimeProviderManagerSingleton` | `:277-283` | |
+| wrappers `get_recent_animes`, `get_anime_info`, `search_animes_by_query`, `search_animes_by_genres_and_order`, `get_anime_episode_servers` | | mismos nombres que el contrato + `provider_id=`, `strict=` |
+| `AnimeProviderManagerSingleton` | | |
+
+**Añadidos el 2026-07-30** ([13](13-selector-de-proveedor.md)) — v0.1 → **v0.2**:
+
+| Método | Nota |
+|---|---|
+| `get_provider_name(provider_id)` | nombre legible; si no está registrado devuelve el id |
+| `get_provider_names() -> {id: nombre}` | **única** fuente del contenido de los desplegables de la GUI; aquí se filtrará por tipo de medio cuando haya mangas |
+| `get_provider_id_by_name(nombre)` | vuelta atrás: los widgets muestran nombre, el código usa ids |
+| `get_anime_info_with_provider(...) -> (AnimeInfo\|None, str\|None)` | expone el `provider_id` que `call_with_fallback` ya devolvía y los wrappers tiraban |
+| `normalize_title(title)` *(static)* | minúsculas, sin tildes, resto a espacios |
+| `resolve_anime_in_provider(anime_info, provider_id, threshold=None)` | localiza el mismo anime en otro proveedor por título. **2 peticiones HTTP** → solo desde hilo secundario. Devuelve `None` antes que un falso positivo |
+| `TITLE_MATCH_THRESHOLD = 0.75` | umbral de similitud de `resolve_anime_in_provider` |
 
 **Efectos**: red (indirecta, vía proveedores) + `print` de diagnóstico.
 Semántica exacta y casos límite verificados: [05 §5](05-proveedores-y-scraping.md).
+
+---
+
+## `src/dataPersistence/userPersistence.py`
+
+**Responsabilidad**: preferencias del usuario en `resources/DB/DB_user.db`. Tabla `USER_SETTINGS` de
+clave/valor. Esquema y razonamiento: [04 §0](04-modelo-de-datos.md), [13](13-selector-de-proveedor.md).
+
+| Símbolo | Nota |
+|---|---|
+| `UserSettingField` | enum columna + tipo SQLite, igual que `AnimeField` |
+| `UserSettingKey` | claves válidas. Añadir una preferencia es **un miembro aquí**, sin migración |
+| `UserSetting` | dataclass de una fila, con `from_db_dict()` |
+| `UserPersistence(ServiceDB)` | `start()`, `validate_db_integrity()`, `get_setting()`, `set_setting()` (upsert), `get_all_settings()`, `get_default_provider_id()`, `set_default_provider_id()` |
+| `UserPersistenceSingleton` | `__new__` devuelve la instancia real |
+
+**Dependencias**: `utils.db.sqlite` (`ServiceDB`, `TableSchema`), `utils.utils.get_resource_path`.
+**No** importa nada de `APIs/` ni de `gui/`.
+
+**Efectos**: crea `resources/DB/DB_user.db` y, si el esquema cambiara, una copia en
+`resources/DB/backups/`. `print` de diagnóstico.
+
+⚠️ **Nunca lanza**: si la BD no es accesible, `available` queda a `False` y todo degrada a los valores
+por defecto. Una preferencia perdida no puede impedir arrancar la aplicación.
 
 ---
 
@@ -284,24 +325,32 @@ pool; transacciones solo en las migraciones.
 
 **Responsabilidad**: ventana raíz y **hub de estado compartido**. Composition root de proveedores.
 
-**Estado público mutable** (`:58-64`) — quién lo muta en [06 §2](06-gui-y-vistas.md):
+**Estado público mutable** — quién lo muta en [06 §2](06-gui-y-vistas.md):
 `recent_animes`, `favourite_animes`, `finished_animes`, `watching_animes`, `pending_animes`,
 `last_search_instance`, `images_path`, `animes_persistence`, `anime_provider_mgr`,
-`sidebar_frame`, `content_frame`.
+**`user_persistence`**, `sidebar_frame`, `content_frame`.
 
-| Método | Línea |
+| Método | Nota |
 |---|---|
-| `__init__` | `:40-69` — registra proveedores `:48-49`, `load_sidebar_buttons()` `:66`, `show_loading_screen()` `:69` |
-| `clear_frame()` | `:89-91` — destruye los hijos de `content_frame` |
-| `create_sidebar_frame` / `create_content_frame` | `:93-123` |
-| `load_sidebar_buttons()` | `:125-151` — instancia las 6 vistas + selector de apariencia |
-| `change_appearance_mode_event(mode)` | `:153-163` |
-| `show_loading_screen()` | `:165-204` — GIF + barra; lanza el hilo daemon `:204` |
-| `download_images_and_show_animes(...)` | `:206-224` — **hilo daemon** |
-| `__preload_recent_animes_info()` | `:226-243` — **hilo daemon** |
-| `load_animes(...)` | `:245-258` — BD, progreso 0→40 % |
+| `__init__` | registra proveedores, **arranca `UserPersistence` y aplica la preferencia de proveedor de forma síncrona**, `load_sidebar_buttons()`, `show_loading_screen()` |
+| `clear_frame()` | destruye los hijos de `content_frame` |
+| `create_sidebar_frame` / `create_content_frame` | |
+| `load_sidebar_buttons()` | instancia las 6 vistas + **selector de proveedor** + selector de apariencia |
+| `__apply_saved_provider_preference()` | lee `DB_user.db`; una preferencia inválida solo avisa por consola |
+| `change_anime_provider_event(nombre)` | `set_default` + persistir + recargar recientes |
+| `__reload_recent_animes()` | guarda antidoble + incrementa la **generación** y lanza el hilo |
+| `__reload_recent_animes_worker(gen)` | **hilo daemon**: red + pósters; devuelve al hilo de UI con `after(0, …)` |
+| `__on_recent_animes_reloaded(animes, gen)` | **hilo de UI**: descarta resultados de una generación caducada |
+| `change_appearance_mode_event(mode)` | |
+| `show_loading_screen()` | GIF + barra; lanza el hilo daemon |
+| `download_images_and_show_animes(...)` | **hilo daemon** |
+| `__preload_recent_animes_info(gen)` | **hilo daemon**; aborta si la generación cambió (si no, escribiría el anime equivocado en el índice equivocado tras un cambio de proveedor) |
+| `load_animes(...)` | BD, progreso 0→40 % |
 
-**Efectos**: red, disco, BD, widgets Tk.
+**Efectos**: red, disco, BD (`DB_Animes.db` y `DB_user.db`), widgets Tk.
+
+> ⚠️ Las filas 9-12 del `sidebar_frame` están ocupadas por los dos selectores. La fila **8** tiene
+> `weight=1` y es el espaciador que los empuja al fondo: no metas nada en ella.
 
 ---
 
@@ -312,25 +361,44 @@ contenido de `content_frame`.
 
 **Función de módulo** (pública, la importan las 6 vistas):
 
-| Función | Línea | Nota |
-|---|---|---|
-| `show_anime_info_error(anime_id)` | `:30-46` | `print` + `messagebox.showerror`. Se llama cuando `get_anime_info` devuelve `None`; sin ella, el clic no hacía nada (trampa 10) |
+| Función | Nota |
+|---|---|
+| `show_anime_info_error(anime_id)` | `print` + `messagebox.showerror`. Se llama cuando `get_anime_info` devuelve `None`; sin ella, el clic no hacía nada (trampa 10) |
 
-| Método | Línea | Nota |
-|---|---|---|
-| `__init__(main_window, anime_info)` | `:50-71` | **contrato**: `None` → `ValueError` `:51-54`; `episodes=None` → `replace(…, episodes=[])` sobre una copia `:58-59` |
-| `display_anime_info()` | `:73-76` | punto de entrada |
-| `__load_anime_status()` | `:78-92` | si cambió el nº de episodios, los actualiza en BD `:82-83` |
-| `__display_anime_info()` | `:94-157` | póster + título + sinopsis + géneros |
-| `__show_anime_status()` / `__display_anime_status()` | `:159-218` | los 4 botones de estado |
-| `add_to_*` / `remove_from_*` | `:220-281` | BD + póster en disco + refresco |
-| `__display_episodes(episodes_to_show=None)` | `:293-359` | **`[:25]`** en `:294` |
-| `__toggle_sort_order` | `:382-392` | ordena `anime_info.episodes` **in place** |
-| `__search_episodes` | `:394-408` | filtra por número exacto |
-| `__previous_episode` / `__next_episode` | `:410-428` | |
-| `__toggle_episode_switch(episode_id)` | `:430-483` | marcado **acumulativo**; desmarcado unitario |
-| `__toggle_servers_frame` | `:485-510` | ⚠️ **HTTP en el hilo de UI** (`:490`) |
-| `__play_video(url)` | `:512-513` | `webbrowser.open` |
+**v0.1 → v0.2 el 2026-07-30**: la clase maneja ahora **dos identidades del mismo anime**
+(**[trampa 21](10-invariantes-y-trampas.md)**, [13 D5](13-selector-de-proveedor.md)).
+
+| Atributo | Qué es |
+|---|---|
+| `anime_info` | identidad de **visualización**: la del proveedor mostrado. Cambia con el selector |
+| `provider_id` | quién sirvió lo que se está viendo |
+| `persistence_anime_id`, `persistence_poster_url` | identidad de **persistencia**: la de apertura. **No cambia nunca** |
+
+| Método | Nota |
+|---|---|
+| `__init__(main_window, anime_info, provider_id=None)` | **contrato**: `None` → `ValueError`; `episodes=None` → copia con `[]`; congela la identidad de persistencia |
+| `__with_episodes(anime_info)` *(static)* | normaliza `episodes=None` sobre una **copia** |
+| `__persistence_anime_info()` | copia de la ficha con `id`/`poster` de persistencia. **Lo que hay que pasar a la BD y a los helpers de póster** |
+| `display_anime_info()` | punto de entrada |
+| `__load_anime_status()` | si cambió el nº de episodios, los actualiza en BD |
+| `__display_anime_info()` | póster + título + sinopsis + géneros. Filas **1-3** (la 0 es del selector) |
+| `__show_provider_selector()` | desplegable de proveedor, `row=0, column=1, columnspan=3` ([trampa 22](10-invariantes-y-trampas.md)) |
+| `__change_provider_event(nombre)` | guarda antidoble + lanza el hilo |
+| `__resolve_provider_worker(provider_id)` | **hilo daemon**: `resolve_anime_in_provider` (2 peticiones) |
+| `__on_provider_resolved(provider_id, resolved)` | **hilo de UI**: si `None`, avisa y **revierte el desplegable**; si no, cambia solo la identidad de visualización |
+| `__show_anime_status()` / `__display_anime_status()` | los 4 botones de estado, fila **4** |
+| `add_to_*` / `remove_from_*` | BD + póster + refresco. **Siempre con la identidad de persistencia** |
+| `__display_episodes(episodes_to_show=None)` | **`[:25]`**; frame en la fila **5** |
+| `__toggle_sort_order` | ordena `anime_info.episodes` **in place** |
+| `__search_episodes` | filtra por número exacto |
+| `__previous_episode` / `__next_episode` | |
+| `__toggle_episode_switch(episode_id)` | marcado **acumulativo**; desmarcado unitario |
+| `__toggle_servers_frame` | ⚠️ **HTTP en el hilo de UI**. Pide los servidores con `provider_id=self.provider_id, strict=True`; si no hay, lo dice y sugiere cambiar de proveedor |
+| `__play_video(url)` | `webbrowser.open` |
+
+> Las citas `fichero:línea` de este módulo se han retirado: la tarea del selector desplazó ~150 líneas
+> y mantenerlas a mano es la vía rápida a documentación falsa (ver la nota de mantenimiento en
+> [README](README.md)).
 
 ---
 
