@@ -41,8 +41,20 @@ Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ si
                                                          sidebar_button_column)
    ```
 
-5. ⚠️ **Desplaza el selector de apariencia**: hoy ocupa las filas `+8` (`:142`) y `+9` (`:149`). Si
-   añades una séptima vista en `+7`, pasa esas dos a `+9` y `+10`.
+5. ⚠️ **Desplaza los controles del fondo de la sidebar.** Reparto real hoy (con
+   `sidebar_button_row = 1`), corregido el 2026-08-06:
+
+   | Fila | Contenido |
+   |---|---|
+   | `+7` (**8**) | ⚠️ **espaciador con `weight=1`** — no metas nada aquí |
+   | `+8` (9) | etiqueta «Proveedor de anime:» |
+   | `+9` (10) | frame con el desplegable de proveedor **y su pin** |
+   | `+10` (11) | etiqueta «Apariencia:» |
+   | `+11` (12) | desplegable de tema |
+
+   Una séptima vista va en `+7`… que es justo el espaciador: hay que mover **las cinco filas** de
+   abajo una posición y reconfigurar el `grid_rowconfigure(8, weight=1)` de `create_sidebar_frame()`
+   a la fila nueva. No basta con tocar el selector de apariencia.
 6. Si la vista muestra pósters propios, decide su carpeta en `resources/images/<categoría>/` y
    **añádela a `get_anime_image` (`utils.py:168`)** o el póster se bajará de la red cada vez
    (trampa 15). Esa lista tiene hoy las 6 categorías existentes; se olvidó `watching` durante meses,
@@ -173,9 +185,20 @@ una migración**: son 3 pasos y ninguno toca el esquema.
    construye en `load_sidebar_buttons()`, la lectura tiene que estar hecha antes** — por eso
    `UserPersistence.start()` se llama de forma síncrona en `__init__` ([13 D7](13-selector-de-proveedor.md)).
 
+💡 **Si la preferencia se puede «desactivar»**, no añadas un `DELETE`: `set_setting(clave, None)` deja
+`setting_value` a `NULL` y `get_setting()` devuelve entonces el `default` que se le pase. Es lo que
+hace el pin al desfijar el proveedor ([13 §12](13-selector-de-proveedor.md)); el atajo tipado debe
+aceptar `Optional[str]` para permitirlo.
+
+⚠️ **Separa «usar ahora» de «fijar»** si la preferencia tiene un control visible. Que cambiar el
+widget persista de inmediato impide probar nada sin reescribir la configuración: es exactamente el
+defecto que hubo que corregir en el selector de proveedor. El patrón que quedó: el widget cambia solo
+la sesión, y un **pin** al lado escribe en `DB_user.db`.
+
 **Checklist**
 
 - [ ] El valor se guarda como **texto**; si es booleano o número, la conversión es de quien lee.
+- [ ] Cambiar el widget **sin** confirmar no deja rastro en `DB_user.db`.
 - [ ] La aplicación arranca con `DB_user.db` **borrada** (se regenera vacía).
 - [ ] La aplicación arranca con la preferencia guardada **inválida** (p.ej. un `provider_id` que ya no
       existe): debe avisar por consola y seguir con el valor por defecto, no petar.

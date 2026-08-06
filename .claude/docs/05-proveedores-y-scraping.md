@@ -268,7 +268,7 @@ Ningún proveedor devolvió resultados para 'get_recent_animes'     # :241
 
 ---
 
-## 5b. Elegir proveedor: preferencia global vs. puntual *(2026-07-30)*
+## 5b. Elegir proveedor: sesión vs. predeterminado *(2026-07-30, reformado el 2026-08-06)*
 
 Desde la tarea del selector ([13](13-selector-de-proveedor.md)) el proveedor ya no lo decide solo el
 registro de `MainWindow`: hay **tres niveles**, de menos a más específico.
@@ -276,15 +276,24 @@ registro de `MainWindow`: hay **tres niveles**, de menos a más específico.
 | Nivel | Quién lo fija | Fallback | Persiste |
 |---|---|---|---|
 | Registro en código | `main_window.__init__` → `register(AnimeAV1Singleton(), default=True)` | — | — |
-| **Preferencia del usuario** | desplegable de la sidebar → `set_default()` + `DB_user.db` | **activo** | ✅ sí |
-| **Puntual, por ficha** | desplegable de la ficha de detalle | `strict=True` | ❌ no |
+| **Predeterminado del usuario** | el **pin** de la sidebar → `DB_user.db`; se aplica en el arranque | **activo** | ✅ sí |
+| **Sesión** | desplegable de la sidebar → solo `set_default()` | **activo** | ❌ no |
 
-**Por qué la preferencia global conserva el fallback**: `ANIMES.anime_id` guarda el *slug* del
+**Por qué el ámbito global conserva el fallback**: `ANIMES.anime_id` guarda el *slug* del
 proveedor que sirvió cada anime. Si el usuario elige un proveedor distinto y se usara `strict`, el clic
 en un anime guardado dejaría de resolver. Con fallback degrada a una petición perdida.
 
-**Por qué la puntual es `strict`**: si el usuario pide explícitamente los servidores de un sitio y el
-fallback le sirve los de otro, el selector miente. Aquí el silencio del fallback es un defecto.
+> 🗑️ **El nivel «puntual, por ficha» ya no existe.** El desplegable de la ficha de detalle, que
+> llamaba con `strict=True` y re-resolvía el anime por título, se retiró el 2026-08-06: con el
+> desplegable de la sidebar valiendo solo para la sesión, hacía lo mismo con más código.
+>
+> Lo que **sí** sobrevive de aquel nivel: `get_anime_episode_servers` se sigue llamando con
+> `provider_id=self.provider_id, strict=True` desde la ficha, para que los servidores sean los del
+> proveedor que la sirvió y no los de un fallback silencioso. Si ese proveedor no da servidores, se
+> avisa en vez de pintar un selector vacío.
+>
+> ⚠️ El orden de prioridad que vendrá con la columna `provider_id` (desviación del desplegable >
+> `provider_id` en BD > pin > registro) está decidido en [13 §8](13-selector-de-proveedor.md).
 
 ### Identidad de un anime entre proveedores
 

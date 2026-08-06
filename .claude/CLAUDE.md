@@ -98,12 +98,19 @@ self.anime_provider_mgr.register(AnimeAV1Singleton(), default=True)
 self.anime_provider_mgr.register(AnimeFLVSingleton())
 ```
 
-Ese predeterminado **lo puede cambiar el usuario** y se persiste en `DB_user.db`: `MainWindow.__init__`
-llama a `set_default()` con la preferencia guardada antes de la primera petición. Hay **dos** selectores:
-el de la sidebar (global, persistido, **con fallback**) y el de la ficha de detalle (solo esa ficha, no
-se persiste, **`strict=True`**). Cambiar de proveedor en una ficha exige **re-resolver** el anime por
-título con `resolve_anime_in_provider()`, porque `AnimeInfo.id` es el slug del sitio y no un
-identificador universal. Detalle y decisiones: [`docs/13`](docs/13-selector-de-proveedor.md).
+Ese predeterminado **lo puede cambiar el usuario**, y desde el 2026-08-06 son **dos gestos distintos**
+en la sidebar:
+
+- **el desplegable** cambia el proveedor **solo para esta sesión** — no escribe en BD, y conserva el
+  **fallback**;
+- **el pin** que hay a su lado fija (o desfija) el seleccionado como predeterminado en `DB_user.db`.
+  `MainWindow.__init__` lo aplica con `set_default()` antes de la primera petición. Azul = lo que usas
+  es tu predeterminado; gris = desviación temporal.
+
+La ficha de detalle **ya no permite cambiar de proveedor**: solo muestra una etiqueta con quién sirvió
+realmente esos datos, que es lo que hace visible el fallback. `resolve_anime_in_provider()` sigue en el
+manager pero **sin llamantes en la GUI**; vuelve con la columna `provider_id`. Detalle, decisiones y el
+orden de prioridad decidido: [`docs/13`](docs/13-selector-de-proveedor.md).
 
 **Añadir un proveedor nuevo**: heredar de `AnimeProvider` en `APIs/<sitio>/`, implementar los 5 métodos devolviendo
 tipos de `APIs.common.models`, crear su `...Singleton` y registrarlo en `MainWindow`.
@@ -184,16 +191,16 @@ construir widgets en `main_window.content_frame` → `__on_anime_click()` → `A
 Para una vista nueva: heredar de `SidebarButton`, implementar `show_frame()` y registrarla en `load_sidebar_buttons()`.
 
 **`AnimeWindowViewer`** (`gui/anime_window.py`) no es una ventana: reemplaza el contenido de `content_frame`. Muestra
-selector de proveedor + póster + sinopsis + géneros, los 4 botones de estado y la lista de episodios
+la etiqueta del proveedor + póster + sinopsis + géneros, los 4 botones de estado y la lista de episodios
 (**los 25 primeros**, `[:25]`).
 Marcar un episodio como visto es **acumulativo**: marca todos los anteriores hasta ése; desmarcar afecta solo a ese
 episodio. Conserva en BD los episodios posteriores ya vistos.
 
 ⚠️ Maneja **dos identidades del mismo anime** y confundirlas duplica filas en la biblioteca del usuario:
-`anime_info` es la del proveedor que se está mostrando (cambia con el selector), mientras que
-`persistence_anime_id` / `persistence_poster_url` son las de apertura y **no cambian nunca**. Toda
-operación de BD y de póster usa las segundas, vía `__persistence_anime_info()`. Es la
-[trampa 21](docs/10-invariantes-y-trampas.md).
+`anime_info` es la del proveedor que sirvió la ficha —que puede no ser el que guardó la fila, si entró
+el fallback—, mientras que `persistence_anime_id` / `persistence_poster_url` son las de apertura y **no
+cambian nunca**. Toda operación de BD y de póster usa las segundas, vía `__persistence_anime_info()`.
+Es la [trampa 21](docs/10-invariantes-y-trampas.md), y sigue viva aunque la ficha ya no tenga selector.
 
 **Imágenes** (`utils/utils.py`): los pósters se guardan como `{anime_id}.jpg` en `resources/images/<categoría>/`,
 redimensionados a `(130, 185)`; la ficha de detalle los pide a `(195, 275)`. `get_anime_image()` busca en las **6**
@@ -242,15 +249,30 @@ red, y en esa rama pasa `size=` explícito — sin él `CTkImage` pinta a 20×20
   también las preferencias** del desarrollador. Ver A3/C11 en [`docs/12 §4`](docs/12-deuda-tecnica-y-roadmap.md).
 - En `resources/images/utils/` ya existen los iconos `viendo_light/dark.png` y `pendientes_light/dark.png`, pero su uso
   está comentado en `watchingAnimes.py` y `pendingAnimes.py` (siguen con el icono único).
+- Los iconos del pin (`fijado_light/dark.png`, `no_fijado_light/dark.png`) se **generaron con PIL**; el
+  script está en el scratchpad de la sesión, no en el repo. Si hay que retocarlos, se redibujan: son
+  cuatro polígonos. ⚠️ Se distinguen por **color** (azul/gris), no por relleno vs. contorno — la
+  silueta contorneada es ilegible a los 20×20 a los que se pintan.
 
 ---
 
 ## Roadmap
 
+**El orden lo fijó el usuario el 2026-07-30 y no se reinterpreta. Su punto 1 —separar «usar ahora» de
+«fijar como predeterminado»— se cerró el 2026-08-06 con el pin, así que la lista avanza.**
+
+1. 🔴 **Integrar un proveedor nuevo** (JKAnime, MonosChinos2, TioAnime). AnimeAV1 es el único
+   operativo, y sin un segundo proveedor sano no se puede verificar de verdad la resolución *cross-provider*
+   ([`docs/12 §6`](docs/12-deuda-tecnica-y-roadmap.md)).
+2. 🔴 **Columna `provider_id` en `ANIMES`** — que cada anime guardado recuerde qué proveedor lo sirvió.
+   Ha subido de prioridad: desde que la ficha no tiene selector, es lo que hace que desviarse de
+   proveedor valga también para los animes ya guardados. El orden de prioridad ya está decidido en
+   [`docs/13 §8`](docs/13-selector-de-proveedor.md). Va **después** del punto 1: sin un segundo
+   proveedor sano no se puede probar.
+
+Después, sin orden fijado:
+
 - Renombrar «animes recientes» a **nuevos lanzamientos**.
-- **Integrar más proveedores** (JKAnime, MonosChinos2, TioAnime) — es ahora lo primero: AnimeAV1 es el único
-  operativo, y sin un segundo proveedor sano no se puede verificar de verdad la resolución *cross-provider*
-  del selector ([`docs/12 §6`](docs/12-deuda-tecnica-y-roadmap.md)).
 - **Convivencia anime + manga**:
   - Desplegable en la esquina inferior izquierda para elegir *animes / mangas / ambos*, accesible desde todas las
     pestañas salvo la ficha de detalle, con opción de fijar la elección por defecto. La preferencia ya tiene dónde

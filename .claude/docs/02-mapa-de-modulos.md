@@ -120,8 +120,8 @@ Los otros 16 `__init__.py` están **vacíos** (0 bytes) y solo marcan paquete.
 | `get_provider_id_by_name(nombre)` | vuelta atrás: los widgets muestran nombre, el código usa ids |
 | `get_anime_info_with_provider(...) -> (AnimeInfo\|None, str\|None)` | expone el `provider_id` que `call_with_fallback` ya devolvía y los wrappers tiraban |
 | `normalize_title(title)` *(static)* | minúsculas, sin tildes, resto a espacios |
-| `resolve_anime_in_provider(anime_info, provider_id, threshold=None)` | localiza el mismo anime en otro proveedor por título. **2 peticiones HTTP** → solo desde hilo secundario. Devuelve `None` antes que un falso positivo |
-| `TITLE_MATCH_THRESHOLD = 0.75` | umbral de similitud de `resolve_anime_in_provider` |
+| `resolve_anime_in_provider(anime_info, provider_id, threshold=None)` | localiza el mismo anime en otro proveedor por título. **2 peticiones HTTP** → solo desde hilo secundario. Devuelve `None` antes que un falso positivo. ⚠️ **Sin llamantes en la GUI desde el 2026-08-06** (se retiró el selector de la ficha): vuelve a usarse con la columna `provider_id` ([13 §8](13-selector-de-proveedor.md)). No lo borres |
+| `TITLE_MATCH_THRESHOLD = 0.75` | umbral de similitud de `resolve_anime_in_provider`. Sin calibrar con dos sitios reales |
 
 **Efectos**: red (indirecta, vía proveedores) + `print` de diagnóstico.
 Semántica exacta y casos límite verificados: [05 §5](05-proveedores-y-scraping.md).
@@ -335,9 +335,11 @@ pool; transacciones solo en las migraciones.
 | `__init__` | registra proveedores, **arranca `UserPersistence` y aplica la preferencia de proveedor de forma síncrona**, `load_sidebar_buttons()`, `show_loading_screen()` |
 | `clear_frame()` | destruye los hijos de `content_frame` |
 | `create_sidebar_frame` / `create_content_frame` | |
-| `load_sidebar_buttons()` | instancia las 6 vistas + **selector de proveedor** + selector de apariencia |
-| `__apply_saved_provider_preference()` | lee `DB_user.db`; una preferencia inválida solo avisa por consola |
-| `change_anime_provider_event(nombre)` | `set_default` + persistir + recargar recientes |
+| `load_sidebar_buttons()` | instancia las 6 vistas + **desplegable de proveedor y su pin** (en un frame propio) + selector de apariencia |
+| `__apply_saved_provider_preference()` | lee `DB_user.db`, aplica el proveedor **fijado** y recuerda cuál es; una preferencia inválida solo avisa por consola y deja el pin sin marcar |
+| `change_anime_provider_event(nombre)` | `set_default` + recargar recientes. **No persiste**: eso es el pin ([13 §12](13-selector-de-proveedor.md)) |
+| `toggle_pinned_provider_event()` | fija el proveedor en uso como predeterminado, o lo desfija (`set_default_provider_id(None)`). No cambia qué proveedor se usa |
+| `__refresh_pin_provider_button()` | icono azul si lo que usas es tu predeterminado, gris si te has desviado |
 | `__reload_recent_animes()` | guarda antidoble + incrementa la **generación** y lanza el hilo |
 | `__reload_recent_animes_worker(gen)` | **hilo daemon**: red + pósters; devuelve al hilo de UI con `after(0, …)` |
 | `__on_recent_animes_reloaded(animes, gen)` | **hilo de UI**: descarta resultados de una generación caducada |
@@ -349,8 +351,10 @@ pool; transacciones solo en las migraciones.
 
 **Efectos**: red, disco, BD (`DB_Animes.db` y `DB_user.db`), widgets Tk.
 
-> ⚠️ Las filas 9-12 del `sidebar_frame` están ocupadas por los dos selectores. La fila **8** tiene
-> `weight=1` y es el espaciador que los empuja al fondo: no metas nada en ella.
+> ⚠️ Las filas 9-12 del `sidebar_frame` están ocupadas por los dos selectores (9 etiqueta de
+> proveedor, 10 desplegable **+ pin**, 11 etiqueta de apariencia, 12 tema). La fila **8** tiene
+> `weight=1` y es el espaciador que los empuja al fondo: no metas nada en ella. El pin va **dentro
+> del frame de la fila 10**, no en una fila propia, para no desplazar las de abajo.
 
 ---
 
@@ -367,11 +371,14 @@ contenido de `content_frame`.
 
 **v0.1 → v0.2 el 2026-07-30**: la clase maneja ahora **dos identidades del mismo anime**
 (**[trampa 21](10-invariantes-y-trampas.md)**, [13 D5](13-selector-de-proveedor.md)).
+**v0.2 → v0.3 el 2026-08-06**: se retira el desplegable de proveedor de la ficha; queda una etiqueta.
+Las dos identidades **siguen siendo necesarias**: el fallback puede servir la ficha desde un proveedor
+distinto al que guardó la fila.
 
 | Atributo | Qué es |
 |---|---|
-| `anime_info` | identidad de **visualización**: la del proveedor mostrado. Cambia con el selector |
-| `provider_id` | quién sirvió lo que se está viendo |
+| `anime_info` | identidad de **visualización**: la del proveedor que sirvió la ficha |
+| `provider_id` | quién sirvió lo que se está viendo; es lo que muestra la etiqueta y lo que se pasa con `strict=True` a `get_anime_episode_servers` |
 | `persistence_anime_id`, `persistence_poster_url` | identidad de **persistencia**: la de apertura. **No cambia nunca** |
 
 | Método | Nota |
@@ -381,11 +388,8 @@ contenido de `content_frame`.
 | `__persistence_anime_info()` | copia de la ficha con `id`/`poster` de persistencia. **Lo que hay que pasar a la BD y a los helpers de póster** |
 | `display_anime_info()` | punto de entrada |
 | `__load_anime_status()` | si cambió el nº de episodios, los actualiza en BD |
-| `__display_anime_info()` | póster + título + sinopsis + géneros. Filas **1-3** (la 0 es del selector) |
-| `__show_provider_selector()` | desplegable de proveedor, `row=0, column=1, columnspan=3` ([trampa 22](10-invariantes-y-trampas.md)) |
-| `__change_provider_event(nombre)` | guarda antidoble + lanza el hilo |
-| `__resolve_provider_worker(provider_id)` | **hilo daemon**: `resolve_anime_in_provider` (2 peticiones) |
-| `__on_provider_resolved(provider_id, resolved)` | **hilo de UI**: si `None`, avisa y **revierte el desplegable**; si no, cambia solo la identidad de visualización |
+| `__display_anime_info()` | póster + título + sinopsis + géneros. Filas **1-3** (la 0 es la del proveedor) |
+| `__show_provider_label()` | etiqueta **no interactiva** «Proveedor: X», `row=0, column=1, columnspan=3` ([trampa 22](10-invariantes-y-trampas.md)). Muestra quién sirvió de verdad la ficha, no el predeterminado |
 | `__show_anime_status()` / `__display_anime_status()` | los 4 botones de estado, fila **4** |
 | `add_to_*` / `remove_from_*` | BD + póster + refresco. **Siempre con la identidad de persistencia** |
 | `__display_episodes(episodes_to_show=None)` | **`[:25]`**; frame en la fila **5** |

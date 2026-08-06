@@ -192,11 +192,13 @@ mecanismo de fallback existe pero hoy no tiene a dónde caer. Además, el parseo
 aviso, y el fallback al DOM solo cubre `title`, `synopsis` y el conteo de episodios — **no** los
 servidores. Integrar un tercer proveedor es una medida de resiliencia, no un capricho.
 
-🚧 **Mitigación parcial en curso (2026-07-30)**: el selector de proveedor ([13](13-selector-de-proveedor.md))
-no añade proveedores, pero da al usuario la palanca para **saltarse** el que esté roto —
-tanto de forma global como por anime desde la propia ficha— y hace **visible** qué proveedor sirvió
-realmente cada ficha, que hoy el fallback oculta. La medida de fondo sigue siendo integrar un tercer
-proveedor.
+🚧 **Mitigación parcial (2026-07-30, ajustada el 2026-08-06)**: el selector de proveedor
+([13](13-selector-de-proveedor.md)) no añade proveedores, pero da al usuario la palanca para
+**saltarse** el que esté roto, y la etiqueta de la ficha hace **visible** qué proveedor sirvió
+realmente cada anime, que el fallback oculta. Desde el pin, además, probar un proveedor roto ya no
+ensucia la configuración. ⚠️ Lo que se **perdió** al retirar el selector de la ficha es poder saltarse
+el proveedor roto *para un anime concreto ya guardado*; eso vuelve con la columna `provider_id`
+([13 §8](13-selector-de-proveedor.md)). La medida de fondo sigue siendo integrar un tercer proveedor.
 
 **Agravado el 2026-07-30** por lo aprendido al arreglar A5: el proveedor no solo puede romperse
 devolviendo *nada* (lo que el fallback sí cubre), sino devolviendo **datos silenciosamente corruptos**.
@@ -223,6 +225,8 @@ Roadmap declarado en `.claude/CLAUDE.md` y `README.md:124-130`.
 | **Renombrar «recientes» → «nuevos lanzamientos»** | `recentAnimes.py:19,24`, `main_window.py:30` | ninguno — es el más barato | [06](06-gui-y-vistas.md), [02](02-mapa-de-modulos.md) |
 | **Quitar «Anime» de los nombres de pestañas** | las 6 vistas + `main_window.py:105` | ninguno | [06](06-gui-y-vistas.md) |
 | ~~**Selector de proveedor con preferencia persistida**~~ | ✅ **Hecho el 2026-07-30**: `userPersistence.py` (nuevo), `animeProviderMgr.py` v0.2, `main_window.py`, `anime_window.py` v0.2 y los 6 puntos de clic | — | **[13](13-selector-de-proveedor.md)** |
+| ~~**Separar «usar ahora» de «fijar como predeterminado»**~~ | ✅ **Hecho el 2026-08-06** con un **pin** junto al desplegable: `main_window.py` v0.2, `anime_window.py` v0.3 (se retira el selector de la ficha), `userPersistence.py` v0.2, 4 iconos nuevos | — | **[13 §12](13-selector-de-proveedor.md)** |
+| 🔴 **Columna `provider_id` en `ANIMES`** | `AnimeField`, `AnimeRecord`, los 6 puntos de clic | la migración es automática; el **orden de prioridad ya está decidido** | **[13 §8](13-selector-de-proveedor.md)** |
 | **Calificación personal en favoritos + ordenar por ella** | `AnimeField`, `AnimeRecord`, `anime_window.py`, `favouriteAnimes.py` | arreglar B2 (`str` vs enum); la migración ya es automática | [04](04-modelo-de-datos.md), [06](06-gui-y-vistas.md) |
 | **Paginar favoritos/viendo/pendientes/finalizados de 10 en 10** | las 4 vistas de estado; reutilizar `searchAnimes.py:267-324` | extraer la paginación a `utilsButtons.py` | [06](06-gui-y-vistas.md), [03](03-flujos-de-ejecucion.md) |
 | **«Viendo» en cascada con el último capítulo visto** | `watchingAnimes.py` | ya está en BD (`last_watched_episode`) — barato | [06](06-gui-y-vistas.md) |
@@ -240,19 +244,26 @@ Roadmap declarado en `.claude/CLAUDE.md` y `README.md:124-130`.
 *(Revisado el 2026-07-30. ~~A1~~, ~~A2~~, ~~A4~~, ~~A5~~, ~~B1~~ y ~~B5~~ ya pagadas: ver
 [§4 → Resuelto](#-resuelto).)*
 
-1. ~~**Selector de proveedor con preferencia persistida** (TODO #4)~~ — ✅ **hecho el 2026-07-30**
-   ([13](13-selector-de-proveedor.md)). Estrenó la infraestructura de esquema declarativo con **una BD
-   nueva** (`DB_user.db`), dejó el sitio donde guardar la futura preferencia anime/manga y dio control
-   manual sobre el proveedor.
-2. **Integrar un tercer proveedor** — ahora es **lo primero**. Mitiga R2 de raíz, valida que la
-   abstracción aguanta y es lo único que permite verificar de verdad la resolución *cross-provider*
-   del selector, que hoy solo está probada con un proveedor falso ([05 §5b](05-proveedores-y-scraping.md)).
+**El orden lo fijó el usuario el 2026-07-30. Su punto 1 se cerró el 2026-08-06, así que la lista
+avanza una posición.**
+
+1. 🔴 **Integrar un proveedor nuevo** (JKAnime, MonosChinos2 o TioAnime) — **la siguiente**, fijada
+   por el usuario. Mitiga R2 de raíz, valida que la abstracción aguanta y es lo único que
+   permite verificar de verdad la resolución *cross-provider*, que hoy solo está probada
+   con un proveedor falso ([05 §5b](05-proveedores-y-scraping.md)). Receta: [11 §3](11-playbooks.md).
+2. 🔴 **La columna `provider_id` en `ANIMES`** ([13 §8](13-selector-de-proveedor.md)) — ha **subido de
+   prioridad**: desde que el desplegable de la ficha desapareció, es lo único que hace que desviarse de
+   proveedor afecte también a los animes ya guardados, y el orden de prioridad ya está decidido. Es
+   además donde vuelve a usarse `resolve_anime_in_provider()`, hoy sin llamantes en la GUI. Va después
+   del punto 1 porque sin un segundo proveedor sano no se puede probar.
 3. **Arreglar B2** — barato, y desbloquea dos puntos del roadmap (recomendaciones por género, ordenar
    favoritos por calificación).
-4. **Considerar la columna `provider_id` en `ANIMES`** ([13 §8](13-selector-de-proveedor.md)): hoy el
-   fallback tapa el desajuste de slugs a costa de una petición perdida por clic. Con un tercer
-   proveedor registrado, ese coste se multiplica y la columna empieza a pagarse.
-5. **Entonces** abordar la convivencia anime/manga, que es la refactorización grande.
+4. **Entonces** abordar la convivencia anime/manga, que es la refactorización grande.
+
+> ~~**Selector de proveedor con preferencia persistida** (TODO #4)~~ — ✅ **hecho el 2026-07-30**
+> ([13](13-selector-de-proveedor.md)) y **cerrado del todo el 2026-08-06** con el pin. Estrenó la
+> infraestructura de esquema declarativo con **una BD nueva** (`DB_user.db`) y dejó el sitio donde
+> guardar la futura preferencia anime/manga.
 
 **A3** queda fuera de ese orden porque su urgencia depende de si vas a distribuir el `.exe`: mientras
 no empaquetes, no molesta; en cuanto empaquetes, es lo primero (ver la nota de reevaluación en §4).

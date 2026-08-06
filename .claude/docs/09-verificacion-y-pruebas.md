@@ -411,29 +411,41 @@ Sin tests automáticos, esto es lo que hay. Marca lo que compruebes.
 - [ ] ⚠️ Arrancando en modo oscuro, el texto de la sidebar nace **negro** hasta que se cambia a mano
       (TODO en `utilsButtons.py:56`).
 
-### Selector de proveedor *(2026-07-30, [13](13-selector-de-proveedor.md))*
+### Selector de proveedor y pin *(2026-07-30, reformado el 2026-08-06, [13](13-selector-de-proveedor.md))*
 
-**Sidebar**
-- [ ] Arranque con `DB_user.db` borrada: se crea, el desplegable muestra **AnimeAV1**, la app funciona.
-      El log debe decir «Sin preferencia de proveedor guardada, se usa animeav1».
+**Sidebar — desplegable**
+- [ ] Arranque con `DB_user.db` borrada: se crea, el desplegable muestra **AnimeAV1** y el pin nace
+      **gris**. El log debe decir «Sin proveedor fijado, se usa animeav1».
 - [ ] Cambiar de proveedor → la portada de recientes se repuebla y se navega a esa vista.
-- [ ] Cerrar y reabrir → el desplegable **recuerda** la elección. El log debe decir «Proveedor
-      predeterminado del usuario: \<id\>».
-- [ ] La sinopsis de la ficha **no** queda recortada por la derecha (trampa 22).
-- [ ] El selector de proveedor no se solapa con el de apariencia (la fila 8 del sidebar es el
-      espaciador con `weight=1`).
+- [ ] 🔴 **La prueba que da sentido a la reforma**: cambiar de proveedor **sin** tocar el pin, cerrar y
+      reabrir → la app arranca con el proveedor **anterior**, no con el que se probó, y
+      `SELECT * FROM USER_SETTINGS` no ha cambiado.
+
+**Sidebar — pin**
+- [ ] Con el desplegable desviado, el pin está **gris**; al pulsarlo se pone **azul** y la fila de
+      `USER_SETTINGS` pasa a ese proveedor. Cerrar y reabrir → arranca con él.
+- [ ] Pulsar el pin estando **azul** → se pone gris, `setting_value` queda a `NULL` y **el proveedor
+      en uso no cambia**. Cerrar y reabrir → arranca con AnimeAV1 (el del registro).
+- [ ] Cambiar el desplegable estando el pin azul → el pin pasa a gris **sin** escribir en BD.
+- [ ] Con `DB_user.db` no disponible, pulsar el pin avisa con `messagebox` y **no** se pone azul.
+- [ ] El bloque desplegable + pin no se solapa con el selector de apariencia (la fila 8 del sidebar es
+      el espaciador con `weight=1`) — compruébalo con una **captura**, que el layout no avisa por
+      consola.
+- [ ] En tema claro y en oscuro el pin se ve (usa `light_image`/`dark_image`, no `update_icon()`).
 
 **Ficha de detalle**
-- [ ] Abrir una ficha desde **cada una** de las 6 vistas: el desplegable muestra quién sirvió los datos.
-- [ ] Cambiar de proveedor: título/sinopsis/episodios se rehacen y el póster **no** se duplica en disco.
-- [ ] 🔴 **La prueba que importa** (trampa 21): con un anime ya en favoritos, cambiar de proveedor y
-      pulsar «Eliminar de favoritos» → **desaparece** de la vista de favoritos. Si en su lugar aparece
-      un duplicado, la identidad de persistencia está mal.
-- [ ] Desplegar servidores tras cambiar de proveedor → son los del proveedor **elegido** (compruébalo
-      por el dominio de la URL).
-- [ ] Cambiar de proveedor con la red caída → `messagebox` y el desplegable **vuelve** a su valor
-      anterior; la app no se cuelga.
+- [ ] Abrir una ficha desde **cada una** de las 6 vistas: la etiqueta «Proveedor: X» dice quién sirvió
+      los datos. ⚠️ Ya **no** hay desplegable en la ficha.
+- [ ] La sinopsis **no** queda recortada por la derecha (trampa 22).
+- [ ] Desplegar servidores → son los del proveedor de la etiqueta (compruébalo por el dominio de la
+      URL); si ese proveedor no ofrece ninguno, sale un aviso y no un selector vacío.
 - [ ] `SELECT COUNT(*) FROM ANIMES` antes y después de toda la sesión → **el mismo número**.
+
+> 🗑️ Se han retirado las pruebas de «cambiar de proveedor dentro de la ficha» (duplicado de filas,
+> reversión del desplegable al fallar, servidores tras el cambio): ese control ya no existe. La
+> **trampa 21** sigue viva —el fallback puede servir la ficha desde otro proveedor—, pero desde la
+> GUI ya no se puede disparar a mano; volverá a poder probarse con la columna `provider_id`
+> ([13 §8](13-selector-de-proveedor.md)).
 
 ---
 

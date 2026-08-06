@@ -441,10 +441,10 @@ Lo usan `animeflv.py:63,112,172` y `animeav1.py:280` para construir el `anime_id
 `AnimeWindowViewer` maneja **dos identidades** del mismo anime, y confundirlas **escribe filas
 duplicadas en la biblioteca real del usuario**:
 
-| Atributo | Qué es | Cambia al cambiar de proveedor |
+| Atributo | Qué es | Puede diferir del otro |
 |---|---|---|
-| `self.anime_info.id` | slug del proveedor que se está **mostrando** | **sí** |
-| `self.persistence_anime_id` | slug con el que se **abrió** la ficha | **no, nunca** |
+| `self.anime_info.id` | slug del proveedor que **sirvió** la ficha | **sí** |
+| `self.persistence_anime_id` | slug con el que se **abrió** la ficha | **no, nunca cambia** |
 
 `AnimeInfo.id` es el slug del sitio, no un identificador universal: el mismo anime es
 `one-piece-gyojin-touhen` en AnimeAV1 y `one-piece` en AnimeFLV.
@@ -453,9 +453,16 @@ duplicadas en la biblioteca real del usuario**:
 `download/remove_anime_poster_by_status` usa `self.persistence_anime_id` o
 `self.__persistence_anime_info()`. Nunca `self.anime_info` a secas.
 
-**Síntoma si se incumple**: cambias de proveedor en la ficha, pulsas «Añadir a favoritos» y el anime
-aparece **dos veces** en la vista de favoritos, con dos pósters en disco; o pulsas «Eliminar de
-favoritos» y no desaparece, porque se ha desmarcado una fila distinta de la que ve la vista.
+**Síntoma si se incumple**: pulsas «Añadir a favoritos» y el anime aparece **dos veces** en la vista
+de favoritos, con dos pósters en disco; o pulsas «Eliminar de favoritos» y no desaparece, porque se ha
+desmarcado una fila distinta de la que ve la vista.
+
+⚠️ **Sigue viva aunque la ficha ya no permita cambiar de proveedor** (el desplegable se retiró el
+2026-08-06, [13 §12](13-selector-de-proveedor.md)). Lo que la dispara ahora no es un clic del usuario
+sino el **fallback**: si el proveedor en uso falla, `call_with_fallback` sirve la ficha desde otro y
+`anime_info.id` deja de coincidir con la fila guardada, sin que nada lo anuncie salvo la etiqueta
+«Proveedor:». Volverá a poder provocarse a voluntad con la columna `provider_id`
+([13 §8](13-selector-de-proveedor.md)).
 
 ✅ Verificado el 2026-07-30 sobre una copia de la BD real (25 filas): tras cambiar de proveedor y
 pulsar los 8 botones de estado, siguen habiendo 25 filas y ninguna con el slug del otro proveedor.
@@ -474,6 +481,10 @@ nada del reparto real de columnas**, así que cualquier widget nuevo que reserve
 solución fue darle **su propia fila** abarcando las columnas 1-3, que no obliga a ninguna columna a
 reservar ancho. Si añades algo a la derecha del título, compruébalo con una captura, no a ojo:
 el layout no lanza ningún aviso.
+
+⚠️ La colocación se mantiene aunque el 2026-08-06 aquel desplegable pasara a ser una **etiqueta**, que
+ocupa menos: lo que dispara la trampa no es el ancho del widget, sino **en qué columnas se declara**.
+Re-verificado por captura ese día: la sinopsis sigue ocupando el ancho completo.
 
 **Invariante vivo**: mientras el `wraplength` siga siendo un número calculado a mano, la fila 0 de la
 ficha es el único sitio seguro para meter controles a la derecha.

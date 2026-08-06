@@ -2,11 +2,12 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-07-30 |
-| **Commit** | `c337fb9` |
-| **Árbol de trabajo** | **sucio** — 3 ficheros con solo comentarios TODO + 4 PNG sin trackear (ver [12-deuda-tecnica-y-roadmap.md](12-deuda-tecnica-y-roadmap.md)) |
+| **Fecha** | 2026-08-06 |
+| **Commit** | `fd53056` |
+| **Árbol de trabajo** | **sucio** — cambios del pin sin commitear (`main_window.py`, `anime_window.py`, `userPersistence.py`) + 8 PNG sin trackear (ver [12-deuda-tecnica-y-roadmap.md](12-deuda-tecnica-y-roadmap.md)) |
 | **Última revisión** | 2026-07-30 — bugs A4, A5, B1 y B5 resueltos (`1bfdf0f`, `94b497e`, `83a8448`); trampas 10, 14, 15 y 16 marcadas como resueltas y **todas** las citas `fichero:línea` de `animeav1.py` y `anime_window.py` reubicadas |
-| **Último cambio** | ✅ 2026-07-30 — **selector de proveedor + `DB_user.db`** ([13](13-selector-de-proveedor.md)): módulo nuevo `userPersistence.py`, 9 módulos tocados, **trampas 21 y 22** nuevas, TODO #4 cerrado. Sin commitear |
+| **Último cambio** | ✅ 2026-08-06 — **el pin de proveedor predeterminado** ([13 §12](13-selector-de-proveedor.md)): cambiar el desplegable ya no persiste nada, fijar es el pin, y el selector de la ficha pasa a **etiqueta informativa**. Cierra el tema del selector |
+| **Siguiente tarea** | 🔴 **Integrar un proveedor nuevo** (JKAnime, MonosChinos2 o TioAnime) → [11 §3](11-playbooks.md). Después, la columna `provider_id` en `ANIMES` → **[13 §8](13-selector-de-proveedor.md)** |
 | **Cubre ahora** | **18 módulos reales** (antes 17) |
 | **Cubre** | los **34 ficheros `.py`** de `src/`: 17 módulos reales + 17 `__init__.py` (16 vacíos y 1 con un stub muerto) |
 

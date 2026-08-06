@@ -2,17 +2,23 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-07-30 · **Commit base** `c337fb9` · rama `develop` · **sin commitear** |
-| **Estado** | ✅ **Implementado** (fases 1-6). Lo escrito antes de implementar se conserva; los resultados están en [§9](#9-verificación) |
+| **Fecha** | 2026-07-30 fases 1-6 (`a9b44ea`, `fd53056`) · **2026-08-06 fase 7: el pin** · rama `develop` |
+| **Estado** | ✅ **Cerrado.** El pin separa «usar ahora» de «fijar», y el selector de la ficha se retira ([§12](#12-fase-7-el-pin-de-proveedor-predeterminado)) |
 | **Cierra** | TODO #4 (borrado de `main_window.py`) y el punto «Selector de proveedor con preferencia persistida» del roadmap ([12 §6](12-deuda-tecnica-y-roadmap.md)) |
 | **Mitiga** | **R2** — dependencia de un único proveedor sano ([12 §5](12-deuda-tecnica-y-roadmap.md)) |
 
 Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ sin verificar.
 
-> **Para futuras sesiones**: este documento es la **fuente de verdad del alcance**. Empieza por
-> [§3 Decisiones de diseño](#3-decisiones-de-diseño) para no re-litigar lo ya decidido, por
-> [§8](#8-fase-4-diferida-columna-provider_id-en-animes) para lo que quedó fuera a propósito, y por
-> [§9](#9-verificación) para saber **qué está verificado y qué no**.
+> **Para futuras sesiones**: el tema del selector está **cerrado**. Lo que queda vivo de este
+> documento es:
+>
+> - **[§12](#12-fase-7-el-pin-de-proveedor-predeterminado)** — cómo funciona el pin y, sobre todo, el
+>   **orden de prioridad decidido** que la columna `provider_id` tendrá que implementar.
+> - **[§8](#8-fase-4-diferida-columna-provider_id-en-animes)** — esa columna, lo único diferido a
+>   propósito. Es donde vuelve a usarse `resolve_anime_in_provider()`, que hoy **no llama nadie**
+>   desde la GUI.
+> - [§3 Decisiones de diseño](#3-decisiones-de-diseño) para no re-litigar lo ya decidido, y
+>   [§9](#9-verificación) para saber **qué está verificado y qué no**.
 >
 > Lo más importante que dejó esta tarea son dos invariantes nuevos:
 > **[trampa 21](10-invariantes-y-trampas.md)** (dos identidades del anime en la ficha) y
@@ -31,6 +37,12 @@ Petición del usuario, literal en lo esencial:
    prevista es el proveedor predeterminado.
 3. **Cambio de proveedor por anime, incluso dentro del propio viewer** — «por si se quieren usar sus
    servidores o catálogo».
+   > 🗑️ **Revocado por el usuario el 2026-08-06**, una vez que el pin dejó la selección de la sidebar
+   > como algo temporal: «*el selector específico para cada anime pierde el sentido, ya que con el
+   > propio lateral se puede cambiar*». En la ficha queda solo la etiqueta informativa.
+4. **El predeterminado se marca con un pin** (2026-08-06), no cambiando el desplegable: ese proveedor
+   es el que se usará de preferencia al buscar —salvo que el anime esté guardado con otro— y el que
+   aparece seleccionado al arrancar. Ver [§12](#12-fase-7-el-pin-de-proveedor-predeterminado).
 
 Requisito heredado del TODO #4: debe quedar **preparado para mangas**, de forma que cuando se
 integren, el desplegable ofrezca proveedores de manga si lo que se está viendo son mangas.
@@ -108,6 +120,10 @@ enum `UserSettingKey` (las claves no son *strings* sueltos) y con métodos con n
 
 ### D3 — La preferencia global fija el predeterminado del manager, **con fallback activo**
 
+> ✅ **Superada el 2026-08-06.** La parte de «*+ persistir la preferencia*» **en el mismo gesto** ya
+> no existe: cambiar el desplegable es temporal y fijar es el pin ([§12](#12-fase-7-el-pin-de-proveedor-predeterminado)).
+> Lo que **sigue vigente** de esta decisión es que el ámbito global conserva el **fallback**.
+
 **Decidido**: elegir proveedor en la sidebar equivale a
 `AnimeProviderManager.set_default(provider_id)` + persistir la preferencia. **No** se activa
 `strict=True` de forma global.
@@ -122,9 +138,25 @@ Lo compensa [D4](#d4): el selector **de la ficha** muestra qué proveedor sirvi�
 
 ### D4 — El selector de la ficha es `strict=True` y de ámbito local
 
-**Decidido**: el desplegable de `AnimeWindowViewer` usa `strict=True` en todas sus llamadas, **no**
-toca el predeterminado global y **no** se persiste. Al abrir otra ficha se vuelve a partir del
-predeterminado.
+> 🗑️ **Retirada el 2026-08-06: el desplegable de la ficha ya no existe.** En su sitio queda una
+> **etiqueta no interactiva** «Proveedor: X» (`anime_window.py`, `__show_provider_label()`).
+> El motivo lo da [§12](#12-fase-7-el-pin-de-proveedor-predeterminado): con la selección de la sidebar
+> valiendo solo para la sesión, el control de la ficha hacía lo mismo con más código.
+>
+> **Lo que sobrevive de D4 y hay que seguir respetando**:
+>
+> - `get_anime_episode_servers` sigue llamándose con `provider_id=self.provider_id, strict=True`
+>   (`anime_window.py`): los servidores tienen que ser los del proveedor que sirvió **esta** ficha, no
+>   los de un fallback silencioso. Y `__toggle_servers_frame` sigue avisando si no hay ninguno.
+> - La etiqueta muestra **quién sirvió realmente** la ficha, no el predeterminado. Es lo único que hace
+>   visible el fallback de [D3](#d3), y por eso no se borró junto con el desplegable.
+>
+> `strict=True` para los servidores y el ámbito local de `self.provider_id` **no cambian**; lo que
+> desaparece es la capacidad de *cambiar* de proveedor desde la ficha.
+
+**Decidido (2026-07-30, ya no vigente)**: el desplegable de `AnimeWindowViewer` usa `strict=True` en
+todas sus llamadas, **no** toca el predeterminado global y **no** se persiste. Al abrir otra ficha se
+vuelve a partir del predeterminado.
 
 *Por qué `strict`*: si el usuario pide explícitamente «los servidores de X» y el fallback le sirve los
 de Y, el selector **miente**. Aquí el silencio del fallback es un defecto, no una virtud.
@@ -280,36 +312,47 @@ sola.
 
 ---
 
-## 6. Ubicación de los dos desplegables
+## 6. Ubicación de los controles
 
-**Sidebar** (`main_window.py`) — encima del selector de apariencia, mismo estilo `CTkOptionMenu`:
+✅ Estado real tras la fase 7, comprobado por captura el 2026-08-06.
+
+**Sidebar** (`main_window.py`) — encima del selector de apariencia. Desplegable y pin comparten fila
+dentro de un `CTkFrame` transparente propio, para no desplazar las filas de abajo:
 
 ```
-┌─ sidebar ──────────────┐
-│ Biblioteca de Anime    │
-│ [6 botones de vista]   │
-│ …                      │
-│ Proveedor de anime:    │  ← label nuevo
-│ [ AnimeAV1        ▾ ]  │  ← CTkOptionMenu nuevo, poblado con PROVIDER_NAME
-│                        │
-│ [ System          ▾ ]  │  ← el de apariencia, ya existente
-└────────────────────────┘
+┌─ sidebar ──────────────────┐
+│ Biblioteca de Anime        │
+│ [6 botones de vista]       │
+│ …                          │
+│ Proveedor de anime:        │  ← label
+│ [ AnimeAV1     ▾ ] [📌]    │  ← CTkOptionMenu + botón del pin, misma fila
+│ Apariencia:                │
+│ [ System       ▾ ]         │
+└────────────────────────────┘
 ```
 
-**Ficha de detalle** (`anime_window.py`) — arriba a la derecha, sobre la fila de botones de estado,
-usando las columnas 2-3 del `content_frame` que ya están configuradas y hoy están vacías
-(`anime_window.py:103-104`):
+Filas del `sidebar_frame` (`sidebar_button_row = 1`, y **la fila 8 es el espaciador con `weight=1`**):
+9 = etiqueta «Proveedor de anime:», 10 = frame con desplegable + pin, 11 = «Apariencia:», 12 = tema.
+Añadir el pin **no movió ninguna fila** justamente por meterlo en el frame de la 10.
+
+**Ficha de detalle** (`anime_window.py`) — arriba a la derecha, en **su propia fila** (`row=0,
+column=1, columnspan=3, sticky=E`). Ya no es un desplegable, sino una etiqueta:
 
 ```
 ┌─ content_frame ─────────────────────────────────────────────┐
-│ ┌────────┐  Título del anime            Proveedor:          │
-│ │ póster │  Sinopsis…                   [ AnimeAV1     ▾ ]  │
+│                                        Proveedor: AnimeAV1  │
+│ ┌────────┐  Título del anime                                │
+│ │ póster │  Sinopsis…                                       │
 │ │        │  Géneros: …                                      │
 │ └────────┘                                                  │
 │ [Favoritos] [Finalizados] [Viendo] [Pendiente]              │
 │ Lista de episodios …                                        │
 └─────────────────────────────────────────────────────────────┘
 ```
+
+⚠️ **No lo muevas a las columnas 2-3 de la fila del título**: es exactamente lo que dispara la
+[trampa 22](10-invariantes-y-trampas.md) y recorta la sinopsis. La fila propia se mantiene aunque el
+widget haya pasado de desplegable a etiqueta, que ocupa menos.
 
 El valor mostrado es **el proveedor que sirvió realmente esta ficha**, no el predeterminado — es lo
 que hace visible el fallback silencioso de [D3](#d3).
@@ -328,6 +371,7 @@ Cada fase deja la app **arrancable**. Si retomas la tarea, mira aquí dónde est
 | **4** | Desplegable de la ficha + identidad doble ([D5](#d5)) + `strict` en servidores | ✅ 25/25 sobre copia de la BD real |
 | **5** | Propagar `provider_id` en los 6 puntos de clic | ✅ escrito; ⚠️ no probado clic a clic |
 | **6** | Actualizar [02](02-mapa-de-modulos.md), [04](04-modelo-de-datos.md), [05](05-proveedores-y-scraping.md), [06](06-gui-y-vistas.md), [09](09-verificacion-y-pruebas.md), [10](10-invariantes-y-trampas.md), [11](11-playbooks.md), [12](12-deuda-tecnica-y-roadmap.md) | ✅ hecho |
+| **7** | **El pin** ([§12](#12-fase-7-el-pin-de-proveedor-predeterminado)): iconos nuevos, separación usar/fijar en la sidebar y retirada del desplegable de la ficha | ✅ 29/29 sin GUI + 3 capturas de la app real (2026-08-06) |
 
 ### Lo que se hizo distinto de lo planeado
 
@@ -348,6 +392,31 @@ Cada fase deja la app **arrancable**. Si retomas la tarea, mira aquí dónde est
 *Qué resolvería*: que cada fila de `ANIMES` recuerde de qué proveedor es su `anime_id`, para que el
 clic en una vista de estado use directamente el proveedor correcto (`provider_id=record.provider_id`)
 en vez de depender del fallback ([§2](#2-el-problema-de-fondo-la-identidad-de-un-anime-es-específica-del-proveedor)).
+
+### 🔴 Orden de prioridad — decidido por el usuario el 2026-08-06
+
+Cuando exista la columna, al abrir un anime el proveedor se elige **en este orden**:
+
+| # | Fuente | Cuándo manda |
+|---|---|---|
+| 1 | **Selección actual del desplegable** de la sidebar | Solo si **difiere del pin**, es decir, si el usuario se ha desviado a propósito en esta sesión |
+| 2 | **`provider_id` de la fila en `ANIMES`** | Anime ya guardado y desplegable sin desviar |
+| 3 | **Proveedor fijado con el pin** (`DB_user.db`) | Anime no guardado |
+| 4 | Predeterminado del registro (AnimeAV1) | Sin pin |
+
+*Por qué la desviación gana a la BD*: desviarse en el desplegable es una acción deliberada del
+usuario, y si la BD ganara siempre, un anime guardado **nunca** podría verse desde otro proveedor —
+que es justo el caso de uso («ver si este otro sitio tiene servidores que funcionen») por el que
+existía el desplegable de la ficha. Con esta regla, retirarlo ([§12](#12-fase-7-el-pin-de-proveedor-predeterminado))
+no pierde funcionalidad: se cambia en la sidebar y se abre el anime.
+
+*Consecuencia*: el caso 1 sobre un anime guardado necesita **re-resolver** por título, o sea
+`resolve_anime_in_provider()` ([D6](#d6)) — el método que la fase 7 dejó **sin ningún llamante en la
+GUI**. No se borró por esto: aquí vuelve, y ahora en los puntos de clic en vez de en el viewer.
+
+⚠️ **Hasta que exista la columna**, la desviación del desplegable solo afecta de verdad a recientes y
+búsquedas: al abrir un anime guardado se llama `get_anime_info(record.anime_id)` con el slug de quien
+lo guardó y quien resuelve es el **fallback**, no el proveedor elegido.
 
 *Qué costaría*:
 
@@ -385,20 +454,38 @@ ejecutó de verdad el 2026-07-30 y qué no**.
 | Layout de la sidebar | Captura de la ventana | «Proveedor de anime: AnimeAV1» sobre «Apariencia: System», sin solaparse con el espaciador de la fila 8 |
 | Layout de la ficha | Captura, **con y sin** el selector (control) | Detectó y confirmó la corrección de la [trampa 22](10-invariantes-y-trampas.md): con la colocación inicial la sinopsis se recortaba; con la definitiva es idéntica al control |
 
+### ✅ Verificado en la fase 7 (el pin, 2026-08-06)
+
+| Qué | Cómo | Resultado |
+|---|---|---|
+| 🔴 **Separación usar/fijar** | Script en scratchpad: las tres funciones (`change_anime_provider_event`, `toggle_pinned_provider_event`, `__apply_saved_provider_preference`) llamadas como funciones sueltas sobre un objeto de atrezo, con `UserPersistence` en un sandbox temporal | **29/29**. Incluida **la prueba que da sentido a la tarea**: cambiar de proveedor sin fijar → instancia nueva → arranca con el **fijado anterior**, no con el probado |
+| Toggle del pin | Mismo script | Fijar → desfijar (`setting_value` a `NULL`, sin `DELETE`) → arranque con el predeterminado del código → volver a fijar sobre la fila existente (upsert). **Una sola fila** en `USER_SETTINGS` al final |
+| Desfijar no cambia lo que usas | Mismo script | Tras desfijar, el proveedor **en uso** sigue siendo el mismo; solo deja de recordarse |
+| Preferencia obsoleta | Guardar `jkanime` (no registrado) y arrancar | No revienta: queda el predeterminado del registro y el pin **sin marcar**, así que la siguiente pulsación reescribe algo válido |
+| `DB_user.db` no disponible | `available=False` | `set_setting()` devuelve `False`, se avisa con `messagebox` y **el pin no se marca**: no miente sobre lo que se ha guardado |
+| Intercambio del icono | App real, invocando el `command` del botón | Azul (fijado) → **gris** (sin fijar), y la fila queda a `NULL`. Es lo que el script sin GUI no puede ver: allí `__refresh_pin_provider_button` sale por la guarda de widget |
+| Layout de la sidebar | Captura de la app real | Desplegable + pin en la misma fila, sin desplazar «Apariencia:» ni solaparse con el espaciador de la fila 8 |
+| Layout de la ficha | Captura de la app real | «Proveedor: **AnimeAV1**» como etiqueta arriba a la derecha; la sinopsis ocupa el ancho completo → la [trampa 22](10-invariantes-y-trampas.md) **no** se ha reabierto |
+| Legibilidad de los iconos | Hoja de contactos a 20 px sobre los grises reales de la sidebar | Descartado el diseño relleno/contorno (ilegible al reducir) en favor de **azul/gris**, ambos rellenos |
+| La biblioteca no se toca | `SELECT count(*)` antes y después | **25 filas** en `ANIMES`; `DB_user.db` restaurada a su valor original desde copia previa |
+
 ### ⚠️ NO verificado — lo que falta por probar a mano
 
 1. **Resolución *cross-provider* real entre dos proveedores distintos.** AnimeFLV está en desuso, así
-   que no hay un segundo proveedor sano. Se ha probado con un proveedor falso y resolviendo *en el
+   que no hay un segundo proveedor sano. Se probó con un proveedor falso y resolviendo *en el
    mismo* proveedor, que recorre el mismo código, pero **el umbral 0.75 no está calibrado con datos
    reales de dos sitios**. Recalíbralo al integrar el tercer proveedor.
-2. **Interacción de ratón con los dos desplegables.** No se pudo automatizar el clic; el widget se ha
-   verificado por captura, no pulsándolo.
-3. **Cambiar de proveedor con la red caída** (mensaje de aviso + el desplegable vuelve atrás). El
-   camino está probado en el script (`__on_provider_resolved(provider_id, None)` no toca nada) pero no
-   con la red real caída.
-4. **Abrir una ficha desde cada una de las 6 vistas.** El cambio es el mismo texto en las 6 y compila,
-   pero solo se ha ejercitado la de recientes.
-5. **Servidores de vídeo tras cambiar de proveedor.** Requiere dos proveedores sanos; ver el punto 1.
+   ⚠️ Desde la fase 7 esto solo se puede ejercitar cuando exista `provider_id` ([§8](#8-fase-4-diferida-columna-provider_id-en-animes)):
+   `resolve_anime_in_provider()` **no lo llama nadie** en la GUI.
+2. **Clic de ratón real sobre el pin y el desplegable.** El pin se ha ejercitado invocando su
+   `command` sobre la app real —lo que recorre todo salvo el *hit testing* de Tk— y comprobando el
+   icono por captura, pero no se ha pulsado con el ratón.
+3. **Cambiar de proveedor con la red caída.** El aviso de recientes vacíos existe
+   (`__on_recent_animes_reloaded`) pero no se ha provocado con la red real caída.
+4. **Abrir una ficha desde cada una de las 6 vistas.** Solo se ha ejercitado la de recientes; el
+   cambio es el mismo texto en las 6.
+5. **Servidores de vídeo desde un proveedor distinto al que guardó el anime.** Requiere dos
+   proveedores sanos; ver el punto 1.
 
 ---
 
@@ -426,5 +513,89 @@ noción de tipo de medio. Cuando entren los de manga habrá que decidir si se ge
 | 1 | **Duplicar animes en `ANIMES`** al cambiar de proveedor con la ficha abierta | [D5](#d5) + la prueba 6 y 9 de [§9](#9-verificación). Es el fallo que más daño haría: escribe en la biblioteca real |
 | 2 | Resolución *cross-provider* con **falso positivo** (te abre otro anime parecido) | Umbral de similitud + coincidencia exacta preferente; hay que calibrar con títulos reales |
 | 3 | Reconstruir la ficha desde un hilo daemon agrava **A6/R3** (widgets Tk fuera del hilo de UI) | El código nuevo marshalliza con `main_window.after(0, …)` en vez de tocar widgets desde el hilo. No se propaga el patrón heredado ([07](07-concurrencia-e-hilos.md)) |
-| 4 | El usuario elige un proveedor caído y la app parece rota | Fallback activo en el ámbito global ([D3](#d3)) + el selector de la ficha muestra quién sirvió de verdad |
+| 4 | El usuario elige un proveedor caído y la app parece rota | Fallback activo en el ámbito global ([D3](#d3)) + la **etiqueta** de la ficha muestra quién sirvió de verdad. Y desde la fase 7, probar un proveedor ya no ensucia la configuración: si va mal, basta con no fijarlo |
 | 5 | `DB_user.db` corrupta impide arrancar | La preferencia es opcional por diseño: sin ella se usa el predeterminado de código |
+
+---
+
+## 12. Fase 7 — el pin de proveedor predeterminado
+
+| | |
+|---|---|
+| **Pedido** | 2026-07-30 (separar usar/fijar) y **2026-08-06** (que el control sea un **pin**, y retirar el selector de la ficha) |
+| **Estado** | ✅ **Implementado y verificado el 2026-08-06** ([§9](#9-verificación)) |
+| **Toca** | `gui/main_window.py` v0.2, `gui/anime_window.py` v0.3, `dataPersistence/userPersistence.py` v0.2, 4 PNG nuevos |
+
+### El problema que resolvía
+
+📖 `change_anime_provider_event()` hacía **las dos cosas de golpe**:
+
+```python
+self.anime_provider_mgr.set_default(provider_id)           # usar ahora
+self.user_persistence.set_default_provider_id(provider_id)  # …y fijarlo para siempre
+```
+
+**No había forma de probar otro proveedor sin cambiar tu configuración**: tocar el desplegable para
+echar un vistazo a otro catálogo te reescribía la preferencia guardada.
+
+### Lo implementado
+
+| Acción | Efecto |
+|---|---|
+| **Cambiar el desplegable** | `set_default()` en el manager + recarga de recientes ([D8](#d8)). **Solo esta sesión: no escribe en `DB_user.db`** |
+| **Pulsar el pin** | Persiste el proveedor **actualmente seleccionado** como predeterminado |
+| **Pulsar el pin estando ya fijado** | **Desfija**: `set_default_provider_id(None)`. El proveedor en uso **no cambia**; solo deja de recordarse |
+| **Arranque** | Se lee la preferencia, se aplica y el desplegable nace con ella; el pin nace marcado |
+
+Esto **sustituye** la parte de persistencia inmediata de [D3](#d3). El resto de D3 (el ámbito global
+conserva el **fallback**) no cambia.
+
+**Estado visual del pin** — se distingue por **color**, no por relleno frente a contorno:
+
+| Icono | Significado |
+|---|---|
+| 📌 **azul** (`fijado_light/dark.png`) | Lo que estás usando **es** tu predeterminado |
+| 📌 **gris** (`no_fijado_light/dark.png`) | Te has desviado **solo para esta sesión** |
+
+⚠️ Los iconos se generaron con PIL (script en el scratchpad de la sesión, no en el repo) y se dibujan
+con `CTkImage(light_image=…, dark_image=…)`, que conmuta con el tema **sin** pasar por
+`update_icon()`: el pin no es un `SidebarButton`, así que `change_appearance_mode_event()` no lo toca.
+La primera versión usaba silueta rellena vs. contorneada y hubo que descartarla: **contorneada se
+convierte en un garabato ilegible al bajar a los 20×20** reales.
+
+### Qué se tocó
+
+| Fichero | Cambio |
+|---|---|
+| `gui/main_window.py` | `change_anime_provider_event()` deja de escribir en BD; `toggle_pinned_provider_event()` y `__refresh_pin_provider_button()` nuevos; `__apply_saved_provider_preference()` guarda además `__pinned_provider_id`; desplegable y pin en un frame propio en la fila 10 |
+| `gui/anime_window.py` | `__show_provider_selector()` → **`__show_provider_label()`**; borrados `__change_provider_event`, `__resolve_provider_worker`, `__on_provider_resolved`, `__provider_optionmenu`, `__changing_provider` y el import de `threading` |
+| `dataPersistence/userPersistence.py` | `set_default_provider_id()` acepta `Optional[str]`: `None` = desfijado. **Nada más** |
+
+**No se tocó** `animeProviderMgr.py`, ni las 6 vistas, ni `DB_Animes.db`.
+
+💡 **Desfijar no necesita `DELETE`**: `set_setting(…, None)` deja `setting_value` a `NULL`,
+`get_setting()` devuelve entonces el `default` y `__apply_saved_provider_preference()` lo trata como
+«sin preferencia». Ni `SqlUtils` ni `UserPersistence` tienen método de borrado, y **sigue sin hacer
+falta**.
+
+### Por qué desaparece el selector de la ficha
+
+Decisión del usuario (2026-08-06): con la selección de la sidebar valiendo solo para la sesión, el
+desplegable de la ficha **hacía lo mismo con más código**. Para ver un anime desde otro proveedor se
+cambia en la sidebar y se abre.
+
+Lo que **sí** se conserva es su función informativa: la etiqueta «Proveedor: X» sigue diciendo quién
+sirvió realmente la ficha, que es lo único que hace visible el fallback silencioso ([D4](#d4)).
+
+⚠️ Que esto no pierda funcionalidad **depende del orden de prioridad** de
+[§8](#8-fase-4-diferida-columna-provider_id-en-animes): la desviación del desplegable tiene que ganar
+al `provider_id` guardado. Mientras esa columna no exista, un anime ya guardado se seguirá abriendo
+por *fallback* y no por el proveedor elegido.
+
+### Fuera de alcance, a propósito
+
+- **La columna `provider_id`** ([§8](#8-fase-4-diferida-columna-provider_id-en-animes)) — es lo único
+  que toca la BD real del usuario y va aparte.
+- La recarga de recientes al cambiar de proveedor ([D8](#d8)) **se mantiene**: depende de «usar
+  ahora», no de la persistencia.
+- No hay *tooltip* en el pin: CTk no trae, y el usuario pidió explícitamente el icono.

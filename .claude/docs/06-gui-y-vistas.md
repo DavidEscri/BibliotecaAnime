@@ -206,7 +206,7 @@ title_label.grid(row=(row*2) + 1, column=column, padx=10, pady=(5, 10),  sticky=
 
 | Fila | Contenido en las vistas de lista | Contenido en la ficha de detalle |
 |---|---|---|
-| 0 | buscador | **selector de proveedor** + póster (`rowspan=4`) |
+| 0 | buscador | **etiqueta «Proveedor: X»** + póster (`rowspan=4`) |
 | 1-2 | filtros de género | título · sinopsis |
 | 3 | — | géneros |
 | 4 | — | frame de estados (los 4 botones) |
@@ -227,27 +227,39 @@ compartan `content_frame`.
 
 ⚠️ **Ese `wraplength` calculado a mano es una trampa de layout**: cualquier widget nuevo que reserve
 ancho en las columnas 1-3 recorta el texto de la sinopsis por la derecha, porque el `wraplength` se
-fija sobre el ancho del `content_frame` entero y no sobre el de la celda. Por eso el selector de
+fija sobre el ancho del `content_frame` entero y no sobre el de la celda. Por eso la etiqueta de
 proveedor ocupa **su propia fila** (`row=0, column=1, columnspan=3, sticky=E`) en vez de compartir la
-fila del título: al abarcar las tres columnas no obliga a ninguna a reservar ancho. Ver
-[trampa 22](10-invariantes-y-trampas.md) y [13 §4](13-selector-de-proveedor.md).
+fila del título: al abarcar las tres columnas no obliga a ninguna a reservar ancho. Se mantiene así
+aunque desde el 2026-08-06 sea una etiqueta —más estrecha que el desplegable que hubo antes—, porque
+el problema no es el ancho del widget sino en qué columnas se declara. Ver
+[trampa 22](10-invariantes-y-trampas.md) y [13 §6](13-selector-de-proveedor.md).
 
 ⚠️ `info_frame` fuerza `fg_color="white"` — **no se adapta al tema oscuro**.
 
-### Los dos selectores de proveedor
+### Elegir proveedor: el desplegable, el pin y la etiqueta
 
-📖 Introducidos el 2026-07-30 ([13](13-selector-de-proveedor.md)). Son distintos a propósito:
+📖 Introducido el 2026-07-30 y **reformado el 2026-08-06** ([13](13-selector-de-proveedor.md)). Desde
+esa reforma **solo hay un control**, el de la sidebar; la ficha se limita a informar.
 
-| | Sidebar (`main_window.py`) | Ficha (`anime_window.py`) |
-|---|---|---|
-| Ámbito | **Global**, todas las peticiones | **Solo esta ficha** |
-| ¿Persiste? | Sí, en `DB_user.db` | No |
-| Fallback | **Activo** — si no, los animes guardados con el slug de otro proveedor dejarían de abrirse | `strict=True` — si el usuario pide los servidores de X, servirle los de Y sería mentirle |
-| Al cambiar | Recarga la lista de recientes y navega a esa vista | Re-resuelve el anime por título en el proveedor destino y repinta |
-| Qué muestra | El predeterminado | **Quién sirvió realmente esta ficha** (hace visible el fallback) |
+| | Desplegable de la sidebar | **Pin**, a su lado | Etiqueta de la ficha |
+|---|---|---|---|
+| Qué hace | Cambia el proveedor **solo para esta sesión** | Fija (o desfija) el seleccionado como predeterminado | Nada: es informativa |
+| ¿Persiste? | **No** | Sí, en `DB_user.db` | — |
+| Fallback | **Activo** — si no, los animes guardados con el slug de otro proveedor dejarían de abrirse | — | — |
+| Al pulsar | Recarga la lista de recientes y navega a esa vista | Solo cambia lo guardado; **no** cambia el proveedor en uso ni recarga nada | — |
+| Qué muestra | El proveedor en uso | Azul = es tu predeterminado · gris = desviación temporal | **Quién sirvió realmente esta ficha** (hace visible el fallback) |
 
-Ambos se pueblan **solo** desde `AnimeProviderManager.get_provider_names()`: la GUI no mantiene su
-propia lista de proveedores.
+El desplegable se puebla **solo** desde `AnimeProviderManager.get_provider_names()`: la GUI no
+mantiene su propia lista de proveedores.
+
+> 🗑️ **La ficha ya no permite cambiar de proveedor.** Tenía un desplegable propio con `strict=True`
+> que re-resolvía el anime por título; se retiró porque, con la selección de la sidebar valiendo solo
+> para la sesión, hacía lo mismo con más código. Lo que **sí** sigue: los servidores de vídeo se piden
+> con `provider_id=self.provider_id, strict=True`, para que sean los del proveedor que sirvió **esa**
+> ficha y no los de un fallback silencioso.
+
+> ⚠️ El pin **no es un `SidebarButton`**, así que `change_appearance_mode_event()` no lo recorre. Se
+> adapta al tema porque usa `CTkImage(light_image=…, dark_image=…)`, que conmuta solo.
 
 ---
 
