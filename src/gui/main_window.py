@@ -1,7 +1,7 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "gui"
 __module__ = "main_window.py"
-__version__ = "0.1"
+__version__ = "0.2"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 import threading
@@ -52,9 +52,15 @@ class MainWindow(ctk.CTk):
         # Es SQLite local, no red: son milisegundos.
         self.user_persistence: UserPersistence = UserPersistenceSingleton()
         self.user_persistence.start()
+        # Proveedor fijado con el pin. None = sin preferencia guardada, en cuyo
+        # caso manda el predeterminado del registro (AnimeAV1).
+        self.__pinned_provider_id: str | None = None
         self.__apply_saved_provider_preference()
 
         self.__provider_optionmenu: ctk.CTkOptionMenu | None = None
+        self.__pin_provider_button: ctk.CTkButton | None = None
+        self.__pin_icon_pinned: ctk.CTkImage | None = None
+        self.__pin_icon_unpinned: ctk.CTkImage | None = None
         # Guarda para que dos cambios seguidos de proveedor no lancen dos hilos que
         # se pisen al escribir self.recent_animes.
         self.__reloading_recent_animes: bool = False
@@ -158,20 +164,51 @@ class MainWindow(ctk.CTk):
         # el primer hueco utilizable por debajo del espaciador es row + 8 == 9.
         provider_label.grid(row=sidebar_button_row + 8, column=sidebar_button_column, padx=20, pady=(10, 0))
 
+        # Desplegable y pin comparten fila dentro de un frame propio, para no
+        # desplazar las filas de abajo (apariencia) al añadir el segundo control.
+        provider_frame = ctk.CTkFrame(self.sidebar_frame, fg_color="transparent")
+        provider_frame.grid(row=sidebar_button_row + 9, column=sidebar_button_column,
+                            padx=20, pady=(5, 0))
+
         # El contenido del desplegable sale SIEMPRE del manager: la GUI no mantiene
         # su propia lista de proveedores. Cuando existan proveedores de manga, el
         # filtrado por tipo de medio se hará en get_provider_names().
         provider_names = self.anime_provider_mgr.get_provider_names()
         self.__provider_optionmenu = ctk.CTkOptionMenu(
-            self.sidebar_frame,
+            provider_frame,
             values=list(provider_names.values()),
+            width=140,
             command=self.change_anime_provider_event
         )
-        self.__provider_optionmenu.grid(row=sidebar_button_row + 9, column=sidebar_button_column,
-                                        padx=20, pady=(5, 0))
+        self.__provider_optionmenu.grid(row=0, column=0)
         current_provider_id = self.anime_provider_mgr.get_default_provider_id()
         if current_provider_id is not None:
             self.__provider_optionmenu.set(self.anime_provider_mgr.get_provider_name(current_provider_id))
+
+        # Los dos estados del pin se distinguen por color (azul fijado / gris sin
+        # fijar) y no por relleno frente a contorno: contorneada, la silueta se
+        # vuelve ilegible al bajar a los 20x20 a los que se pinta.
+        self.__pin_icon_pinned = ctk.CTkImage(
+            light_image=Image.open(get_resource_path("resources/images/utils/fijado_light.png")),
+            dark_image=Image.open(get_resource_path("resources/images/utils/fijado_dark.png")),
+            size=(20, 20)
+        )
+        self.__pin_icon_unpinned = ctk.CTkImage(
+            light_image=Image.open(get_resource_path("resources/images/utils/no_fijado_light.png")),
+            dark_image=Image.open(get_resource_path("resources/images/utils/no_fijado_dark.png")),
+            size=(20, 20)
+        )
+        self.__pin_provider_button = ctk.CTkButton(
+            provider_frame,
+            text="",
+            image=self.__pin_icon_unpinned,
+            width=32,
+            fg_color="transparent",
+            hover_color=("gray85", "gray25"),
+            command=self.toggle_pinned_provider_event
+        )
+        self.__pin_provider_button.grid(row=0, column=1, padx=(5, 0))
+        self.__refresh_pin_provider_button()
 
         appearance_mode_label = ctk.CTkLabel(
             self.sidebar_frame,
@@ -201,18 +238,26 @@ class MainWindow(ctk.CTk):
         """
         saved_provider_id = self.user_persistence.get_default_provider_id()
         if saved_provider_id is None:
-            print(f"Sin preferencia de proveedor guardada, se usa "
+            print(f"Sin proveedor fijado, se usa "
                   f"{self.anime_provider_mgr.get_default_provider_id()}")
             return
         try:
             self.anime_provider_mgr.set_default(saved_provider_id)
-            print(f"Proveedor predeterminado del usuario: {saved_provider_id}")
+            self.__pinned_provider_id = saved_provider_id
+            print(f"Proveedor fijado por el usuario: {saved_provider_id}")
         except Exception as e:
-            print(f"La preferencia de proveedor guardada ({saved_provider_id}) no es válida: {e}")
+            # Preferencia obsoleta (p.ej. un proveedor retirado del código): se
+            # deja el predeterminado del registro y el pin sale sin marcar, así
+            # que la siguiente pulsación la reescribe con algo válido.
+            print(f"El proveedor fijado ({saved_provider_id}) no es válido: {e}")
 
     def change_anime_provider_event(self, new_provider_name: str) -> None:
-        """Cambia el proveedor predeterminado, lo persiste y recarga los recientes."""
-        provider_id = self.anime_provider_mgr.get_provider_id_by_name(new_provider_name)
+        """Cambia el proveedor **solo para esta sesión** y recarga los recientes.
+
+        No escribe en DB_user.db: fijar el predeterminado es una acción aparte
+        (el pin). Así se puede probar otro proveedor sin tocar la configuración.
+        """
+        provider_id: str | None = self.anime_provider_mgr.get_provider_id_by_name(new_provider_name)
         if provider_id is None:
             print(f"Proveedor no reconocido: {new_provider_name!r}")
             return
@@ -220,11 +265,51 @@ class MainWindow(ctk.CTk):
             return
 
         self.anime_provider_mgr.set_default(provider_id)
-        if not self.user_persistence.set_default_provider_id(provider_id):
-            # El cambio vale para esta sesión aunque no se haya podido guardar.
-            print(f"El proveedor {provider_id} no se pudo guardar como preferencia")
-        print(f"Proveedor de anime cambiado a {new_provider_name}")
+        print(f"Proveedor de anime cambiado a {new_provider_name} (solo esta sesión)")
+        self.__refresh_pin_provider_button()
         self.__reload_recent_animes()
+
+    def toggle_pinned_provider_event(self) -> None:
+        """Fija el proveedor seleccionado como predeterminado, o lo desfija.
+
+        Fijado significa «este es el que quiero al arrancar». Al desfijar no hace
+        falta borrar la fila: ``get_setting()`` ya devuelve el valor por defecto
+        cuando ``setting_value`` es NULL, y sin preferencia manda el
+        predeterminado del registro.
+        """
+        current_provider_id = self.anime_provider_mgr.get_default_provider_id()
+        if current_provider_id is None:
+            return
+
+        pin_it = current_provider_id != self.__pinned_provider_id
+        new_pinned_id = current_provider_id if pin_it else None
+        if not self.user_persistence.set_default_provider_id(new_pinned_id):
+            # La sesión sigue siendo válida; lo único que falla es recordarlo.
+            print(f"No se pudo guardar el proveedor fijado ({new_pinned_id})")
+            messagebox.showwarning(
+                "Aviso!",
+                "No se ha podido guardar la preferencia de proveedor.\n\n"
+                "El proveedor seleccionado sigue en uso durante esta sesión."
+            )
+            return
+
+        self.__pinned_provider_id = new_pinned_id
+        print(f"Proveedor {current_provider_id} {'fijado' if pin_it else 'desfijado'}")
+        self.__refresh_pin_provider_button()
+
+    def __refresh_pin_provider_button(self) -> None:
+        """Sincroniza el icono del pin con la selección actual.
+
+        Marcado (azul) significa «lo que estás usando es tu predeterminado»; en
+        gris, que te has desviado solo para esta sesión.
+        """
+        if self.__pin_provider_button is None or not self.__pin_provider_button.winfo_exists():
+            return
+        is_pinned = (self.__pinned_provider_id is not None
+                     and self.__pinned_provider_id == self.anime_provider_mgr.get_default_provider_id())
+        self.__pin_provider_button.configure(
+            image=self.__pin_icon_pinned if is_pinned else self.__pin_icon_unpinned
+        )
 
     def __reload_recent_animes(self) -> None:
         """Vuelve a pedir los animes recientes al proveedor recién elegido.

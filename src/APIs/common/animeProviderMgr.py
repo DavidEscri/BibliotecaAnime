@@ -166,8 +166,8 @@ class AnimeProviderManager:
         if self._default_provider_id == provider_id:
             self._default_provider_id = next(iter(self._providers), None)
 
-    def set_default(self, provider_id: str) -> None:
-        if provider_id not in self._providers:
+    def set_default(self, provider_id: str | None) -> None:
+        if provider_id is None or provider_id not in self._providers:
             raise UnknownProviderError(f"Proveedor desconocido: {provider_id}")
         self._default_provider_id = provider_id
 

@@ -1,7 +1,7 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "DataPersistence"
 __module__ = "userPersistence.py"
-__version__ = "0.1"
+__version__ = "0.2"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 import os
@@ -205,8 +205,13 @@ class UserPersistence(ServiceDB):
         """Devuelve el ``PROVIDER_ID`` del proveedor de anime predeterminado, o ``None``."""
         return self.get_setting(UserSettingKey.DEFAULT_ANIME_PROVIDER)
 
-    def set_default_provider_id(self, provider_id: str) -> bool:
-        """Guarda el ``PROVIDER_ID`` del proveedor de anime predeterminado."""
+    def set_default_provider_id(self, provider_id: Optional[str]) -> bool:
+        """Guarda el ``PROVIDER_ID`` del proveedor de anime predeterminado.
+
+        ``None`` deja la preferencia sin valor (el usuario ha desfijado el
+        proveedor), que ``get_default_provider_id()`` devuelve como ``None`` y la
+        GUI interpreta como «usar el predeterminado del registro».
+        """
         return self.set_setting(UserSettingKey.DEFAULT_ANIME_PROVIDER, provider_id)
 
     # ------------------------------------------------------------------

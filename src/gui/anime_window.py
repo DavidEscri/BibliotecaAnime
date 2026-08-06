@@ -1,10 +1,9 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "gui"
 __module__ = "anime_window.py"
-__version__ = "0.2"
+__version__ = "0.3"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
-import threading
 import time
 import webbrowser
 
@@ -54,10 +53,9 @@ class AnimeWindowViewer:
     **Maneja dos identidades distintas del mismo anime**, y confundirlas duplica
     datos en la biblioteca del usuario:
 
-    - *Identidad de visualización* (``self.anime_info``): la del proveedor que se
-      esté mostrando ahora mismo. Cambia si el usuario usa el selector de
-      proveedor de la ficha. De aquí salen título, sinopsis, géneros, episodios y
-      servidores.
+    - *Identidad de visualización* (``self.anime_info``): la del proveedor que
+      sirvió la ficha, que es el que muestra la etiqueta «Proveedor:». De aquí
+      salen título, sinopsis, géneros, episodios y servidores.
     - *Identidad de persistencia* (``self.persistence_anime_id`` y
       ``self.persistence_poster_url``): la del ``AnimeInfo`` con el que se **abrió**
       la ficha. **Nunca cambia.** Es la que se usa en toda operación de BD y en
@@ -65,14 +63,18 @@ class AnimeWindowViewer:
 
     El motivo es que ``AnimeInfo.id`` es el *slug* del sitio, no un identificador
     universal: el mismo anime es "one-piece-gyojin-touhen" en AnimeAV1 y
-    "one-piece" en AnimeFLV. Si al cambiar de proveedor se persistiera con el id
-    nuevo, «añadir a favoritos» insertaría una **fila nueva** en ANIMES y el mismo
-    anime aparecería dos veces en la biblioteca.
+    "one-piece" en AnimeFLV. Si se persistiera con el id del proveedor que sirvió
+    la ficha en vez de con el de apertura, «añadir a favoritos» insertaría una
+    **fila nueva** en ANIMES y el mismo anime aparecería dos veces.
+
+    Las dos identidades **siguen sin poder fundirse** aunque la ficha ya no
+    permita cambiar de proveedor: el fallback puede servirla desde un proveedor
+    distinto al que guardó la fila.
 
     Ver .claude/docs/13-selector-de-proveedor.md (decisión D5).
     """
 
-    def __init__(self, main_window, anime_info: AnimeInfo, provider_id: str = None):
+    def __init__(self, main_window, anime_info: AnimeInfo, provider_id: str | None = None):
         """
         :param anime_info: ficha del anime. No puede ser ``None``.
         :param provider_id: proveedor que sirvió esa ficha. Si se omite se asume el
@@ -97,8 +99,6 @@ class AnimeWindowViewer:
         self.sort_descending: bool = True
         self.__anime_status_frame = None
         self.__list_episodes_frame = None
-        self.__provider_optionmenu = None
-        self.__changing_provider: bool = False
         self.__anime_is_favourite: bool = False
         self.__anime_is_finished: bool = False
         self.__anime_is_watching: bool = False
@@ -220,17 +220,23 @@ class AnimeWindowViewer:
         )
         genres_label.grid(row=3, column=1, sticky=ctk.EW, padx=(5, 10), pady=(20, 0))
 
-        self.__show_provider_selector()
+        self.__show_provider_label()
         self.__show_anime_status()
 
     # ------------------------------------------------------------------
-    # Selector de proveedor de la ficha
+    # Proveedor de la ficha
     # ------------------------------------------------------------------
-    def __show_provider_selector(self):
-        """Desplegable para ver esta misma ficha desde otro proveedor.
+    def __show_provider_label(self):
+        """Indica **quién sirvió realmente** esta ficha, no el predeterminado.
 
-        Muestra **quién sirvió realmente** esta ficha, no el predeterminado: es lo
-        que hace visible el fallback silencioso de ``call_with_fallback``.
+        Es lo único que hace visible el fallback silencioso de
+        ``call_with_fallback``: puedes tener AnimeAV1 seleccionado y estar viendo
+        datos de otro porque el primero falló.
+
+        No es interactivo a propósito: el proveedor se elige en la sidebar. Aquí
+        hubo un desplegable que permitía ver esta misma ficha desde otro
+        proveedor, y se retiró al hacer que la selección de la sidebar valiera
+        solo para la sesión (ver docs/13).
         """
         provider_frame = ctk.CTkFrame(self.main_window.content_frame, fg_color="transparent")
         provider_frame.grid(row=0, column=1, columnspan=3, sticky=ctk.E, padx=(5, 10), pady=(5, 0))
@@ -243,73 +249,15 @@ class AnimeWindowViewer:
         )
         provider_title.grid(row=0, column=0, sticky=ctk.E, padx=(0, 5))
 
-        provider_names = self.anime_provider_mgr.get_provider_names()
-        self.__provider_optionmenu = ctk.CTkOptionMenu(
+        provider_name = (self.anime_provider_mgr.get_provider_name(self.provider_id)
+                         if self.provider_id is not None else "desconocido")
+        provider_value = ctk.CTkLabel(
             provider_frame,
-            values=list(provider_names.values()),
-            width=140,
-            command=self.__change_provider_event
+            text=provider_name,
+            font=ctk.CTkFont(size=14, weight="bold"),
+            anchor="e"
         )
-        self.__provider_optionmenu.grid(row=0, column=1, sticky=ctk.E)
-        if self.provider_id is not None:
-            self.__provider_optionmenu.set(self.anime_provider_mgr.get_provider_name(self.provider_id))
-
-    def __change_provider_event(self, provider_name: str):
-        """Cambia de proveedor **solo para esta ficha**.
-
-        No toca el predeterminado global ni se persiste: es una acción exploratoria
-        («a ver si este otro sitio tiene servidores que funcionen»), no una
-        preferencia.
-        """
-        provider_id = self.anime_provider_mgr.get_provider_id_by_name(provider_name)
-        if provider_id is None or provider_id == self.provider_id:
-            return
-        if self.__changing_provider:
-            print("Ya hay un cambio de proveedor en curso, se ignora")
-            return
-        self.__changing_provider = True
-        self.main_window.configure(cursor="watch")
-        threading.Thread(target=self.__resolve_provider_worker, args=(provider_id,), daemon=True).start()
-
-    def __resolve_provider_worker(self, provider_id: str):
-        """Parte de red del cambio de proveedor. Hilo daemon: no toca widgets.
-
-        Cuesta dos peticiones (buscar el anime por título en el proveedor destino y
-        traer su ficha), de ahí el hilo y el cursor de espera.
-        """
-        resolved = None
-        try:
-            resolved = self.anime_provider_mgr.resolve_anime_in_provider(self.anime_info, provider_id)
-        except Exception as e:
-            print(f"Error al resolver {self.anime_info.title!r} en {provider_id}: {e}")
-        self.main_window.after(0, self.__on_provider_resolved, provider_id, resolved)
-
-    def __on_provider_resolved(self, provider_id: str, resolved: AnimeInfo | None):
-        """Parte de UI del cambio de proveedor. Corre en el hilo de Tkinter."""
-        self.__changing_provider = False
-        self.main_window.configure(cursor="")
-
-        if resolved is None:
-            provider_name = self.anime_provider_mgr.get_provider_name(provider_id)
-            messagebox.showwarning(
-                "Proveedor sin resultados",
-                f"«{self.anime_info.title}» no se ha encontrado en {provider_name}.\n\n"
-                f"Se mantiene el proveedor actual."
-            )
-            # Devolver el desplegable a su valor real: el usuario no ha cambiado nada.
-            if self.__provider_optionmenu is not None and self.__provider_optionmenu.winfo_exists():
-                self.__provider_optionmenu.set(self.anime_provider_mgr.get_provider_name(self.provider_id))
-            return
-
-        # Solo cambia la identidad de VISUALIZACIÓN. persistence_anime_id y
-        # persistence_poster_url siguen apuntando al anime con el que se abrió la
-        # ficha, así que la BD y los pósters no se duplican (decisión D5).
-        self.provider_id = provider_id
-        self.anime_info = self.__with_episodes(resolved)
-        self.watched_status = {episode.id: False for episode in self.anime_info.episodes}
-        self.episode_switches.clear()
-        self.sort_descending = True
-        self.display_anime_info()
+        provider_value.grid(row=0, column=1, sticky=ctk.E)
 
     def __show_anime_status(self):
         self.__anime_status_frame = ctk.CTkFrame(self.main_window.content_frame)
@@ -456,7 +404,7 @@ class AnimeWindowViewer:
 
         self.__display_episodes()
 
-    def __display_episodes(self, episodes_to_show: List[EpisodeInfo] = None):
+    def __display_episodes(self, episodes_to_show: List[EpisodeInfo] | None = None):
         episodes_to_show = self.anime_info.episodes[:25] if episodes_to_show is None else episodes_to_show
         for widget in self.__list_episodes_frame.winfo_children():
             widget.destroy()
