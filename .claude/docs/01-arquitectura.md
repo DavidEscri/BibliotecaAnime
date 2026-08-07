@@ -2,7 +2,8 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-07-28 · **Commit** `a972850` · árbol **sucio** |
+| **Fecha** | 2026-08-06 · **Commit** `fd53056` · árbol **sucio** |
+| **Última revisión** | 2026-08-06: **JKAnime** añadido al diagrama de capas, a la tabla de dependencias y al *composition root* |
 | **Cubre** | `src/app.py`, `src/APIs/**`, `src/dataPersistence/**`, `src/gui/**`, `src/utils/**` |
 
 Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ sin verificar.
@@ -32,12 +33,13 @@ graph TD
 
     subgraph L3["Infraestructura"]
         AV1["APIs/animeav1/animeav1.py"]
+        JK["APIs/jkanime/jkanime.py"]
         FLV["APIs/animeflv/animeflv.py"]
         SQL["utils/db/sqlite.py<br/><i>SqlUtils · ServiceDB</i>"]
         UTL["utils/utils.py<br/><i>rutas · imágenes · descargas</i>"]
     end
 
-    NET(["Sitios web<br/>animeav1.com · www3.animeflv.net"])
+    NET(["Sitios web<br/>animeav1.com · jkanime.net · www3.animeflv.net"])
     DB[("resources/DB/DB_Animes.db")]
     FS[("resources/images/&lt;categoría&gt;/")]
 
@@ -54,12 +56,15 @@ graph TD
     AW --> PERS
     BTN --> PERS
     MGR --> AV1
+    MGR --> JK
     MGR --> FLV
     AV1 --> MODELS
+    JK --> MODELS
     FLV --> MODELS
     PERS --> MODELS
     PERS --> SQL
     AV1 --> NET
+    JK --> NET
     FLV --> NET
     SQL --> DB
     UTL --> FS
@@ -77,7 +82,7 @@ graph TD
     classDef ext fill:#f3e8ff,stroke:#a855f7
     class MW,VIEWS,AW,BTN gui
     class MGR,MODELS,PERS dom
-    class AV1,FLV,SQL,UTL inf
+    class AV1,JK,FLV,SQL,UTL inf
     class NET,DB,FS ext
 ```
 
@@ -85,11 +90,11 @@ graph TD
 
 ## 2. Dependencias: permitidas y prohibidas
 
-📖 Reglas deducidas de los `import` reales de los 18 módulos.
+📖 Reglas deducidas de los `import` reales de los 19 módulos.
 
 | Desde | Puede importar | **Nunca debe importar** |
 |---|---|---|
-| `gui/**` | `APIs.common.*`, `dataPersistence.*`, `utils.*` | `APIs.animeflv.*` / `APIs.animeav1.*` **salvo `main_window.py`** |
+| `gui/**` | `APIs.common.*`, `dataPersistence.*`, `utils.*` | `APIs.animeflv.*` / `APIs.animeav1.*` / `APIs.jkanime.*` **salvo `main_window.py`** |
 | `APIs/<sitio>/` | `APIs.common.*`, `utils.utils` | cualquier cosa de `gui/` o `dataPersistence/` |
 | `APIs/common/` | solo stdlib + `requests` | `utils.*`, `gui/**`, `dataPersistence/**` |
 | `dataPersistence/` | `APIs.common.models`, `utils.db.sqlite`, `utils.utils` | `gui/**`, `APIs/<sitio>/` |
@@ -97,15 +102,21 @@ graph TD
 | `utils/utils.py` | stdlib + `PIL` + `requests` + `customtkinter` | `gui/**`, `APIs/**`, `dataPersistence/**` |
 | `utils/buttons/utilsButtons.py` | `APIs.common.models`, `dataPersistence.*`, `utils.utils` | `APIs/<sitio>/`, `gui/**` |
 
-**La única excepción legítima** 📖: `gui/main_window.py:15-16` importa los dos proveedores concretos
+**La única excepción legítima** 📖: `gui/main_window.py` importa los **tres** proveedores concretos
 para registrarlos. Es el *composition root*. Ningún otro módulo de `gui/` debe conocer un sitio
 concreto.
 
 ```python
-# gui/main_window.py:48-49  — el ÚNICO sitio donde la GUI nombra un proveedor concreto
+# gui/main_window.py  — el ÚNICO sitio donde la GUI nombra un proveedor concreto.
+# El orden de registro ES el orden del fallback.
 self.anime_provider_mgr.register(AnimeAV1Singleton(), default=True)
+self.anime_provider_mgr.register(JKAnimeSingleton())    # 2026-08-06
 self.anime_provider_mgr.register(AnimeFLVSingleton())
 ```
+
+> ✅ **JKAnime se registró en medio a propósito** (2026-08-06). Hasta entonces el fallback tenía una
+> sola parada y estaba en desuso, así que en la práctica no existía. Cambiar este orden cambia a
+> quién se recurre cuando el predeterminado falla.
 
 **Ciclo tolerado** 📖: `dataPersistence/animesPersistence.py:15` importa `utils.utils.get_resource_path`,
 y `utils/buttons/utilsButtons.py:10` importa `dataPersistence`. No hay ciclo real porque
@@ -157,15 +168,17 @@ Los errores se **imprimen**, no se lanzan; los métodos devuelven `bool`.
 
 ## 4. Registro de proveedores hoy
 
-✅ Verificado contra los sitios reales el 2026-07-28.
+✅ AnimeAV1 y AnimeFLV verificados contra los sitios reales el 2026-07-28; **JKAnime el 2026-08-06**.
 
 | Orden | `PROVIDER_ID` | Rol | Estado observado |
 |---|---|---|---|
 | 1 | `animeav1` | **Por defecto** | Los 5 métodos responden correctamente |
-| 2 | `animeflv` | Fallback | Listados y ficha OK; **`get_anime_episode_servers` devuelve `[]`** |
+| 2 | `jkanime` | **Primer fallback** | Los 5 métodos responden; 50/50 comprobaciones ([09 §3d](09-verificacion-y-pruebas.md)) |
+| 3 | `animeflv` | Último fallback | Listados y ficha OK; **`get_anime_episode_servers` devuelve `[]`** |
 
-El usuario confirma que **AnimeFLV está caído / en desuso**. Detalle en
-[05 §3](05-proveedores-y-scraping.md).
+El usuario confirma que **AnimeFLV está caído / en desuso**. Hasta la llegada de JKAnime
+(2026-08-06) el fallback tenía una sola parada y era precisamente esa, así que **en la práctica no
+existía**. Detalle de los tres en [05 §2 y §3b](05-proveedores-y-scraping.md).
 
 ---
 

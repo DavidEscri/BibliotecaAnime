@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Fecha** | 2026-07-28 · **Commit** `a972850` · árbol **sucio** |
-| **Cubre** | los 18 módulos con contenido de `src/` |
+| **Cubre** | los 19 módulos con contenido de `src/` |
 
 Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ sin verificar.
 
@@ -14,7 +14,7 @@ Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ si
 
 ## 1. Cabecera de módulo — **obligatoria**
 
-📖 Presente en los 18 módulos con contenido. Plantilla copiable:
+📖 Presente en los 19 módulos con contenido. Plantilla copiable:
 
 ```python
 __author__ = "Jose David Escribano Orts"

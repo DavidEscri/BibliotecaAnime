@@ -36,7 +36,7 @@ sequenceDiagram
     MW->>MW: load_sidebar_buttons() :125-151
     MW->>MW: show_loading_screen() :165
     MW->>MW: sidebar_frame.grid_forget() :166
-    Note over MW: GIF + barra a 0 %; update_gif se<br/>reprograma con self.after(100,…) :199
+    Note over MW: GIF + barra a 0 %#59; update_gif se reprograma con self.after(100,...) :199
     MW->>T: Thread(download_images_and_show_animes).start() :204
     APP->>MW: mainloop()
 
@@ -118,7 +118,7 @@ sequenceDiagram
     alt ya precargado (synopsis/genres/episodes != None)
         V->>AW: AnimeWindowViewer(...).display_anime_info() :106-107
     else falta info
-        V->>V: cursor="watch"; update() :87-88
+        V->>V: cursor="watch"#59; update() :87-88
         V->>T: Thread(_load_and_show).start() :104
         T->>MGR: get_anime_info(anime_id) :91
         MGR-->>T: AnimeInfo | None
@@ -303,10 +303,10 @@ sequenceDiagram
 
     U->>SB: clic en «Buscar» :92-96
     SB->>SB: __search_anime(entry) :158
-    Note over SB: guard :159-160 ⚠️ INEFECTIVO<br/>(__current_search_thread siempre None)
+    Note over SB: guard :159-160 ⚠️ INEFECTIVO (__current_search_thread siempre None)
     SB->>SB: __show_loading_frame(text_entry=texto) :162
     SB->>SB: oculta loading/episodes/pagination :171-176
-    SB->>SB: pinta GIF; update_gif con self.after(100,…) :196-202
+    SB->>SB: pinta GIF#59; update_gif con self.after(100,…) :196-202
     SB->>T: Thread(__search_anime_by_query, (texto, 1)).start() :205-209
     T->>MGR: search_animes_by_query(texto, 1) :218
     MGR->>NET: GET /catalogo?search=…&page=1
@@ -315,7 +315,7 @@ sequenceDiagram
     T->>T: __display_animes(...) :219
     T->>SB: save_anime_search(...) → main_window.last_search_instance :226
     T->>FS: download_animes_poster(search_images_path, animes) :229
-    Note over FS: ⚙️ 8 workers; descarga las que faltan<br/>y PURGA las que ya no están en la lista
+    Note over FS: ⚙️ 8 workers#59; descarga las que faltan y PURGA las que ya no están en la lista
     T->>SB: pinta tarjetas + paginación :236-265  ⚠️ Tk desde hilo daemon
 ```
 

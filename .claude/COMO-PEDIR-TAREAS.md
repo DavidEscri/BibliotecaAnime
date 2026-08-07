@@ -198,7 +198,7 @@ antes de tocar nada.
 ### Bugs ya conocidos
 
 Antes de reportar, un vistazo a [`docs/10-invariantes-y-trampas.md`](docs/10-invariantes-y-trampas.md)
-te ahorra tiempo: hay 20 trampas documentadas con su síntoma observable. Si tu síntoma está ahí,
+te ahorra tiempo: hay 25 trampas documentadas con su síntoma observable. Si tu síntoma está ahí,
 basta con **«arregla la trampa N»**.
 
 ---
@@ -242,13 +242,15 @@ Si haces un cambio de código y quieres que la documentación acompañe, **dilo 
 
 ## 8 · Empaquetar/release
 
-`MiBibliotecaAnime.spec` está desactualizado y falla **en runtime**, no al compilar. Al pedir un
-empaquetado, dime:
+🚧 El `hiddenimports` del `.spec` se corrigió el 2026-08-06, pero **leyendo los `import`, sin
+compilar nunca**. Al pedir un empaquetado, dime:
 
-- Si puedo **corregir el `.spec`** (`hiddenimports` incompletos, `gui.anime_windows` mal escrito).
 - **Qué hacer con `('resources/DB', 'resources/DB')`**: tal cual, tu biblioteca personal viaja
-  dentro del `.exe`.
+  dentro del `.exe`. Es el problema serio que queda.
 - La `APP_VERSION` nueva.
+- Si quieres que además quite `gui.sidebarButtons.sidebarButton`, que sigue declarado y no existe.
+
+Asumiré que el primer empaquetado hay que **verificarlo arrancando el `.exe`**, no solo compilarlo.
 
 Receta completa con checklist: [`docs/11 §6`](docs/11-playbooks.md).
 

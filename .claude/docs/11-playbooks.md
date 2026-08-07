@@ -4,7 +4,7 @@
 |---|---|
 | **Fecha** | 2026-07-30 · **Commit** `83a8448` · árbol **sucio** |
 | **Última revisión** | 2026-07-30: receta de vista nueva: aviso sobre `get_anime_image` |
-| **Cubre** | recetas operativas sobre los 18 módulos de `src/` + `MiBibliotecaAnime.spec` |
+| **Cubre** | recetas operativas sobre los 19 módulos de `src/` + `MiBibliotecaAnime.spec` |
 
 Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ sin verificar.
 
@@ -223,6 +223,15 @@ la sesión, y un **pin** al lado escribe en `DB_user.db`.
 1. Explora el sitio **antes** de escribir código: ¿HTML clásico (selectores CSS) o framework JS
    (payload embebido)? Es la decisión que determina toda la implementación
    ([05 §3 y §4](05-proveedores-y-scraping.md)).
+
+   ⚠️ **No asumas una sola respuesta para todo el sitio.** JKAnime usa las **dos** técnicas según la
+   superficie: HTML servidor en portada, búsqueda y ficha; payload JS en el directorio; JSON por
+   AJAX en los episodios ([05 §3b](05-proveedores-y-scraping.md)). Explora **cada una de las cuatro
+   superficies** que necesitan los 5 métodos, no solo la portada.
+
+   ⚠️ **Una rejilla vacía no significa que haga falta un navegador.** Antes de concluir que el sitio
+   necesita renderizado JS, busca el payload en el HTML crudo (`grep 'animes *= *{'`). Es la
+   **trampa 24**, y descartó una tarde de trabajo mal enfocado.
 2. Crea la clase con los **3 atributos obligatorios** ya en el esqueleto — sin ellos el módulo no
    importa (trampa 11).
 3. Implementa los **5 métodos**. Devuelve siempre tipos de `APIs.common.models`.
@@ -248,6 +257,13 @@ la sesión, y un **pin** al lado escribe en `DB_user.db`.
 
 5. Si los slugs de género del sitio difieren de `AnimeGenreFilter`, **traduce dentro del proveedor**
    con un diccionario privado. Quien llama siempre pasa el enum común.
+
+   ✅ Ejemplo real en `jkanime.py` (`_GENRE_TRANSLATIONS`): lista **solo las 10 excepciones** y deja
+   que un helper caiga al valor del enum para las 30 que ya coinciden. Un diccionario con los 40 se
+   desincroniza en cuanto el catálogo común crezca.
+
+   Verifica la tabla **contra los slugs reales del sitio**, no a ojo: una traducción inventada no
+   lanza ningún error, simplemente devuelve listas vacías ([09 §3d](09-verificacion-y-pruebas.md)).
 6. **Documenta el orden de `episodes`** que devuelve `get_anime_info` — afecta al corte `[:25]` de la
    ficha y a lo que se guarda en BD (trampas 4 y 8).
 7. Crea el `<Sitio>Singleton` (patrón en `animeav1.py:361-367`).
@@ -264,17 +280,30 @@ la sesión, y un **pin** al lado escribe en `DB_user.db`.
 **Checklist**
 
 - [ ] El módulo **importa** sin `NotImplementedError`.
-- [ ] Los 5 métodos verificados con el script de [09 §2](09-verificacion-y-pruebas.md).
+- [ ] Los 5 métodos verificados con el script de [09 §2](09-verificacion-y-pruebas.md) y las
+      comprobaciones de [09 §3d](09-verificacion-y-pruebas.md).
 - [ ] `get_recent_animes` y las búsquedas devuelven `synopsis/genres/episodes = None` (contrato
-      implícito de los listados).
+      implícito de los listados). *Excepción documentada*: el directorio de JKAnime **sí** trae
+      `synopsis`, porque su payload la incluye y no cuesta una petición extra.
 - [ ] `get_anime_info` rellena los tres.
 - [ ] **Orden de `episodes` anotado** (ascendente o descendente).
 - [ ] `search_*` devuelve `(lista, last_page)` con un `last_page` real.
-- [ ] Los géneros devueltos son slugs de `AnimeGenreFilter`.
+- [ ] Si una búsqueda **no pagina**, devolver `[]` para `page>1` en vez de la primera página
+      disfrazada de segunda: quien llame paginaría en bucle.
+- [ ] Los géneros devueltos son slugs de `AnimeGenreFilter`, **comprobados contra el sitio**.
+- [ ] `AnimeInfo.id` es un slug limpio, sin `/` ni `http` (si no, se duplican filas en la
+      biblioteca).
+- [ ] El póster de los listados es la **carátula del anime**, no una miniatura de episodio
+      (trampa 23).
 - [ ] **Tildes correctas** en `synopsis` y `title`.
 - [ ] Fallback probado: fuerza un fallo del por defecto y comprueba que entra el tuyo
       ([09 §4](09-verificacion-y-pruebas.md)).
+- [ ] **Posición en el registro decidida** conscientemente: es el orden del fallback.
 - [ ] `hiddenimports` actualizado.
+
+> ✅ **JKAnime (2026-08-06) es el recorrido completo de este playbook**, y el único que ha ejercitado
+> los pasos 5 (traducción de géneros) y 8 (posición en el fallback). Si vas a añadir MonosChinos2 o
+> TioAnime, lee antes [05 §3b](05-proveedores-y-scraping.md) y las trampas 23-25.
 
 ---
 
@@ -346,15 +375,17 @@ para claro y oscuro, así que `update_icon()` (`utilsButtons.py:78-80`) no cambi
 
 **Pasos**
 
-1. **Corrige `hiddenimports`** (`MiBibliotecaAnime.spec:21-36`) antes de nada:
+1. **Revisa `hiddenimports`.** ✅ El 2026-08-06 se aplicaron casi todas las correcciones que esta
+   sección venía arrastrando, al integrar JKAnime: se añadieron `APIs.animeav1.animeav1`,
+   `APIs.jkanime.jkanime`, `APIs.common.animeProviderMgr`, `APIs.common.models` y
+   `dataPersistence.userPersistence`, y se corrigió `gui.anime_windows` → `gui.anime_window`.
 
-   | Acción | Entrada |
-   |---|---|
-   | añadir | `APIs.animeav1.animeav1` |
-   | añadir | `APIs.common.animeProviderMgr` |
-   | añadir | `APIs.common.models` |
-   | **corregir** | `gui.anime_windows` → `gui.anime_window` |
-   | **eliminar** | `gui.sidebarButtons.sidebarButton` (no existe tal módulo) |
+   | Acción | Entrada | Estado |
+   |---|---|---|
+   | **eliminar** | `gui.sidebarButtons.sidebarButton` (no existe tal módulo) | ⚠️ **pendiente** |
+
+   ⚠️ **Nada de esto se ha comprobado ejecutando PyInstaller**: la lista se corrigió leyendo los
+   `import` reales, no compilando. Sigue siendo obligatorio verificar el `.exe` antes de distribuir.
 
 2. Sube `APP_VERSION` (`:3`) — determina el nombre de `dist/MiBibliotecaAnime_v<X>/`.
 3. ⚠️ **Decide qué hacer con `('resources/DB', 'resources/DB')`** (`:12`): tal cual, **empaqueta la

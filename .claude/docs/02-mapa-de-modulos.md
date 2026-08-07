@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Fecha** | 2026-07-30 · **Commit** `83a8448` · árbol **sucio** |
-| **Última revisión** | 2026-07-30: fichas de `animeav1.py` (v0.3, `_fetch`), `anime_window.py` (`show_anime_info_error`) y `utils.py` (v0.2) tras `1bfdf0f`, `94b497e` y `83a8448` |
+| **Última revisión** | 2026-08-06: ficha nueva de `jkanime.py` (v0.1) y recuento a **19 módulos reales** |
 | **Cubre** | los 34 ficheros `.py` de `src/` (18 con contenido + 16 `__init__.py` vacíos) |
 
 Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ sin verificar.
@@ -19,13 +19,14 @@ Todas las líneas citadas corresponden al **árbol de trabajo actual**, no al ú
 | `src/APIs/common/models.py` | 93 | dominio |
 | `src/APIs/common/animeProviderMgr.py` | 415 | dominio |
 | `src/APIs/animeav1/animeav1.py` | 366 | infraestructura |
+| `src/APIs/jkanime/jkanime.py` | 531 | infraestructura |
 | `src/APIs/animeflv/animeflv.py` | 245 | infraestructura |
 | `src/dataPersistence/animesPersistence.py` | 553 | dominio/datos |
 | `src/dataPersistence/userPersistence.py` | 251 | dominio/datos |
 | `src/utils/db/sqlite.py` | 446 | infraestructura |
 | `src/utils/utils.py` | 198 | infraestructura |
 | `src/utils/buttons/utilsButtons.py` | 197 | GUI |
-| `src/gui/main_window.py` | 394 | GUI |
+| `src/gui/main_window.py` | 483 | GUI |
 | `src/gui/anime_window.py` | 699 | GUI |
 | `src/gui/sidebarButtons/recentAnimes/recentAnimes.py` | 110 | GUI |
 | `src/gui/sidebarButtons/favouriteAnimes/favouriteAnimes.py` | 142 | GUI |
@@ -35,11 +36,12 @@ Todas las líneas citadas corresponden al **árbol de trabajo actual**, no al ú
 | `src/gui/sidebarButtons/searchAnimes/searchAnimes.py` | 348 | GUI |
 | `src/gui/sidebarButtons/watchingAnimes/__init__.py` | 2 | **código muerto** |
 
-Los otros 16 `__init__.py` están **vacíos** (0 bytes) y solo marcan paquete.
+Los otros 17 `__init__.py` están **vacíos** (0 bytes) y solo marcan paquete.
 
-> Recuentos actualizados el 2026-07-30 tras la tarea del selector de proveedor
-> ([13](13-selector-de-proveedor.md)), que añade `userPersistence.py` y toca 9 módulos más.
-> **18 módulos reales** (antes 17).
+> Recuentos actualizados el 2026-08-06 tras integrar **JKAnime**, que añade `jkanime.py` y su
+> `__init__.py` vacío y toca `main_window.py`. **19 módulos reales** (antes 18).
+> El salto anterior, de 17 a 18, lo trajo el selector de proveedor
+> ([13](13-selector-de-proveedor.md)) con `userPersistence.py`.
 
 ---
 
@@ -176,6 +178,46 @@ a `requests.get`**; fuerza UTF-8 cuando el sitio no declara charset. Los 5 méto
 
 **Salientes**: `utils.utils.removeprefix` (`:24`), `APIs.common.*`.
 ✅ Verificado: los 5 métodos funcionan. Detalle del payload en [05 §2](05-proveedores-y-scraping.md).
+
+---
+
+## `src/APIs/jkanime/jkanime.py` — segundo del fallback *(nuevo el 2026-08-06)*
+
+**Responsabilidad**: scraping de `jkanime.net` (Laravel). **v0.1**.
+**Constantes**: `BASE_URL` `:37`, `SEARCH_URL=/buscar` `:38`, `DIRECTORY_URL=/directorio` `:39`,
+`EPISODES_AJAX_URL=/ajax/episodes` `:40`, `SEARCH_MAX_RESULTS=30` `:50`,
+`_GENRE_TRANSLATIONS` `:55` (10 excepciones), `_ORDER_TRANSLATIONS` `:72`.
+
+**Helper de módulo**: `_fetch(url, session=None, **kwargs)` `:82-99`. Añade el User-Agent de
+navegador —sin él el sitio responde de forma inconsistente— y acepta una `Session` para las
+llamadas que necesitan conservar cookies.
+
+| Método público | Línea | Efecto de red |
+|---|---|---|
+| `search_animes_by_genres_and_order` | `:107-168` | `GET /directorio?genero=…&filtro=…&orden=…&p=N` |
+| `search_animes_by_query` | `:170-206` | `GET /buscar/<query>` |
+| `get_anime_episode_servers` | `:208-251` | `GET /<slug>/<n>` |
+| `get_recent_animes` | `:253-300` | `GET /` |
+| `get_anime_info` | `:302-356` | **2 peticiones**: `GET /<slug>` + `POST /ajax/episodes/<id>/` |
+
+**Helpers privados**: `__translate_genre` `:359` · `__slug_from_url` `:364` ·
+`__parse_anime_cards` `:379` · `__extract_directory_payload` `:415` · `__parse_directory_entry`
+`:458` · `__extract_genres` `:472` · `__get_episodes` `:487`. Singleton `:525-531`.
+
+**Salientes**: solo `APIs.common.*`. No depende de `utils.utils`.
+
+Tres cosas que lo separan de los otros dos proveedores:
+
+- **Mezcla las dos técnicas de parseo** según la superficie (CSS en portada/búsqueda/ficha,
+  payload JS en directorio, JSON en episodios). Ver [05 §3b](05-proveedores-y-scraping.md) antes
+  de tocar nada.
+- **Es el único que abre una `Session`**, y solo en `get_anime_info`: el `POST` de episodios
+  necesita cookies y token CSRF. Se crea una por llamada en vez de compartir una del módulo,
+  porque las peticiones salen desde hilos daemon distintos.
+- **Es el único que traduce géneros** (10 de 40).
+
+✅ Verificado el 2026-08-06: 50/50 comprobaciones sobre el sitio real, más 12/12 de registro y
+fallback ([09 §3d](09-verificacion-y-pruebas.md)).
 
 ---
 

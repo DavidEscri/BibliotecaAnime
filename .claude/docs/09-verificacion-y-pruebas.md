@@ -246,6 +246,57 @@ nueva `CONFIG`, BD desde cero, idempotencia y rollback ante SQL inválido.
 
 ---
 
+## 3d. Verificar un proveedor nuevo contra el sitio real *(2026-08-06)*
+
+Un proveedor no toca la BD, así que aquí **sí se ejecuta contra la red**. Sé educado: peticiones en
+serie y `time.sleep(1.5)` entre ellas ([README §4](README.md)).
+
+El patrón que se usó para JKAnime — un `check(nombre, condición, detalle)` que cuenta aciertos y
+acumula fallos, en vez de `assert`, para que una comprobación rota no oculte las 40 siguientes:
+
+```python
+import sys, time
+sys.path.insert(0, r"D:\Proyectos Python\BibliotecaAnime\src")
+from APIs.common.models import AnimeGenreFilter, AnimeInfo, AnimeOrderFilter
+from APIs.jkanime.jkanime import JKAnimeSingleton
+
+ok, fallos = 0, []
+def check(nombre, condicion, detalle=""):
+    global ok
+    if condicion: ok += 1;            print(f"  OK   {nombre} {detalle}")
+    else:         fallos.append(nombre); print(f"  FALLO {nombre} {detalle}")
+
+p = JKAnimeSingleton()
+check("no quedan metodos abstractos", not getattr(type(p), "__abstractmethods__", None))
+info = p.get_anime_info("hunter-x-hunter-2011")
+check("episodios", len(info.episodes or []) == 148, f"({len(info.episodes or [])})")
+```
+
+**Qué comprobar siempre**, más allá de «devuelve algo»:
+
+| Comprobación | Por qué |
+|---|---|
+| Los 40 `AnimeGenreFilter` traducen a un slug **que existe en el sitio** | Una traducción inventada devuelve listas vacías en silencio |
+| `AnimeInfo.id` es un slug, **sin `/` ni `http`** | Si se cuela una URL entera, se duplican filas en la biblioteca |
+| El póster es el del **anime**, no una miniatura de episodio | Ver trampa 23 |
+| **Orden** de `episodes` y numeración 1…N | Afecta al corte `[:25]` y a lo que se guarda en BD |
+| Página 2 ≠ página 1 (comparando ids, no longitudes) | Un paginador roto suele devolver la misma página |
+| Anime y episodio **inexistentes** → `None` / `[]` | El manager trata la excepción como «probar el siguiente» |
+| Los ids reservados (`directorio`, `buscar`, `top`…) no aparecen como animes | Los sitios enlazan sus propias secciones desde las rejillas |
+
+⚠️ **Cuidado con las aserciones de orden alfabético.** Los sitios ordenan con la colación de su base
+de datos, no con la de Python: exigir `titulos == sorted(titulos, key=str.lower)` dio un **falso
+fallo** con JKAnime porque coloca la puntuación inicial en otro sitio. Comprobar la propiedad que
+importa (que sea ascendente), no la igualdad exacta.
+
+✅ **Resultados del 2026-08-06** (`scratchpad/jkanime/`): **50/50** en `verificar_proveedor.py`
+(contrato, géneros, los 5 métodos y casos límite) y **12/12** en `verificar_registro.py` (registro
+de los 3 proveedores, orden del fallback, `set_default` y datos reales a través del manager).
+
+Encontró un fallo real: `filtro=nombre` ordenaba de la Z a la A por faltarle `orden=asc`.
+
+---
+
 ## 4. Probar el fallback de proveedores (sin red)
 
 Proveedores falsos: uno que explota, uno que devuelve vacío y uno que devuelve datos.
@@ -410,6 +461,18 @@ Sin tests automáticos, esto es lo que hay. Marca lo que compruebes.
 - [ ] Light / Dark / System cambian el aspecto.
 - [ ] ⚠️ Arrancando en modo oscuro, el texto de la sidebar nace **negro** hasta que se cambia a mano
       (TODO en `utilsButtons.py:56`).
+
+### Proveedor JKAnime *(2026-08-06)*
+
+- [ ] El desplegable de la sidebar ofrece **tres** proveedores: AnimeAV1, JKAnime y AnimeFLV.
+- [ ] Al elegir **JKAnime**, la portada se recarga con sus animes recientes y **los pósters son
+      carátulas, no fotogramas de episodio** (trampa 23).
+- [ ] Abrir una ficha desde ahí: sinopsis, géneros y lista de episodios rellenos, y la etiqueta
+      «Proveedor» de la ficha dice **JKAnime**.
+- [ ] En esa ficha, un episodio ofrece servidores de vídeo con **nombres reales** (Desu, Magi…),
+      no «Opción 1».
+- [ ] Buscar algo desde la lupa con JKAnime activo: salen resultados y **no aparece paginación**
+      más allá de la primera página.
 
 ### Selector de proveedor y pin *(2026-07-30, reformado el 2026-08-06, [13](13-selector-de-proveedor.md))*
 

@@ -4,12 +4,12 @@
 |---|---|
 | **Fecha** | 2026-08-06 |
 | **Commit** | `fd53056` |
-| **Árbol de trabajo** | **sucio** — cambios del pin sin commitear (`main_window.py`, `anime_window.py`, `userPersistence.py`) + 8 PNG sin trackear (ver [12-deuda-tecnica-y-roadmap.md](12-deuda-tecnica-y-roadmap.md)) |
-| **Última revisión** | 2026-07-30 — bugs A4, A5, B1 y B5 resueltos (`1bfdf0f`, `94b497e`, `83a8448`); trampas 10, 14, 15 y 16 marcadas como resueltas y **todas** las citas `fichero:línea` de `animeav1.py` y `anime_window.py` reubicadas |
-| **Último cambio** | ✅ 2026-08-06 — **el pin de proveedor predeterminado** ([13 §12](13-selector-de-proveedor.md)): cambiar el desplegable ya no persiste nada, fijar es el pin, y el selector de la ficha pasa a **etiqueta informativa**. Cierra el tema del selector |
-| **Siguiente tarea** | 🔴 **Integrar un proveedor nuevo** (JKAnime, MonosChinos2 o TioAnime) → [11 §3](11-playbooks.md). Después, la columna `provider_id` en `ANIMES` → **[13 §8](13-selector-de-proveedor.md)** |
-| **Cubre ahora** | **18 módulos reales** (antes 17) |
-| **Cubre** | los **34 ficheros `.py`** de `src/`: 17 módulos reales + 17 `__init__.py` (16 vacíos y 1 con un stub muerto) |
+| **Árbol de trabajo** | **sucio** — **dos tareas completas sin commitear**: el pin de proveedor y la integración de JKAnime (`jkanime.py` nuevo, `main_window.py`, `anime_window.py`, `userPersistence.py`, `.spec`) + 8 PNG sin trackear (ver [12 §1](12-deuda-tecnica-y-roadmap.md)) |
+| **Última revisión** | 2026-08-06 — **JKAnime integrado**: [05 §3b](05-proveedores-y-scraping.md) nuevo, ficha de módulo en [02](02-mapa-de-modulos.md), trampas **23-25**, [09 §3d](09-verificacion-y-pruebas.md) y el roadmap de [12](12-deuda-tecnica-y-roadmap.md) avanzado |
+| **Último cambio** | ✅ 2026-08-06 — **JKAnime como tercer proveedor**, registrado entre AnimeAV1 y AnimeFLV. 50/50 comprobaciones sobre el sitio real. Cierra el punto 1 del roadmap y mitiga **R2** |
+| **Siguiente tarea** | 🔴 **Columna `provider_id` en `ANIMES`** → **[13 §8](13-selector-de-proveedor.md)**. Su requisito previo (un segundo proveedor sano) ya se cumple |
+| **Cubre ahora** | **19 módulos reales** (antes 18) |
+| **Cubre** | los **36 ficheros `.py`** de `src/`: 19 módulos reales + 18 `__init__.py` (17 vacíos y 1 con un stub muerto) |
 
 `.claude/CLAUDE.md` es el **resumen de entrada** (qué es el proyecto, comandos, arquitectura en una
 página). Esta carpeta es la **profundidad**: lo que hay que saber antes de tocar algo frágil.
@@ -42,7 +42,7 @@ Toda afirmación de comportamiento va marcada:
 | [07-concurrencia-e-hilos.md](07-concurrencia-e-hilos.md) | Qué corre en qué hilo, reglas y carreras conocidas |
 | [08-convenciones-y-estilo.md](08-convenciones-y-estilo.md) | Cabecera obligatoria, idioma, singletons + **plantillas copiables** |
 | [09-verificacion-y-pruebas.md](09-verificacion-y-pruebas.md) | Cómo arrancar y probar; scripts listos para pegar; checklist manual |
-| [10-invariantes-y-trampas.md](10-invariantes-y-trampas.md) | **Lee esto siempre.** 20 trampas con síntoma observable |
+| [10-invariantes-y-trampas.md](10-invariantes-y-trampas.md) | **Lee esto siempre.** 25 trampas con síntoma observable |
 | [11-playbooks.md](11-playbooks.md) | Recetas paso a paso con ficheros exactos y checklist |
 | [12-deuda-tecnica-y-roadmap.md](12-deuda-tecnica-y-roadmap.md) | TODOs con `fichero:línea`, discrepancias, riesgos, roadmap técnico |
 | [13-selector-de-proveedor.md](13-selector-de-proveedor.md) | Selector de proveedor y `DB_user.db`: decisiones de diseño, qué quedó fuera y **qué está verificado y qué no** |
@@ -54,8 +54,10 @@ Toda afirmación de comportamiento va marcada:
 | Vas a tocar… | Lee, en este orden |
 |---|---|
 | **Cualquier cosa** | [10-invariantes-y-trampas.md](10-invariantes-y-trampas.md) — 10 minutos que te ahorran un día |
+| Elegir a qué sitio pedir datos | [05 §2](05-proveedores-y-scraping.md) (tabla comparativa de los 3) → [05 §5](05-proveedores-y-scraping.md) |
 | Un proveedor de anime (`APIs/`) | [05](05-proveedores-y-scraping.md) → [01](01-arquitectura.md) → trampas 11-14, 20 |
-| Añadir un proveedor nuevo | [11 §3](11-playbooks.md) → [05](05-proveedores-y-scraping.md) → [08](08-convenciones-y-estilo.md) |
+| **JKAnime en concreto** | [05 §3b](05-proveedores-y-scraping.md) → trampas **23, 24 y 25** → [02](02-mapa-de-modulos.md) |
+| Añadir un proveedor nuevo | [11 §3](11-playbooks.md) → [05 §3b](05-proveedores-y-scraping.md) (el ejemplo trabajado) → [08](08-convenciones-y-estilo.md) → [09 §3d](09-verificacion-y-pruebas.md) |
 | **Elegir/cambiar de proveedor, preferencias de usuario** | [13](13-selector-de-proveedor.md) → [05](05-proveedores-y-scraping.md) → [04 §3](04-modelo-de-datos.md) |
 | La base de datos / un campo nuevo | [04](04-modelo-de-datos.md) → [11 §2 y §4](11-playbooks.md) → trampas 1-6 |
 | Episodios vistos / estados | [04](04-modelo-de-datos.md) → [03 §4 y §5](03-flujos-de-ejecucion.md) → trampas 3-7 |

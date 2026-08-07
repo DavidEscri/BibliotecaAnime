@@ -2,9 +2,9 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-07-30 · **Commit** `83a8448` · árbol **sucio** (TODOs sin commitear en `main_window.py`, `recentAnimes.py`, `utilsButtons.py`) |
-| **Cubre** | los 18 módulos con contenido de `src/` + `MiBibliotecaAnime.spec` + `requirements.txt` |
-| **Última revisión** | 2026-07-30: trampas **10**, **14**, **15** y **16** resueltas; citas `fichero:línea` reubicadas tras los commits `1bfdf0f`, `94b497e` y `83a8448` |
+| **Fecha** | 2026-08-06 · **Commit** `fd53056` · árbol **sucio** |
+| **Cubre** | los 19 módulos con contenido de `src/` + `MiBibliotecaAnime.spec` + `requirements.txt` |
+| **Última revisión** | 2026-08-06: **trampas 23, 24 y 25** (JKAnime), en una sección nueva de proveedores concretos |
 
 Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ sin verificar.
 
@@ -363,17 +363,24 @@ directorio que no corresponda a un anime de la lista recibida.
 
 ### 18. Trampas de empaquetado y de entorno
 
-**a) `MiBibliotecaAnime.spec` está desactualizado** 📖 (`:21-36`):
+**a) ~~`MiBibliotecaAnime.spec` está desactualizado~~** — 🚧 **casi resuelto (2026-08-06)** 📖:
 
-| Problema | Línea |
+| Problema | Estado |
 |---|---|
-| Falta `APIs.animeav1.animeav1` | — |
-| Falta `APIs.common.animeProviderMgr` | — |
-| Falta `APIs.common.models` | — |
-| Declara `gui.anime_windows` (el módulo real es `gui.anime_window`) | `:31` |
-| Declara `gui.sidebarButtons.sidebarButton` (**no existe** tal módulo) | `:30` |
+| Faltaba `APIs.animeav1.animeav1` | ✅ añadido |
+| Faltaba `APIs.common.animeProviderMgr` | ✅ añadido |
+| Faltaba `APIs.common.models` | ✅ añadido |
+| Faltaba `dataPersistence.userPersistence` | ✅ añadido |
+| Faltaba `APIs.jkanime.jkanime` | ✅ añadido con el proveedor |
+| Declaraba `gui.anime_windows` (el módulo real es `gui.anime_window`) | ✅ corregido |
+| Declara `gui.sidebarButtons.sidebarButton` (**no existe** tal módulo) | ⚠️ **pendiente** |
 
 **Síntoma**: `ModuleNotFoundError` al arrancar el `.exe`, no al compilar.
+
+⚠️ **La corrección no se verificó compilando**: se hizo leyendo los `import` reales. Sigue siendo
+obligatorio arrancar el `.exe` antes de distribuir. Y el problema **grave** del `.spec` no es este,
+sino que `datas` empaqueta `resources/DB` ([12 §4 → A3](12-deuda-tecnica-y-roadmap.md)); eso **no se
+ha tocado**.
 
 **b) `attrs` no declarada** — ✅ **RESUELTO (2026-07-28)**:
 
@@ -488,6 +495,69 @@ Re-verificado por captura ese día: la sinopsis sigue ocupando el ancho completo
 
 **Invariante vivo**: mientras el `wraplength` siga siendo un número calculado a mano, la fila 0 de la
 ficha es el único sitio seguro para meter controles a la derecha.
+
+---
+
+## Proveedores concretos
+
+### 23. En JKAnime, el `<img>` de la portada lleva **dos** imágenes ✅
+
+Las tarjetas de la portada (`div.card`) son de **episodio**, no de anime, y su `<img>` trae dos
+rutas distintas:
+
+| Atributo | Contenido |
+|---|---|
+| `src` | captura del episodio (`.../animes/video/image/jkvideo_*.jpg`) |
+| `data-animepic` | **póster del anime** (`.../animes/image/<slug>.jpg`) |
+
+Leer `src`, que es lo que haría cualquiera copiando el patrón de los otros dos proveedores, llena la
+biblioteca de **fotogramas sueltos** en vez de carátulas.
+
+**Síntoma**: los animes recientes se ven con imágenes borrosas y apaisadas, distintas cada vez que
+sale un episodio nuevo, y el póster cambia solo al recargar. Ningún error por consola.
+
+📖 `jkanime.py` lo resuelve con `img_el.get("data-animepic") or img_el.get("src", "")`. En la
+**búsqueda** el problema es otro: ahí el póster no está en un `<img>` sino en el atributo
+`data-setbg` de `.anime__item__pic`.
+
+**Invariante**: al añadir un proveedor, comprobar de dónde sale el póster de un listado **mirando la
+URL resultante**, no solo que la imagen no esté vacía.
+
+### 24. Las rejillas vacías de JKAnime no significan «hace falta renderizar JS» ✅
+
+Los tres `div.row.page_directorio` del directorio llegan **vacíos** en el HTML. La conclusión
+intuitiva —que hay que renderizar JavaScript o encontrar un endpoint AJAX— es **falsa**, y cuesta
+horas comprobarlo: `/ajax/directorio`, `/ajax/filtros`, `/ajax/filter` y `/ajax/animes` devuelven
+404 o 405.
+
+El servidor **ya incrusta el listado completo** en un `<script>` de la propia página, como una
+variable `animes = {…}` que jQuery se limita a pintar. El dato está en el HTML que devuelve
+`requests`; solo hay que recortarlo contando llaves ([05 §3b](05-proveedores-y-scraping.md)).
+
+**Síntoma de haber caído en la trampa**: se concluye que el proveedor necesita un navegador y se
+descarta o se degrada `search_animes_by_genres_and_order` sin motivo.
+
+**Invariante**: ante una rejilla vacía, buscar primero el payload en el HTML crudo —
+`grep 'animes *= *{'` — antes de asumir que el contenido llega por red.
+
+### 25. En JKAnime, el slug y el id numérico no son intercambiables ✅
+
+Un anime tiene **dos identificadores**: el *slug* (`hunter-x-hunter-2011`), que es el que viaja en
+las URL y en `AnimeInfo.id`, y un **id numérico interno** (`429`) que solo sirve para
+`POST /ajax/episodes/<id>/`. El numérico **no aparece en ninguna URL navegable**: hay que sacarlo
+del HTML de la ficha.
+
+Esa llamada además exige token CSRF (`<meta name="csrf-token">`) y cookies de sesión, o Laravel
+responde **419**.
+
+**Síntoma**: fichas que se abren con título, sinopsis, géneros y póster correctos pero con **cero
+episodios**, sin más aviso que un `print`.
+
+📖 `get_anime_info` devuelve la ficha igualmente en ese caso, con `episodes=[]`, en vez de perder
+también lo que sí se leyó. Es deliberado: [05 §3b](05-proveedores-y-scraping.md).
+
+Es la misma clase de confusión que la **trampa 21**, pero dentro de un proveedor en vez de en la
+ficha de detalle.
 
 ---
 

@@ -18,7 +18,7 @@ internamente lo pedido usando [`.claude/COMO-PEDIR-TAREAS.md`](COMO-PEDIR-TAREAS
    primero que hay que aclarar, y lo que más cambia el tamaño del trabajo.
 3. **Ficheros exactos y frontera de alcance.** Las 4 vistas de estado son casi idénticas línea por
    línea: decide si la tarea afecta a una o a las cuatro.
-4. **¿Es una trampa conocida?** Coteja con `docs/10-invariantes-y-trampas.md` (20 trampas con su
+4. **¿Es una trampa conocida?** Coteja con `docs/10-invariantes-y-trampas.md` (25 trampas con su
    síntoma) **antes** de investigar desde cero.
 5. **Nivel de verificación** — ejecutar la GUI · script en el scratchpad · solo lectura. No hay
    tests: si no se ejecuta, se entrega marcado como no verificado.
@@ -76,7 +76,7 @@ El código de la GUI **nunca** habla con un sitio concreto. Todo pasa por tres p
 |---|---|
 | `APIs/common/models.py` | **Única fuente de verdad** de los tipos de dominio: `AnimeInfo`, `EpisodeInfo`, `ServerInfo` (dataclasses) y `AnimeGenreFilter`, `AnimeOrderFilter` (enums). Ningún proveedor redefine estos tipos. |
 | `APIs/common/animeProviderMgr.py` | `AnimeProvider` (ABC con el contrato) + `AnimeProviderManager` (registro, selección y *fallback*). |
-| `APIs/animeflv/`, `APIs/animeav1/` | Implementaciones concretas. |
+| `APIs/animeav1/`, `APIs/jkanime/`, `APIs/animeflv/` | Implementaciones concretas. |
 
 **Contrato de `AnimeProvider`** — cinco métodos abstractos: `get_recent_animes`, `get_anime_info`,
 `search_animes_by_query`, `search_animes_by_genres_and_order`, `get_anime_episode_servers`. Toda subclase concreta debe
@@ -91,12 +91,17 @@ siempre pasa el enum común.
 vacío**, va probando el resto en orden de registro. `strict=True` desactiva el fallback. Nunca propaga excepciones: los
 wrappers devuelven `[]`, `None` o `([], 1)`.
 
-Registro actual (en `MainWindow.__init__`): **AnimeAV1 es el proveedor por defecto**, AnimeFLV el fallback.
+Registro actual (en `MainWindow.__init__`): **AnimeAV1 es el proveedor por defecto**. El **orden de
+registro es el orden del fallback**, y desde el 2026-08-06 hay tres:
 
 ```python
 self.anime_provider_mgr.register(AnimeAV1Singleton(), default=True)
+self.anime_provider_mgr.register(JKAnimeSingleton())    # 2026-08-06
 self.anime_provider_mgr.register(AnimeFLVSingleton())
 ```
+
+**JKAnime va en medio a propósito**: hasta entonces el fallback tenía una sola parada y estaba en
+desuso, así que en la práctica no existía.
 
 Ese predeterminado **lo puede cambiar el usuario**, y desde el 2026-08-06 son **dos gestos distintos**
 en la sidebar:
@@ -113,12 +118,24 @@ manager pero **sin llamantes en la GUI**; vuelve con la columna `provider_id`. D
 orden de prioridad decidido: [`docs/13`](docs/13-selector-de-proveedor.md).
 
 **Añadir un proveedor nuevo**: heredar de `AnimeProvider` en `APIs/<sitio>/`, implementar los 5 métodos devolviendo
-tipos de `APIs.common.models`, crear su `...Singleton` y registrarlo en `MainWindow`.
+tipos de `APIs.common.models`, crear su `...Singleton` y registrarlo en `MainWindow`. El recorrido completo, con el
+caso real de JKAnime, en [`docs/11 §3`](docs/11-playbooks.md).
 
-Diferencia relevante entre los dos proveedores actuales: AnimeFLV se parsea con selectores CSS clásicos; **AnimeAV1 es
-SvelteKit**, así que `animeav1.py` extrae con regex el payload de hidratación del `<script>` que contiene
-`kit.start(app, element, {` y usa el DOM solo como *fallback*. Si AnimeAV1 empieza a devolver campos vacíos, el
-sospechoso es ese payload, no los selectores.
+**Cómo se parsea cada sitio** — no hay una sola respuesta, y equivocarse cuesta horas mirando el DOM que no es:
+
+| Proveedor | Técnica |
+|---|---|
+| AnimeFLV | selectores CSS clásicos |
+| **AnimeAV1** | **SvelteKit**: `animeav1.py` extrae con regex el payload de hidratación del `<script>` que contiene `kit.start(app, element, {`, y usa el DOM solo como *fallback* |
+| **JKAnime** | **las dos a la vez**, según la superficie: CSS en portada, búsqueda y ficha; **payload JS incrustado** en el directorio; **JSON con CSRF** en los episodios |
+
+Si AnimeAV1 empieza a devolver campos vacíos, el sospechoso es ese payload, no los selectores. En JKAnime la regla
+depende de qué falle: ver la tabla de [`docs/05 §3b`](docs/05-proveedores-y-scraping.md).
+
+⚠️ Tres trampas propias de JKAnime, todas con síntoma silencioso: el `<img>` de la portada lleva **dos** imágenes
+(`data-animepic` es el póster; `src`, un fotograma), las rejillas vacías del directorio **no** significan que haga
+falta renderizar JS, y el *slug* y el **id numérico interno** no son intercambiables. Son las
+[trampas 23, 24 y 25](docs/10-invariantes-y-trampas.md).
 
 ### 2. Persistencia (`src/dataPersistence/animesPersistence.py` + `src/utils/db/sqlite.py`)
 
@@ -236,9 +253,10 @@ red, y en esa rama pasa `size=` explícito — sin él `CTkImage` pinta a 20×20
 
 ## Notas de mantenimiento
 
-- **`MiBibliotecaAnime.spec` está desactualizado**: su lista `hiddenimports` no incluye `APIs.animeav1.animeav1`,
-  `APIs.common.animeProviderMgr` ni `APIs.common.models`, y declara `gui.anime_windows` (el módulo real es
-  `gui.anime_window`). Revísalo antes de empaquetar y al añadir módulos o carpetas de `resources/` (sección `datas`).
+- **`MiBibliotecaAnime.spec`**: `hiddenimports` se corrigió y completó el 2026-08-06 (se añadieron los tres proveedores
+  y los dos módulos de `APIs.common`, y se arregló `gui.anime_windows` → `gui.anime_window`). ⚠️ **Sin verificar
+  compilando**: la lista se corrigió leyendo los `import` reales. Queda por quitar `gui.sidebarButtons.sidebarButton`,
+  que no existe. Revísalo antes de empaquetar y al añadir módulos o carpetas de `resources/` (sección `datas`).
 - La versión de la app vive en `APP_VERSION` dentro del `.spec`.
 - `resources/DB/` y las carpetas de pósters están en `.gitignore`: se generan en tiempo de ejecución.
 - Hay `# TODO:` en el código que marcan trabajo en curso: `main_window.py` (renombrado de botones),
@@ -258,17 +276,18 @@ red, y en esa rama pasa `size=` explícito — sin él `CTkImage` pinta a 20×20
 
 ## Roadmap
 
-**El orden lo fijó el usuario el 2026-07-30 y no se reinterpreta. Su punto 1 —separar «usar ahora» de
-«fijar como predeterminado»— se cerró el 2026-08-06 con el pin, así que la lista avanza.**
+**El orden lo fijó el usuario el 2026-07-30 y no se reinterpreta. Sus dos primeros puntos ya están
+cerrados —el pin y la integración de un proveedor nuevo, ambos el 2026-08-06—, así que la lista
+avanza.**
 
-1. 🔴 **Integrar un proveedor nuevo** (JKAnime, MonosChinos2, TioAnime). AnimeAV1 es el único
-   operativo, y sin un segundo proveedor sano no se puede verificar de verdad la resolución *cross-provider*
-   ([`docs/12 §6`](docs/12-deuda-tecnica-y-roadmap.md)).
+1. ✅ ~~**Integrar un proveedor nuevo**~~ — **hecho el 2026-08-06 con JKAnime**. Validó que la
+   abstracción aguanta sin tocarla: fue el primero que necesitó traducir géneros y el primero que
+   mezcla dos técnicas de parseo. Quedan MonosChinos2 y TioAnime, ya sin urgencia.
 2. 🔴 **Columna `provider_id` en `ANIMES`** — que cada anime guardado recuerde qué proveedor lo sirvió.
-   Ha subido de prioridad: desde que la ficha no tiene selector, es lo que hace que desviarse de
-   proveedor valga también para los animes ya guardados. El orden de prioridad ya está decidido en
-   [`docs/13 §8`](docs/13-selector-de-proveedor.md). Va **después** del punto 1: sin un segundo
-   proveedor sano no se puede probar.
+   **La siguiente, y ya desbloqueada**: su requisito previo era un segundo proveedor sano con el que
+   probar, y ahora existe. Es lo que hace que desviarse de proveedor valga también para los animes ya
+   guardados, y donde vuelve a usarse `resolve_anime_in_provider()`. El orden de prioridad ya está
+   decidido en [`docs/13 §8`](docs/13-selector-de-proveedor.md).
 
 Después, sin orden fijado:
 
@@ -297,7 +316,7 @@ Guía de colaboración (cómo plantear una tarea en este repo, qué asumo por de
 cambian mi comportamiento): [`.claude/COMO-PEDIR-TAREAS.md`](COMO-PEDIR-TAREAS.md).
 
 **Antes de tocar cualquier cosa, lee [`docs/10-invariantes-y-trampas.md`](docs/10-invariantes-y-trampas.md)**
-— 20 trampas con su síntoma observable.
+— 25 trampas con su síntoma observable.
 
 | Documento | Qué responde |
 |---|---|
@@ -311,7 +330,7 @@ cambian mi comportamiento): [`.claude/COMO-PEDIR-TAREAS.md`](COMO-PEDIR-TAREAS.m
 | [docs/07-concurrencia-e-hilos.md](docs/07-concurrencia-e-hilos.md) | Qué corre en qué hilo, reglas y carreras conocidas |
 | [docs/08-convenciones-y-estilo.md](docs/08-convenciones-y-estilo.md) | Cabecera obligatoria, singletons, **plantillas copiables** |
 | [docs/09-verificacion-y-pruebas.md](docs/09-verificacion-y-pruebas.md) | Cómo probar cada capa sin GUI; scripts listos; checklist manual |
-| [docs/10-invariantes-y-trampas.md](docs/10-invariantes-y-trampas.md) | **Empieza por aquí.** 20 trampas con síntoma observable |
+| [docs/10-invariantes-y-trampas.md](docs/10-invariantes-y-trampas.md) | **Empieza por aquí.** 25 trampas con síntoma observable |
 | [docs/11-playbooks.md](docs/11-playbooks.md) | Recetas: añadir vista, columna, proveedor, campo; empaquetar |
 | [docs/12-deuda-tecnica-y-roadmap.md](docs/12-deuda-tecnica-y-roadmap.md) | TODOs con `fichero:línea`, discrepancias, riesgos, roadmap técnico |
 | [docs/13-selector-de-proveedor.md](docs/13-selector-de-proveedor.md) | Selector de proveedor (sidebar + ficha) y `DB_user.db`. **Léelo antes de tocar `animeProviderMgr.py`, `main_window.py` o `anime_window.py`** |

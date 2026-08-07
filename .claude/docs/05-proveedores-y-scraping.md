@@ -2,9 +2,9 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-07-30 · **Commit** `83a8448` · árbol **sucio** |
-| **Última revisión** | 2026-07-30: §7 reescrito: el bug de codificación está resuelto (`_fetch`, `94b497e`) |
-| **Cubre** | `src/APIs/common/animeProviderMgr.py`, `src/APIs/common/models.py`, `src/APIs/animeav1/animeav1.py`, `src/APIs/animeflv/animeflv.py` |
+| **Fecha** | 2026-08-06 · **Commit** `fd53056` · árbol **sucio** |
+| **Última revisión** | 2026-08-06: **JKAnime integrado** como tercer proveedor (§3b). Tabla comparativa a 3 columnas y §2 con la primera traducción de géneros real del proyecto |
+| **Cubre** | `src/APIs/common/animeProviderMgr.py`, `src/APIs/common/models.py`, `src/APIs/animeav1/animeav1.py`, `src/APIs/animeflv/animeflv.py`, `src/APIs/jkanime/jkanime.py` |
 
 Procedencia: ✅ verificado en ejecución contra los sitios reales el 2026-07-28 · 📖 leído en código ·
 ⚠️ sin verificar.
@@ -62,29 +62,37 @@ NotImplementedError: Incompleto debe definir el atributo de clase 'PROVIDER_ID'
 
 ## 2. Tabla comparativa
 
-✅ Todo verificado el 2026-07-28.
+✅ AnimeAV1 y AnimeFLV verificados el 2026-07-28; **JKAnime el 2026-08-06** (50/50 comprobaciones,
+[09 §3d](09-verificacion-y-pruebas.md)).
 
-| | **AnimeAV1** (por defecto) | **AnimeFLV** (fallback) |
-|---|---|---|
-| `PROVIDER_ID` | `animeav1` | `animeflv` |
-| `BASE_URL` | `https://animeav1.com` | `https://www3.animeflv.net` |
-| Tecnología del sitio | **SvelteKit** (payload de hidratación) | HTML clásico |
-| Técnica de parseo | **regex sobre el payload JS** + DOM como fallback | selectores CSS |
-| Formato de `anime_id` | slug: `one-piece` | slug: `one-piece-tv` |
-| `get_recent_animes` | ✅ 20 resultados | ✅ 24 resultados |
-| `get_anime_info` | ✅ 1171 eps, 4 géneros | ✅ 1167 eps, 7 géneros |
-| **Orden de `episodes`** | ✅ **ascendente** 1…N (`:227`) | ✅ **descendente** N…1 (`:222-223`) |
-| `search_animes_by_query("naruto")` | ✅ 19 res., `last_page=1` | ✅ 12 res., `last_page=1` |
-| `search_..._by_genres_and_order` | ✅ 20 res., `last_page=50` | ✅ 24 res., `last_page=79` |
-| `get_anime_episode_servers` | ✅ 5 servidores | ❌ **`[]`** |
-| Orden `ALFABÉTICAMENTE` | cliente, `sorted(title.lower())` (`:350-351`) | servidor, `&order=title` |
-| Orden `CALIFICACIÓN` | ⚠️ **no soportado**, avisa y devuelve el orden del sitio (`:352-357`) | servidor, `&order=rating` |
-| Reintentos en `get_anime_info` | 3, timeout 5 s, `sleep(1)` (`:184-241`) | 3, timeout 2 s, `sleep(1)` (`:186-233`) |
-| Estado general | **operativo** | **caído / en desuso** (confirmado por el usuario) |
+| | **AnimeAV1** (por defecto) | **JKAnime** | **AnimeFLV** |
+|---|---|---|---|
+| `PROVIDER_ID` | `animeav1` | `jkanime` | `animeflv` |
+| `BASE_URL` | `https://animeav1.com` | `https://jkanime.net` | `https://www3.animeflv.net` |
+| Tecnología del sitio | **SvelteKit** | **Laravel** | HTML clásico |
+| Técnica de parseo | regex sobre payload JS + DOM | **las dos**: CSS en portada/búsqueda/ficha, payload JS en directorio y episodios | selectores CSS |
+| Formato de `anime_id` | slug: `one-piece` | slug: `one-piece` | slug: `one-piece-tv` |
+| `get_recent_animes` | ✅ 20 resultados | ✅ 49 resultados | ✅ 24 resultados |
+| `get_anime_info` | ✅ 1171 eps, 4 géneros | ✅ 1172 eps (One Piece); 148 eps y 4 géneros en Hunter x Hunter | ✅ 1167 eps, 7 géneros |
+| **Orden de `episodes`** | ✅ **ascendente** 1…N (`:227`) | ✅ **ascendente** 1…N | ✅ **descendente** N…1 (`:222-223`) |
+| `search_animes_by_query` | ✅ 19 res., `last_page=1` | ✅ 22 res. («one piece»), `last_page=1`, **tope 30** | ✅ 12 res., `last_page=1` |
+| ¿La búsqueda pagina? | ⚠️ no en la práctica | ❌ **no, por diseño** (rejilla 6×5) | ⚠️ no en la práctica |
+| `search_..._by_genres_and_order` | ✅ 20 res., `last_page=50` | ✅ 30 res., `last_page=58` (acción); catálogo de 4864 en 163 págs. | ✅ 24 res., `last_page=79` |
+| `get_anime_episode_servers` | ✅ 5 servidores | ✅ 3 servidores (varía por episodio) | ❌ **`[]`** |
+| Orden `ALFABÉTICAMENTE` | cliente, `sorted(title.lower())` (`:350-351`) | servidor, `filtro=nombre&orden=asc` | servidor, `&order=title` |
+| Orden `CALIFICACIÓN` | ⚠️ **no soportado**, avisa y devuelve el orden del sitio (`:352-357`) | ⚠️ se sirve con **popularidad**, que no es lo mismo | servidor, `&order=rating` |
+| Filtrar por varios géneros | ✅ sí, repite `genre=` | ❌ **solo el primero** (el `<select>` del sitio es de selección única) | ✅ sí |
+| Traducción de géneros | ❌ no la necesita | ✅ **10 de 40** | ❌ no la necesita |
+| Reintentos en `get_anime_info` | 3, timeout 5 s, `sleep(1)` (`:184-241`) | ninguno (1 intento) | 3, timeout 2 s, `sleep(1)` (`:186-233`) |
+| Estado general | **operativo** | **operativo** | **caído / en desuso** (confirmado por el usuario) |
 
-> ✅ **Los géneros de ambos sitios ya coinciden con los slugs de `AnimeGenreFilter`**
-> (`accion`, `aventura`, `fantasia`, `shounen`…). Hoy **ninguno de los dos necesita traducir**. Un
-> proveedor nuevo sí podría necesitarlo.
+> ✅ **JKAnime es el primer proveedor que sí traduce géneros.** AnimeAV1 y AnimeFLV usan literalmente
+> los slugs de `AnimeGenreFilter`; JKAnime coincide en 30 de los 40 y difiere en 10, que
+> `_GENRE_TRANSLATIONS` mapea: `carreras→autos`, `ciencia-ficcion→sci-fi`, `demencia→dementia`,
+> `escolares→colegial`, `espacial→space`, `infantil→nios`, `policia→policial`,
+> `recuentos-de-la-vida→cosas-de-la-vida`, `superpoderes→super-poderes`, `suspenso→thriller`.
+> El diccionario **solo lista las excepciones**; `__translate_genre()` cae al valor del enum para el
+> resto. ✅ Verificado que los 40 producen un slug que existe entre los 45 reales del sitio.
 
 ---
 
@@ -176,6 +184,112 @@ paginador. ✅ Devolvió 50 para acción+aventura.
 
 ---
 
+## 3b. JKAnime — las dos técnicas a la vez *(2026-08-06)*
+
+✅ Verificado contra el sitio real. `jkanime.py:1-19` explica el porqué en el propio módulo.
+
+**Lo que hay que entender antes de tocarlo**: jkanime.net **no se parsea de una sola manera**.
+Es la primera vez en el proyecto que un proveedor mezcla las dos técnicas, y confundirlas es
+perder el tiempo mirando el DOM equivocado.
+
+| Superficie | Cómo llega el dato | Se parece a |
+|---|---|---|
+| Portada (`/`) | HTML servidor, `div.card` | AnimeFLV |
+| Búsqueda (`/buscar/<q>`) | HTML servidor, `div.anime__item` | AnimeFLV |
+| Ficha (`/<slug>`) | HTML servidor, `div.anime_info` | AnimeFLV |
+| **Directorio** (`/directorio?p=N`) | **payload JS incrustado** | AnimeAV1 |
+| **Episodios** | **JSON por `POST /ajax/episodes/<id>/`** | — |
+
+### El directorio: rejillas vacías que NO son un fallo
+
+⚠️ **La trampa principal.** Los tres `div.row.page_directorio` (modos de vista 1/2/3) llegan
+**vacíos** en el HTML. Es tentador concluir que hace falta renderizar JS o encontrar un endpoint
+AJAX. **Las dos conclusiones son falsas**, y ambas se probaron:
+
+- No existe endpoint: `/ajax/directorio`, `/ajax/filtros`, `/ajax/filter` y `/ajax/animes`
+  devuelven 404 o 405.
+- El servidor **ya incrusta el payload completo** en un `<script>` de la propia página. El bundle
+  lo delata: `render_animes()` hace `$.each(animes.data, …)` sobre una variable ya presente.
+
+Se extrae buscando `animes = {` y **contando llaves**, respetando cadenas y escapes
+(`__extract_directory_payload`). Una expresión regular perezosa cortaría por el sitio equivocado:
+las sinopsis llevan comillas dentro.
+
+El objeto es un **paginador de Laravel** (`current_page`, `data`, `last_page`, `per_page`, `total`),
+así que `last_page` viene dado y no hay que deducirlo del DOM como en los otros dos proveedores.
+
+✅ `total = 4864` animes en 163 páginas de 30. Los elementos traen `title`, `synopsis`, `image` y
+`url` ya resueltos: **el listado del directorio no necesita una segunda petición** para completarse,
+al contrario que las tarjetas de AnimeAV1 y AnimeFLV.
+
+### Los episodios: la única petición con CSRF
+
+📖 `__get_episodes`. Laravel responde **419** si falta el token. Hacen falta tres cosas, y las tres
+salen del HTML de la ficha:
+
+1. el **id numérico interno** (`429` para `hunter-x-hunter-2011`), que se saca de la propia URL
+   `/ajax/episodes/(\d+)` que aparece en la página;
+2. el token de `<meta name="csrf-token">`;
+3. las cookies de sesión — por eso `get_anime_info` abre una `requests.Session()` propia y encadena
+   ficha y AJAX en ella.
+
+> ⚠️ **Dos identidades**, igual de traicioneras que las de la ficha de detalle: el **slug**
+> (`hunter-x-hunter-2011`) es lo que viaja en `AnimeInfo.id` y en las URL; el **id numérico** (`429`)
+> solo sirve para ese endpoint. No son intercambiables y el numérico no aparece en ninguna URL
+> navegable.
+
+La respuesta es otro paginador de Laravel, pero **solo se usa su `total`**: los episodios están
+numerados de 1 a N, así que no hace falta recorrer sus páginas para reconstruir la lista.
+
+Si esa segunda llamada falla, `get_anime_info` **devuelve la ficha igualmente** con `episodes=[]`,
+en vez de perder también título, sinopsis y géneros que sí se leyeron.
+
+### La búsqueda no pagina, y es por diseño
+
+✅ `/buscar/<q>` devuelve **como mucho 30** resultados: la rejilla del sitio es de 6×5. No es una
+carencia que se pueda sortear con parámetros:
+
+- `/buscar/<q>/1/` → **404**;
+- `?p=1`, `?p=2` y `?p=3` devuelven listas **idénticas** (comparadas título a título);
+- `/directorio?buscar=<q>` no filtra: el título de la página solo refleja el parámetro.
+
+Por eso `search_animes_by_query` devuelve siempre `last_page=1`, y ante `page>1` devuelve `[]`
+**en vez de la primera página disfrazada de segunda** — que haría paginar en bucle a quien llame.
+Para recorrer el catálogo está el directorio.
+
+✅ El separador de palabras es **indiferente**: `one%20piece`, `one+piece`, `one-piece` y el espacio
+crudo devuelven los mismos 22 resultados. No hace falta lógica de separadores.
+
+### Tarjetas: dos imágenes por `<img>` en la portada
+
+⚠️ Las tarjetas de la portada son de **episodio**, no de anime, y su `<img>` lleva dos imágenes:
+
+| Atributo | Contenido |
+|---|---|
+| `src` | captura del episodio (`.../animes/video/image/jkvideo_*.jpg`) |
+| `data-animepic` | **póster del anime** (`.../animes/image/<slug>.jpg`) ← el que se usa |
+
+Usar `src` llenaría la biblioteca de fotogramas sueltos en vez de pósters. En la **búsqueda** el
+póster tampoco está en un `<img>`: va en `data-setbg` de `.anime__item__pic`.
+
+### El orden del directorio necesita dos parámetros
+
+✅ `filtro` dice **por qué** ordenar y `orden` dice **en qué sentido**, y sin el segundo el sitio
+devuelve de la Z a la A:
+
+| `AnimeOrderFilter` | Parámetros | Nota |
+|---|---|---|
+| `ALFABÉTICAMENTE` | `filtro=nombre&orden=asc` | sin `orden=asc` → **descendente** |
+| `CALIFICACIÓN` | `filtro=popularidad` | **adrede sin `orden`**: `asc` lo invierte y pone delante los menos populares |
+| `POR_DEFECTO` | ninguno | |
+
+> ⚠️ El orden alfabético del sitio usa la **colación de MySQL**, que coloca la puntuación inicial
+> de otra forma que Python. Comprobar el resultado con `sorted(key=str.lower)` da un falso
+> negativo: `.hack//G.U. Trilogy` va primero allí y tercero aquí. Verificar que es **ascendente**,
+> no que coincide carácter a carácter.
+
+---
+
 ## 4. AnimeFLV — selectores CSS (el punto de rotura)
 
 📖 Los selectores concretos, que son exactamente lo que se rompe cuando el sitio cambia:
@@ -228,6 +342,15 @@ proveedores falsos (`Boom` lanza excepción, `Empty` devuelve vacío, `Good` dev
 
 📖 `_ordered_providers` (`:180-191`): primero el `provider_id` pedido (o el por defecto), luego
 **todos los demás por orden de registro**.
+
+✅ Orden de registro actual (`main_window.py`), verificado el 2026-08-06:
+
+```
+animeav1  (predeterminado)  →  jkanime  →  animeflv
+```
+
+**JKAnime va antes que AnimeFLV a propósito**: hasta ahora el fallback tenía una sola parada y
+estaba muerta, así que en la práctica no había fallback. Ahora la primera parada funciona.
 
 > ✅ **Trampa**: si `provider_id` **no está registrado**, no se lanza ningún error — simplemente no se
 > antepone nadie y se prueban todos en orden de registro. Con `strict=True` eso significa que se usa
@@ -332,9 +455,15 @@ integrar el tercer proveedor.
 | Búsquedas vacías pero la portada funciona | cambió la ruta `/catalogo` o el nombre del parámetro (`search`, `genre`, `page`) | abrir la URL construida en el navegador |
 | Paginación colapsada a 1 página | todos los proveedores fallaron → `([], 1)` | ver los `print` del manager |
 | **Tildes rotas** en la sinopsis | ver §7 | |
+| **JKAnime**: directorio vacío, el resto bien | cambió el nombre de la variable `animes` del payload | buscar `animes = {` en el HTML de `/directorio` |
+| **JKAnime**: fichas sin episodios pero con sinopsis | el POST a `/ajax/episodes/` da 419 (CSRF) o cambió el `<meta name="csrf-token">` | ver §3b |
+| **JKAnime**: la biblioteca se llena de fotogramas | se está leyendo `src` en vez de `data-animepic` | ver §3b |
+| **JKAnime**: el directorio sale de la Z a la A | falta `orden=asc` junto a `filtro=nombre` | ver §3b |
 
 **Regla de oro**: si AnimeAV1 empieza a devolver campos vacíos, **el sospechoso es el payload de
-hidratación, no los selectores CSS**.
+hidratación, no los selectores CSS**. En **JKAnime** la regla es distinta y depende de la
+superficie: portada, búsqueda y ficha se rompen por selectores; directorio y episodios, por el
+payload. Ver la tabla de §3b antes de decidir dónde mirar.
 
 ---
 
@@ -398,7 +527,12 @@ Pasos detallados con checklist en [11 §3](11-playbooks.md). Resumen:
 4. Devolver siempre `AnimeInfo` / `EpisodeInfo` / `ServerInfo` de `APIs.common.models`.
 5. Traducir géneros dentro del proveedor si los slugs difieren de `AnimeGenreFilter`.
 6. Crear `MiSitioSingleton` siguiendo el patrón de `animeav1.py:361-367`.
-7. Registrarlo en `gui/main_window.py:48-49`.
+7. Registrarlo en `gui/main_window.py` (bloque de `register`), **decidiendo dónde**: el orden de
+   registro es el orden del fallback.
 8. Añadir `APIs.<sitio>.<sitio>` a `hiddenimports` de `MiBibliotecaAnime.spec` ([trampa 18](10-invariantes-y-trampas.md)).
 9. Verificar con el script de [09 §2](09-verificacion-y-pruebas.md), incluido el **orden de
    `episodes`** (afecta al corte `[:25]` y a lo que se guarda en BD).
+
+> ✅ **JKAnime (2026-08-06) es el ejemplo trabajado más completo de esta receta**, y el único que
+> ejercita los pasos 5 (traducción de géneros) y 7 (posición en el fallback). Su implementación está
+> en `jkanime.py` y el porqué de cada decisión, en §3b.

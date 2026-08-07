@@ -2,8 +2,9 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-07-30 · **Commit** `83a8448` · árbol **sucio** |
+| **Fecha** | 2026-08-06 · **Commit** `fd53056` · árbol **sucio** |
 | **Cubre** | `src/**`, `.claude/CLAUDE.md`, `README.md`, `requirements.txt`, `MiBibliotecaAnime.spec` |
+| **Última revisión** | 2026-08-06: **R2 muy mitigado** y el punto 1 del roadmap cerrado, ambos por la integración de JKAnime; **A3** saldado a medias (`hiddenimports`) |
 
 Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ sin verificar.
 
@@ -21,15 +22,23 @@ Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ si
 | `94b497e` + merge `0fe75e0` | **A5** — `_fetch()` en `animeav1.py`, que fuerza UTF-8 cuando el sitio no declara charset. v0.2 → v0.3 |
 | `83a8448` | **A4 + B1** — `watching` en la lista de carpetas de `get_anime_image`, `size=` en la rama de red y `timeout=`. `utils.py` v0.1 → v0.2 |
 
-**Sin commitear** (solo comentarios, ningún cambio funcional):
+**Sin commitear** — ⚠️ **el árbol acumula ya dos tareas completas sin commitear**, el pin de
+proveedor (2026-08-06) y la integración de JKAnime (2026-08-06):
 
 | Fichero | Cambio |
 |---|---|
-| `src/gui/main_window.py` | +5 líneas: TODOs de renombrado y selector de proveedor (`:30-34`) |
-| `src/gui/sidebarButtons/recentAnimes/recentAnimes.py` | +1 línea: TODO «nuevos lanzamientos» (`:19`) |
-| `src/utils/buttons/utilsButtons.py` | ±1 línea: TODO color de texto en modo oscuro (`:56`) |
+| `src/APIs/jkanime/jkanime.py` + `__init__.py` | **nuevos, sin trackear** — el proveedor JKAnime (v0.1) |
+| `src/gui/main_window.py` | v0.2: el pin de proveedor, + import y registro de JKAnime |
+| `src/gui/anime_window.py` | v0.3: el selector de la ficha pasa a etiqueta informativa |
+| `src/dataPersistence/userPersistence.py` | v0.2: `set_default_provider_id(None)` para desfijar |
+| `MiBibliotecaAnime.spec` | `hiddenimports` corregido y completado (ver A3) |
+| `resources/images/utils/{fijado,no_fijado}_{light,dark}.png` | **sin trackear** (4 ficheros, el pin) |
 | `resources/images/utils/{viendo,pendientes}_{light,dark}.png` | **sin trackear** (4 ficheros) |
 | `.vscode/` | **sin trackear** |
+| `.claude/**` | esta documentación |
+
+Los TODOs de comentario que esta sección listaba antes (`main_window.py`, `recentAnimes.py`,
+`utilsButtons.py`) siguen sin commitear, ahora absorbidos por los cambios de arriba.
 
 ✅ **La migración ya se ejecutó sobre la BD real del usuario** (2026-07-30). Copia previa en
 `resources/DB/backups/DB_Animes_20260730_011337.db`; una segunda pasada responde «esquema correcto, no
@@ -74,7 +83,7 @@ Auditado punto por punto. Donde el código contradice a `CLAUDE.md`, **gana el c
 | D6 | «`episodes` se guarda invertido» | ✅ Cierto, pero no dice que **el orden de partida depende del proveedor** (AV1 ascendente, FLV descendente), así que el resultado en BD es opuesto según quién sirvió el dato | `animeav1.py:227` vs `animeflv.py:222-223` |
 | D7 | «Muestra … la lista de episodios (**los 25 primeros**, `[:25]`)» | ✅ Correcto. El comentario del propio código dice «24» (`anime_window.py:333`) | `anime_window.py:294` |
 | D8 | Lista los TODOs de `main_window.py`, `anime_window.py`, `recentAnimes.py`, `utilsButtons.py` | ✅ Correcto y completo (6 TODOs) | §2 |
-| D9 | «`.spec` … no incluye `APIs.animeav1.animeav1`, `APIs.common.animeProviderMgr` ni `APIs.common.models`, y declara `gui.anime_windows`» | ✅ Correcto. **Además** declara `gui.sidebarButtons.sidebarButton`, que tampoco existe | `MiBibliotecaAnime.spec:30` |
+| ~~D9~~ | «`.spec` … no incluye `APIs.animeav1.animeav1`, `APIs.common.animeProviderMgr` ni `APIs.common.models`, y declara `gui.anime_windows`» | ✅ **Ya no aplica (2026-08-06)**: corregido en el `.spec` y reescrito en `CLAUDE.md`. Queda `gui.sidebarButtons.sidebarButton`, que sigue declarado sin existir | `MiBibliotecaAnime.spec:30` |
 | D10 | No menciona `attrs` | ✅ **Ya no aplica (2026-07-28)**: era una dependencia no declarada; el import se cambió a `dataclasses` de la stdlib y `attrs` deja de ser dependencia | [10, trampa 18b](10-invariantes-y-trampas.md) |
 | D11 | No menciona el estado de AnimeFLV | ✅ `get_anime_episode_servers` devuelve `[]`; el usuario confirma que el sitio está caído / en desuso | [05 §2](05-proveedores-y-scraping.md) |
 
@@ -97,7 +106,7 @@ Auditado punto por punto. Donde el código contradice a `CLAUDE.md`, **gana el c
 
 | # | Problema | Dónde | Impacto |
 |---|---|---|---|
-| A3 | **`.spec` desactualizado** | `MiBibliotecaAnime.spec:12,21-36` | ⚠️ **Impacto reevaluado el 2026-07-30**, ver nota abajo |
+| A3 | ~~**`.spec` desactualizado**~~ → queda **solo** el empaquetado de `resources/DB` | `MiBibliotecaAnime.spec:12` | 🚧 **`hiddenimports` corregido el 2026-08-06**; el problema grave (la BD) sigue vivo |
 | A6 | **Widgets Tk desde hilos daemon** | `main_window.py:211-220`, `searchAnimes.py:219-223`, `utils.py:127-128` | Riesgo de cuelgue; funciona por suerte estructural |
 
 > **A3 — corrección de diagnóstico** 📖. La versión anterior afirmaba que el `.exe` «falla en runtime»
@@ -110,6 +119,13 @@ Auditado punto por punto. Donde el código contradice a `CLAUDE.md`, **gana el c
 > (`:12`), de modo que el ejecutable distribuye la biblioteca personal del desarrollador, y como el
 > build es *onedir* sobre `sys._MEIPASS`, cada actualización pisa la BD del usuario final con la del
 > desarrollador. Es el mismo hecho que C11, pero su gravedad es alta, no baja.
+>
+> 🚧 **Parcialmente saldado el 2026-08-06** al integrar JKAnime: se añadieron
+> `APIs.animeav1.animeav1`, `APIs.jkanime.jkanime`, `APIs.common.animeProviderMgr`,
+> `APIs.common.models` y `dataPersistence.userPersistence`, y se corrigió `gui.anime_windows` →
+> `gui.anime_window`. Queda por quitar `gui.sidebarButtons.sidebarButton`, que no existe.
+> **Nada de esto se verificó compilando**: la lista se corrigió leyendo los `import` reales.
+> Lo de `resources/DB` **no se ha tocado** — es una decisión de distribución, no un descuido.
 
 ### 🟡 Media
 
@@ -184,13 +200,27 @@ alinea en cada arranque, con copia de seguridad previa. Ver [A1 en §4 → Resue
 declaradas en `SCHEMA` (quedan en la copia de seguridad, y se avisa por consola). No se purgan las
 copias antiguas, así que `resources/DB/backups/` crece una copia por migración.
 
-### R2 — Dependencia de un único proveedor sano
+### ~~R2 — Dependencia de un único proveedor sano~~ 🚧 **Muy mitigado (2026-08-06)**
 
-AnimeAV1 es el por defecto y **el único operativo**: AnimeFLV ya no sirve servidores de vídeo. El
-mecanismo de fallback existe pero hoy no tiene a dónde caer. Además, el parseo de AnimeAV1 depende de
-**regex sobre un payload JS no estructurado**: cualquier despliegue del sitio puede romperlo sin
-aviso, y el fallback al DOM solo cubre `title`, `synopsis` y el conteo de episodios — **no** los
-servidores. Integrar un tercer proveedor es una medida de resiliencia, no un capricho.
+✅ **JKAnime integrado y verificado** el 2026-08-06 ([05 §3b](05-proveedores-y-scraping.md)), y
+registrado **entre** AnimeAV1 y AnimeFLV, así que el fallback ya tiene una primera parada que
+funciona. Los 5 métodos del contrato responden, servidores de vídeo incluidos — que era justo lo
+que AnimeFLV no cubría.
+
+El texto original del riesgo, que sigue explicando por qué importaba:
+
+> AnimeAV1 es el por defecto y **el único operativo**: AnimeFLV ya no sirve servidores de vídeo. El
+> mecanismo de fallback existe pero hoy no tiene a dónde caer. Además, el parseo de AnimeAV1 depende
+> de **regex sobre un payload JS no estructurado**: cualquier despliegue del sitio puede romperlo sin
+> aviso, y el fallback al DOM solo cubre `title`, `synopsis` y el conteo de episodios — **no** los
+> servidores. Integrar un tercer proveedor es una medida de resiliencia, no un capricho.
+
+⚠️ **Lo que NO resuelve.** JKAnime depende a su vez de un payload JS incrustado para el directorio
+y de un endpoint con CSRF para los episodios: hereda la misma fragilidad estructural que se le
+achaca a AnimeAV1, solo que en superficies distintas. Que haya dos proveedores sanos reduce la
+probabilidad de quedarse a ciegas, **no** la de que cualquiera de los dos se rompa en silencio.
+
+⚠️ Tampoco resuelve el fallo **parcial** descrito abajo, que sigue sin detectarse.
 
 🚧 **Mitigación parcial (2026-07-30, ajustada el 2026-08-06)**: el selector de proveedor
 ([13](13-selector-de-proveedor.md)) no añade proveedores, pero da al usuario la palanca para
@@ -235,7 +265,8 @@ Roadmap declarado en `.claude/CLAUDE.md` y `README.md:124-130`.
 | **Nuevos lanzamientos a dos columnas, 3 por fila, pósters grandes** | `recentAnimes.py:39,55-80`, tamaños de `utils.py:59,87,137` | el redimensionado a `(130,185)` está **hardcodeado en 4 sitios** | [06 §4](06-gui-y-vistas.md), [10](10-invariantes-y-trampas.md) |
 | **Filtro radio Animes/Mangas/Ambos en las 4 vistas** | `utilsButtons.AccordionFilterButton` | modelo de manga | [06](06-gui-y-vistas.md) |
 | **Desplegable global anime/manga/ambos (esquina inferior izquierda)** | `main_window.py:137-151` | modelo de manga (la preferencia persistida ya es viable) | [06](06-gui-y-vistas.md), [01](01-arquitectura.md) |
-| **Integrar JKAnime, MonosChinos2, TioAnime** | `APIs/<sitio>/` nuevos + `main_window.py:48-49` | ninguno — **es lo que más mitiga R2** | [05](05-proveedores-y-scraping.md), [11 §3](11-playbooks.md) |
+| ~~**Integrar JKAnime**~~ | ✅ **Hecho el 2026-08-06**: `APIs/jkanime/jkanime.py` (nuevo, v0.1), `main_window.py`, `MiBibliotecaAnime.spec` | — | **[05 §3b](05-proveedores-y-scraping.md)**, [02](02-mapa-de-modulos.md), trampas 23-25 |
+| **Integrar MonosChinos2, TioAnime** | `APIs/<sitio>/` nuevos + registro en `main_window.py` | ninguno — sigue mitigando R2 | [05](05-proveedores-y-scraping.md), [11 §3](11-playbooks.md) |
 | **Proveedores de manga** | contrato nuevo o generalización de `AnimeProvider` | decisión de diseño de la convivencia | [01](01-arquitectura.md), [05](05-proveedores-y-scraping.md) |
 | **Capítulo de manga por el que continuar tras el anime** | requiere mapeo anime↔manga | modelo de manga + fuente de datos del mapeo | [04](04-modelo-de-datos.md) |
 
@@ -244,18 +275,19 @@ Roadmap declarado en `.claude/CLAUDE.md` y `README.md:124-130`.
 *(Revisado el 2026-07-30. ~~A1~~, ~~A2~~, ~~A4~~, ~~A5~~, ~~B1~~ y ~~B5~~ ya pagadas: ver
 [§4 → Resuelto](#-resuelto).)*
 
-**El orden lo fijó el usuario el 2026-07-30. Su punto 1 se cerró el 2026-08-06, así que la lista
-avanza una posición.**
+**El orden lo fijó el usuario el 2026-07-30. Sus dos primeros puntos ya están cerrados —el selector
+el 2026-08-06 y la integración de un proveedor nuevo ese mismo día—, así que la lista avanza.**
 
-1. 🔴 **Integrar un proveedor nuevo** (JKAnime, MonosChinos2 o TioAnime) — **la siguiente**, fijada
-   por el usuario. Mitiga R2 de raíz, valida que la abstracción aguanta y es lo único que
-   permite verificar de verdad la resolución *cross-provider*, que hoy solo está probada
-   con un proveedor falso ([05 §5b](05-proveedores-y-scraping.md)). Receta: [11 §3](11-playbooks.md).
-2. 🔴 **La columna `provider_id` en `ANIMES`** ([13 §8](13-selector-de-proveedor.md)) — ha **subido de
-   prioridad**: desde que el desplegable de la ficha desapareció, es lo único que hace que desviarse de
-   proveedor afecte también a los animes ya guardados, y el orden de prioridad ya está decidido. Es
-   además donde vuelve a usarse `resolve_anime_in_provider()`, hoy sin llamantes en la GUI. Va después
-   del punto 1 porque sin un segundo proveedor sano no se puede probar.
+1. ~~🔴 **Integrar un proveedor nuevo**~~ — ✅ **hecho el 2026-08-06 con JKAnime**. Validó que la
+   abstracción aguanta: fue el primer proveedor que necesitó traducir géneros y el primero que mezcla
+   dos técnicas de parseo, y el contrato no hubo que tocarlo. Ahora sí hay un segundo proveedor sano
+   con el que probar la resolución *cross-provider*, que hasta hoy solo se había probado con un
+   proveedor falso ([05 §5b](05-proveedores-y-scraping.md)).
+2. 🔴 **La columna `provider_id` en `ANIMES`** ([13 §8](13-selector-de-proveedor.md)) — **la
+   siguiente, y ya desbloqueada**. Es lo único que hace que desviarse de proveedor afecte también a
+   los animes ya guardados, y el orden de prioridad está decidido. Es además donde vuelve a usarse
+   `resolve_anime_in_provider()`, hoy sin llamantes en la GUI. Su requisito previo —un segundo
+   proveedor sano con el que probar— **ya se cumple**.
 3. **Arreglar B2** — barato, y desbloquea dos puntos del roadmap (recomendaciones por género, ordenar
    favoritos por calificación).
 4. **Entonces** abordar la convivencia anime/manga, que es la refactorización grande.
