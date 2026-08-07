@@ -2,8 +2,8 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-07-30 · **Commit** `83a8448` · árbol **sucio** |
-| **Última revisión** | 2026-07-30: receta de vista nueva: aviso sobre `get_anime_image` |
+| **Fecha** | 2026-08-07 · **Commit** `18311e3` · árbol **limpio** |
+| **Última revisión** | 2026-08-07 (**auditoría**): §6 (empaquetado) cerrado — `hiddenimports` ya no tiene nada pendiente |
 | **Cubre** | recetas operativas sobre los 19 módulos de `src/` + `MiBibliotecaAnime.spec` |
 
 Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ sin verificar.
@@ -375,17 +375,20 @@ para claro y oscuro, así que `update_icon()` (`utilsButtons.py:78-80`) no cambi
 
 **Pasos**
 
-1. **Revisa `hiddenimports`.** ✅ El 2026-08-06 se aplicaron casi todas las correcciones que esta
-   sección venía arrastrando, al integrar JKAnime: se añadieron `APIs.animeav1.animeav1`,
-   `APIs.jkanime.jkanime`, `APIs.common.animeProviderMgr`, `APIs.common.models` y
-   `dataPersistence.userPersistence`, y se corrigió `gui.anime_windows` → `gui.anime_window`.
+1. **Revisa `hiddenimports`.** ✅ **Ya no hay nada pendiente aquí.** Entre el 2026-08-06 y el
+   2026-08-07 se añadieron `APIs.animeav1.animeav1`, `APIs.jkanime.jkanime`,
+   `APIs.common.animeProviderMgr`, `APIs.common.models` y `dataPersistence.userPersistence`; se
+   corrigió `gui.anime_windows` → `gui.anime_window` (`d99a2ee`) y se retiró el fantasma
+   `gui.sidebarButtons.sidebarButton` (`ae126fd`).
 
-   | Acción | Entrada | Estado |
-   |---|---|---|
-   | **eliminar** | `gui.sidebarButtons.sidebarButton` (no existe tal módulo) | ⚠️ **pendiente** |
+   ✅ Comprobado el 2026-08-07: los **18** nombres declarados resuelven a ficheros reales de `src/`.
+   El único módulo de `src/` que no figura es `app.py`, y es correcto: es el *script de entrada*, no
+   un import oculto.
 
-   ⚠️ **Nada de esto se ha comprobado ejecutando PyInstaller**: la lista se corrigió leyendo los
-   `import` reales, no compilando. Sigue siendo obligatorio verificar el `.exe` antes de distribuir.
+   Al añadir un módulo nuevo, añádelo aquí también — este playbook es el sitio donde se comprueba.
+
+   ⚠️ **Nada de esto se ha comprobado ejecutando PyInstaller**: la lista se verificó resolviendo cada
+   nombre a su fichero, no compilando. Sigue siendo obligatorio arrancar el `.exe` antes de distribuir.
 
 2. Sube `APP_VERSION` (`:3`) — determina el nombre de `dist/MiBibliotecaAnime_v<X>/`.
 3. ⚠️ **Decide qué hacer con `('resources/DB', 'resources/DB')`** (`:12`): tal cual, **empaqueta la

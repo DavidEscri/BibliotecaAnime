@@ -253,16 +253,18 @@ red, y en esa rama pasa `size=` explícito — sin él `CTkImage` pinta a 20×20
 
 ## Notas de mantenimiento
 
-- **`MiBibliotecaAnime.spec`**: `hiddenimports` se corrigió y completó el 2026-08-06 (se añadieron los tres proveedores
-  y los dos módulos de `APIs.common`, y se arregló `gui.anime_windows` → `gui.anime_window`). ⚠️ **Sin verificar
-  compilando**: la lista se corrigió leyendo los `import` reales. Queda por quitar `gui.sidebarButtons.sidebarButton`,
-  que no existe. Revísalo antes de empaquetar y al añadir módulos o carpetas de `resources/` (sección `datas`).
+- **`MiBibliotecaAnime.spec`**: `hiddenimports` quedó **completo y sin fantasmas el 2026-08-07**. ✅ Comprobado uno a
+  uno: los **18** nombres declarados resuelven a ficheros reales de `src/`, y el único módulo que no figura es
+  `app.py`, que es el script de entrada. ⚠️ **Sin verificar compilando**: la lista se corrigió leyendo los `import`
+  reales. Revísalo antes de empaquetar y al añadir módulos o carpetas de `resources/` (sección `datas`).
 - La versión de la app vive en `APP_VERSION` dentro del `.spec`.
 - `resources/DB/` y las carpetas de pósters están en `.gitignore`: se generan en tiempo de ejecución.
-- Hay `# TODO:` en el código que marcan trabajo en curso: `main_window.py` (renombrado de botones),
-  `anime_window.py` (recomendaciones por género, alternar anime/manga), `recentAnimes.py` (renombrar a
-  «nuevos lanzamientos»), `utilsButtons.py` (color de texto en modo oscuro). El del selector de proveedor
-  se cerró el 2026-07-30.
+- Hay **3** `# TODO:` en el código, todos en dos ficheros: `main_window.py:32` (quitar la palabra «Anime» de los
+  botones y el título) y `anime_window.py:24-25,27` (recomendaciones por género; alternar anime/manga). El del
+  selector de proveedor se cerró el 2026-07-30.
+  ⚠️ Hasta el 2026-08-07 este apartado citaba además TODOs en `recentAnimes.py` y `utilsButtons.py` que **no
+  existen** (detalle en [`docs/12 §2`](docs/12-deuda-tecnica-y-roadmap.md)). Inventaríalos con
+  `git grep -n "TODO" -- src/`, no de memoria.
 - **`MiBibliotecaAnime.spec` empaqueta `resources/DB`**, así que el `.exe` distribuye la biblioteca **y ahora
   también las preferencias** del desarrollador. Ver A3/C11 en [`docs/12 §4`](docs/12-deuda-tecnica-y-roadmap.md).
 - En `resources/images/utils/` ya existen los iconos `viendo_light/dark.png` y `pendientes_light/dark.png`, pero su uso

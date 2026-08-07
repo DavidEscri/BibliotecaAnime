@@ -2,8 +2,8 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-07-30 · **Commit** `83a8448` · árbol **sucio** |
-| **Última revisión** | 2026-07-30: resultados de `get_anime_image` y checklist de la ficha, tras `83a8448` y `94b497e` |
+| **Fecha** | 2026-08-07 · **Commit** `18311e3` · árbol **limpio** |
+| **Última revisión** | 2026-08-07 (**auditoría**): recetas revisadas contra el árbol limpio en `18311e3` |
 | **Cubre** | procedimiento; scripts ejecutados el 2026-07-28 contra el código de `src/` |
 
 Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ sin verificar.
@@ -460,7 +460,7 @@ Sin tests automáticos, esto es lo que hay. Marca lo que compruebes.
 ### Tema
 - [ ] Light / Dark / System cambian el aspecto.
 - [ ] ⚠️ Arrancando en modo oscuro, el texto de la sidebar nace **negro** hasta que se cambia a mano
-      (TODO en `utilsButtons.py:56`).
+      (deuda observada en `utilsButtons.py:69`; **no** es un TODO del código — ver [06 §5](06-gui-y-vistas.md)).
 
 ### Proveedor JKAnime *(2026-08-06)*
 

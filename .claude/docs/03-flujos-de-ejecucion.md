@@ -2,8 +2,8 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-07-30 · **Commit** `83a8448` · árbol **sucio** |
-| **Última revisión** | 2026-07-30: flujos 3a, 3b y 3c actualizados tras `1bfdf0f` y `83a8448` |
+| **Fecha** | 2026-08-07 · **Commit** `18311e3` · árbol **limpio** |
+| **Última revisión** | 2026-08-07 (**auditoría**): anclas de `anime_window.py` reubicadas tras su crecimiento a 647 líneas |
 | **Cubre** | `main_window.py`, `anime_window.py`, `recentAnimes.py`, `searchAnimes.py`, las 4 vistas de estado, `animeProviderMgr.py`, `animesPersistence.py`, `utils.py` |
 
 Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ sin verificar.
@@ -193,55 +193,55 @@ sequenceDiagram
 
 ## 4. Marcar / desmarcar un episodio
 
-📖 `anime_window.py:430-483`. Es el flujo más delicado del proyecto.
+📖 `anime_window.py:544-597`. Es el flujo más delicado del proyecto.
 
 ```mermaid
 flowchart TD
-    A["Usuario mueve el switch<br/>__toggle_episode_switch(ep_id) :399"] --> B{"¿ep_id en anime_info.episodes?<br/>:401-405"}
+    A["Usuario mueve el switch<br/>__toggle_episode_switch(ep_id) :544"] --> B{"¿ep_id en anime_info.episodes?<br/>:546-550"}
     B -->|no| B2["print error + return"]
-    B -->|sí| C{"marking_as_watched<br/>= not watched_status[ep_id] :407-408"}
+    B -->|sí| C{"marking_as_watched<br/>= not watched_status[ep_id] :552-553"}
 
-    C -->|marcar| D{"sort_descending? :412"}
-    D -->|sí| D1["select() switches [index … fin]<br/>:414-417"]
-    D -->|no| D2["select() switches [0 … index]<br/>:424-427"]
+    C -->|marcar| D{"sort_descending? :557"}
+    D -->|sí| D1["select() switches [index … fin]<br/>:558-562"]
+    D -->|no| D2["select() switches [0 … index]<br/>:568-572"]
 
-    C -->|desmarcar| E["deselect() SOLO este switch<br/>:420-421 / :430-431"]
+    C -->|desmarcar| E["deselect() SOLO este switch<br/>:564-566 / :573-576"]
 
-    D1 --> F["bd_watched = get_watched_episodes(id) :434"]
+    D1 --> F["bd_watched = get_watched_episodes(id) :579"]
     D2 --> F
     E --> F
 
     F --> G{"marking_as_watched?"}
-    G -->|sí| H["episodes_up_to = todos los eps ≤ ep_id<br/>en orden ASCENDENTE real :441-444<br/>episodes_after = vistos en BD > ep_id :446<br/><b>merged = union</b> :447"]
-    G -->|no| I["<b>merged = bd_watched - {ep_id}</b> :450"]
+    G -->|sí| H["episodes_up_to = todos los eps ≤ ep_id<br/>en orden ASCENDENTE real :586-589<br/>episodes_after = vistos en BD > ep_id :591<br/><b>merged = union</b> :592"]
+    G -->|no| I["<b>merged = bd_watched - {ep_id}</b> :595"]
 
-    H --> J["update_watched_episodes(id, merged) :452"]
+    H --> J["update_watched_episodes(id, merged) :597"]
     I --> J
-    J --> K["_episodes_to_ranges(merged)<br/>animesPersistence.py:317"]
-    K --> L["UPDATE ANIMES SET watched_episodes=?,<br/>last_watched_episode=max(merged) :321-327"]
+    J --> K["_episodes_to_ranges(merged)<br/>animesPersistence.py:361"]
+    K --> L["UPDATE ANIMES SET watched_episodes=?,<br/>last_watched_episode=max(merged) :363-371"]
 ```
 
 **Reglas que hay que respetar** (✅ round-trip verificado):
 
 1. **Marcar es acumulativo**: marca todos los episodios **anteriores en orden real ascendente**, no
-   los anteriores en pantalla (`:441-444`). Es correcto tanto si la lista está ascendente como
+   los anteriores en pantalla (`:586-589`). Es correcto tanto si la lista está ascendente como
    descendente.
-2. **Los episodios posteriores ya vistos se conservan** (`:446`).
-3. **Desmarcar es unitario**: solo se quita ese episodio (`:450`).
+2. **Los episodios posteriores ya vistos se conservan** (`:591`).
+3. **Desmarcar es unitario**: solo se quita ese episodio (`:595`).
 4. `update_watched_episodes` **devuelve `False` y no escribe nada si el anime no está en BD**
-   (`animesPersistence.py:314-315`). ✅ Verificado. Es decir: **marcar episodios de un anime sin
+   (`animesPersistence.py:358`). ✅ Verificado. Es decir: **marcar episodios de un anime sin
    estado asignado no persiste nada**.
 
 > ⚠️ Los pasos 1 y 2 usan `self.episode_switches`, que solo contiene los **widgets visibles** (25 como
 > mucho, o los filtrados por búsqueda). Con la lista filtrada a un único episodio, `index` viene de
-> `anime_info.episodes` (`:402`) pero se indexa `self.episode_switches[index]` (`:417`, `:421`) →
+> `anime_info.episodes` (`:547`) pero se indexa `self.episode_switches[index]` (`:559-562`, `:566`) →
 > posible `IndexError`. Camino leído en código, no reproducido.
 
 ---
 
 ## 5. Cambios de estado (los 4 botones)
 
-📖 `anime_window.py:220-281` + `animesPersistence.py:342-400`. ✅ Máquina de estados verificada
+📖 `anime_window.py:330-395` + `animesPersistence.py:469-531`. ✅ Máquina de estados verificada
 completa sobre una copia de la BD.
 
 ```mermaid
@@ -285,7 +285,7 @@ anime no está en BD, ✅ `update_sql` devuelve `True` sin haber tocado nada. `a
 
 ⚠️ **El póster no se mueve de categoría.** Al hacer `remove_from_finished` el anime pasa a
 *pendiente* en BD (`:377-389`) pero su póster se borra de `finished/` y **no** se crea en `pending/`
-(`anime_window.py:244-245`) → la vista «pendientes» lo muestra en gris. Deuda B7 en
+(`anime_window.py:355-361`) → la vista «pendientes» lo muestra en gris. Deuda B7 en
 [12 §4](12-deuda-tecnica-y-roadmap.md).
 
 ---

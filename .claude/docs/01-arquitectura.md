@@ -2,8 +2,8 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-08-06 · **Commit** `fd53056` · árbol **sucio** |
-| **Última revisión** | 2026-08-06: **JKAnime** añadido al diagrama de capas, a la tabla de dependencias y al *composition root* |
+| **Fecha** | 2026-08-07 · **Commit** `18311e3` · árbol **limpio** |
+| **Última revisión** | 2026-08-07 (**auditoría**): anclas de `animeProviderMgr.py` y `main_window.py` reubicadas (I1, I3, I5) |
 | **Cubre** | `src/app.py`, `src/APIs/**`, `src/dataPersistence/**`, `src/gui/**`, `src/utils/**` |
 
 Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ sin verificar.
@@ -129,16 +129,16 @@ y `utils/buttons/utilsButtons.py:10` importa `dataPersistence`. No hay ciclo rea
 ### I1 — El código de GUI nunca habla con un sitio concreto
 📖 Todas las vistas obtienen datos por `AnimeProviderManagerSingleton()`. Los wrappers del manager
 tienen la misma firma que `AnimeProvider` más `provider_id=` y `strict=`
-(`APIs/common/animeProviderMgr.py:250-274`).
+(`APIs/common/animeProviderMgr.py:288-326`).
 
 ### I2 — `APIs/common/models.py` es la única fuente de verdad de los tipos de dominio
 📖 `models.py:1-6`. Ningún proveedor redefine `AnimeInfo`, `EpisodeInfo` ni `ServerInfo`. Si un sitio
 usa slugs de género distintos, **el proveedor traduce internamente**; quien llama siempre pasa el
-enum común (`animeProviderMgr.py:31-35`).
+enum común (`animeProviderMgr.py:34-38`).
 
 ### I3 — El manager nunca propaga excepciones
 ✅ Verificado. `call_with_fallback` captura todo y devuelve `(None, None)` si nadie responde
-(`animeProviderMgr.py:222-242`). Los wrappers convierten ese `None` en `[]`, `None` o `([], 1)`.
+(`animeProviderMgr.py:242-280`). Los wrappers convierten ese `None` en `[]`, `None` o `([], 1)`.
 **Consecuencia**: la GUI no distingue «sitio caído» de «no hay resultados». Detalle exacto en
 [05 §5](05-proveedores-y-scraping.md).
 
@@ -149,8 +149,8 @@ Tabla campo a campo en [04 §1](04-modelo-de-datos.md).
 
 ### I5 — Estado compartido en `MainWindow`, sin router
 📖 No hay gestor de vistas. Cada vista recibe `main_window` y muta su estado directamente
-(`main_window.py:58-64`). `content_frame` es **un único `CTkScrollableFrame`** que todas las vistas
-vacían y repueblan (`main_window.py:89-91`).
+(`main_window.py:81-86`). `content_frame` es **un único `CTkScrollableFrame`** que todas las vistas
+vacían y repueblan (`main_window.py:135-146`).
 
 ### I6 — Nada de HTTP en el hilo de Tkinter
 📖 Toda petición va en un hilo daemon. Ver [07](07-concurrencia-e-hilos.md) — con las excepciones

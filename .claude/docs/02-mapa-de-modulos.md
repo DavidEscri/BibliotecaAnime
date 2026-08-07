@@ -2,9 +2,9 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-07-30 · **Commit** `83a8448` · árbol **sucio** |
-| **Última revisión** | 2026-08-06: ficha nueva de `jkanime.py` (v0.1) y recuento a **19 módulos reales** |
-| **Cubre** | los 34 ficheros `.py` de `src/` (18 con contenido + 16 `__init__.py` vacíos) |
+| **Fecha** | 2026-08-07 · **Commit** `18311e3` · árbol **limpio** |
+| **Última revisión** | 2026-08-07 (**auditoría**): recuentos de líneas corregidos, `__init__.py` de `watchingAnimes` retirado del inventario |
+| **Cubre** | los **37** ficheros `.py` de `src/` (**19** con contenido + **18** `__init__.py` vacíos) |
 
 Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ sin verificar.
 Todas las líneas citadas corresponden al **árbol de trabajo actual**, no al último commit.
@@ -17,26 +17,29 @@ Todas las líneas citadas corresponden al **árbol de trabajo actual**, no al ú
 |---|---:|---|
 | `src/app.py` | 17 | arranque |
 | `src/APIs/common/models.py` | 93 | dominio |
-| `src/APIs/common/animeProviderMgr.py` | 415 | dominio |
-| `src/APIs/animeav1/animeav1.py` | 366 | infraestructura |
+| `src/APIs/common/animeProviderMgr.py` | 416 | dominio |
+| `src/APIs/animeav1/animeav1.py` | 367 | infraestructura |
 | `src/APIs/jkanime/jkanime.py` | 531 | infraestructura |
 | `src/APIs/animeflv/animeflv.py` | 245 | infraestructura |
 | `src/dataPersistence/animesPersistence.py` | 553 | dominio/datos |
-| `src/dataPersistence/userPersistence.py` | 251 | dominio/datos |
-| `src/utils/db/sqlite.py` | 446 | infraestructura |
-| `src/utils/utils.py` | 198 | infraestructura |
+| `src/dataPersistence/userPersistence.py` | 240 | dominio/datos |
+| `src/utils/db/sqlite.py` | 447 | infraestructura |
+| `src/utils/utils.py` | 199 | infraestructura |
 | `src/utils/buttons/utilsButtons.py` | 197 | GUI |
 | `src/gui/main_window.py` | 483 | GUI |
-| `src/gui/anime_window.py` | 699 | GUI |
+| `src/gui/anime_window.py` | 647 | GUI |
 | `src/gui/sidebarButtons/recentAnimes/recentAnimes.py` | 110 | GUI |
 | `src/gui/sidebarButtons/favouriteAnimes/favouriteAnimes.py` | 142 | GUI |
-| `src/gui/sidebarButtons/finishedAnimes/finishedAnimes.py` | 139 | GUI |
-| `src/gui/sidebarButtons/watchingAnimes/watchingAnimes.py` | 141 | GUI |
-| `src/gui/sidebarButtons/pendingAnimes/pendingAnimes.py` | 141 | GUI |
-| `src/gui/sidebarButtons/searchAnimes/searchAnimes.py` | 348 | GUI |
-| `src/gui/sidebarButtons/watchingAnimes/__init__.py` | 2 | **código muerto** |
+| `src/gui/sidebarButtons/finishedAnimes/finishedAnimes.py` | 140 | GUI |
+| `src/gui/sidebarButtons/watchingAnimes/watchingAnimes.py` | 142 | GUI |
+| `src/gui/sidebarButtons/pendingAnimes/pendingAnimes.py` | 142 | GUI |
+| `src/gui/sidebarButtons/searchAnimes/searchAnimes.py` | 349 | GUI |
 
-Los otros 17 `__init__.py` están **vacíos** (0 bytes) y solo marcan paquete.
+**5 460 líneas** en 19 módulos. ✅ Recontado el 2026-08-07; la revisión anterior daba 699 a
+`anime_window.py` (son **647**) y 251 a `userPersistence.py` (son **240**).
+
+Los **18** `__init__.py` están **vacíos** (0 bytes) y solo marcan paquete. ✅ El último con contenido,
+`watchingAnimes/__init__.py`, se vació en `e6d1a73` (2026-08-07).
 
 > Recuentos actualizados el 2026-08-06 tras integrar **JKAnime**, que añade `jkanime.py` y su
 > `__init__.py` vacío y toca `main_window.py`. **19 módulos reales** (antes 18).
@@ -349,7 +352,7 @@ pool; transacciones solo en las migraciones.
 |---|---|---|
 | `BaseButton(ctk.CTkButton)` | `:14-21` | base de todos |
 | `EpisodeButton` | `:24-34` | «{título} - Episodio {n}» |
-| `SearchButton` | `:37-44` | ⚠️ **homónimo** del `SearchButton` de la sidebar (`searchAnimes.py:34`) |
+| `SearchButton` | `:37-44` | ⚠️ **homónimo** del `SearchButton` de la sidebar (`searchAnimes.py:35`) |
 | `ApplyFiltersButton` | `:47-54` | |
 | `SidebarButton` | `:57-83` | base de las 6 vistas; `update_icon(mode)` `:78-80`; `show_frame()` abstracto `:82-83` |
 | `AccordionFilterButton` | `:85-197` | filtro plegable de género + orden |
@@ -471,14 +474,11 @@ distinto al que guardó la fila.
 
 ---
 
-## `src/gui/sidebarButtons/watchingAnimes/__init__.py` — **código muerto**
+## ~~`src/gui/sidebarButtons/watchingAnimes/__init__.py` — código muerto~~ ✅ **Eliminado (2026-08-07, `e6d1a73`)**
 
-```python
-class WatchingAnimeButton:
-    pass
-```
+Contenía un stub de 2 líneas, `class WatchingAnimeButton: pass`, que ensombrecía a la clase real.
+`main_window.py:25` importa desde `gui.sidebarButtons.watchingAnimes.watchingAnimes`, así que nunca
+llegó a usarse; pero un `from gui.sidebarButtons.watchingAnimes import WatchingAnimeButton` habría
+importado el stub y roto en tiempo de ejecución sin ningún error de importación.
 
-📖 Stub de 2 líneas. `main_window.py:25` importa desde
-`gui.sidebarButtons.watchingAnimes.watchingAnimes`, así que **nunca se usa**. Pero un
-`from gui.sidebarButtons.watchingAnimes import WatchingAnimeButton` importaría el stub y rompería en
-tiempo de ejecución sin ningún error de importación. [Trampa 19](10-invariantes-y-trampas.md).
+✅ Hoy el fichero está vacío, como los otros 17. [Trampa 19](10-invariantes-y-trampas.md).

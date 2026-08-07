@@ -2,8 +2,8 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-08-06 · **Commit** `fd53056` · árbol **sucio** |
-| **Última revisión** | 2026-08-06: **JKAnime integrado** como tercer proveedor (§3b). Tabla comparativa a 3 columnas y §2 con la primera traducción de géneros real del proyecto |
+| **Fecha** | 2026-08-07 · **Commit** `18311e3` · árbol **limpio** |
+| **Última revisión** | 2026-08-07 (**auditoría**): ancla del contrato `AnimeProvider` corregida a `animeProviderMgr.py:24-110`. Contenido de §3b reverificado |
 | **Cubre** | `src/APIs/common/animeProviderMgr.py`, `src/APIs/common/models.py`, `src/APIs/animeav1/animeav1.py`, `src/APIs/animeflv/animeflv.py`, `src/APIs/jkanime/jkanime.py` |
 
 Procedencia: ✅ verificado en ejecución contra los sitios reales el 2026-07-28 · 📖 leído en código ·
@@ -13,7 +13,7 @@ Procedencia: ✅ verificado en ejecución contra los sitios reales el 2026-07-28
 
 ## 1. El contrato `AnimeProvider`
 
-📖 `animeProviderMgr.py:21-107`.
+📖 `animeProviderMgr.py:24-110`.
 
 ```python
 class MiProveedor(AnimeProvider):

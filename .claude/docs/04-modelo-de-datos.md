@@ -2,7 +2,8 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-07-30 · **Commit base** `c337fb9` · árbol **sucio** |
+| **Fecha** | 2026-08-07 · **Commit** `18311e3` · árbol **limpio** |
+| **Última revisión** | 2026-08-07 (**auditoría**): anclas de `animesPersistence.py` y `sqlite.py` reverificadas; esquema de `ANIMES` sin cambios |
 | **Cubre** | `src/APIs/common/models.py`, `src/dataPersistence/animesPersistence.py`, `src/dataPersistence/userPersistence.py`, `src/utils/db/sqlite.py` |
 
 Procedencia: ✅ verificado en ejecución (sobre una **copia** de la BD real, 24-25 filas) · 📖 leído en
@@ -131,7 +132,7 @@ PRIMARY_KEY = "id AUTOINCREMENT"                 # :212
 | `IS_PENDING` | `is_pending` | `BOOLEAN` |
 
 > ⚠️ **El orden de `AnimeField` debe coincidir con el de las columnas físicas.** Todas las consultas
-> son `SELECT *` y `SqlUtils.query_sql` (`sqlite.py:57-63`) empareja `fila[i] → FIELDS[i]` **por
+> son `SELECT *` y `SqlUtils.query_sql` (`sqlite.py:122-144`) empareja `fila[i] → FIELDS[i]` **por
 > posición**. Si se descuadra, los valores acaban en la clave equivocada **sin error alguno**.
 > ✅ Hoy coinciden.
 

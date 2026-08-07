@@ -2,8 +2,8 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-07-30 · **Commit** `83a8448` · árbol **sucio** |
-| **Última revisión** | 2026-07-30: patrón `__on_anime_click` con la guarda del `None` (`1bfdf0f`) |
+| **Fecha** | 2026-08-07 · **Commit** `18311e3` · árbol **limpio** |
+| **Última revisión** | 2026-08-07 (**auditoría**): el «TODO» del color de texto reencuadrado como deuda observada — no existe tal TODO; anclas de `anime_window.py` reubicadas |
 | **Cubre** | `src/gui/main_window.py`, `src/gui/anime_window.py`, `src/gui/sidebarButtons/**`, `src/utils/buttons/utilsButtons.py` |
 
 Procedencia: ✅ verificado en ejecución (arranque real de la GUI) · 📖 leído en código · ⚠️ sin verificar.
@@ -12,55 +12,61 @@ Procedencia: ✅ verificado en ejecución (arranque real de la GUI) · 📖 leí
 
 ## 1. `MainWindow` como hub
 
-📖 `main_window.py:36-69`. `MainWindow(ctk.CTk)` es la ventana raíz **y** el contenedor de todo el
+📖 `main_window.py:35-92`. `MainWindow(ctk.CTk)` es la ventana raíz **y** el contenedor de todo el
 estado compartido. **No hay router ni gestor de vistas**: cada vista recibe `main_window` y muta ese
 estado directamente.
 
 ```mermaid
 graph LR
-    MW["<b>MainWindow</b><br/>1440 × 910 :37-38"]
-    SB["<b>sidebar_frame</b><br/>CTkFrame, width=340<br/>grid col=0 :93-110"]
-    CF["<b>content_frame</b><br/><b>CTkScrollableFrame</b><br/>grid col=1 :112-123"]
+    MW["<b>MainWindow</b><br/>1440 × 910 :36-37"]
+    SB["<b>sidebar_frame</b><br/>CTkFrame, width=340<br/>grid col=0 :116-133"]
+    CF["<b>content_frame</b><br/><b>CTkScrollableFrame</b><br/>grid col=1 :135-146"]
     MW --> SB
     MW --> CF
-    SB --> B1["6 × SidebarButton<br/>filas 2..7 :130-135"]
-    SB --> B2["CTkOptionMenu apariencia<br/>fila 10 :144-150"]
+    SB --> B1["6 × SidebarButton<br/>filas 2..7 :153-158"]
+    SB --> B2["desplegable de proveedor + pin<br/>:160-214"]
+    SB --> B3["CTkOptionMenu apariencia<br/>:216-229"]
     CF --> V["<i>la vista activa —<br/>lo repuebla quien manda</i>"]
 ```
 
-**`content_frame` es UNO SOLO.** Todas las vistas lo vacían con `clear_frame()` (`:89-91`) y lo
+**`content_frame` es UNO SOLO.** Todas las vistas lo vacían con `clear_frame()` (`:112-114`) y lo
 repueblan. No se crean frames por vista a nivel de ventana.
 
 ### Estado compartido: quién lo lee y quién lo muta
 
-📖 `main_window.py:46-64`.
+📖 `main_window.py:45-87`.
 
 | Atributo | Tipo | Lo escribe | Lo lee |
 |---|---|---|---|
-| `animes_persistence` | `AnimesPersistence` | `__init__:46` | todas las vistas, `anime_window` |
-| `anime_provider_mgr` | `AnimeProviderManager` | `__init__:47-49` | todas las vistas, `anime_window` |
-| `recent_animes` | `List[AnimeRecord\|AnimeInfo]` | `download_images_and_show_animes:209` 🧵, `__preload_recent_animes_info:241` 🧵, `recentAnimes.py:93` 🧵 | `recentAnimes.py:45,55,83` |
-| `favourite_animes` | `List[AnimeRecord]` | `load_animes:247` 🧵 | ⚠️ **nadie**: `favouriteAnimes.py:75` reconsulta la BD |
-| `finished_animes` | `List[AnimeRecord]` | `load_animes:250` 🧵 | ⚠️ ídem (`finishedAnimes.py:75`) |
-| `watching_animes` | `List[AnimeRecord]` | `load_animes:253` 🧵 | ⚠️ ídem (`watchingAnimes.py:77`) |
-| `pending_animes` | `List[AnimeRecord]` | `load_animes:256` 🧵 | ⚠️ ídem (`pendingAnimes.py:77`) |
+| `animes_persistence` | `AnimesPersistence` | `__init__:45` | todas las vistas, `anime_window` |
+| `anime_provider_mgr` | `AnimeProviderManager` | `__init__:46-50` | todas las vistas, `anime_window` |
+| `recent_animes` | `List[AnimeRecord\|AnimeInfo]` | `download_images_and_show_animes:424` 🧵, `__preload_recent_animes_info:442-468` 🧵, `__on_recent_animes_reloaded:363` 🖥️, `recentAnimes.py:93` 🧵 | `recentAnimes.py:45,55,83` |
+| `favourite_animes` | `List[AnimeRecord]` | `load_animes:472` 🧵 | ⚠️ **nadie**: `favouriteAnimes.py:75` reconsulta la BD |
+| `finished_animes` | `List[AnimeRecord]` | `load_animes:475` 🧵 | ⚠️ ídem (`finishedAnimes.py:75`) |
+| `watching_animes` | `List[AnimeRecord]` | `load_animes:478` 🧵 | ⚠️ ídem (`watchingAnimes.py:77`) |
+| `pending_animes` | `List[AnimeRecord]` | `load_animes:481` 🧵 | ⚠️ ídem (`pendingAnimes.py:77`) |
 | `last_search_instance` | `AnimeSearch \| None` | `searchAnimes.py:55` | `searchAnimes.py:148-156` |
-| `images_path` | `str` | `__init__:64` | `recentAnimes.py:61` |
-| `sidebar_frame` / `content_frame` | widgets | `__config_main_frames:84-87` | todo el mundo |
+| `images_path` | `str` | `__init__:87` | `recentAnimes.py:61` |
+| `sidebar_frame` / `content_frame` | widgets | `__config_main_frames:107-110` | todo el mundo |
 
 > ⚠️ **Las cuatro listas cacheadas de estado están muertas.** ✅ Se rellenan en el arranque
-> (`load_animes:245-258`) pero **ninguna vista las consume**: cada una vuelve a consultar la BD al
+> (`load_animes:470-483`) pero **ninguna vista las consume**: cada una vuelve a consultar la BD al
 > pintarse. Es coste de arranque sin beneficio, y una fuente de confusión. Ver
 > [12](12-deuda-tecnica-y-roadmap.md).
 
 ### Composition root
 
-📖 `:48-49` es el **único** sitio de `gui/` donde se nombra un proveedor concreto:
+📖 `:48-50` es el **único** sitio de `gui/` donde se nombra un proveedor concreto. **El orden de
+registro es el orden del fallback**:
 
 ```python
 self.anime_provider_mgr.register(AnimeAV1Singleton(), default=True)
+self.anime_provider_mgr.register(JKAnimeSingleton())     # 2026-08-06
 self.anime_provider_mgr.register(AnimeFLVSingleton())
 ```
+
+> ⚠️ **Corrección (2026-08-07)**: este bloque omitía `JKAnimeSingleton`, registrado el 2026-08-06.
+> Son **tres** proveedores, y JKAnime va en medio a propósito ([01 §2](01-arquitectura.md)).
 
 ---
 
@@ -121,13 +127,13 @@ Una vista concreta debe:
 3. Implementar **`show_frame()`** — lo llama `MainWindow` en el arranque; es el punto de entrada
    programático.
 4. Implementar `__show_<vista>()` — es el `command` del botón.
-5. Registrarse en `MainWindow.load_sidebar_buttons()` (`main_window.py:125-151`).
+5. Registrarse en `MainWindow.load_sidebar_buttons()` (`main_window.py:148-230`).
 
 Plantilla copiable → [08 §7](08-convenciones-y-estilo.md). Receta completa → [11 §1](11-playbooks.md).
 
 ### Las 6 vistas registradas
 
-📖 `main_window.py:130-135`. Se instancian en filas 2 a 7, columna 0.
+📖 `main_window.py:153-158`. Se instancian en filas 2 a 7, columna 0.
 
 | Fila | Clase | Texto | Icono | `show_frame()` llama a |
 |---|---|---|---|---|
@@ -287,18 +293,28 @@ for widget in self.sidebar_frame.winfo_children():
 | `pendientes.png` | **`pendientes_light.png`** | **`pendientes_dark.png`** | ❌ **comentado** en `pendingAnimes.py:23-24` |
 | `buscar.png` | — | — | mismo para ambos |
 
-Los 4 PNG claro/oscuro **existen en disco pero están sin trackear en git** (`?? resources/images/utils/…`).
-Activarlos es descomentar dos líneas por vista → [11 §5](11-playbooks.md).
+Los 4 PNG claro/oscuro **siguen en disco y sin trackear en git** (`?? resources/images/utils/…`),
+comprobado el 2026-08-07. Activarlos es descomentar dos líneas por vista → [11 §5](11-playbooks.md).
 
-⚠️ **TODO abierto** (`utilsButtons.py:56`): el `text_color="black"` del constructor (`:69`) no se
-adapta al tema oscuro hasta que el usuario cambia manualmente la apariencia — al arrancar en modo
-oscuro del sistema, el texto de la sidebar nace negro sobre fondo oscuro.
+> Contrasta con los 4 iconos del **pin** de proveedor (`{fijado,no_fijado}_{light,dark}.png`), que sí
+> se commitearon en `ab5e75b` porque `main_window.py:194-203` los carga de verdad.
+
+⚠️ **Deuda observada** 📖 (`utilsButtons.py:69`): el `text_color="black"` del constructor de
+`SidebarButton` no se adapta al tema oscuro hasta que el usuario cambia manualmente la apariencia —
+al arrancar en modo oscuro del sistema, el texto de la sidebar nace **negro sobre fondo oscuro**.
+Solo lo corrige `MainWindow.change_appearance_mode_event` (`main_window.py:368-378`), que únicamente
+se ejecuta al tocar el desplegable.
+
+> ⚠️ **Corrección (2026-08-07)**: hasta hoy esto figuraba aquí y en [12 §2](12-deuda-tecnica-y-roadmap.md)
+> como un «**TODO** abierto en `utilsButtons.py:56`». **No hay ningún `TODO` en ese fichero** — no lo
+> tiene desde `d0fb393`. El defecto es real y sigue vivo; lo falso era atribuirlo a una nota del autor
+> en una línea concreta.
 
 ---
 
 ## 6. `AnimeWindowViewer` — no es una ventana
 
-📖 `anime_window.py:49-71`. Reemplaza el contenido de `content_frame`; **no crea un `Toplevel`**.
+📖 `anime_window.py:49-75`. Reemplaza el contenido de `content_frame`; **no crea un `Toplevel`**.
 Por eso **no hay botón «volver»**: se vuelve pulsando otra vez en la sidebar.
 
 Composición vertical:
@@ -329,8 +345,8 @@ Composición vertical:
 | Clase | Línea | Uso |
 |---|---|---|
 | `BaseButton` | `:14-21` | base de todos |
-| `EpisodeButton` | `:24-34` | `anime_window.py:335` |
-| `SearchButton` | `:37-44` | las 4 vistas de estado ⚠️ **homónimo** del `SearchButton` de la sidebar (`searchAnimes.py:34`) |
+| `EpisodeButton` | `:24-34` | `anime_window.py:449` |
+| `SearchButton` | `:37-44` | las 4 vistas de estado ⚠️ **homónimo** del `SearchButton` de la sidebar (`searchAnimes.py:35`) |
 | `ApplyFiltersButton` | `:47-54` | `searchAnimes.py:142` |
 | `SidebarButton` | `:57-83` | las 6 vistas |
 | `AccordionFilterButton` | `:85-197` | las 4 vistas de estado |

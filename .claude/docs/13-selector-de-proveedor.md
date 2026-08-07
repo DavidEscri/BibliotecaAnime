@@ -6,6 +6,7 @@
 | **Estado** | ✅ **Cerrado.** El pin separa «usar ahora» de «fijar», y el selector de la ficha se retira ([§12](#12-fase-7-el-pin-de-proveedor-predeterminado)) |
 | **Cierra** | TODO #4 (borrado de `main_window.py`) y el punto «Selector de proveedor con preferencia persistida» del roadmap ([12 §6](12-deuda-tecnica-y-roadmap.md)) |
 | **Mitiga** | **R2** — dependencia de un único proveedor sano ([12 §5](12-deuda-tecnica-y-roadmap.md)) |
+| **Última revisión** | 2026-08-07 (**auditoría**): anclas reverificadas contra `18311e3`; sigue cerrado, sin cambios de fondo |
 
 Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ sin verificar.
 
@@ -57,7 +58,7 @@ integren, el desplegable ofrezca proveedores de manga si lo que se está viendo 
 |---|---|
 | `AnimeInfo.id` es el **slug del sitio**, no un identificador universal | `models.py:88`, `animeav1.py:177`, `animeflv.py:179` |
 | La tabla `ANIMES` está **cauterizada a ese slug**: `anime_id` es la clave con la que se busca todo | `animesPersistence.py:276-285` |
-| `EpisodeInfo.anime` también es el slug, y es lo que se pasa a `get_anime_episode_servers` | `models.py:83`, `anime_window.py:490` |
+| `EpisodeInfo.anime` también es el slug, y es lo que se pasa a `get_anime_episode_servers` | `models.py:83`, `anime_window.py:608` |
 | Los pósters en disco se llaman `{anime_id}.jpg` | `utils.py:57,84,134,173` |
 
 Consecuencia: **el mismo anime tiene un `id` distinto en cada proveedor.** AnimeAV1 sirve

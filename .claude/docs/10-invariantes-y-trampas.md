@@ -2,9 +2,9 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-08-06 · **Commit** `fd53056` · árbol **sucio** |
+| **Fecha** | 2026-08-07 · **Commit** `18311e3` · árbol **limpio** |
 | **Cubre** | los 19 módulos con contenido de `src/` + `MiBibliotecaAnime.spec` + `requirements.txt` |
-| **Última revisión** | 2026-08-06: **trampas 23, 24 y 25** (JKAnime), en una sección nueva de proveedores concretos |
+| **Última revisión** | 2026-08-07 (**auditoría**): **trampas 18a y 19 resueltas** por los commits `ae126fd` y `e6d1a73`; ~30 anclas `fichero:línea` reubicadas tras el crecimiento de `anime_window.py` (490→647) |
 
 Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ sin verificar.
 
@@ -17,7 +17,7 @@ Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ si
 
 ### 1. El orden de `AnimeField` debe coincidir con el de las columnas físicas 📖
 
-**Por qué**: todas las consultas son `SELECT *` y `SqlUtils.query_sql` (`utils/db/sqlite.py:57-63`)
+**Por qué**: todas las consultas son `SELECT *` y `SqlUtils.query_sql` (`utils/db/sqlite.py:122-144`)
 empareja `fila[i] → FIELDS[i]` **por posición**, no por nombre.
 
 **Si lo rompes**: reordenar `AnimeField` (`animesPersistence.py:28-47`), o insertar un miembro en
@@ -78,14 +78,14 @@ seis escenarios de migración, incluida la idempotencia y el rollback.
 
 **Síntoma**: episodios vistos que desaparecen sin error al recargar la ficha.
 
-**Además**: `last_watched_episode` se recalcula siempre como `max(watched)` (`:319`); si escribes uno
+**Además**: `last_watched_episode` se recalcula siempre como `max(watched)` (`:363`); si escribes uno
 a mano, el siguiente `update_watched_episodes` lo pisa.
 
 ---
 
 ### 4. `episodes` se guarda **invertido** y no se des-invierte al leer ✅
 
-`to_db_dict:88` hace `list(reversed(...))`; `update_anime_episodes:331` hace `[::-1]`;
+`to_db_dict:88` hace `list(reversed(...))`; `update_anime_episodes:375` hace `[::-1]`;
 `from_db_dict` **no** deshace nada.
 
 ✅ Verificado: entrada `[1..10]` → BD `[10..1]` → leído `[10..1]`.
@@ -101,7 +101,7 @@ voy» que salen invertidas.
 
 ### 5. `update_*` devuelve `True` aunque no modifique ninguna fila ✅
 
-`SqlUtils.update_sql` (`sqlite.py:32-46`) **nunca consulta `cursor.rowcount`**. `True` significa «el
+`SqlUtils.update_sql` (`sqlite.py:106-120`) **nunca consulta `cursor.rowcount`**. `True` significa «el
 SQL se ejecutó sin excepción».
 
 | Método | Anime inexistente |
@@ -120,7 +120,7 @@ SQL se ejecutó sin excepción».
 ### 6. `get_anime_by_genre_and_order` recibe un `str` donde espera un enum ✅
 
 `AccordionFilterButton.__apply_filters` (`utilsButtons.py:187`) pasa `self.selected_order.get()` →
-`"default"`. La comparación `order != AnimeOrderFilter.POR_DEFECTO` (`animesPersistence.py:294`) es
+`"default"`. La comparación `order != AnimeOrderFilter.POR_DEFECTO` (`animesPersistence.py:338`) es
 entonces **siempre `True`** → *return* temprano → **la ordenación por coincidencias de género nunca
 se aplica desde la GUI**.
 
@@ -136,8 +136,8 @@ compara por valor en la persistencia — no ambos.
 ### 7. Marcar episodios de un anime sin estado no persiste nada ✅
 
 `update_watched_episodes` devuelve `False` sin escribir si el anime no está en `ANIMES`
-(`animesPersistence.py:314-315`). Un anime solo entra en BD al pulsar uno de los 4 botones de estado
-(`_set_status:439-447`).
+(`animesPersistence.py:358`). Un anime solo entra en BD al pulsar uno de los 4 botones de estado
+(`_set_status:483-491`).
 
 **Síntoma**: el usuario marca episodios en la ficha de un anime recién descubierto, sale, vuelve, y
 los switches están todos apagados. **Sin ningún mensaje.**
@@ -148,30 +148,30 @@ los switches están todos apagados. **Sin ningún mensaje.**
 
 ### 8. Solo se muestran los **25** primeros episodios 📖
 
-`anime_window.py:294` → `self.anime_info.episodes[:25]`. (El comentario de `:302` dice «24»; el
+`anime_window.py:408` → `self.anime_info.episodes[:25]`. (El comentario de `:447` dice «24»; el
 código dice 25.)
 
 **Interactúa con la trampa 4**: ✅ con AnimeAV1 (ascendente) verás los episodios **1-25**; con
 AnimeFLV (descendente) los **25 más recientes**. El mismo anime, dos cortes distintos.
 
 **Síntoma**: en un anime de 1171 episodios no hay forma de llegar al 600 salvo por el buscador de
-episodios (`:363-377`).
+episodios (`:508-522`).
 
 ---
 
 ### 9. El marcado de episodios es acumulativo; el desmarcado, unitario 📖
 
-`__toggle_episode_switch` (`:399-452`):
+`__toggle_episode_switch` (`:544-597`):
 
-- **Marcar** el episodio N marca **todos los ≤ N en orden real ascendente** (`:441-444`) y
-  **conserva** los > N que ya estaban vistos en BD (`:446`).
-- **Desmarcar** quita **solo** ese episodio (`:450`).
+- **Marcar** el episodio N marca **todos los ≤ N en orden real ascendente** (`:586-589`) y
+  **conserva** los > N que ya estaban vistos en BD (`:591`).
+- **Desmarcar** quita **solo** ese episodio (`:595`).
 
 **Si lo cambias**: se pierde el caso de uso principal («voy por el 340»), que evita 340 clics.
 
-⚠️ **Riesgo latente**: los pasos visuales indexan `self.episode_switches[index]` (`:417`, `:421`) con
-un `index` calculado sobre `anime_info.episodes` **completo** (`:402`). Con la lista filtrada a un
-episodio (`__search_episodes:373`) hay solo 1 switch → posible `IndexError`. Camino leído, no
+⚠️ **Riesgo latente**: los pasos visuales indexan `self.episode_switches[index]` (`:559-562`, `:566`) con
+un `index` calculado sobre `anime_info.episodes` **completo** (`:547`). Con la lista filtrada a un
+episodio (`__search_episodes:508`) hay solo 1 switch → posible `IndexError`. Camino leído, no
 reproducido.
 
 ---
@@ -189,14 +189,14 @@ tragaba — así que el clic simplemente **no hacía nada**, sin ningún mensaje
 |---|---|---|
 | Aviso al usuario | `show_anime_info_error()` `anime_window.py:30-46` | `print` + `messagebox.showerror` |
 | Guarda en los 6 clics | `favouriteAnimes.py:132-134` y homólogos | `if anime_clicked is None: show_anime_info_error(...); return` |
-| Contrato del constructor | `anime_window.py:51-59` | `None` → `ValueError`; `episodes=None` → `replace(…, episodes=[])` |
+| Contrato del constructor | `anime_window.py:77-105` | `None` → `ValueError`; `episodes=None` → `replace(…, episodes=[])` |
 
 **Si lo rompes**: al añadir una vista nueva, olvidar la guarda devuelve el síntoma original. La única
 señal será el `ValueError` en consola, porque Tkinter sigue tragándose la excepción del callback.
 
 ⚠️ La normalización de `episodes` se hace sobre **una copia** (`dataclasses.replace`), no muta el
 `AnimeInfo` recibido. Es deliberado: el `None` del objeto cacheado en `main_window.recent_animes` es
-justo lo que marca que aún le falta la precarga (`main_window.py:235`), y ponerlo a `[]` lo daría por
+justo lo que marca que aún le falta la precarga (`main_window.py:442`), y ponerlo a `[]` lo daría por
 precargado para siempre.
 
 > **Corrección a la versión anterior de esta trampa**: decía que `recentAnimes.py` «sí lo comprueba
@@ -227,7 +227,7 @@ lista `ABC` entre sus bases directas.
 
 ### 12. El fallback trata «vacío» igual que «error» ✅
 
-`__is_empty_result` (`:193-202`): `None`, `[]` y `([], N)` cuentan como vacío → se prueba el siguiente
+`__is_empty_result` (`:231-240`): `None`, `[]` y `([], N)` cuentan como vacío → se prueba el siguiente
 proveedor.
 
 **Consecuencias**:
@@ -235,17 +235,17 @@ proveedor.
 - Una búsqueda **legítimamente sin resultados** desencadena una petición extra a cada proveedor.
 - La GUI **no distingue** «sitio caído» de «no hay resultados»: en ambos casos recibe `[]`.
 - El `last_page` de una tupla vacía se **descarta** (`([], 7)` → se ignora el 7).
-- Los wrappers devuelven `([], 1)` con **`1` constante** (`:262`, `:268`) → la paginación se colapsa.
+- Los wrappers devuelven `([], 1)` con **`1` constante** (`:314`, `:320`) → la paginación se colapsa.
 
 ---
 
 ### 13. `provider_id` desconocido + `strict=True` usa el primer proveedor registrado ✅
 
-`_ordered_providers` (`:186-191`) no valida el `provider_id`: si no está registrado, simplemente no
+`_ordered_providers` (`:218-229`) no valida el `provider_id`: si no está registrado, simplemente no
 antepone a nadie. Con `strict=True` se toma `[:1]` → **el primero por orden de registro**.
 
 **Síntoma**: pides datos «solo de JKAnime», JKAnime no está registrado, y recibes datos de AnimeAV1
-sin ningún aviso. `get()` sí lanza `UnknownProviderError` (`:169-170`) — pero los wrappers no usan
+sin ningún aviso. `get()` sí lanza `UnknownProviderError` (`:180-183`) — pero los wrappers no usan
 `get()`.
 
 ---
@@ -337,7 +337,7 @@ cuadradito diminuto, **no un error**.
 225×350 conservado.
 
 > En el mismo cambio se añadió `timeout=_REQUEST_TIMEOUT`: era la única petición del módulo sin timeout
-> y corre **en el hilo de UI** (`anime_window.py:107`), así que un servidor de imágenes colgado
+> y corre **en el hilo de UI** (`anime_window.py:173`), así que un servidor de imágenes colgado
 > congelaba la aplicación indefinidamente.
 
 ---
@@ -363,7 +363,7 @@ directorio que no corresponda a un anime de la lista recibida.
 
 ### 18. Trampas de empaquetado y de entorno
 
-**a) ~~`MiBibliotecaAnime.spec` está desactualizado~~** — 🚧 **casi resuelto (2026-08-06)** 📖:
+**a) ~~`MiBibliotecaAnime.spec` está desactualizado~~** — ✅ **`hiddenimports` resuelto (2026-08-07)** 📖:
 
 | Problema | Estado |
 |---|---|
@@ -373,14 +373,18 @@ directorio que no corresponda a un anime de la lista recibida.
 | Faltaba `dataPersistence.userPersistence` | ✅ añadido |
 | Faltaba `APIs.jkanime.jkanime` | ✅ añadido con el proveedor |
 | Declaraba `gui.anime_windows` (el módulo real es `gui.anime_window`) | ✅ corregido |
-| Declara `gui.sidebarButtons.sidebarButton` (**no existe** tal módulo) | ⚠️ **pendiente** |
+| Declaraba `gui.sidebarButtons.sidebarButton` (**no existía** tal módulo) | ✅ **retirado en `ae126fd`** |
 
-**Síntoma**: `ModuleNotFoundError` al arrancar el `.exe`, no al compilar.
+✅ **Los 18 nombres de `hiddenimports` corresponden hoy a módulos reales**, comprobado uno a uno contra
+`src/` el 2026-08-07: ningún fantasma, y el único módulo de `src/` que no figura es `app.py`, que es el
+*script de entrada* y no debe figurar.
 
-⚠️ **La corrección no se verificó compilando**: se hizo leyendo los `import` reales. Sigue siendo
-obligatorio arrancar el `.exe` antes de distribuir. Y el problema **grave** del `.spec` no es este,
-sino que `datas` empaqueta `resources/DB` ([12 §4 → A3](12-deuda-tecnica-y-roadmap.md)); eso **no se
-ha tocado**.
+**Síntoma que tenía**: `ModuleNotFoundError` al arrancar el `.exe`, no al compilar.
+
+⚠️ **Nada de esto se verificó compilando**: la lista se corrigió leyendo los `import` reales. Sigue
+siendo obligatorio arrancar el `.exe` antes de distribuir. Y el problema **grave** del `.spec` no era
+este, sino que `datas` empaqueta `resources/DB` ([12 §4 → A3](12-deuda-tecnica-y-roadmap.md)); eso
+**no se ha tocado**.
 
 **b) `attrs` no declarada** — ✅ **RESUELTO (2026-07-28)**:
 
@@ -407,7 +411,9 @@ evidente.
 
 ---
 
-### 19. `watchingAnimes/__init__.py` contiene un stub que suplanta la clase real 📖
+### ~~19. `watchingAnimes/__init__.py` contiene un stub que suplanta la clase real~~ ✅ **Resuelto (2026-08-07, `e6d1a73`)**
+
+Era la deuda B9. El fichero contenía:
 
 ```python
 # src/gui/sidebarButtons/watchingAnimes/__init__.py
@@ -415,13 +421,14 @@ class WatchingAnimeButton:
     pass
 ```
 
-`main_window.py:25` importa desde `…watchingAnimes.watchingAnimes` (el módulo), así que **hoy no se
-usa**. Pero `from gui.sidebarButtons.watchingAnimes import WatchingAnimeButton` importaría el stub
-**sin ningún error de importación**.
+`main_window.py:25` importa desde `…watchingAnimes.watchingAnimes` (el módulo), así que nunca llegó a
+usarse. Pero `from gui.sidebarButtons.watchingAnimes import WatchingAnimeButton` habría importado el
+stub **sin ningún error de importación**, con síntoma `TypeError` al construir, o un botón que no
+aparece en la sidebar.
 
-**Síntoma**: `TypeError` al construir, o un botón que no aparece en la sidebar.
-
-**Los otros 15 `__init__.py` están vacíos.** Mantenlo así.
+**Invariante vivo**: ✅ los **18** `__init__.py` de `src/` están hoy **todos vacíos** (0 bytes),
+comprobado el 2026-08-07. Mantenlo así: un `__init__.py` con contenido puede ensombrecer al módulo
+homónimo del paquete y el fallo no se manifiesta al importar, sino al usar.
 
 ---
 

@@ -242,13 +242,12 @@ Si haces un cambio de código y quieres que la documentación acompañe, **dilo 
 
 ## 8 · Empaquetar/release
 
-🚧 El `hiddenimports` del `.spec` se corrigió el 2026-08-06, pero **leyendo los `import`, sin
-compilar nunca**. Al pedir un empaquetado, dime:
+✅ El `hiddenimports` del `.spec` quedó completo y sin fantasmas el 2026-08-07, pero verificado
+**resolviendo cada nombre a su fichero, sin compilar nunca**. Al pedir un empaquetado, dime:
 
 - **Qué hacer con `('resources/DB', 'resources/DB')`**: tal cual, tu biblioteca personal viaja
-  dentro del `.exe`. Es el problema serio que queda.
+  dentro del `.exe`. Es el único problema serio que queda en el `.spec`.
 - La `APP_VERSION` nueva.
-- Si quieres que además quite `gui.sidebarButtons.sidebarButton`, que sigue declarado y no existe.
 
 Asumiré que el primer empaquetado hay que **verificarlo arrancando el `.exe`**, no solo compilarlo.
 

@@ -2,14 +2,13 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-08-06 |
-| **Commit** | `fd53056` |
-| **Árbol de trabajo** | **sucio** — **dos tareas completas sin commitear**: el pin de proveedor y la integración de JKAnime (`jkanime.py` nuevo, `main_window.py`, `anime_window.py`, `userPersistence.py`, `.spec`) + 8 PNG sin trackear (ver [12 §1](12-deuda-tecnica-y-roadmap.md)) |
-| **Última revisión** | 2026-08-06 — **JKAnime integrado**: [05 §3b](05-proveedores-y-scraping.md) nuevo, ficha de módulo en [02](02-mapa-de-modulos.md), trampas **23-25**, [09 §3d](09-verificacion-y-pruebas.md) y el roadmap de [12](12-deuda-tecnica-y-roadmap.md) avanzado |
-| **Último cambio** | ✅ 2026-08-06 — **JKAnime como tercer proveedor**, registrado entre AnimeAV1 y AnimeFLV. 50/50 comprobaciones sobre el sitio real. Cierra el punto 1 del roadmap y mitiga **R2** |
+| **Fecha** | 2026-08-07 |
+| **Commit** | `18311e3` |
+| **Árbol de trabajo** | ✅ **limpio**. Sin trackear solo quedan 4 PNG sin usar, `.vscode/` y `.claude/settings.local.json` (ver [12 §1](12-deuda-tecnica-y-roadmap.md)) |
+| **Última revisión** | 2026-08-07 — **auditoría completa** contra el código: ~55 anclas `fichero:línea` reubicadas, inventario de TODOs corregido (**3**, no 5), trampas **18a** y **19** cerradas, y las cabeceras de los 12 documentos puestas al día |
+| **Último cambio** | ✅ 2026-08-06/07 — **JKAnime como tercer proveedor**, registrado entre AnimeAV1 y AnimeFLV. 50/50 comprobaciones sobre el sitio real. Cierra el punto 1 del roadmap y mitiga **R2** |
 | **Siguiente tarea** | 🔴 **Columna `provider_id` en `ANIMES`** → **[13 §8](13-selector-de-proveedor.md)**. Su requisito previo (un segundo proveedor sano) ya se cumple |
-| **Cubre ahora** | **19 módulos reales** (antes 18) |
-| **Cubre** | los **36 ficheros `.py`** de `src/`: 19 módulos reales + 18 `__init__.py` (17 vacíos y 1 con un stub muerto) |
+| **Cubre** | los **37 ficheros `.py`** de `src/`: **19 módulos reales** + 18 `__init__.py`, ✅ **los 18 vacíos** desde `e6d1a73` |
 
 `.claude/CLAUDE.md` es el **resumen de entrada** (qué es el proyecto, comandos, arquitectura en una
 página). Esta carpeta es la **profundidad**: lo que hay que saber antes de tocar algo frágil.
@@ -23,7 +22,7 @@ Toda afirmación de comportamiento va marcada:
 
 | Marca | Significado |
 |---|---|
-| ✅ | **Verificado en ejecución** el 2026-07-28 en esta máquina (scripts en [09-verificacion-y-pruebas.md](09-verificacion-y-pruebas.md)) |
+| ✅ | **Verificado en ejecución** en esta máquina (scripts en [09-verificacion-y-pruebas.md](09-verificacion-y-pruebas.md)). Las tandas fueron el **2026-07-28** (base), **2026-07-30** (migraciones, encoding, pósters), **2026-08-06** (JKAnime, 50/50) y **2026-08-07** (auditoría). Cada afirmación lleva su fecha donde importa |
 | 📖 | **Leído en el código**, con ancla `fichero.py:línea`, pero no ejecutado |
 | ⚠️ | **Sin verificar / suposición** — trátalo como hipótesis |
 

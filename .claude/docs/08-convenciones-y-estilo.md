@@ -2,8 +2,9 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-07-28 · **Commit** `a972850` · árbol **sucio** |
+| **Fecha** | 2026-08-07 · **Commit** `18311e3` · árbol **limpio** |
 | **Cubre** | los 19 módulos con contenido de `src/` |
+| **Última revisión** | 2026-08-07 (**auditoría**): cabeceras reauditadas — 2 de las 3 erratas de `__module__` ya estaban corregidas; `jkanime.py` y `userPersistence.py` añadidos a la tabla de `__subsystem__` |
 
 Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ sin verificar.
 
@@ -38,7 +39,8 @@ Si el módulo necesita explicación de fondo, el **docstring va antes** de la ca
 | `APIs.common` | `animeProviderMgr.py` |
 | `APIs.animeav1` | `animeav1.py` |
 | `APIs.animeflv` | `animeflv.py` |
-| `DataPersistence` | `animesPersistence.py` |
+| `APIs.jkanime` | `jkanime.py` |
+| `DataPersistence` | `animesPersistence.py`, `userPersistence.py` |
 | `utils` | `utils.py` |
 | `utils.db` | `sqlite.py` |
 | `utils.buttons` | `utilsButtons.py` |
@@ -46,16 +48,19 @@ Si el módulo necesita explicación de fondo, el **docstring va antes** de la ca
 | `sidebarButtons` | las 6 vistas |
 
 ⚠️ **No es sistemático**: `models.py` usa `APIs.models` (no `APIs.common`) aunque vive en
-`APIs/common/`, y `animesPersistence` usa `DataPersistence` con mayúscula inicial mientras el resto
-va en minúscula. Al añadir un módulo, **copia el `__subsystem__` de su vecino de carpeta**.
+`APIs/common/`, y los dos de `dataPersistence/` usan `DataPersistence` con mayúscula inicial mientras
+el resto va en minúscula. Al añadir un módulo, **copia el `__subsystem__` de su vecino de carpeta**.
 
-⚠️ **Erratas reales en `__module__`** — no las propagues, pero tampoco las «arregles» sin pensar:
+**Erratas en `__module__`** — ✅ reauditadas una a una el 2026-08-07 contra los 19 módulos:
 
-| Fichero | Declara | Debería |
-|---|---|---|
-| `gui/anime_window.py:3` | `"anime_wnidow.py"` | `anime_window.py` |
-| `APIs/common/animeProviderMgr.py:3` | `"animeProvider.py"` | `animeProviderMgr.py` |
-| `dataPersistence/animesPersistence.py:3` | `"animesPersistence"` | falta `.py` |
+| Fichero | Declara | Debería | Estado |
+|---|---|---|---|
+| `dataPersistence/animesPersistence.py:3` | `"animesPersistence"` | `animesPersistence.py` | ⚠️ **viva** — falta la extensión |
+| ~~`gui/anime_window.py:3`~~ | ~~`"anime_wnidow.py"`~~ | `anime_window.py` | ✅ **ya corregida** en el código |
+| ~~`APIs/common/animeProviderMgr.py:3`~~ | ~~`"animeProvider.py"`~~ | `animeProviderMgr.py` | ✅ **ya corregida** en el código |
+
+Los **18** módulos restantes declaran un `__module__` que coincide exactamente con su nombre de
+fichero, y los 19 tienen las cinco variables de la cabecera.
 
 ---
 
@@ -88,7 +93,7 @@ de persistencia (`_set_status`, `_update_flag`, `_query_by_status`, `_episodes_t
 mangleado:
 
 ```python
-main_window._MainWindow__recent_animes_button   # main_window.py:51
+main_window._MainWindow__recent_animes_button   # main_window.py:74
 ```
 
 ⚠️ **Trampa de herencia**: si defines `self.__episodes_frame` en una subclase de `SidebarButton`, el
@@ -99,8 +104,9 @@ de estado pueden declarar el mismo nombre sin pisarse.
 
 ## 4. Patrón Singleton
 
-📖 4 singletons en el proyecto. **No son singletons clásicos**: la clase envoltorio devuelve en
-`__new__` una instancia de **otra** clase.
+📖 **6** singletons en el proyecto (✅ recontados el 2026-08-07; eran 4 antes de `userPersistence.py`
+y `jkanime.py`). **No son singletons clásicos**: la clase envoltorio devuelve en `__new__` una
+instancia de **otra** clase.
 
 ```python
 class AnimesPersistenceSingleton:
@@ -123,8 +129,10 @@ self.anime_provider_mgr:   AnimeProviderManager = AnimeProviderManagerSingleton(
 |---|---|---|
 | `AnimeFLVSingleton` | `AnimeFLV` | `animeflv.py:239-245` |
 | `AnimeAV1Singleton` | `AnimeAV1` | `animeav1.py:361-367` |
-| `AnimesPersistenceSingleton` | `AnimesPersistence` | `animesPersistence.py:497-503` |
-| `AnimeProviderManagerSingleton` | `AnimeProviderManager` | `animeProviderMgr.py:277-283` |
+| `JKAnimeSingleton` | `JKAnime` | `jkanime.py:525-531` |
+| `AnimesPersistenceSingleton` | `AnimesPersistence` | `animesPersistence.py:547-553` |
+| `UserPersistenceSingleton` | `UserPersistence` | `userPersistence.py:234-240` |
+| `AnimeProviderManagerSingleton` | `AnimeProviderManager` | `animeProviderMgr.py:410-416` |
 
 ⚠️ Dos estilos conviven: `animeflv.py` y `animeav1.py` usan
 `if NombreSingleton.__instance is None` (nombre de clase explícito); los otros dos usan
@@ -146,13 +154,13 @@ def get_anime_info(self, anime_id: Union[str, int]) -> AnimeInfo | None:   # amb
 ```
 
 - `typing.List/Optional/Union/Dict/Set/Tuple` — mayoritario.
-- Sintaxis 3.10 (`X | None`) — en `animeflv.py:179`, `animeav1.py:177`, `main_window.py:51-56`,
-  `searchAnimes.py:41-42`.
+- Sintaxis 3.10 (`X | None`) — en `animeflv.py:179`, `animeav1.py:177`, `main_window.py:60,63-66`,
+  `searchAnimes.py:41-42`, `anime_window.py:77`.
 - `tuple[int, int]` en minúscula — `utils.py:166,179`.
 
 **El proyecto requiere Python 3.10+.** ✅ Entorno verificado: `biblio_anime_env` usa **Python 3.10.6**.
 
-⚠️ Anotaciones incorrectas que conviven con el código: `sqlite.py:48` declara `-> (bool, list)`, que
+⚠️ Anotaciones incorrectas que conviven con el código: `sqlite.py:122` declara `-> (bool, list)`, que
 en Python es una **tupla literal**, no un tipo. No lo copies; usa `Tuple[bool, list]`.
 
 ---
@@ -163,8 +171,8 @@ en Python es una **tupla literal**, no un tipo. No lo copies; usa `Tuple[bool, l
 
 ```python
 print(f"Error al descargar el poster de {anime.id}: {e}")          # utils.py:90
-print(f"[{provider.PROVIDER_ID}] Fallo en '{method_name}': {exc}")  # animeProviderMgr.py:228
-print(f"{self.anime_info.title} añadido a favoritos.")              # anime_window.py:223
+print(f"[{provider.PROVIDER_ID}] Fallo en '{method_name}': {exc}")  # animeProviderMgr.py:266
+print(f"{self.anime_info.title} añadido a favoritos.")              # anime_window.py:334
 ```
 
 - Errores: `f"Error al <acción>: {excepción}"`.
@@ -280,8 +288,13 @@ self.__mi_vista_button: MiVistaButton = MiVistaButton(self, icon_path, sidebar_b
                                                       sidebar_button_column)
 ```
 
-⚠️ La fila 8 la ocupa `appearance_mode_label` (`main_window.py:142`) y la 9 el `CTkOptionMenu`
-(`:149`). Si añades una séptima vista, **desplaza esos dos**.
+⚠️ Por debajo de las 6 vistas, la sidebar coloca ya **cuatro** controles: la etiqueta y el
+desplegable de **proveedor** con su **pin** (`main_window.py:160-214`), y la etiqueta y el
+desplegable de **apariencia** (`:216-229`). Si añades una séptima vista, **desplaza los cuatro**.
+
+⚠️ Ojo con las filas: `create_sidebar_frame()` da `weight=1` a la fila **8**, que es el espaciador que
+empuja esos controles al fondo. Con `sidebar_button_row = 1`, el primer hueco utilizable por debajo
+del espaciador es `row + 8 == 9`.
 
 ### 7.3 Proveedor nuevo
 
@@ -371,6 +384,7 @@ src/gui/sidebarButtons/<vista>/__init__.py   ← vacío
 src/gui/sidebarButtons/<vista>/<vista>.py
 ```
 
-⚠️ **Deja los `__init__.py` vacíos.** `watchingAnimes/__init__.py` contiene un stub
-`class WatchingAnimeButton: pass` que es código muerto y una trampa
+⚠️ **Deja los `__init__.py` vacíos.** ✅ Los **18** de `src/` lo están hoy (0 bytes). El último con
+contenido era `watchingAnimes/__init__.py`, con un stub `class WatchingAnimeButton: pass` que
+ensombrecía a la clase real; se vació el 2026-08-07 en `e6d1a73`
 ([10, trampa 19](10-invariantes-y-trampas.md)).
