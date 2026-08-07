@@ -32,7 +32,6 @@ a = Analysis(
         'gui.sidebarButtons.recentAnimes.recentAnimes',
         'gui.sidebarButtons.searchAnimes.searchAnimes',
         'gui.sidebarButtons.watchingAnimes.watchingAnimes',
-        'gui.sidebarButtons.sidebarButton',
         'gui.anime_window',
         'gui.main_window',
         'utils.buttons.utilsButtons',
