@@ -14,6 +14,7 @@ from PIL import Image, ImageSequence
 
 from APIs.animeav1.animeav1 import AnimeAV1Singleton
 from APIs.animeflv.animeflv import AnimeFLVSingleton
+from APIs.jkanime.jkanime import JKAnimeSingleton
 from APIs.common.animeProviderMgr import AnimeProviderManagerSingleton, AnimeProviderManager
 from APIs.common.models import AnimeInfo
 from dataPersistence.animesPersistence import AnimesPersistenceSingleton, AnimesPersistence, AnimeRecord
@@ -43,8 +44,10 @@ class MainWindow(ctk.CTk):
 
         self.animes_persistence: AnimesPersistence = AnimesPersistenceSingleton()
         self.anime_provider_mgr: AnimeProviderManager = AnimeProviderManagerSingleton()
+        # El orden de registro es el orden del fallback. JKAnime va antes que
         self.anime_provider_mgr.register(AnimeAV1Singleton(), default=True)
-        self.anime_provider_mgr.register(AnimeFLVSingleton())
+        self.anime_provider_mgr.register(JKAnimeSingleton())
+        self.anime_provider_mgr.register(AnimeFLVSingleton()) # AnimeFLV porque este último lleva tiempo sin servir datos utilizables.
 
         # Las preferencias se leen aquí, de forma síncrona, y no en load_animes():
         # el desplegable de proveedor tiene que nacer ya con el valor guardado, y el
