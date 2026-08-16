@@ -9,7 +9,7 @@ futuro despliegue del sitio.
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "APIs.animeav1"
 __module__ = "animeav1.py"
-__version__ = "0.3"
+__version__ = "0.4"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 import re
@@ -23,7 +23,7 @@ from urllib.parse import urlencode, urlparse, parse_qs
 
 from utils.utils import removeprefix
 from APIs.common.animeProviderMgr import AnimeProvider
-from APIs.common.models import AnimeGenreFilter, AnimeOrderFilter, ServerInfo, EpisodeInfo, AnimeInfo
+from APIs.common.models import AnimeGenreFilter, AnimeOrderFilter, AnimeProviderId, ServerInfo, EpisodeInfo, AnimeInfo
 
 BASE_URL = "https://animeav1.com"
 CATALOG_URL = f"{BASE_URL}/catalogo"
@@ -58,7 +58,7 @@ def _fetch(url: str, **kwargs) -> requests.Response:
 
 class AnimeAV1(AnimeProvider):
 
-    PROVIDER_ID = "animeav1"
+    PROVIDER_ID = AnimeProviderId.ANIMEAV1
     PROVIDER_NAME = "AnimeAV1"
     BASE_URL = BASE_URL
 

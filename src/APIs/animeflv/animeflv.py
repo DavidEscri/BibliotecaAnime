@@ -1,7 +1,7 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "APIs.animeflv"
 __module__ = "animeflv.py"
-__version__ = "0.2"
+__version__ = "0.3"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 import time
@@ -15,7 +15,7 @@ from urllib.parse import urlencode
 
 from utils.utils import removeprefix
 from APIs.common.animeProviderMgr import AnimeProvider
-from APIs.common.models import AnimeGenreFilter, ServerInfo, EpisodeInfo, AnimeInfo
+from APIs.common.models import AnimeGenreFilter, AnimeProviderId, ServerInfo, EpisodeInfo, AnimeInfo
 
 
 BASE_URL = "https://www3.animeflv.net"
@@ -26,7 +26,7 @@ ANIME_URL = f"{BASE_URL}/anime"
 
 class AnimeFLV(AnimeProvider):
 
-    PROVIDER_ID = "animeflv"
+    PROVIDER_ID = AnimeProviderId.ANIMEFLV
     PROVIDER_NAME = "AnimeFLV"
     BASE_URL = BASE_URL
 

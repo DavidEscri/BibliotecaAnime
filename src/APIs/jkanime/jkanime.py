@@ -19,7 +19,7 @@ aparece dentro del HTML de la ficha. No son intercambiables.
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "APIs.jkanime"
 __module__ = "jkanime.py"
-__version__ = "0.1"
+__version__ = "0.2"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 import json
@@ -32,7 +32,7 @@ from bs4 import BeautifulSoup
 from urllib.parse import urlencode, urlparse, quote
 
 from APIs.common.animeProviderMgr import AnimeProvider
-from APIs.common.models import AnimeGenreFilter, AnimeOrderFilter, ServerInfo, EpisodeInfo, AnimeInfo
+from APIs.common.models import AnimeGenreFilter, AnimeOrderFilter, AnimeProviderId, ServerInfo, EpisodeInfo, AnimeInfo
 
 BASE_URL = "https://jkanime.net"
 SEARCH_URL = f"{BASE_URL}/buscar"
@@ -100,7 +100,7 @@ def _fetch(url: str, session: requests.Session = None, **kwargs) -> requests.Res
 
 class JKAnime(AnimeProvider):
 
-    PROVIDER_ID = "jkanime"
+    PROVIDER_ID = AnimeProviderId.JKANIME
     PROVIDER_NAME = "JKAnime"
     BASE_URL = BASE_URL
 
@@ -188,6 +188,7 @@ class JKAnime(AnimeProvider):
             raise TypeError
 
         if not query:
+            # TODO: Si el texto está vacío, en vez de buscar en SEARCH_URL, habría que buscar en DIRECTORY_URL para así poder obtener animes.
             return [], 1
 
         if page is not None and page > 1:
@@ -260,6 +261,8 @@ class JKAnime(AnimeProvider):
 
         :rtype: List[AnimeInfo]
         """
+        # TODO: Corregir para que, en vez de obtener todos los animes que aparecen en `https://jkanime.net/` únicamente
+        # se obtengan los que se encuentran en la sección de `PROGRAMACIÓN` y, dentro de esta únicamente la secciónd e `Animes`
         try:
             response = _fetch(BASE_URL)
             response.raise_for_status()
