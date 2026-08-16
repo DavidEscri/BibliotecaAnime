@@ -1,24 +1,44 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "gui"
 __module__ = "anime_window.py"
-__version__ = "0.3"
+__version__ = "0.6"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
+import difflib
+import threading
 import time
 import webbrowser
-
 import customtkinter as ctk
+
 from dataclasses import replace
 from tkinter import messagebox
-from typing import List, Union
+from typing import List, Optional, Union
 
-from APIs.common.models import AnimeInfo, EpisodeInfo, ServerInfo
+from APIs.common.models import AnimeInfo, AnimeProviderId, EpisodeInfo, ServerInfo
 from APIs.common.animeProviderMgr import AnimeProviderManager, AnimeProviderManagerSingleton
 from dataPersistence.animesPersistence import AnimeStatus, AnimeRecord
 from utils import utils
 from utils.buttons import utilsButtons
 from utils.utils import refactor_genre_text, get_resource_path, get_anime_image, download_anime_poster_by_status, \
-    remove_anime_poster_by_status
+    move_anime_poster_by_status, remove_anime_poster_by_status
+
+#: Similitud mínima entre títulos para dar por hecho que un anime que se va a
+#: guardar es el mismo que otro que ya está en la biblioteca. Va **muy por
+#: encima** del umbral con el que se busca (0.75-0.8) a propósito: aquí un falso
+#: positivo interrumpe al usuario con un diálogo por dos animes distintos de la
+#: misma saga ("One Piece" y "One Piece Film: Red"), mientras que un falso
+#: negativo solo deja pasar el duplicado que ya se colaba antes.
+DUPLICATE_TITLE_THRESHOLD = 0.9
+
+#: Cómo se llama cada estado de cara al usuario. En los diálogos hay que nombrar
+#: la sección concreta ("tu Biblioteca de Favoritos") y no "tu biblioteca" a
+#: secas: es la que el usuario acaba de pulsar y la que va a mirar después.
+STATUS_SECTION_NAMES = {
+    AnimeStatus.FAVOURITE: "Favoritos",
+    AnimeStatus.WATCHING:  "Viendo",
+    AnimeStatus.FINISHED:  "Finalizados",
+    AnimeStatus.PENDING:   "Pendientes",
+}
 
 
 # TODO: Al final de la lista de episodios nuevo frame del estilo. "Si te ha gustado One piece, te puede interesar..." y
@@ -46,6 +66,113 @@ def show_anime_info_error(anime_id: Union[str, int]) -> None:
     )
 
 
+def find_saved_duplicate(anime_records: List[AnimeRecord], title: str,
+                         exclude_anime_id: Optional[str] = None) -> Optional[AnimeRecord]:
+    """Busca en la biblioteca un anime que sea **el mismo** que ``title``.
+
+    Sirve para no guardar dos veces el mismo anime cuando se abre desde un
+    proveedor distinto al que lo guardó.
+
+    Compara por título normalizado (sin tildes, ni mayúsculas, ni signos), que es
+    lo único común entre proveedores. No detecta títulos completamente distintos
+    para el mismo anime ("Solo Leveling" y "Ore dake Level Up na Ken"): eso no
+    hay forma de saberlo sin preguntar a la red, y esto corre en el hilo de la
+    interfaz.
+
+    :param exclude_anime_id: fila que no cuenta como duplicado (normalmente, la
+        del propio anime que se está guardando).
+    :return: el ``AnimeRecord`` más parecido si supera
+        ``DUPLICATE_TITLE_THRESHOLD``, o ``None``.
+    """
+    normalized_title = AnimeProviderManager.normalize_title(title)
+    if not normalized_title:
+        return None
+
+    best_record: Optional[AnimeRecord] = None
+    best_ratio: float = 0.0
+    for anime_record in anime_records:
+        if exclude_anime_id is not None and str(anime_record.anime_id) == str(exclude_anime_id):
+            continue
+        normalized_candidate = AnimeProviderManager.normalize_title(anime_record.title)
+        if normalized_candidate == normalized_title:
+            return anime_record
+        ratio = difflib.SequenceMatcher(None, normalized_title, normalized_candidate).ratio()
+        if ratio > best_ratio:
+            best_record, best_ratio = anime_record, ratio
+
+    return best_record if best_ratio >= DUPLICATE_TITLE_THRESHOLD else None
+
+
+def open_saved_anime(main_window, anime_id: Union[str, int]) -> None:
+    """Abre la ficha de un anime **ya guardado** en la biblioteca.
+
+    Punto de entrada único de las cuatro vistas de estado (favoritos, viendo,
+    finalizados y pendientes), que repetían estas mismas líneas una por una.
+
+    El fallback sigue activo a propósito: la propiedad de un slug caduca (hay
+    animes guardados que AnimeAV1 servía y hoy devuelven 404), así que fijar el
+    proveedor de la fila con ``strict=True`` convertiría un anime que hoy se abre
+    despacio en uno que no se abre.
+
+    En el hilo secundario va **solo la petición**. El repintado vuelve al hilo de
+    Tkinter con ``after(0, ...)``, que es la regla del proyecto y no una
+    formalidad: ``display_anime_info()`` empieza destruyendo los widgets de la
+    vista anterior.
+
+    :param main_window: hub de la aplicación (`MainWindow`).
+    :param anime_id: ``anime_id`` de la fila, es decir, el slug del proveedor que
+        la guardó.
+    """
+    anime_record: AnimeRecord = main_window.animes_persistence.get_anime_by_anime_id(anime_id)
+    provider_id, is_deviation = main_window.provider_for_saved_anime(anime_record.provider_id if anime_record is not None else None)
+
+    main_window.configure(cursor="watch")
+    # update_idletasks(): así un segundo clic no puede reentrar aquí y lanzar un segundo hilo.
+    main_window.update_idletasks()
+
+    def _show(anime_info, served_by):
+        """Ya en el hilo de Tkinter: aquí se toca la interfaz, y solo aquí."""
+        if not main_window.winfo_exists():
+            return
+        main_window.configure(cursor="")
+        if anime_info is None:
+            show_anime_info_error(anime_id)
+            return
+        # anime_record va aparte del AnimeInfo y no es redundante: cuando el
+        # usuario se ha desviado de proveedor, `anime_info` es la ficha del sitio
+        # elegido y su `id` es OTRO slug, así que sin la fila la ficha escribiría
+        # con el identificador equivocado y duplicaría el anime.
+        AnimeWindowViewer(main_window, anime_info, served_by,
+                          anime_record=anime_record).display_anime_info()
+
+    def _load_and_show():
+        anime_info = served_by = None
+        if is_deviation and anime_record is not None:
+            # El usuario se ha desviado en el desplegable. El slug guardado es el
+            # del proveedor que lo guardó, así que en el elegido no vale: hay que
+            # volver a localizar el anime por su título.
+            reference = AnimeInfo(
+                id=anime_record.anime_id,
+                title=anime_record.title,
+                poster=anime_record.poster_url
+            )
+            resolved = main_window.anime_provider_mgr.resolve_anime_in_provider(reference, provider_id)
+            if resolved is not None:
+                anime_info, served_by = resolved, provider_id
+            else:
+                # Que el proveedor elegido no lo tenga provoca que se sigue por la vía normal y la ficha mostrará
+                # quién lo ha servido de verdad.
+                print(f"[{provider_id.value}] no tiene {anime_record.title!r}; "
+                      f"se abre con el proveedor habitual")
+
+        if anime_info is None:
+            anime_info, served_by = main_window.anime_provider_mgr.get_anime_info_with_provider(anime_id, provider_id=None if is_deviation else provider_id)
+
+        main_window.after(0, _show, anime_info, served_by)
+
+    threading.Thread(target=_load_and_show, daemon=True).start()
+
+
 class AnimeWindowViewer:
     """Ficha de detalle de un anime. No es una ventana: reemplaza el contenido de
     ``main_window.content_frame``.
@@ -53,46 +180,78 @@ class AnimeWindowViewer:
     **Maneja dos identidades distintas del mismo anime**, y confundirlas duplica
     datos en la biblioteca del usuario:
 
-    - *Identidad de visualización* (``self.anime_info``): la del proveedor que
-      sirvió la ficha, que es el que muestra la etiqueta «Proveedor:». De aquí
-      salen título, sinopsis, géneros, episodios y servidores.
-    - *Identidad de persistencia* (``self.persistence_anime_id`` y
-      ``self.persistence_poster_url``): la del ``AnimeInfo`` con el que se **abrió**
-      la ficha. **Nunca cambia.** Es la que se usa en toda operación de BD y en
-      todo fichero de póster.
+    - *Identidad de visualización* (``self.anime_info``, ``self.provider_id``): la
+      del proveedor que sirvió la ficha, que es el que muestra la etiqueta
+      «Proveedor:». De aquí salen título, sinopsis, géneros, episodios y servidores.
+    - *Identidad de persistencia* (``self.persistence_anime_id``,
+      ``self.persistence_poster_url`` y ``self.persistence_provider_id``): la de la
+      **fila guardada** (el ``anime_record`` del constructor) y, si no está
+      guardado, la del ``AnimeInfo`` con el que se abrió la ficha. **Nunca cambia
+      mientras la ficha está en pantalla.** Es la que se usa en toda operación de
+      BD y en todo fichero de póster.
 
     El motivo es que ``AnimeInfo.id`` es el *slug* del sitio, no un identificador
-    universal: el mismo anime es "one-piece-gyojin-touhen" en AnimeAV1 y
-    "one-piece" en AnimeFLV. Si se persistiera con el id del proveedor que sirvió
+    universal: el mismo anime es "one-piece" en AnimeAV1 y
+    "one-piece-tv" en AnimeFLV. Si se persistiera con el id del proveedor que sirvió
     la ficha en vez de con el de apertura, «añadir a favoritos» insertaría una
     **fila nueva** en ANIMES y el mismo anime aparecería dos veces.
 
     Las dos identidades **siguen sin poder fundirse** aunque la ficha ya no
     permita cambiar de proveedor: el fallback puede servirla desde un proveedor
-    distinto al que guardó la fila.
+    distinto al que guardó la fila, y desviarse en el desplegable de la sidebar
+    la abre directamente con el slug de otro sitio.
+
+    Cuando se separan, la ficha lo dice y ofrece juntarlas de la única forma que
+    no pierde datos: reapuntar la fila a otro proveedor
+    (``__repair_to_target_provider``), que también sirve para llevártela al
+    proveedor que estés usando aunque no haya nada partido.
 
     Ver .claude/docs/13-selector-de-proveedor.md (decisión D5).
     """
 
-    def __init__(self, main_window, anime_info: AnimeInfo, provider_id: str | None = None):
+    def __init__(self, main_window, anime_info: AnimeInfo, provider_id: AnimeProviderId | None = None,
+                 anime_record: AnimeRecord | None = None):
         """
         :param anime_info: ficha del anime. No puede ser ``None``.
-        :param provider_id: proveedor que sirvió esa ficha. Si se omite se asume el
-            predeterminado, que es correcto salvo que el fallback haya entrado en
-            juego; quien lo sepa debería pasarlo (``get_anime_info_with_provider``).
+        :param provider_id: proveedor que sirvió esa ficha. Si se omite se usa el
+            que traiga el propio ``AnimeInfo`` (lo estampa el manager al responder)
+            y, en último caso, el predeterminado.
+        :param anime_record: fila con la que está guardado este anime en la
+            biblioteca, si lo está. **Obligatorio cuando la ficha puede venir de
+            un proveedor distinto al que la guardó**: es de donde sale la
+            identidad de persistencia. Sin él se asume que ``anime_info`` es
+            también lo guardado, que es cierto al abrir desde recientes o desde
+            una búsqueda, pero no al abrir un anime de la biblioteca con el
+            desplegable desviado.
         """
         if anime_info is None:
-            # Contrato: quien llama debe comprobar el None de get_anime_info y
-            # avisar con show_anime_info_error() en vez de construir la ficha.
             raise ValueError("AnimeWindowViewer requiere un AnimeInfo; se recibió None")
         self.main_window = main_window
         self.anime_provider_mgr: AnimeProviderManager = AnimeProviderManagerSingleton()
         self.anime_info: AnimeInfo = self.__with_episodes(anime_info)
-        self.provider_id: str | None = provider_id or self.anime_provider_mgr.get_default_provider_id()
+
+        self.provider_id: AnimeProviderId | None = (provider_id or anime_info.provider_id or self.anime_provider_mgr.get_default_provider_id())
 
         # Identidad de persistencia: se congela aquí y no se vuelve a tocar.
-        self.persistence_anime_id: str = str(anime_info.id)
+        #
+        # Solo se separa de la de visualización cuando el slug que se está viendo
+        # NO es el guardado, es decir, cuando la ficha se ha localizado por título
+        # en otro proveedor. Si los dos slugs coinciden manda el de visualización
+        # aunque haya entrado el fallback: ahí el proveedor que respondió sí sirve
+        # ese slug, y es la respuesta correcta para el autorrelleno de la columna.
+        is_split_identity = (anime_record is not None and str(anime_record.anime_id) != str(anime_info.id))
+        self.persistence_anime_id: str = (str(anime_record.anime_id) if is_split_identity else str(anime_info.id))
         self.persistence_poster_url: str = anime_info.poster
+        self.persistence_provider_id: AnimeProviderId | None = (
+            anime_record.provider_id if is_split_identity else self.provider_id)
+
+        # Proveedor que consta en la fila de la biblioteca. Lo rellena
+        # __load_anime_status() y sirve para avisar cuando no coincide con quien
+        # está sirviendo la ficha; None mientras no se sepa o si no está guardado.
+        self.__saved_provider_id: AnimeProviderId | None = None
+        # Si este anime tiene fila en la tabla ANIMES de DB_Animes.db. No se deduce de __saved_provider_id,
+        # que también es None en las filas anteriores a la columna.
+        self.__is_saved: bool = False
 
         self.episode_switches: list = []
         self.watched_status = {episode.id: False for episode in self.anime_info.episodes}
@@ -123,9 +282,12 @@ class AnimeWindowViewer:
         que leen ``.id`` y ``.poster`` del ``AnimeInfo`` que reciben. Sin esto, un
         cambio de proveedor duplicaría la fila en ANIMES.
         """
-        return replace(self.anime_info,
-                       id=self.persistence_anime_id,
-                       poster=self.persistence_poster_url)
+        return replace(
+            self.anime_info,
+            id=self.persistence_anime_id,
+            poster=self.persistence_poster_url,
+            provider_id=self.persistence_provider_id
+        )
 
     def display_anime_info(self):
         self.main_window.clear_frame()
@@ -137,9 +299,15 @@ class AnimeWindowViewer:
             self.persistence_anime_id)
         if anime_record is None:
             return
+        self.__is_saved = True
+        self.__saved_provider_id = anime_record.provider_id
+        if anime_record.provider_id is None and self.persistence_provider_id is not None:
+            if self.main_window.animes_persistence.update_anime_provider_id(self.persistence_anime_id, self.persistence_provider_id):
+                print(f"Anotado el proveedor {self.persistence_provider_id.value} "
+                      f"para {self.persistence_anime_id}")
+                self.__saved_provider_id = self.persistence_provider_id
         if len(anime_record.episodes) != len(self.anime_info.episodes):
-            self.main_window.animes_persistence.update_anime_episodes(self.persistence_anime_id,
-                                                                      self.anime_info.episodes)
+            self.main_window.animes_persistence.update_anime_episodes(self.persistence_anime_id, self.anime_info.episodes)
         self.__anime_is_favourite = anime_record.is_favourite
         self.__anime_is_finished = anime_record.is_finished
         self.__anime_is_watching = anime_record.is_watching
@@ -167,9 +335,7 @@ class AnimeWindowViewer:
         self.main_window.content_frame.grid_columnconfigure(2, weight=1)  # Añadir espacio para los botones
         self.main_window.content_frame.grid_columnconfigure(3, weight=1)  # Añadir espacio para los botones
 
-        # Cargar la imagen del póster. Se pide con la identidad de persistencia para
-        # que siga encontrando el `{anime_id}.jpg` ya cacheado aunque se esté
-        # mostrando la ficha de otro proveedor.
+        # Cargar la imagen del póster.
         anime_image = get_anime_image(self.__persistence_anime_info())
 
         # Crear el frame para contener el póster y la información
@@ -233,10 +399,7 @@ class AnimeWindowViewer:
         ``call_with_fallback``: puedes tener AnimeAV1 seleccionado y estar viendo
         datos de otro porque el primero falló.
 
-        No es interactivo a propósito: el proveedor se elige en la sidebar. Aquí
-        hubo un desplegable que permitía ver esta misma ficha desde otro
-        proveedor, y se retiró al hacer que la selección de la sidebar valiera
-        solo para la sesión (ver docs/13).
+        El proveedor se elige en la sidebar.
         """
         provider_frame = ctk.CTkFrame(self.main_window.content_frame, fg_color="transparent")
         provider_frame.grid(row=0, column=1, columnspan=3, sticky=ctk.E, padx=(5, 10), pady=(5, 0))
@@ -249,8 +412,7 @@ class AnimeWindowViewer:
         )
         provider_title.grid(row=0, column=0, sticky=ctk.E, padx=(0, 5))
 
-        provider_name = (self.anime_provider_mgr.get_provider_name(self.provider_id)
-                         if self.provider_id is not None else "desconocido")
+        provider_name = self.anime_provider_mgr.get_provider_name(self.provider_id)
         provider_value = ctk.CTkLabel(
             provider_frame,
             text=provider_name,
@@ -258,6 +420,243 @@ class AnimeWindowViewer:
             anchor="e"
         )
         provider_value.grid(row=0, column=1, sticky=ctk.E)
+
+        # Aviso de identidad partida: estos datos vienen de un sitio y la fila de la
+        # biblioteca es de otro.
+        if self.__is_saved:
+            # De quién es la FILA, que es un dato distinto del de arriba y se
+            # muestra siempre que el anime esté guardado.
+            is_split = self.__has_split_identity()
+            saved_name = (self.anime_provider_mgr.get_provider_name(self.__saved_provider_id)
+                          if self.__saved_provider_id is not None
+                          else "sin proveedor anotado")
+            # La advertencia se reserva para la discrepancia de verdad: lo que estás
+            # viendo no lo sirve el proveedor de tu fila, así que los botones de
+            # estado y el póster escriben en algo distinto de lo que tienes
+            # delante.
+            library_label = ctk.CTkLabel(
+                provider_frame,
+                text=f"{'⚠ ' if is_split else ''}En tu biblioteca: {saved_name}",
+                font=ctk.CTkFont(size=12),
+                text_color=("#B45309", "#FBBF24") if is_split else ("gray45", "gray60"),
+                anchor="e"
+            )
+            library_label.grid(row=1, column=0, columnspan=2, sticky=ctk.E, pady=(2, 0))
+
+        target_provider_id = self.__repair_target_provider_id()
+        if target_provider_id is None:
+            return
+        # Pasar la fila a otro proveedor. Se ofrece aquí, pegado a la etiqueta que
+        # dice de dónde salen los datos, porque es la misma pregunta vista desde
+        # los dos lados: "esto viene de X" / "guárdalo desde Y".
+        migrate_button = ctk.CTkButton(
+            provider_frame,
+            text=f"Actualizar a {self.anime_provider_mgr.get_provider_name(target_provider_id)}",
+            font=ctk.CTkFont(size=12),
+            height=26,
+            width=170,
+            command=self.__repair_to_target_provider
+        )
+        migrate_button.grid(row=2, column=0, columnspan=2, sticky=ctk.E, pady=(4, 0))
+
+    def __has_split_identity(self) -> bool:
+        """Si la fila guardada y la ficha que se está viendo no son la misma cosa.
+
+        Dos formas de que ocurra, y las dos se arreglan igual: el slug guardado es
+        de otro sitio (el usuario se desvió y la ficha se localizó por título), o
+        es el mismo slug pero lo está sirviendo un proveedor distinto del que
+        consta en la fila (fallback).
+        """
+        if not self.__is_saved:
+            return False
+        if self.persistence_anime_id != str(self.anime_info.id):
+            return True
+        return (self.__saved_provider_id is not None and self.provider_id is not None
+                and self.__saved_provider_id != self.provider_id)
+
+    def __repair_target_provider_id(self) -> AnimeProviderId | None:
+        """A qué proveedor se ofrece pasar esta fila, o ``None`` si no hay nada que hacer.
+
+        Dos orígenes, en este orden:
+
+        1. **Quien está sirviendo la ficha**, cuando no es el de la fila. Es lo que
+           tienes delante, así que migrar no cuesta ni una petición.
+        2. **El proveedor seleccionado en la sidebar**, cuando la ficha la sirve el
+           de la fila pero tú estás usando otro. Este es el caso corriente —«tengo
+           One Piece guardado desde AnimeFLV y quiero pasarlo a AnimeAV1»— y hay
+           que localizar el anime allí antes de migrar, porque el slug es distinto
+           en cada sitio.
+
+        Atarlo solo al caso 1, como estaba, dejaba la acción fuera de alcance
+        justo cuando más falta hace: al abrir un anime guardado sin desviar el
+        desplegable lo sirve **el proveedor de su propia fila**, así que nunca
+        había nada "partido" que reparar y el botón no llegaba a aparecer.
+        """
+        if not self.__is_saved:
+            return None
+        if self.__has_split_identity():
+            return self.provider_id
+        selected_provider_id = self.anime_provider_mgr.get_default_provider_id()
+        if (selected_provider_id is not None and self.__saved_provider_id is not None and selected_provider_id != self.__saved_provider_id):
+            return selected_provider_id
+        return None
+
+    def __repair_to_target_provider(self):
+        """Punto de entrada del botón «Actualizar a …».
+
+        Si el proveedor destino es el que ya está sirviendo la ficha, se migra con
+        lo que hay en pantalla. Si es otro —el seleccionado en la sidebar—, primero
+        hay que **localizar el anime allí**, porque su ``anime_id`` es un slug
+        propio de cada sitio y el guardado no vale. Eso cuesta dos peticiones, así
+        que va en un hilo aparte con el cursor de espera.
+        """
+        target_provider_id = self.__repair_target_provider_id()
+        if target_provider_id is None:
+            return
+
+        if target_provider_id == self.provider_id:
+            # Ya la tenemos delante: ni una petición.
+            self.__confirm_and_migrate(self.anime_info, target_provider_id)
+            return
+
+        self.main_window.configure(cursor="watch")
+        self.main_window.update_idletasks()
+
+        def _resolved(resolved_anime_info: AnimeInfo | None):
+            """Vuelta al hilo de Tkinter: aquí se abren los diálogos, no en el hilo."""
+            if not self.main_window.winfo_exists():
+                return
+            self.main_window.configure(cursor="")
+            provider_name = self.anime_provider_mgr.get_provider_name(target_provider_id)
+            if resolved_anime_info is None:
+                messagebox.showinfo(
+                    f"{provider_name} no tiene este anime",
+                    f"No se ha encontrado «{self.anime_info.title}» en {provider_name}, "
+                    f"así que no se puede pasar tu biblioteca a ese proveedor.\n\n"
+                    f"El anime sigue guardado como estaba."
+                )
+                return
+            self.__confirm_and_migrate(resolved_anime_info, target_provider_id)
+
+        def _resolve():
+            reference = AnimeInfo(
+                id=self.persistence_anime_id,
+                title=self.anime_info.title,
+                poster=self.persistence_poster_url
+            )
+            resolved_anime_info = self.anime_provider_mgr.resolve_anime_in_provider(reference, target_provider_id)
+            self.main_window.after(0, _resolved, resolved_anime_info)
+
+        threading.Thread(target=_resolve, daemon=True).start()
+
+    def __confirm_and_migrate(self, anime_info: AnimeInfo, target_provider_id: AnimeProviderId):
+        """Reescribe la fila guardada para que sea la de ``target_provider_id``.
+
+        Es la única acción de la aplicación que reescribe la identidad de una fila
+        de la biblioteca, así que se pide confirmación enumerando lo que cambia y
+        lo que se conserva. Lo que se conserva es lo importante: los episodios
+        vistos, que no se pueden recuperar de ningún sitio.
+
+        :param anime_info: ficha **del proveedor destino**, de donde salen el
+            identificador, el título y el póster nuevos.
+        """
+        animes_persistence = self.main_window.animes_persistence
+        anime_record: AnimeRecord = animes_persistence.get_anime_by_anime_id(self.persistence_anime_id)
+        if anime_record is None:
+            # La fila puede haber desaparecido desde que se pintó la ficha.
+            messagebox.showinfo(
+                "Este anime ya no está guardado",
+                "Este anime ya no consta en tu biblioteca, así que no hay nada que actualizar."
+            )
+            return
+
+        new_anime_id = str(anime_info.id)
+        provider_name = self.anime_provider_mgr.get_provider_name(target_provider_id)
+        if (new_anime_id != self.persistence_anime_id
+                and animes_persistence.get_anime_by_anime_id(new_anime_id) is not None):
+            # Migrar dejaría dos filas del mismo anime, cada una con sus episodios
+            # vistos. Se para aquí y no en la capa de persistencia para poder
+            # explicarlo; migrate_anime_identity() lo comprueba igualmente.
+            messagebox.showwarning(
+                "No se puede actualizar",
+                f"En tu biblioteca ya hay otra entrada de este anime en {provider_name}.\n\n"
+                f"Elimina una de las dos antes de actualizar, o se quedarían duplicadas."
+            )
+            return
+
+        changes = [f"  · proveedor: "
+                   f"{self.anime_provider_mgr.get_provider_name(self.__saved_provider_id)} → {provider_name}"]
+        if new_anime_id != self.persistence_anime_id:
+            changes.append(f"  · identificador: {self.persistence_anime_id} → {new_anime_id}")
+        if anime_info.title and anime_info.title != anime_record.title:
+            changes.append(f"  · título: «{anime_record.title}» → «{anime_info.title}»")
+
+        if not messagebox.askyesno(
+            "Actualizar el anime guardado",
+            f"«{anime_record.title}» pasará a guardarse desde {provider_name}:\n\n"
+            + "\n".join(changes) +
+            f"\n\nSe conservan los {len(anime_record.watched_episodes)} episodios vistos y "
+            f"las categorías en las que está.\n\n¿Actualizarlo?"
+        ):
+            return
+
+        old_anime_id = self.persistence_anime_id
+        self.main_window.configure(cursor="watch")
+        self.main_window.update_idletasks()
+
+        def _done(migrated: bool):
+            """Vuelta al hilo de Tkinter: aquí, y solo aquí, se toca la interfaz."""
+            if not self.main_window.winfo_exists():
+                return
+            self.main_window.configure(cursor="")
+            if not migrated:
+                messagebox.showerror(
+                    "No se pudo actualizar",
+                    "No se ha podido actualizar el anime en tu biblioteca.\n\n"
+                    "No se ha cambiado nada; revisa la consola para ver el detalle."
+                )
+                return
+            # Ficha nueva en vez de retocar esta: así la identidad de persistencia
+            # se vuelve a congelar a partir del anime ya migrado, en lugar de
+            # mutar unos atributos que el resto de la clase da por inmutables. De
+            # paso, la ficha pasa a mostrar los datos del proveedor nuevo.
+            AnimeWindowViewer(self.main_window, anime_info, target_provider_id).display_anime_info()
+
+        def _migrate():
+            migrated = animes_persistence.migrate_anime_identity(
+                old_anime_id, anime_info, target_provider_id)
+            if migrated:
+                self.__move_posters(anime_record, old_anime_id, new_anime_id, anime_info)
+            self.main_window.after(0, _done, migrated)
+
+        # En hilo aparte porque, si el póster no estaba cacheado, hay que bajarlo.
+        threading.Thread(target=_migrate, daemon=True).start()
+
+    def __move_posters(self, anime_record: AnimeRecord, old_anime_id: str, new_anime_id: str,
+                       anime_info: AnimeInfo):
+        """Lleva los pósters cacheados al nombre de fichero del ``anime_id`` nuevo.
+
+        Solo en las categorías en las que está el anime, que son las únicas
+        carpetas donde se guarda su imagen. Un fallo aquí no revierte la
+        migración: el peor caso es un recuadro gris hasta la próxima descarga.
+        """
+        if old_anime_id == new_anime_id:
+            return
+        active_statuses = [
+            (AnimeStatus.FAVOURITE, anime_record.is_favourite),
+            (AnimeStatus.WATCHING,  anime_record.is_watching),
+            (AnimeStatus.FINISHED,  anime_record.is_finished),
+            (AnimeStatus.PENDING,   anime_record.is_pending),
+        ]
+        for status, is_active in active_statuses:
+            if not is_active:
+                continue
+            try:
+                if not move_anime_poster_by_status(status, old_anime_id, new_anime_id):
+                    download_anime_poster_by_status(status, anime_info)
+            except Exception as e:
+                print(f"No se pudo actualizar el póster de {new_anime_id} "
+                      f"en {status.name.lower()}: {e}")
 
     def __show_anime_status(self):
         self.__anime_status_frame = ctk.CTkFrame(self.main_window.content_frame)
@@ -327,7 +726,60 @@ class AnimeWindowViewer:
     # self.anime_info directamente: si no, cambiar de proveedor y pulsar uno de
     # estos botones crearía una fila nueva en ANIMES para el mismo anime.
     # ------------------------------------------------------------------
+    def __confirm_save(self, status: AnimeStatus) -> bool:
+        """Avisa antes de crear una fila nueva de un anime que ya está guardado.
+
+        La comprobación por ``anime_id`` no basta: el mismo anime tiene un slug
+        distinto en cada sitio, así que abrirlo desde otro proveedor y pulsar un
+        estado inserta una **segunda fila** del mismo anime, con sus propios
+        episodios vistos y su propia entrada en las listas. Hasta ahora eso pasaba
+        en silencio.
+
+        Se consulta la BD en vez de mirar ``__is_saved``, que se calculó al pintar
+        la ficha: si el usuario ya ha pulsado otro estado en esta misma pantalla,
+        la fila existe desde entonces y no hay nada que avisar.
+
+        :param status: sección a la que se está añadiendo, para nombrarla en el
+            aviso en vez de hablar de «tu biblioteca» en abstracto.
+        :return: ``True`` si se puede guardar (no hay duplicado, o el usuario lo
+            ha aceptado a sabiendas).
+        """
+        animes_persistence = self.main_window.animes_persistence
+        if animes_persistence.get_anime_by_anime_id(self.persistence_anime_id) is not None:
+            return True
+
+        duplicate = find_saved_duplicate(animes_persistence.get_all_animes(), self.anime_info.title,
+                                         exclude_anime_id=self.persistence_anime_id)
+        if duplicate is None:
+            return True
+
+        duplicate_provider = self.anime_provider_mgr.get_provider_name(duplicate.provider_id)
+        provider_name = self.anime_provider_mgr.get_provider_name(self.provider_id)
+        section_name = STATUS_SECTION_NAMES.get(status, "tu biblioteca")
+        # Dónde está el duplicado se saca de sus propios flags y no de la sección
+        # que se acaba de pulsar: puede estar en otra, o en ninguna si se quitó de
+        # todas. Decir "ya está en Favoritos" cuando está en Pendientes sería
+        # mentir justo en el dato por el que el usuario decide.
+        duplicate_sections = [name for duplicate_status, name in STATUS_SECTION_NAMES.items()
+                              if getattr(duplicate, duplicate_status.value)]
+        location = f", en {' y '.join(duplicate_sections)}," if duplicate_sections else ""
+        print(f"{self.anime_info.title!r} se parece a {duplicate.title!r} "
+              f"({duplicate.anime_id}), ya guardado desde {duplicate_provider}")
+        return messagebox.askyesno(
+            "Puede que ya lo tengas guardado",
+            f"Vas a añadir «{self.anime_info.title}» a tu Biblioteca de {section_name}.\n\n"
+            f"«{duplicate.title}» ya está en tu biblioteca{location} guardado desde "
+            f"{duplicate_provider}.\n\n"
+            f"Si lo añades ahora tendrás el mismo anime dos veces, cada copia con sus "
+            f"propios episodios vistos.\n\n"
+            f"Para tenerlo en {provider_name} sin duplicarlo, ábrelo desde tu biblioteca "
+            f"y usa «Actualizar a {provider_name}».\n\n"
+            f"¿Añadirlo de todas formas?"
+        )
+
     def add_to_favorites(self):
+        if not self.__confirm_save(AnimeStatus.FAVOURITE):
+            return
         anime_info = self.__persistence_anime_info()
         self.main_window.animes_persistence.update_anime_to_favourite(anime_info)
         download_anime_poster_by_status(AnimeStatus.FAVOURITE, anime_info)
@@ -343,6 +795,8 @@ class AnimeWindowViewer:
         self.__display_anime_status()
 
     def add_to_finished(self):
+        if not self.__confirm_save(AnimeStatus.FINISHED):
+            return
         anime_info = self.__persistence_anime_info()
         self.main_window.animes_persistence.update_anime_to_finished(anime_info)
         download_anime_poster_by_status(AnimeStatus.FINISHED, anime_info)
@@ -361,6 +815,8 @@ class AnimeWindowViewer:
         self.__display_anime_status()
 
     def add_to_watching(self):
+        if not self.__confirm_save(AnimeStatus.WATCHING):
+            return
         anime_info = self.__persistence_anime_info()
         self.main_window.animes_persistence.update_anime_to_watching(anime_info)
         download_anime_poster_by_status(AnimeStatus.WATCHING, anime_info)
@@ -378,6 +834,8 @@ class AnimeWindowViewer:
         self.__display_anime_status()
 
     def add_to_pending(self):
+        if not self.__confirm_save(AnimeStatus.PENDING):
+            return
         anime_info = self.__persistence_anime_info()
         self.main_window.animes_persistence.update_anime_to_pending(anime_info)
         download_anime_poster_by_status(AnimeStatus.PENDING, anime_info)
@@ -613,13 +1071,13 @@ class AnimeWindowViewer:
             )
             if not servers_info:
                 provider_name = self.anime_provider_mgr.get_provider_name(self.provider_id)
-                print(f"[{self.provider_id}] Sin servidores para el episodio "
+                print(f"[{provider_name}] Sin servidores para el episodio "
                       f"{episode_info.id} de {episode_info.anime}")
                 messagebox.showinfo(
                     "Sin servidores disponibles",
                     f"{provider_name} no ofrece servidores para el episodio "
                     f"{episode_info.id}.\n\nPrueba a cambiar de proveedor en el "
-                    f"desplegable de arriba a la derecha."
+                    f"desplegable de la barra lateral y vuelve a abrir el anime."
                 )
                 return
             # Crear un nuevo frame solo para los servidores
@@ -644,4 +1102,3 @@ class AnimeWindowViewer:
 
     def __play_video(self, url):
         webbrowser.open(url)
-

@@ -1,22 +1,21 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "gui"
 __module__ = "main_window.py"
-__version__ = "0.2"
+__version__ = "0.4"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 import threading
-from tkinter import messagebox
-
 import customtkinter as ctk
-from typing import List
 
+from tkinter import messagebox
+from typing import List, Tuple
 from PIL import Image, ImageSequence
 
 from APIs.animeav1.animeav1 import AnimeAV1Singleton
 from APIs.animeflv.animeflv import AnimeFLVSingleton
 from APIs.jkanime.jkanime import JKAnimeSingleton
 from APIs.common.animeProviderMgr import AnimeProviderManagerSingleton, AnimeProviderManager
-from APIs.common.models import AnimeInfo
+from APIs.common.models import AnimeInfo, AnimeProviderId
 from dataPersistence.animesPersistence import AnimesPersistenceSingleton, AnimesPersistence, AnimeRecord
 from dataPersistence.userPersistence import UserPersistenceSingleton, UserPersistence
 from gui.sidebarButtons.favouriteAnimes.favouriteAnimes import FavouritesButton
@@ -57,7 +56,12 @@ class MainWindow(ctk.CTk):
         self.user_persistence.start()
         # Proveedor fijado con el pin. None = sin preferencia guardada, en cuyo
         # caso manda el predeterminado del registro (AnimeAV1).
-        self.__pinned_provider_id: str | None = None
+        self.__pinned_provider_id: AnimeProviderId | None = None
+        # Predeterminado del registro ANTES de aplicar ninguna preferencia. Hay que
+        # capturarlo aquí porque __apply_saved_provider_preference() lo pisa con
+        # set_default(): es el último escalón del orden de prioridad y, sin pin, la
+        # referencia contra la que se decide si el desplegable está desviado.
+        self.__registry_default_provider_id: AnimeProviderId | None = self.anime_provider_mgr.get_default_provider_id()
         self.__apply_saved_provider_preference()
 
         self.__provider_optionmenu: ctk.CTkOptionMenu | None = None
@@ -170,16 +174,15 @@ class MainWindow(ctk.CTk):
         # Desplegable y pin comparten fila dentro de un frame propio, para no
         # desplazar las filas de abajo (apariencia) al añadir el segundo control.
         provider_frame = ctk.CTkFrame(self.sidebar_frame, fg_color="transparent")
-        provider_frame.grid(row=sidebar_button_row + 9, column=sidebar_button_column,
-                            padx=20, pady=(5, 0))
+        provider_frame.grid(row=sidebar_button_row + 9, column=sidebar_button_column, padx=20, pady=(5, 0))
 
         # El contenido del desplegable sale SIEMPRE del manager: la GUI no mantiene
         # su propia lista de proveedores. Cuando existan proveedores de manga, el
-        # filtrado por tipo de medio se hará en get_provider_names().
-        provider_names = self.anime_provider_mgr.get_provider_names()
+        # filtrado por tipo de medio se hará en list_providers_info().
+        providers_info = self.anime_provider_mgr.list_providers_info()
         self.__provider_optionmenu = ctk.CTkOptionMenu(
             provider_frame,
-            values=list(provider_names.values()),
+            values=[provider_info.name for provider_info in providers_info],
             width=140,
             command=self.change_anime_provider_event
         )
@@ -234,25 +237,26 @@ class MainWindow(ctk.CTk):
     # ------------------------------------------------------------------
     def __apply_saved_provider_preference(self) -> None:
         """Aplica el proveedor predeterminado guardado en DB_user.db, si lo hay.
-
-        Si no hay preferencia, o apunta a un proveedor que ya no está registrado
-        (p.ej. se retiró del código), se deja el predeterminado del registro y se
-        avisa por consola. Una preferencia obsoleta no puede impedir arrancar.
         """
-        saved_provider_id = self.user_persistence.get_default_provider_id()
-        if saved_provider_id is None:
+        saved_value = self.user_persistence.get_default_provider_id()
+        if saved_value is None:
+            current_provider_id = self.anime_provider_mgr.get_default_provider_id()
             print(f"Sin proveedor fijado, se usa "
-                  f"{self.anime_provider_mgr.get_default_provider_id()}")
+                  f"{current_provider_id.value if current_provider_id else 'ninguno'}")
             return
         try:
+            # ValueError si el texto guardado ya no corresponde a ningún miembro
+            # del enum; UnknownProviderError si el miembro existe pero no está
+            # registrado. Los dos casos acaban igual: se ignora la preferencia.
+            saved_provider_id = AnimeProviderId(saved_value)
             self.anime_provider_mgr.set_default(saved_provider_id)
             self.__pinned_provider_id = saved_provider_id
-            print(f"Proveedor fijado por el usuario: {saved_provider_id}")
+            print(f"Proveedor fijado por el usuario: {saved_provider_id.value}")
         except Exception as e:
             # Preferencia obsoleta (p.ej. un proveedor retirado del código): se
             # deja el predeterminado del registro y el pin sale sin marcar, así
             # que la siguiente pulsación la reescribe con algo válido.
-            print(f"El proveedor fijado ({saved_provider_id}) no es válido: {e}")
+            print(f"El proveedor fijado ({saved_value}) no es válido: {e}")
 
     def change_anime_provider_event(self, new_provider_name: str) -> None:
         """Cambia el proveedor **solo para esta sesión** y recarga los recientes.
@@ -260,14 +264,14 @@ class MainWindow(ctk.CTk):
         No escribe en DB_user.db: fijar el predeterminado es una acción aparte
         (el pin). Así se puede probar otro proveedor sin tocar la configuración.
         """
-        provider_id: str | None = self.anime_provider_mgr.get_provider_id_by_name(new_provider_name)
-        if provider_id is None:
+        provider_info = self.anime_provider_mgr.get_provider_info_by_name(new_provider_name)
+        if provider_info is None:
             print(f"Proveedor no reconocido: {new_provider_name!r}")
             return
-        if provider_id == self.anime_provider_mgr.get_default_provider_id():
+        if provider_info.id == self.anime_provider_mgr.get_default_provider_id():
             return
 
-        self.anime_provider_mgr.set_default(provider_id)
+        self.anime_provider_mgr.set_default(provider_info.id)
         print(f"Proveedor de anime cambiado a {new_provider_name} (solo esta sesión)")
         self.__refresh_pin_provider_button()
         self.__reload_recent_animes()
@@ -286,7 +290,8 @@ class MainWindow(ctk.CTk):
 
         pin_it = current_provider_id != self.__pinned_provider_id
         new_pinned_id = current_provider_id if pin_it else None
-        if not self.user_persistence.set_default_provider_id(new_pinned_id):
+        # Frontera hacia la BD: se persiste el valor del enum, no el miembro.
+        if not self.user_persistence.set_default_provider_id(new_pinned_id.value if new_pinned_id is not None else None):
             # La sesión sigue siendo válida; lo único que falla es recordarlo.
             print(f"No se pudo guardar el proveedor fijado ({new_pinned_id})")
             messagebox.showwarning(
@@ -297,7 +302,7 @@ class MainWindow(ctk.CTk):
             return
 
         self.__pinned_provider_id = new_pinned_id
-        print(f"Proveedor {current_provider_id} {'fijado' if pin_it else 'desfijado'}")
+        print(f"Proveedor {current_provider_id.value} {'fijado' if pin_it else 'desfijado'}")
         self.__refresh_pin_provider_button()
 
     def __refresh_pin_provider_button(self) -> None:
@@ -314,6 +319,43 @@ class MainWindow(ctk.CTk):
             image=self.__pin_icon_pinned if is_pinned else self.__pin_icon_unpinned
         )
 
+    def reference_provider_id(self) -> AnimeProviderId | None:
+        """Proveedor «de referencia»: el pin, o el predeterminado del registro si no hay.
+
+        Es contra este valor —y no contra el predeterminado vivo del manager, que
+        el desplegable va cambiando— contra el que se mide si el usuario se ha
+        desviado a propósito en esta sesión.
+        """
+        return (self.__pinned_provider_id if self.__pinned_provider_id is not None
+                else self.__registry_default_provider_id)
+
+    def provider_for_saved_anime(self, record_provider_id: AnimeProviderId | None
+                                 ) -> Tuple[AnimeProviderId | None, bool]:
+        """Decide con qué proveedor abrir un anime de la biblioteca.
+
+        Implementa el orden de prioridad acordado (`docs/13 §8`):
+
+          1. **Selección del desplegable**, si difiere de la de referencia. Que el
+             usuario se haya desviado es una acción deliberada y manda sobre todo
+             lo demás; si no, un anime guardado no podría verse nunca desde otro
+             sitio, que es justo para lo que existe el desplegable.
+          2. **`provider_id` de la fila**, si la fila lo declara.
+          3. La de referencia (pin, o predeterminado del registro).
+
+        :param record_provider_id: proveedor guardado en la fila, o None si la fila
+            no existe o es anterior a la columna.
+        :return: ``(proveedor, hay_desviación)``. La desviación se devuelve porque
+            obliga a **re-resolver el anime por título** (el slug guardado es el de
+            otro sitio), y eso cuesta dos peticiones más.
+        """
+        selected_provider_id = self.anime_provider_mgr.get_default_provider_id()
+        reference_provider_id = self.reference_provider_id()
+        if selected_provider_id is not None and selected_provider_id != reference_provider_id:
+            return selected_provider_id, True
+        if record_provider_id is not None:
+            return record_provider_id, False
+        return reference_provider_id, False
+
     def __reload_recent_animes(self) -> None:
         """Vuelve a pedir los animes recientes al proveedor recién elegido.
 
@@ -326,8 +368,11 @@ class MainWindow(ctk.CTk):
         self.__reloading_recent_animes = True
         self.__recent_animes_generation += 1
         self.configure(cursor="watch")
-        threading.Thread(target=self.__reload_recent_animes_worker,
-                         args=(self.__recent_animes_generation,), daemon=True).start()
+        threading.Thread(
+            target=self.__reload_recent_animes_worker,
+            args=(self.__recent_animes_generation,),
+            daemon=True
+        ).start()
 
     def __reload_recent_animes_worker(self, generation: int) -> None:
         """Parte de red de la recarga. Corre en un hilo daemon: no toca widgets.
@@ -362,8 +407,11 @@ class MainWindow(ctk.CTk):
             return
         self.recent_animes = recent_animes
         self.__recent_animes_button.show_frame()
-        threading.Thread(target=self.__preload_recent_animes_info,
-                         args=(generation,), daemon=True).start()
+        threading.Thread(
+            target=self.__preload_recent_animes_info,
+            args=(generation,),
+            daemon=True
+        ).start()
 
     def change_appearance_mode_event(self, new_appearance_mode):
         ctk.set_appearance_mode(new_appearance_mode)
@@ -436,8 +484,11 @@ class MainWindow(ctk.CTk):
 
         # Precargar el detalle de cada anime reciente en segundo plano para que
         # el clic del usuario sea instantáneo en lugar de bloquear la UI.
-        threading.Thread(target=self.__preload_recent_animes_info,
-                         args=(self.__recent_animes_generation,), daemon=True).start()
+        threading.Thread(
+            target=self.__preload_recent_animes_info,
+            args=(self.__recent_animes_generation,),
+            daemon=True
+        ).start()
 
     def __preload_recent_animes_info(self, generation: int):
         """Rellena synopsis, géneros y episodios de los animes recientes en segundo plano.
