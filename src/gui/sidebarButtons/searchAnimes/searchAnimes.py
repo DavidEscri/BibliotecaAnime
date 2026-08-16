@@ -1,21 +1,19 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "sidebarButtons"
 __module__ = "searchAnimes.py"
-__version__ = "0.1"
+__version__ = "0.2"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 import os
 import threading
 import time
+import customtkinter as ctk
 
 from dataclasses import dataclass
-
-import customtkinter as ctk
 from typing import List, Union
-
 from PIL import Image, ImageSequence
 
-from APIs.common.models import AnimeGenreFilter, AnimeOrderFilter, AnimeInfo
+from APIs.common.models import AnimeGenreFilter, AnimeOrderFilter, AnimeInfo, AnimeProviderId
 from APIs.common.animeProviderMgr import AnimeProviderManager, AnimeProviderManagerSingleton
 from gui.anime_window import AnimeWindowViewer, show_anime_info_error
 from utils.buttons import utilsButtons
@@ -35,8 +33,8 @@ class AnimeSearch:
 class SearchButton(utilsButtons.SidebarButton):
     def __init__(self, main_window, icon_path, row, column):
         icon_path_light = icon_path_dark = os.path.join(icon_path, "buscar.png")
-        super().__init__(main_window.sidebar_frame, "BUSCADOR DE ANIMES", row, column, self.__show_buscador,
-                         icon_path_light, icon_path_dark)
+        super().__init__(main_window.sidebar_frame, "BUSCADOR DE ANIMES", row, column, self.__show_buscador, icon_path_light, icon_path_dark)
+
         self.main_window = main_window
         self.anime_provider_mgr: AnimeProviderManager = AnimeProviderManagerSingleton()
         self.__episodes_filter_frame: ctk.CTkFrame | None = None
@@ -251,7 +249,10 @@ class SearchButton(utilsButtons.SidebarButton):
                 image=image
             )
             img_label.grid(row=row * 2, column=column, padx=10, pady=(20, 0), sticky=ctk.NSEW)  # Posicionar con relleno
-            img_label.bind("<Button-1>", lambda e, anime_id=anime.id: self.__on_anime_click(anime_id))
+
+            img_label.bind("<Button-1>",
+                           lambda e, anime_id=anime.id, provider_id=anime.provider_id:
+                           self.__on_anime_click(anime_id, provider_id))
 
             # Título del anime
             title_label = ctk.CTkLabel(
@@ -336,14 +337,37 @@ class SearchButton(utilsButtons.SidebarButton):
     def __search_and_display_animes(self, page, text_query: str = None):
         self.__show_loading_frame(text_entry=text_query, page=page)
 
-    def __on_anime_click(self, anime_id: Union[str, int]):
-        # ..._with_provider en vez de get_anime_info: la ficha necesita saber QUIÉN
-        # sirvió estos datos, tanto para mostrarlo en su selector de proveedor como
-        # para pedir los servidores de vídeo al sitio correcto. El fallback puede
-        # haber servido un proveedor distinto al predeterminado.
-        anime_clicked, provider_id = self.anime_provider_mgr.get_anime_info_with_provider(anime_id)
-        if anime_clicked is None:
-            show_anime_info_error(anime_id)
-            return
-        anime_viewer = AnimeWindowViewer(self.main_window, anime_clicked, provider_id)
-        anime_viewer.display_anime_info()
+    def __on_anime_click(self, anime_id: Union[str, int], provider_id: AnimeProviderId = None):
+        """Abre la ficha de un resultado de búsqueda.
+
+        No usa `open_saved_anime()` porque un resultado de búsqueda no tiene por
+        qué estar en la biblioteca: aquí el proveedor no se decide, ya se sabe —es
+        el que sirvió la búsqueda—, así que se pasa tal cual y el fallback solo
+        entra si ese sitio falla.
+
+        :param anime_id: slug del anime en `provider_id`.
+        :param provider_id: proveedor que sirvió el resultado; None si no consta.
+        """
+        self.main_window.configure(cursor="watch")
+        self.main_window.update_idletasks()
+
+        def _show(anime_clicked, served_by):
+            if not self.main_window.winfo_exists():
+                return
+            # Restaurar el cursor antes de cualquier salida, incluida la de error.
+            self.main_window.configure(cursor="")
+            if anime_clicked is None:
+                show_anime_info_error(anime_id)
+                return
+            AnimeWindowViewer(self.main_window, anime_clicked, served_by).display_anime_info()
+
+        def _load_and_show():
+            anime_clicked, served_by = self.anime_provider_mgr.get_anime_info_with_provider(
+                anime_id, provider_id=provider_id)
+            self.main_window.after(0, _show, anime_clicked, served_by)
+
+        threading.Thread(
+            target=_load_and_show,
+            daemon=True
+        ).start()
+        

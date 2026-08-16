@@ -1,19 +1,18 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "sidebarButtons"
 __module__ = "pendingAnimes.py"
-__version__ = "0.1"
+__version__ = "0.2"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 import os
 import time
-from typing import List, Union, Optional
-
 import customtkinter as ctk
 
-from APIs.common.models import AnimeInfo
+from typing import List, Union
+
 from APIs.common.animeProviderMgr import AnimeProviderManager, AnimeProviderManagerSingleton
 from dataPersistence.animesPersistence import AnimesPersistence, AnimesPersistenceSingleton, AnimeStatus, AnimeRecord
-from gui.anime_window import AnimeWindowViewer, show_anime_info_error
+from gui.anime_window import open_saved_anime
 from utils.buttons import utilsButtons
 from utils.utils import load_image, get_resource_path
 
@@ -23,12 +22,21 @@ class PendingAnimeButton(utilsButtons.SidebarButton):
         # icon_path_light = os.path.join(icon_path, "pendientes_light.png")
         # icon_path_dark = os.path.join(icon_path, "pendientes_dark.png")
         icon_path_light = icon_path_dark = os.path.join(icon_path, "pendientes.png")
-        super().__init__(main_window.sidebar_frame, "ANIMES PENDIENTES", row, column, self.show_pending_animes,
-                         icon_path_light, icon_path_dark)
+        super().__init__(main_window.sidebar_frame, "ANIMES PENDIENTES", row, column, self.show_pending_animes, icon_path_light, icon_path_dark)
+
         self.main_window = main_window
         self.anime_provider_mgr: AnimeProviderManager = AnimeProviderManagerSingleton()
         self.animes_persistence: AnimesPersistence = AnimesPersistenceSingleton()
         self.__episodes_frame: ctk.CTkFrame = None
+        # Buscador de la pestaña: coincidencias locales al instante, completadas
+        # después con lo que encuentre el proveedor seleccionado.
+        self.__search = utilsButtons.SavedAnimeSearch(
+            main_window=main_window,
+            anime_provider_mgr=self.anime_provider_mgr,
+            get_saved_animes=self.animes_persistence.get_pending_animes,
+            display_animes=self.__display_animes,
+            is_still_visible=lambda: (self.__episodes_frame is not None and self.__episodes_frame.winfo_exists())
+        )
 
     def show_frame(self):
         self.main_window.clear_frame()
@@ -77,24 +85,10 @@ class PendingAnimeButton(utilsButtons.SidebarButton):
         self.__display_animes(self.animes_persistence.get_pending_animes())
 
     def __search_anime(self, search_entry: ctk.CTkEntry):
-        search_text = search_entry.get()
-        if len(search_text) == 0:
-            self.__display_animes(self.animes_persistence.get_pending_animes())
-            return
-        query_animes: List[AnimeInfo] = self.anime_provider_mgr.search_animes_by_query(search_text)[0]
-        if len(query_animes) == 0:
-            print("No se encontró ningún anime")
-            return
-        list_finished_animes = []
-        for anime in query_animes:
-            anime_record: Optional[AnimeRecord] = self.animes_persistence.get_anime_by_anime_id(anime.id)
-            if anime_record is None:
-                continue
-            if not anime_record.is_pending:
-                continue
-            print(f"{anime_record.title} encontrado entre mis animes pendientes")
-            list_finished_animes.append(anime_record)
-        self.__display_animes(list_finished_animes)
+        # Las dos búsquedas se suman: la local no depende del proveedor y la
+        # del proveedor encuentra alias que el título guardado no conoce
+        # ("Solo Leveling" -> "Ore dake Level Up na Ken"). Ver SavedAnimeSearch.
+        self.__search.search(search_entry.get())
 
     def __display_animes(self, pending_animes: List[AnimeRecord]):
         if self.__episodes_frame is not None and self.__episodes_frame.winfo_exists():
@@ -116,7 +110,7 @@ class PendingAnimeButton(utilsButtons.SidebarButton):
                 text="",
                 image=image
             )
-            img_label.grid(row=row * 2, column=column, padx=10, pady=(20, 0), sticky=ctk.NSEW)
+            img_label.grid(row=row * 3, column=column, padx=10, pady=(20, 0), sticky=ctk.NSEW)
             img_label.bind("<Button-1>", lambda e, anime_id=anime_record.anime_id: self.__on_anime_click(anime_id))
 
             # Título del anime
@@ -127,16 +121,23 @@ class PendingAnimeButton(utilsButtons.SidebarButton):
                 wraplength=120,
                 justify="center"
             )
-            title_label.grid(row=(row * 2) + 1, column=column, padx=10, pady=(5, 10), sticky=ctk.N)
+            title_label.grid(row=(row * 3) + 1, column=column, padx=10, pady=(5, 0), sticky=ctk.N)
+
+            # De qué sitio salió este anime. Deja ver de un vistazo cuáles no vienen
+            # del proveedor habitual: son los que pueden tardar más en abrirse o dejar
+            # de funcionar si ese sitio cae. Vacío mientras no se sepa, en vez de
+            # "desconocido", para no llenar la rejilla de ruido.
+            provider_label = ctk.CTkLabel(
+                self.__episodes_frame,
+                text=(self.anime_provider_mgr.get_provider_name(anime_record.provider_id) if anime_record.provider_id is not None else ""),
+                font=ctk.CTkFont(size=11),
+                text_color=("gray45", "gray60"),
+                justify="center"
+            )
+            provider_label.grid(row=(row * 3) + 2, column=column, padx=10, pady=(0, 10), sticky=ctk.N)
 
     def __on_anime_click(self, anime_id: Union[str, int]):
-        # ..._with_provider en vez de get_anime_info: la ficha necesita saber QUIÉN
-        # sirvió estos datos, tanto para mostrarlo en su selector de proveedor como
-        # para pedir los servidores de vídeo al sitio correcto. El fallback puede
-        # haber servido un proveedor distinto al predeterminado.
-        anime_clicked, provider_id = self.anime_provider_mgr.get_anime_info_with_provider(anime_id)
-        if anime_clicked is None:
-            show_anime_info_error(anime_id)
-            return
-        anime_viewer = AnimeWindowViewer(self.main_window, anime_clicked, provider_id)
-        anime_viewer.display_anime_info()
+        # Es un anime de la biblioteca: el proveedor sale de su fila y la petición
+        # va en un hilo aparte. Ambas cosas viven en open_saved_anime() porque las
+        # cuatro vistas de estado hacen exactamente esto mismo.
+        open_saved_anime(self.main_window, anime_id)

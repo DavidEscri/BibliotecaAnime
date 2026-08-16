@@ -1,14 +1,14 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "sidebarButtons"
 __module__ = "recentAnimes.py"
-__version__ = "0.1"
+__version__ = "0.2"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 import os
 import threading
 import time
-
 import customtkinter as ctk
+
 from typing import Union
 
 from APIs.common.animeProviderMgr import AnimeProviderManager, AnimeProviderManagerSingleton
@@ -20,8 +20,8 @@ from utils.utils import load_image
 class RecentAnimeButton(utilsButtons.SidebarButton):
     def __init__(self, main_window, icon_path: str, row: int, column: int):
         icon_path_light = icon_path_dark = os.path.join(icon_path, "recientes.png")
-        super().__init__(main_window.sidebar_frame, "ANIMES RECIENTES", row, column, self.__show_animes_recientes,
-                         icon_path_light, icon_path_dark)
+        super().__init__(main_window.sidebar_frame, "ANIMES RECIENTES", row, column, self.__show_animes_recientes, icon_path_light, icon_path_dark)
+
         self.main_window = main_window
         self.anime_provider_mgr: AnimeProviderManager = AnimeProviderManagerSingleton()
 
@@ -84,27 +84,32 @@ class RecentAnimeButton(utilsButtons.SidebarButton):
         anime_clicked = self.main_window.recent_animes[index]
         if anime_clicked.synopsis is None or anime_clicked.genres is None or anime_clicked.episodes is None:
             self.main_window.configure(cursor="watch")
-            self.main_window.update()
+            self.main_window.update_idletasks()
 
-            def _load_and_show():
-                # ..._with_provider: la ficha necesita saber quién sirvió los datos
-                # para pedir los servidores de vídeo al sitio correcto.
-                anime_info, provider_id = self.anime_provider_mgr.get_anime_info_with_provider(anime_id)
+            def _show(anime_info, provider_id):
+                if not self.main_window.winfo_exists():
+                    return
                 # Restaurar el cursor antes de cualquier salida, incluida la de error.
                 self.main_window.configure(cursor="")
                 if anime_info is None:
-                    # No se puede caer de vuelta a `anime_clicked`: su falta de
-                    # episodios/sinopsis es justo lo que nos ha traído hasta aquí.
+                    # No se puede caer de vuelta a `anime_clicked`: su falta de episodios/sinopsis es justo lo que nos ha traído hasta aquí.
                     show_anime_info_error(anime_id)
                     return
                 self.main_window.recent_animes[index] = anime_info
                 anime_viewer = AnimeWindowViewer(self.main_window, anime_info, provider_id)
                 anime_viewer.display_anime_info()
 
+            def _load_and_show():
+                # La ficha necesita saber quién sirvió los datos  para pedir los servidores de vídeo al sitio correcto.
+                anime_info, provider_id = self.anime_provider_mgr.get_anime_info_with_provider(anime_id, provider_id=anime_clicked.provider_id)
+                self.main_window.after(0, _show, anime_info, provider_id)
+
             # Ejecutar en hilo secundario para no congelar la UI durante la petición HTTP
-            threading.Thread(target=_load_and_show, daemon=True).start()
+            threading.Thread(
+                target=_load_and_show,
+                daemon=True
+            ).start()
             return
-        # Este anime ya venía precargado, así que lo sirvió el proveedor que estaba
-        # activo en ese momento; se deja que el viewer asuma el predeterminado.
+
         anime_viewer = AnimeWindowViewer(self.main_window, anime_clicked)
         anime_viewer.display_anime_info()
