@@ -2,8 +2,8 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-08-07 · **Commit** `18311e3` · árbol **limpio** |
-| **Última revisión** | 2026-08-07 (**auditoría**): inventario de hilos a **8** (eran 6) y de `after()` a **4** (eran 3); **C5 corregida** — la llamada de servidores usa `strict=True`, así que no hay fallback que sume timeouts |
+| **Fecha** | 2026-08-16 · **Commit** `54fb3d6` · árbol **sucio** (columna `provider_id`, 16 ficheros) |
+| **Última revisión** | 2026-08-16 (**columna `provider_id`**): hilos a **13** (eran 8) y `after()` a **10** (eran 4); **C2 resuelta** — los 4 puntos que abren una ficha pintan ya en el hilo de Tk. C5 sigue viva |
 | **Cubre** | `src/gui/main_window.py`, `src/gui/anime_window.py`, `src/gui/sidebarButtons/**`, `src/utils/utils.py` |
 
 Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ sin verificar.
@@ -19,26 +19,35 @@ Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ si
 
 📖 Todos los `threading.Thread` del proyecto:
 
-✅ Recontados el 2026-08-07: son **8**, no 6. Los dos nuevos (#1 y #2) llegaron con el selector de
-proveedor el 2026-08-06.
+✅ Recontados el 2026-08-16: son **13**, no 8. Los **cinco nuevos** (#9 a #13) llegaron con la columna
+`provider_id`, y todos siguen la regla buena: petición en el hilo, repintado con `after(0, …)`.
 
-| # | Dónde | Línea | Objetivo | Daemon |
+| # | Dónde | Línea | Objetivo | Vuelve con `after`? |
 |---|---|---|---|---|
-| 1 | `main_window.__reload_recent_animes` | `:329-330` | `__reload_recent_animes_worker` — recarga al cambiar de proveedor | sí |
-| 2 | `main_window.__on_recent_animes_reloaded` | `:365-366` | `__preload_recent_animes_info` tras la recarga | sí |
-| 3 | `main_window.show_loading_screen` | `:419` | `download_images_and_show_animes` | sí |
-| 4 | `main_window.download_images_and_show_animes` | `:439-440` | `__preload_recent_animes_info` | sí |
-| 5 | `recentAnimes.__on_anime_click` | `:105` | `_load_and_show` (ficha) | sí |
-| 6 | `searchAnimes.__show_loading_frame` | `:205-209` | `__search_anime_by_query` | sí |
-| 7 | `searchAnimes.__show_loading_frame` | `:211-215` | `__search_anime_by_filter` | sí |
-| 8 | `searchAnimes.__load_page` | `:329-333` | `__search_and_display_animes` | sí |
+| 1 | `main_window.__reload_recent_animes` | `:386-390` | `__reload_recent_animes_worker` — recarga al cambiar de proveedor | ✅ |
+| 2 | `main_window.__on_recent_animes_reloaded` | `:425-426` | `__preload_recent_animes_info` tras la recarga | — |
+| 3 | `main_window.show_loading_screen` | `:479` | `download_images_and_show_animes` | ❌ (C1) |
+| 4 | `main_window.download_images_and_show_animes` | `:499-500` | `__preload_recent_animes_info` | — |
+| 5 | `recentAnimes.__on_anime_click` | `:114` | `_load_and_show` (ficha) | ✅ 🆕 |
+| 6 | `searchAnimes.__show_loading_frame` | `:206-210` | `__search_anime_by_query` | ❌ (C1) |
+| 7 | `searchAnimes.__show_loading_frame` | `:212-216` | `__search_anime_by_filter` | ❌ (C1) |
+| 8 | `searchAnimes.__load_page` | `:335-339` | `__search_and_display_animes` | ❌ (C1) |
+| **9** | `searchAnimes.__on_anime_click` | `:382` | 🆕 abrir la ficha de un resultado | ✅ |
+| **10** | `anime_window.open_saved_anime` | `:193` | 🆕 abrir un anime **de la biblioteca** | ✅ |
+| **11** | `anime_window.__repair_to_target_provider` | `:600` | 🆕 localizar el anime en el proveedor destino | ✅ |
+| **12** | `anime_window.__confirm_and_migrate` | `:683` | 🆕 migrar la fila + mover/bajar pósters | ✅ |
+| **13** | `utilsButtons.SavedAnimeSearch.search` | `:165` | 🆕 búsqueda web que completa a la local | ✅ |
 
 Más **dos `ThreadPoolExecutor(max_workers=8)`** para pósters:
 
 | Dónde | Línea |
 |---|---|
-| `utils.download_animes_poster` | `:94` |
-| `utils.download_images_progress` | `:149` |
+| `utils.download_animes_poster` | `:113` |
+| `utils.download_images_progress` | `:168` |
+
+> 🆕 **Los hilos #5 y #9 son antiguos que se arreglaron**, no nuevos: `recentAnimes` ya tenía hilo pero
+> pintaba desde él, y `searchAnimes.__on_anime_click` **no tenía hilo** —hacía la petición en el hilo
+> de Tkinter y la ventana se congelaba—. Los dos pasan ahora por `after(0, …)`.
 
 Todos los hilos son **daemon**: al cerrar la ventana mueren sin limpieza. ✅ Verificado: la app se
 cierra sin colgarse.
@@ -50,19 +59,26 @@ cierra sin colgarse.
 | Operación | Hilo | Anclaje |
 |---|---|---|
 | `mainloop()` y todos los callbacks de widget | 🖥️ UI | `app.py:14` |
-| Animación del GIF (`after(100, …)`) | 🖥️ UI | `main_window.py:411-414`, `searchAnimes.py:197-201` |
-| Carga inicial de la BD (`load_animes`) | 🧵 daemon | `main_window.py:423` → `470-483` |
-| `get_recent_animes()` | 🧵 daemon | `main_window.py:424` |
-| Descarga de pósters de recientes | ⚙️ pool (8) | `utils.py:149` |
-| Precarga de fichas de recientes | 🧵 daemon | `main_window.py:442-468` |
-| Clic en anime **desde recientes** | 🧵 daemon | `recentAnimes.py:105` |
-| Clic en anime **desde las otras vistas** | 🖥️ **UI** ⚠️ | `favouriteAnimes.py:131` y homólogos |
-| Búsquedas del buscador | 🧵 daemon | `searchAnimes.py:205-215` |
-| Búsqueda dentro de las vistas de estado | 🖥️ **UI** ⚠️ | `favouriteAnimes.py:82` y homólogos |
-| **Servidores de un episodio** | 🖥️ **UI** ⚠️ | `anime_window.py:608` |
-| Recarga de recientes al cambiar de proveedor | 🧵 daemon → `after(0,…)` | `main_window.py:332-366` ✅ |
-| Todas las escrituras en BD | 🖥️ UI (desde callbacks) | `anime_window.py:330-395` |
-| Descarga/borrado de pósters por estado | 🖥️ UI ⚠️ | `anime_window.py:333, 348, 366…` |
+| Animación del GIF (`after(100, …)`) | 🖥️ UI | `main_window.py:471-474`, `searchAnimes.py:198-202` |
+| Carga inicial de la BD (`load_animes`) | 🧵 daemon | `main_window.py:483` → `530-543` |
+| `get_recent_animes()` | 🧵 daemon | `main_window.py:484` |
+| Descarga de pósters de recientes | ⚙️ pool (8) | `utils.py:168` |
+| Precarga de fichas de recientes | 🧵 daemon | `main_window.py:502-528` |
+| Clic en anime **desde recientes** | 🧵 daemon → `after(0,…)` ✅ | `recentAnimes.py:105-114` |
+| Clic en anime **desde las 4 vistas de estado** | 🧵 daemon → `after(0,…)` ✅ 🆕 | `open_saved_anime` (`anime_window.py:145-193`) |
+| Clic en anime **desde el buscador** | 🧵 daemon → `after(0,…)` ✅ 🆕 | `searchAnimes.py:363-382` |
+| Búsquedas del buscador | 🧵 daemon | `searchAnimes.py:206-216` |
+| Búsqueda dentro de las vistas de estado | 🖥️ UI (local) + 🧵 daemon (web) → `after(0,…)` ✅ 🆕 | `utilsButtons.py:137-165` |
+| **Servidores de un episodio** | 🖥️ **UI** ⚠️ | `anime_window.py:1116-1121` |
+| Recarga de recientes al cambiar de proveedor | 🧵 daemon → `after(0,…)` | `main_window.py:392-426` ✅ |
+| **Migrar una fila a otro proveedor** | 🧵 daemon → `after(0,…)` ✅ 🆕 | `anime_window.py:675-683` |
+| Todas las escrituras de estado en BD | 🖥️ UI (desde callbacks) | `anime_window.py:830-903` |
+| Descarga/borrado de pósters por estado | 🖥️ UI ⚠️ | `anime_window.py:835, 852, 872…` |
+| **Mover/rebajar pósters al migrar** | 🧵 daemon ✅ 🆕 | `anime_window.py:685-709` |
+
+> 🆕 **Tres de las cuatro filas ⚠️ del 2026-08-07 se han cerrado** con la columna `provider_id`: los
+> clics de las vistas de estado y del buscador, y la búsqueda dentro de las vistas. La que **queda
+> viva es la de los servidores de vídeo** (C5): sigue haciendo HTTP en el hilo de Tkinter.
 
 ---
 
@@ -70,11 +86,11 @@ cierra sin colgarse.
 
 ### ✅ SÍ
 
-1. **Toda petición HTTP va en un hilo daemon.** Patrón de referencia: `recentAnimes.py:90-102`.
+1. **Toda petición HTTP va en un hilo daemon.** Patrón de referencia: `recentAnimes.py:105-114`.
 2. **Para volver al hilo de UI, usa `self.after(delay, callback)`.** Es lo que hacen las animaciones
-   de GIF (`main_window.py:411-414`).
+   de GIF (`main_window.py:471-474`).
 3. **Comprueba `widget.winfo_exists()` antes de tocar un widget desde un callback diferido.**
-   El frame puede haberse destruido. Ejemplo bueno: `searchAnimes.py:197-201`.
+   El frame puede haberse destruido. Ejemplo bueno: `searchAnimes.py:198-202`.
 
    ```python
    def update_gif(frame=0):
@@ -105,49 +121,67 @@ El caso más extendido. Ejemplos reales:
 
 | Dónde | Qué hace desde un hilo daemon |
 |---|---|
-| `main_window.py:470-483` | `progress_bar.set()` y `progress_label.configure()` |
-| `main_window.py:426-428` | **`messagebox.showwarning`** |
-| `main_window.py:431-434` | `progress_bar.set(0.9)`, `loading_frame.place_forget()` |
-| `main_window.py:435` | `show_frame()` → construye **toda** la vista de recientes |
-| `utils.py:127-128` | `progress_bar.set()` desde **8 workers** del pool |
-| `recentAnimes.py:97-99` | `configure(cursor="")` + construye la ficha entera |
-| `searchAnimes.py:219-224` | `__display_animes` → crea decenas de widgets |
+| `main_window.py:530-543` | `progress_bar.set()` y `progress_label.configure()` |
+| `main_window.py:486-488` | **`messagebox.showwarning`** |
+| `main_window.py:491-494` | `progress_bar.set(0.9)`, `loading_frame.place_forget()` |
+| `main_window.py:495` | `show_frame()` → construye **toda** la vista de recientes |
+| `utils.py:146-147` | `progress_bar.set()` desde **8 workers** del pool |
+| ~~`recentAnimes.py:97-99`~~ | ✅ **resuelto**: ahora vuelve con `after(0,…)` (C2) |
+| `searchAnimes.py:220-225` | `__display_animes` → crea decenas de widgets |
 
 Tkinter **no es thread-safe**. ✅ En la práctica el arranque completo funciona sin traceback, pero es
 suerte estructural, no garantía. ⚠️ No se ha observado ningún cuelgue, pero tampoco se ha hecho
 *stress test*.
 
-**Mitigación en `utils.py:143-145`**: el contador de progreso sí está protegido con `threading.Lock`
+**Mitigación en `utils.py:162-164`**: el contador de progreso sí está protegido con `threading.Lock`
 — pero el `Lock` protege el **contador**, no la llamada a Tk que hace dentro.
 
-### C2 — `AnimeWindowViewer` construido desde dos hilos 📖
+### C2 — `AnimeWindowViewer` construido desde dos hilos ✅ *(resuelta 2026-08-16)*
 
-`recentAnimes.py:98-99` construye la ficha desde un daemon; las otras vistas la construyen desde UI.
-Si el usuario cambia de vista mientras el hilo #3 está en vuelo, el `content_frame` ya se ha vaciado y
-la ficha se pinta **encima de la vista nueva**. ⚠️ No reproducido.
+**Antes**: `recentAnimes.py` construía la ficha desde un daemon; las otras vistas, desde UI. Si el
+usuario cambiaba de vista con el hilo en vuelo, el `content_frame` ya se había vaciado y la ficha se
+pintaba **encima de la vista nueva**.
+
+**Ahora**: los **cuatro** puntos que abren una ficha construyen el viewer en el hilo de Tkinter, vía
+`after(0, …)`, y **todos** comprueban `main_window.winfo_exists()` antes de tocar nada:
+
+| Punto de entrada | Línea |
+|---|---|
+| `recentAnimes.__on_anime_click` | `:104-111` |
+| `searchAnimes.__on_anime_click` | `:369-380` |
+| `open_saved_anime` (las 4 vistas de estado) | `anime_window.py:151-165` |
+| `__confirm_and_migrate._done` (reconstruye tras migrar) | `anime_window.py:657-673` |
+
+> 🔴 **No fue una mejora cosmética: era un crash reproducible.** Construir la ficha desde el hilo
+> secundario revienta con `invalid command name ...!searchbutton.!ctkcanvas` en cuanto la vista que se
+> está destruyendo tenía un evento `<Configure>` encolado —lo tienen las cuatro vistas de estado, por
+> su barra de búsqueda—, porque ese evento se atiende cuando el canvas ya no existe. El síntoma es un
+> traceback en consola y la ficha a medio pintar.
+>
+> Reproducido y verificado en `test_crash_tk.py` (scratchpad de la sesión).
 
 ### C3 — Escritura concurrente en `recent_animes` 📖
 
-`__preload_recent_animes_info` (`main_window.py:442-468`) y `_load_and_show` (`recentAnimes.py:93`)
-pueden escribir el mismo índice a la vez. El propio código lo justifica (`:447-453`): la asignación de
+`__preload_recent_animes_info` (`main_window.py:502-528`) y `_load_and_show` (`recentAnimes.py:105-111`)
+pueden escribir el mismo índice a la vez. El propio código lo justifica (`:507-513`): la asignación de
 un elemento de lista es atómica bajo el GIL. **Es correcto** para este caso concreto.
 
 > ✅ **Mitigado desde el 2026-08-06** por el contador de generación `__recent_animes_generation`
-> (`main_window.py:72`). Al cambiar de proveedor, `self.recent_animes` pasa a ser **otra lista** y los
+> (`main_window.py:78`). Al cambiar de proveedor, `self.recent_animes` pasa a ser **otra lista** y los
 > índices de la precarga en vuelo dejan de significar nada; la precarga comprueba su generación antes
-> de escribir (`:457-459`, `:465`) y aborta si ha caducado. Lo que sigue sin cubrirse es la carrera
+> de escribir (`:517-519`, `:525`) y aborta si ha caducado. Lo que sigue sin cubrirse es la carrera
 > original entre precarga y clic **dentro de la misma generación**, que es la benigna.
 
 ### C4 — El guard antidoble-búsqueda no funciona ✅
 
 ```python
-# searchAnimes.py:205-209 y :211-215 y :329-333
+# searchAnimes.py:206-210 y :212-216 y :335-339
 self.__current_search_thread = threading.Thread(...).start()   # ← .start() devuelve None
 ```
 
 `Thread.start()` devuelve `None`, así que `__current_search_thread` **siempre vale `None`** y el
 guard `if self.__current_search_thread and self.__current_search_thread.is_alive()`
-(`:159-160`, `:165-166`, `:327-328`) **nunca bloquea nada**. Consecuencia: pulsar «Buscar» dos veces
+(`:160-161`, `:166-167`, `:333-334`) **nunca bloquea nada**. Consecuencia: pulsar «Buscar» dos veces
 seguidas lanza dos hilos que pintan sobre el mismo `content_frame`.
 
 **Arreglo** (no aplicado — este trabajo es solo de documentación):
@@ -160,12 +194,12 @@ t.start()
 
 ### C5 — HTTP en el hilo de UI al abrir servidores 📖
 
-`anime_window.py:608` llama a `get_anime_episode_servers` en el callback del botón. ✅ Con AnimeAV1
+`anime_window.py:1116-1121` llama a `get_anime_episode_servers` en el callback del botón. ✅ Con AnimeAV1
 tarda ~0,2 s.
 
 > ⚠️ **Corrección (2026-08-07).** La versión anterior decía que «si AnimeAV1 falla y entra el fallback
 > a AnimeFLV, se suman los timeouts de ambos proveedores». **Es falso desde el 2026-07-30**: esa
-> llamada pasa `strict=True` y `provider_id` explícito (`anime_window.py:608-613`), justo para que
+> llamada pasa `strict=True` y `provider_id` explícito (`anime_window.py:1116-1121`), justo para que
 > **no** haya fallback — el slug es del proveedor que sirvió la ficha y no significa nada en otro
 > sitio. Con `strict=True`, `call_with_fallback` recorta a `providers_to_try[:1]`.
 >
@@ -173,7 +207,7 @@ tarda ~0,2 s.
 
 ### C6 — La purga de imágenes compite con los widgets que las muestran ✅
 
-`load_image` (`utils.py:181`) hace `Image.open(path)` **sin cerrar**; PIL carga de forma perezosa, así
+`load_image` (`utils.py:198-202`) hace `Image.open(path)` **sin cerrar**; PIL carga de forma perezosa, así
 que el descriptor queda abierto mientras viva el `CTkImage`. Verificado: `os.remove` sobre esa ruta
 lanza `PermissionError` en Windows, y solo se libera tras `del` + `gc.collect()`.
 
@@ -228,20 +262,41 @@ ocurrencias a la vez**: cambia una, verifica que la rejilla mantiene sus columna
 
 ## 6. `after()` — dónde se usa y dónde no
 
-📖 Hay **4** usos de `.after(...)` (✅ recontados el 2026-08-07; eran 3 antes del pin de proveedor):
+📖 Hay **10** usos de `.after(...)` (✅ recontados el 2026-08-16; eran 4). Los **seis nuevos** son todos
+del patrón bueno — hilo daemon → `after(0, …)` — y ya son la **mayoría**:
 
 | Dónde | Para qué | Estado |
 |---|---|---|
-| **`main_window.py:347`** | **devolver el resultado de la recarga de recientes al hilo de UI** | ✅ **el patrón que recomienda §3** |
-| `main_window.py:414` | animar el GIF de carga | ✅ correcto |
-| `searchAnimes.py:201` | animar el GIF de búsqueda | ✅ correcto, con `winfo_exists()` |
+| `main_window.py:407` | devolver el resultado de la recarga de recientes al hilo de UI | ✅ **el patrón de referencia** |
+| `main_window.py:474` | animar el GIF de carga | ✅ correcto |
+| `searchAnimes.py:202` | animar el GIF de búsqueda | ✅ correcto, con `winfo_exists()` |
+| 🆕 `recentAnimes.py:111` | pintar la ficha tras la petición | ✅ |
+| 🆕 `searchAnimes.py:380` | pintar la ficha de un resultado de búsqueda | ✅ |
+| 🆕 `anime_window.py:191` | pintar la ficha de un anime guardado | ✅ |
+| 🆕 `anime_window.py:598` | abrir el diálogo tras localizar el anime en otro proveedor | ✅ |
+| 🆕 `anime_window.py:680` | repintar la ficha tras migrar la fila | ✅ |
+| 🆕 `utilsButtons.py:163` | añadir a la rejilla lo que aporte la búsqueda web | ✅ |
 | `utils.py:51` (`update_gif`) | — | ⚠️ **código muerto y roto** |
 
-> ✅ **`main_window.py:347` es el único sitio del proyecto que aplica bien la regla 2 de §3**: el hilo
-> daemon (`__reload_recent_animes_worker`) no toca ni un widget; hace la red y entrega el resultado con
-> `after(0, …)` a `__on_recent_animes_reloaded`, que ya corre en el hilo de Tkinter. **Cópialo** en vez
-> de copiar el arranque, que es justo el contraejemplo de C1. Llegó con el selector de proveedor
-> (2026-08-06) y su docstring lo dice explícitamente.
+> ✅ **El patrón ha dejado de ser la excepción.** En 2026-08-07 había **un** sitio que devolvía trabajo
+> al hilo de UI correctamente; hoy hay **siete**. La regla operativa que los siete comparten:
+>
+> ```python
+> def _volver(resultado):          # ya en el hilo de Tkinter
+>     if not main_window.winfo_exists():
+>         return                    # la ventana pudo cerrarse mientras tanto
+>     main_window.configure(cursor="")   # restaurar ANTES de cualquier salida
+>     ...                           # aquí, y solo aquí, se tocan widgets
+>
+> def _trabajo():                   # hilo daemon: red y BD, cero widgets
+>     main_window.after(0, _volver, peticion())
+>
+> threading.Thread(target=_trabajo, daemon=True).start()
+> ```
+>
+> Dos detalles que se olvidan y hacen daño: **restaurar el cursor en todas las salidas**, incluida la
+> de error, y usar **`update_idletasks()`** en vez de `update()` antes de lanzar el hilo — `update()`
+> atiende eventos de usuario, así que un segundo clic puede reentrar y lanzar un segundo hilo.
 
 La función suelta `update_gif` de `utils.py:48-51` haría
 `root.after(100, update_gif, frame)`, pasando `frame` como primer argumento (`label`). **No tiene

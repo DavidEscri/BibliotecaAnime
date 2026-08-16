@@ -2,9 +2,9 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-08-07 · **Commit** `18311e3` · árbol **limpio** |
+| **Fecha** | 2026-08-16 · **Commit** `54fb3d6` · árbol **sucio** (columna `provider_id`, 16 ficheros) |
 | **Cubre** | los 19 módulos con contenido de `src/` |
-| **Última revisión** | 2026-08-07 (**auditoría**): cabeceras reauditadas — 2 de las 3 erratas de `__module__` ya estaban corregidas; `jkanime.py` y `userPersistence.py` añadidos a la tabla de `__subsystem__` |
+| **Última revisión** | 2026-08-16: plantilla de proveedor actualizada (`PROVIDER_ID` es un enum, §7.3) y convención de log `[{PROVIDER_ID.value}]` (§6) |
 
 Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ sin verificar.
 
@@ -77,7 +77,7 @@ fichero, y los 19 tienen las cinco variables de la cabecera.
 
 **Excepción deliberada**: los miembros de `AnimeGenreFilter` y `AnimeOrderFilter` van en **español
 con tildes** (`ACCIÓN`, `CIENCIA_FICCIÓN`, `ALFABÉTICAMENTE`) porque son vocabulario de dominio; su
-*valor* es el slug ASCII (`"accion"`). 📖 `models.py:18-71`.
+*valor* es el slug ASCII (`"accion"`). 📖 `models.py:50-103`.
 
 ⚠️ Restos en inglés: los docstrings de `animeflv.py:71-76,120-126` y el de `utils.py:25-32`.
 
@@ -129,10 +129,10 @@ self.anime_provider_mgr:   AnimeProviderManager = AnimeProviderManagerSingleton(
 |---|---|---|
 | `AnimeFLVSingleton` | `AnimeFLV` | `animeflv.py:239-245` |
 | `AnimeAV1Singleton` | `AnimeAV1` | `animeav1.py:361-367` |
-| `JKAnimeSingleton` | `JKAnime` | `jkanime.py:525-531` |
-| `AnimesPersistenceSingleton` | `AnimesPersistence` | `animesPersistence.py:547-553` |
+| `JKAnimeSingleton` | `JKAnime` | `jkanime.py:528-534` |
+| `AnimesPersistenceSingleton` | `AnimesPersistence` | `animesPersistence.py:700-706` |
 | `UserPersistenceSingleton` | `UserPersistence` | `userPersistence.py:234-240` |
-| `AnimeProviderManagerSingleton` | `AnimeProviderManager` | `animeProviderMgr.py:410-416` |
+| `AnimeProviderManagerSingleton` | `AnimeProviderManager` | `animeProviderMgr.py:463-469` |
 
 ⚠️ Dos estilos conviven: `animeflv.py` y `animeav1.py` usan
 `if NombreSingleton.__instance is None` (nombre de clase explícito); los otros dos usan
@@ -154,9 +154,9 @@ def get_anime_info(self, anime_id: Union[str, int]) -> AnimeInfo | None:   # amb
 ```
 
 - `typing.List/Optional/Union/Dict/Set/Tuple` — mayoritario.
-- Sintaxis 3.10 (`X | None`) — en `animeflv.py:179`, `animeav1.py:177`, `main_window.py:60,63-66`,
-  `searchAnimes.py:41-42`, `anime_window.py:77`.
-- `tuple[int, int]` en minúscula — `utils.py:166,179`.
+- Sintaxis 3.10 (`X | None`) — en `animeflv.py:179`, `animeav1.py:177`, `main_window.py:60,66,70`,
+  `searchAnimes.py:41-42`, `anime_window.py:232-233,258`.
+- `tuple[int, int]` en minúscula — `utils.py:185,198`.
 
 **El proyecto requiere Python 3.10+.** ✅ Entorno verificado: `biblio_anime_env` usa **Python 3.10.6**.
 
@@ -170,13 +170,15 @@ en Python es una **tupla literal**, no un tipo. No lo copies; usa `Tuple[bool, l
 📖 No hay `logging` en ningún módulo. Convenciones observadas:
 
 ```python
-print(f"Error al descargar el poster de {anime.id}: {e}")          # utils.py:90
-print(f"[{provider.PROVIDER_ID}] Fallo en '{method_name}': {exc}")  # animeProviderMgr.py:266
-print(f"{self.anime_info.title} añadido a favoritos.")              # anime_window.py:334
+print(f"Error al descargar el poster de {anime.id}: {e}")                 # utils.py:109
+print(f"[{provider.PROVIDER_ID.value}] Fallo en '{method_name}': {exc}")  # animeProviderMgr.py:317
+print(f"{self.anime_info.title} añadido a favoritos.")                    # anime_window.py:836
 ```
 
 - Errores: `f"Error al <acción>: {excepción}"`.
-- Proveedores: prefijo `[{PROVIDER_ID}]`.
+- Proveedores: prefijo **`[{PROVIDER_ID.value}]`** — desde el 2026-08-16 `PROVIDER_ID` es un enum, y
+  sin `.value` el log sale como `[AnimeProviderId.ANIMEAV1]`, que es ruido. Mismo criterio en
+  cualquier `print` que mencione un proveedor.
 - Acciones del usuario: frase afirmativa en pasado.
 
 ⚠️ **Consecuencia de empaquetar**: `MiBibliotecaAnime.spec:60` fija `console=False`, así que en el
@@ -319,7 +321,8 @@ from urllib.parse import urlencode, urlparse, parse_qs
 
 from utils.utils import removeprefix
 from APIs.common.animeProviderMgr import AnimeProvider
-from APIs.common.models import AnimeGenreFilter, AnimeOrderFilter, ServerInfo, EpisodeInfo, AnimeInfo
+from APIs.common.models import (AnimeGenreFilter, AnimeOrderFilter, AnimeProviderId, ServerInfo,
+                                EpisodeInfo, AnimeInfo)
 
 BASE_URL = "https://misitio.com"
 
@@ -328,7 +331,8 @@ _GENRE_MAP = {AnimeGenreFilter.ACCIÓN: "action", AnimeGenreFilter.AVENTURA: "ad
 
 
 class MiSitio(AnimeProvider):
-    PROVIDER_ID = "misitio"
+    # Antes, en models.py:  MISITIO = "misitio"
+    PROVIDER_ID = AnimeProviderId.MISITIO
     PROVIDER_NAME = "MiSitio"
     BASE_URL = BASE_URL
 
@@ -361,6 +365,14 @@ class MiSitioSingleton:
 
 > ✅ **Los 3 atributos de clase son obligatorios ya en el esqueleto**: sin ellos, el módulo
 > **no importa** (`NotImplementedError` desde `__init_subclass__`).
+>
+> 🆕 Y `PROVIDER_ID` tiene que ser un **miembro de `AnimeProviderId`**, no la cadena: el registro
+> indexa por enum, y `__init_subclass__` lo comprueba también al importar
+> ([05 §1](05-proveedores-y-scraping.md)). El paso 0 del playbook es añadir ese miembro
+> ([11 §3](11-playbooks.md)).
+>
+> **No implementes `provider_info()`**: ya viene de `AnimeProvider` y se construye desde estos tres
+> atributos. Es lo que evita que la GUI mantenga su propia lista de nombres.
 
 > ⚠️ **Fija la codificación** si el sitio no envía `charset` — es el bug real de AnimeAV1
 > ([05 §7](05-proveedores-y-scraping.md)):

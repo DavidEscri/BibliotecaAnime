@@ -2,8 +2,8 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-08-07 · **Commit** `18311e3` · árbol **limpio** |
-| **Última revisión** | 2026-08-07 (**auditoría**): §6 (empaquetado) cerrado — `hiddenimports` ya no tiene nada pendiente |
+| **Fecha** | 2026-08-16 · **Commit** `54fb3d6` · árbol **sucio** (columna `provider_id`, 16 ficheros) |
+| **Última revisión** | 2026-08-16: §2 reescrito con el **caso real ya ejecutado** (`provider_id` en medio del enum, con reconstrucción de tabla) y §3 con el paso 0 nuevo — añadir un proveedor empieza por `AnimeProviderId` |
 | **Cubre** | recetas operativas sobre los 19 módulos de `src/` + `MiBibliotecaAnime.spec` |
 
 Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ sin verificar.
@@ -22,7 +22,7 @@ Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ si
 | `src/gui/sidebarButtons/<vista>/__init__.py` | crear **vacío** |
 | `src/gui/sidebarButtons/<vista>/<vista>.py` | crear (plantilla en [08 §7.2](08-convenciones-y-estilo.md)) |
 | `resources/images/utils/<icono>.png` | añadir el icono |
-| `src/gui/main_window.py` | importar (`:20-25`) e instanciar (`:130-135`) |
+| `src/gui/main_window.py` | importar (`:20-25`) e instanciar (`:159-164`) |
 | `MiBibliotecaAnime.spec` | añadir a `hiddenimports` (`:21-36`) |
 
 **Pasos**
@@ -33,7 +33,7 @@ Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ si
    programático) y `show_<vista>()` (el `command`).
 3. Respeta el reparto de filas de `content_frame` ([06 §4](06-gui-y-vistas.md)): la rejilla de
    resultados va en `row=5`.
-4. Registra en `main_window.py:130-135` con `sidebar_button_row + 7`:
+4. Registra en `main_window.py:159-164` con `sidebar_button_row + 7`:
 
    ```python
    self.__mi_vista_button: MiVistaButton = MiVistaButton(self, icon_path,
@@ -56,10 +56,10 @@ Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ si
    abajo una posición y reconfigurar el `grid_rowconfigure(8, weight=1)` de `create_sidebar_frame()`
    a la fila nueva. No basta con tocar el selector de apariencia.
 6. Si la vista muestra pósters propios, decide su carpeta en `resources/images/<categoría>/` y
-   **añádela a `get_anime_image` (`utils.py:168`)** o el póster se bajará de la red cada vez
+   **añádela a `get_anime_image` (`utils.py:185-196`)** o el póster se bajará de la red cada vez
    (trampa 15). Esa lista tiene hoy las 6 categorías existentes; se olvidó `watching` durante meses,
    así que es un paso fácil de saltarse. Si además creas un `AnimeStatus` nuevo, la carpeta sale de
-   `status.name.lower()` (`utils.py:53-60`) y el olvido es aún más silencioso.
+   `status.name.lower()` (`utils.py:53-60`, y ahora también `move_anime_poster_by_status:62-79`) y el olvido es aún más silencioso.
 
 **Checklist**
 
@@ -78,6 +78,9 @@ Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ si
 > ✅ **Ya no hay que escribir la migración a mano** (desde 2026-07-30). `validate_db_integrity()` la
 > deduce del esquema declarado. Lee la trampa 2 para saber qué sigue siendo tu responsabilidad.
 
+> ✅ **Ejecutado de verdad el 2026-08-16** con `provider_id`, y por el camino caro: **en la posición 2**,
+> no al final. Lo que sigue ya no es teoría.
+
 **Ficheros a tocar**
 
 | Fichero | Acción |
@@ -87,9 +90,10 @@ Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ si
 
 **Pasos**
 
-1. **Añade el miembro a `AnimeField`** (`:28-47`). Preferiblemente al final: así la migración usa la
-   ruta barata (`ALTER TABLE ADD COLUMN`, sin mover datos) en lugar de reconstruir la tabla. Ponerlo en
-   medio también funciona, pero obliga a reconstruir.
+1. **Añade el miembro a `AnimeField`** (`:28-57`). Al final es más barato: la migración usa
+   `ALTER TABLE ADD COLUMN` sin mover datos. En medio **también funciona** —reconstruye la tabla en una
+   transacción, copiando por nombre de columna— y a veces es lo correcto: `provider_id` fue en segunda
+   posición porque forma parte de la identidad de la fila, y el coste lo paga el motor una sola vez.
 
    ```python
    USER_RATING = ("user_rating", "INTEGER")
@@ -97,13 +101,21 @@ Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ si
 
    `SCHEMA` se deriva de `AnimeField`, así que no hay que tocarla.
 
-2. Añade el campo a `AnimeRecord` (`:69-81`), **con valor por defecto** y **después** de los que ya
-   tienen default (regla de las dataclasses). Ojo: `id` es el último campo hoy (`:81`).
-3. Añádelo a `to_db_dict()` (`:90-104`) en la **misma posición** que en el enum.
-4. Añádelo a `from_db_dict()` (`:132-146`) con un default tolerante — los registros que ya existían
+2. Añade el campo a `AnimeRecord` (`:63-83`), **con valor por defecto** y **después** de los que ya
+   tienen default (regla de las dataclasses). ⚠️ Aquí el orden **no** tiene que coincidir con el del
+   enum: `provider_id` está el penúltimo en la dataclass y el segundo en el enum, y es correcto. Lo que
+   importa posicionalmente es `FIELDS`, no los atributos de Python. Ojo: `id` es el último campo
+   hoy (`:83`).
+3. Añádelo a `to_db_dict()` (`:88-110`) en la **misma posición** que en el enum. Esta sí es
+   posicional (trampa 1).
+4. Añádelo a `from_db_dict()` (`:112-150`) con un default tolerante — los registros que ya existían
    recibirán `NULL`: `data.get(AnimeField.USER_RATING.column, 0) or 0`.
+
+   💡 Si el campo es un **enum**, no lo conviertas ahí: hazle un helper que degrade a `None` ante un
+   valor desconocido, como `_provider_id_from_db` (`:153-171`). Un valor huérfano en una fila no puede
+   impedir leer la biblioteca entera.
 5. **Opcional**: si quieres que los registros existentes reciban un valor concreto en vez de `NULL`,
-   declara el default en el `TableSchema` de `SCHEMA` (`:214-222`). El valor es una **expresión SQL
+   declara el default en el `TableSchema` de `SCHEMA` (`:250-256`). El valor es una **expresión SQL
    literal**, así que las cadenas van entrecomilladas:
 
    ```python
@@ -127,12 +139,18 @@ Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ si
 - [ ] Existe la copia en `resources/DB/backups/`.
 - [ ] Probado sobre una **copia de la BD real con datos** (no solo una BD vacía) —
       `scratchpad/test_migraciones.py` de la sesión del 2026-07-30 es la plantilla.
+- [ ] **Recuento de filas antes = después**, y las columnas que no tocas **idénticas fila a fila**.
+      Es lo único que distingue «se ha migrado» de «se ha migrado sin perder nada»; con una columna
+      en medio, la tabla se reescribe entera. ✅ Así se validó `provider_id`: 25 filas antes y
+      después, 12 columnas intactas ([04 §3](04-modelo-de-datos.md)).
+- [ ] Si el campo se rellena solo a posteriori (como `provider_id`), **decidido y documentado quién
+      lo rellena y cuándo**, y comprobado que **no pisa** un valor ya escrito.
 
 ---
 
 ## §2b — Añadir una tabla nueva
 
-1. Declara su `TableSchema` y añádelo a `AnimesPersistence.SCHEMA` (`:214-222`):
+1. Declara su `TableSchema` y añádelo a `AnimesPersistence.SCHEMA` (`:250-256`):
 
    ```python
    TableSchema(
@@ -213,13 +231,33 @@ la sesión, y un **pin** al lado escribe en `DB_user.db`.
 
 | Fichero | Acción |
 |---|---|
+| `src/APIs/common/models.py` | 🆕 **miembro nuevo en `AnimeProviderId`** (`:18-31`) |
 | `src/APIs/<sitio>/__init__.py` | crear **vacío** |
 | `src/APIs/<sitio>/<sitio>.py` | crear (plantilla en [08 §7.3](08-convenciones-y-estilo.md)) |
-| `src/gui/main_window.py` | importar (`:15-16`) y registrar (`:48-49`) |
+| `src/gui/main_window.py` | importar (`:14-16`) y registrar (`:47-49`) |
 | `MiBibliotecaAnime.spec` | `hiddenimports` (`:21-36`) |
 
 **Pasos**
 
+0. 🆕 **Añade el miembro a `AnimeProviderId`** (`models.py:18-31`). Desde el 2026-08-16 `PROVIDER_ID`
+   es un enum, no una cadena, y su `value` es **lo que se persiste** en `ANIMES.provider_id` y en
+   `USER_SETTINGS`:
+
+   ```python
+   class AnimeProviderId(Enum):
+       ANIMEAV1     = "animeav1"
+       JKANIME      = "jkanime"
+       ANIMEFLV     = "animeflv"
+       MONOSCHINOS2 = "monoschinos2"   # ← nuevo
+   ```
+
+   ⚠️ **Ese `value` es para siempre.** En cuanto un usuario guarde un anime desde ese proveedor, el
+   texto queda escrito en su biblioteca; cambiarlo después convierte esas filas en «proveedor
+   desconocido» (se degradan a `None`, [04 §4](04-modelo-de-datos.md)). Elige el slug corto y estable
+   a la primera y no lo toques.
+
+   Saltarse este paso no compila: `__init_subclass__` (`animeProviderMgr.py:71-75`) rechaza un
+   `PROVIDER_ID` que no sea miembro del enum, **al importar** el módulo.
 1. Explora el sitio **antes** de escribir código: ¿HTML clásico (selectores CSS) o framework JS
    (payload embebido)? Es la decisión que determina toda la implementación
    ([05 §3 y §4](05-proveedores-y-scraping.md)).
@@ -267,7 +305,7 @@ la sesión, y un **pin** al lado escribe en `DB_user.db`.
 6. **Documenta el orden de `episodes`** que devuelve `get_anime_info` — afecta al corte `[:25]` de la
    ficha y a lo que se guarda en BD (trampas 4 y 8).
 7. Crea el `<Sitio>Singleton` (patrón en `animeav1.py:361-367`).
-8. Registra en `main_window.py:48-49`. **El orden importa**: define la secuencia de fallback.
+8. Registra en `main_window.py:47-49`. **El orden importa**: define la secuencia de fallback.
 
    ```python
    self.anime_provider_mgr.register(AnimeAV1Singleton(), default=True)
@@ -279,7 +317,11 @@ la sesión, y un **pin** al lado escribe en `DB_user.db`.
 
 **Checklist**
 
+- [ ] `AnimeProviderId` tiene su miembro, y su `value` es el que quieres para siempre.
 - [ ] El módulo **importa** sin `NotImplementedError`.
+- [ ] El desplegable de la sidebar lo muestra **sin tocar la GUI**: sale de `list_provider_infos()`,
+      que se deriva de los proveedores registrados. Si has tenido que editar `main_window.py` para que
+      aparezca el nombre, algo está mal.
 - [ ] Los 5 métodos verificados con el script de [09 §2](09-verificacion-y-pruebas.md) y las
       comprobaciones de [09 §3d](09-verificacion-y-pruebas.md).
 - [ ] `get_recent_animes` y las búsquedas devuelven `synopsis/genres/episodes = None` (contrato

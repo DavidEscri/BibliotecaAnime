@@ -2,28 +2,29 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-07-30 fases 1-6 (`a9b44ea`, `fd53056`) · **2026-08-06 fase 7: el pin** · rama `develop` |
-| **Estado** | ✅ **Cerrado.** El pin separa «usar ahora» de «fijar», y el selector de la ficha se retira ([§12](#12-fase-7-el-pin-de-proveedor-predeterminado)) |
-| **Cierra** | TODO #4 (borrado de `main_window.py`) y el punto «Selector de proveedor con preferencia persistida» del roadmap ([12 §6](12-deuda-tecnica-y-roadmap.md)) |
+| **Fecha** | 2026-07-30 fases 1-6 (`a9b44ea`, `fd53056`) · 2026-08-06 fase 7: el pin · **2026-08-16 fase 8: la columna `provider_id`** · rama `develop` |
+| **Estado** | ✅ **Cerrado del todo.** La fase 8 implementa la columna que quedaba diferida ([§14](#14-fase-8--la-columna-provider_id-2026-08-16)) |
+| **Cierra** | TODO #4 (borrado de `main_window.py`), el punto «Selector de proveedor con preferencia persistida» y el punto 2 del roadmap ([12 §6](12-deuda-tecnica-y-roadmap.md)) |
 | **Mitiga** | **R2** — dependencia de un único proveedor sano ([12 §5](12-deuda-tecnica-y-roadmap.md)) |
-| **Última revisión** | 2026-08-07 (**auditoría**): anclas reverificadas contra `18311e3`; sigue cerrado, sin cambios de fondo |
+| **Última revisión** | 2026-08-16 (**fase 8**): §8 pasa de «diferida» a **implementada**, §9 cierra los puntos 1 y 5 de lo no verificado, y §14 documenta lo entregado. Árbol **sucio**: 16 ficheros de `src/` sin commitear |
 
 Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ sin verificar.
 
-> **Para futuras sesiones**: el tema del selector está **cerrado**. Lo que queda vivo de este
-> documento es:
+> **Para futuras sesiones**: el tema del selector está **cerrado**, y desde el 2026-08-16 también la
+> columna que quedaba pendiente. Lo que queda vivo de este documento es:
 >
-> - **[§12](#12-fase-7-el-pin-de-proveedor-predeterminado)** — cómo funciona el pin y, sobre todo, el
->   **orden de prioridad decidido** que la columna `provider_id` tendrá que implementar.
-> - **[§8](#8-fase-4-diferida-columna-provider_id-en-animes)** — esa columna, lo único diferido a
->   propósito. Es donde vuelve a usarse `resolve_anime_in_provider()`, que hoy **no llama nadie**
->   desde la GUI.
+> - **[§14](#14-fase-8--la-columna-provider_id-2026-08-16)** — qué hace hoy la aplicación al abrir un
+>   anime guardado, y las tres funcionalidades que la columna trajo con ella.
+> - **[§12](#12-fase-7--el-pin-de-proveedor-predeterminado)** — cómo funciona el pin y el **orden de
+>   prioridad**, hoy implementado en `MainWindow.provider_for_saved_anime()`.
 > - [§3 Decisiones de diseño](#3-decisiones-de-diseño) para no re-litigar lo ya decidido, y
 >   [§9](#9-verificación) para saber **qué está verificado y qué no**.
 >
-> Lo más importante que dejó esta tarea son dos invariantes nuevos:
-> **[trampa 21](10-invariantes-y-trampas.md)** (dos identidades del anime en la ficha) y
-> **[trampa 22](10-invariantes-y-trampas.md)** (el `wraplength` a mano recorta la sinopsis).
+> Lo más importante que dejó esta tarea son cuatro invariantes:
+> **[trampa 21](10-invariantes-y-trampas.md)** (dos identidades del anime en la ficha — la única que
+> se ha llegado a reintroducir), **[trampa 22](10-invariantes-y-trampas.md)** (el `wraplength` a mano
+> recorta la sinopsis), **[trampa 26](10-invariantes-y-trampas.md)** (buscar la biblioteca por slug) y
+> **[trampa 28](10-invariantes-y-trampas.md)** (reapuntar una fila puede duplicarla).
 
 ---
 
@@ -43,7 +44,7 @@ Petición del usuario, literal en lo esencial:
    > propio lateral se puede cambiar*». En la ficha queda solo la etiqueta informativa.
 4. **El predeterminado se marca con un pin** (2026-08-06), no cambiando el desplegable: ese proveedor
    es el que se usará de preferencia al buscar —salvo que el anime esté guardado con otro— y el que
-   aparece seleccionado al arrancar. Ver [§12](#12-fase-7-el-pin-de-proveedor-predeterminado).
+   aparece seleccionado al arrancar. Ver [§12](#12-fase-7--el-pin-de-proveedor-predeterminado).
 
 Requisito heredado del TODO #4: debe quedar **preparado para mangas**, de forma que cuando se
 integren, el desplegable ofrezca proveedores de manga si lo que se está viendo son mangas.
@@ -56,10 +57,10 @@ integren, el desplegable ofrezca proveedores de manga si lo que se está viendo 
 
 | Hecho | Dónde |
 |---|---|
-| `AnimeInfo.id` es el **slug del sitio**, no un identificador universal | `models.py:88`, `animeav1.py:177`, `animeflv.py:179` |
-| La tabla `ANIMES` está **cauterizada a ese slug**: `anime_id` es la clave con la que se busca todo | `animesPersistence.py:276-285` |
-| `EpisodeInfo.anime` también es el slug, y es lo que se pasa a `get_anime_episode_servers` | `models.py:83`, `anime_window.py:608` |
-| Los pósters en disco se llaman `{anime_id}.jpg` | `utils.py:57,84,134,173` |
+| `AnimeInfo.id` es el **slug del sitio**, no un identificador universal | `models.py:120`, `animeav1.py:177`, `animeflv.py:179` |
+| La tabla `ANIMES` está **cauterizada a ese slug**: `anime_id` es la clave con la que se busca todo | `animesPersistence.py:308-317` |
+| `EpisodeInfo.anime` también es el slug, y es lo que se pasa a `get_anime_episode_servers` | `models.py:115`, `anime_window.py:1116-1121` |
+| Los pósters en disco se llaman `{anime_id}.jpg` | `utils.py:57,83,153,192` |
 
 Consecuencia: **el mismo anime tiene un `id` distinto en cada proveedor.** AnimeAV1 sirve
 `one-piece-gyojin-touhen`; AnimeFLV serviría `one-piece`. Por tanto:
@@ -70,12 +71,12 @@ Consecuencia: **el mismo anime tiene un `id` distinto en cada proveedor.** Anime
   con el proveedor nuevo **no resolvería**.
   → **Lo salva el fallback**: `call_with_fallback` reintenta con el resto de proveedores registrados,
   así que el clic sigue funcionando a costa de una petición HTTP fallida (~1-3 s ⚠️). Por eso
-  [D3](#d3) mantiene el fallback **activo** para la preferencia global.
+  [D3](#d3--la-preferencia-global-fija-el-predeterminado-del-manager-con-fallback-activo) mantiene el fallback **activo** para la preferencia global.
 - **Cambiar de proveedor dentro de la ficha no puede reutilizar el `id`.** Hay que **re-resolver** el
-  anime en el proveedor destino ([D6](#d6)).
+  anime en el proveedor destino ([D6](#d6--resolución-cross-provider-por-búsqueda-de-título--similitud)).
 - **Si tras cambiar de proveedor se pulsa «añadir a favoritos», se insertaría una fila nueva** con el
   slug del proveedor nuevo → el mismo anime duplicado en la biblioteca, con pósters duplicados en
-  disco. Es el riesgo más serio de la tarea y lo neutraliza [D5](#d5).
+  disco. Es el riesgo más serio de la tarea y lo neutraliza [D5](#d5--identidad-de-visualización-vs-identidad-de-persistencia).
 
 ---
 
@@ -122,7 +123,7 @@ enum `UserSettingKey` (las claves no son *strings* sueltos) y con métodos con n
 ### D3 — La preferencia global fija el predeterminado del manager, **con fallback activo**
 
 > ✅ **Superada el 2026-08-06.** La parte de «*+ persistir la preferencia*» **en el mismo gesto** ya
-> no existe: cambiar el desplegable es temporal y fijar es el pin ([§12](#12-fase-7-el-pin-de-proveedor-predeterminado)).
+> no existe: cambiar el desplegable es temporal y fijar es el pin ([§12](#12-fase-7--el-pin-de-proveedor-predeterminado)).
 > Lo que **sigue vigente** de esta decisión es que el ámbito global conserva el **fallback**.
 
 **Decidido**: elegir proveedor en la sidebar equivale a
@@ -135,13 +136,13 @@ las 4 vistas de estado. Con fallback, degrada a una petición perdida.
 
 *Consecuencia honesta que hay que documentar en la UI*: si el usuario elige AnimeFLV (hoy caído para
 servidores, [05 §2](05-proveedores-y-scraping.md)) puede acabar viendo datos de AnimeAV1 sin saberlo.
-Lo compensa [D4](#d4): el selector **de la ficha** muestra qué proveedor sirvió realmente ese anime.
+Lo compensa [D4](#d4--el-selector-de-la-ficha-es-stricttrue-y-de-ámbito-local): el selector **de la ficha** muestra qué proveedor sirvió realmente ese anime.
 
 ### D4 — El selector de la ficha es `strict=True` y de ámbito local
 
 > 🗑️ **Retirada el 2026-08-06: el desplegable de la ficha ya no existe.** En su sitio queda una
 > **etiqueta no interactiva** «Proveedor: X» (`anime_window.py`, `__show_provider_label()`).
-> El motivo lo da [§12](#12-fase-7-el-pin-de-proveedor-predeterminado): con la selección de la sidebar
+> El motivo lo da [§12](#12-fase-7--el-pin-de-proveedor-predeterminado): con la selección de la sidebar
 > valiendo solo para la sesión, el control de la ficha hacía lo mismo con más código.
 >
 > **Lo que sobrevive de D4 y hay que seguir respetando**:
@@ -150,7 +151,7 @@ Lo compensa [D4](#d4): el selector **de la ficha** muestra qué proveedor sirvi�
 >   (`anime_window.py`): los servidores tienen que ser los del proveedor que sirvió **esta** ficha, no
 >   los de un fallback silencioso. Y `__toggle_servers_frame` sigue avisando si no hay ninguno.
 > - La etiqueta muestra **quién sirvió realmente** la ficha, no el predeterminado. Es lo único que hace
->   visible el fallback de [D3](#d3), y por eso no se borró junto con el desplegable.
+>   visible el fallback de [D3](#d3--la-preferencia-global-fija-el-predeterminado-del-manager-con-fallback-activo), y por eso no se borró junto con el desplegable.
 >
 > `strict=True` para los servidores y el ámbito local de `self.provider_id` **no cambian**; lo que
 > desaparece es la capacidad de *cambiar* de proveedor desde la ficha.
@@ -172,22 +173,37 @@ configuración global.
 
 | | Qué es | De dónde sale | Para qué se usa |
 |---|---|---|---|
-| **Visualización** | `self.anime_info` | El proveedor **actualmente seleccionado** en la ficha | Título, sinopsis, géneros, lista de episodios, servidores |
-| **Persistencia** | `self.persistence_anime_id` + `self.persistence_poster_url` | El `AnimeInfo` con el que se **abrió** la ficha, y nunca cambia | **Todas** las operaciones de BD y **todos** los ficheros de póster |
+| **Visualización** | `self.anime_info` + `self.provider_id` | El proveedor que **sirvió** esta ficha | Título, sinopsis, géneros, lista de episodios, servidores |
+| **Persistencia** | `self.persistence_anime_id` + `persistence_poster_url` + `persistence_provider_id` | La **fila guardada**, y nunca cambia mientras la ficha está en pantalla | **Todas** las operaciones de BD y **todos** los ficheros de póster |
 
 Al cambiar de proveedor se sustituye la primera y **se congela la segunda**. Así:
 
 - No se duplican filas en `ANIMES` ni pósters en disco.
 - Los episodios vistos y los 4 estados siguen apuntando a la misma fila.
-- El póster cacheado se sigue encontrando (`get_anime_image` busca `{id}.jpg`, `utils.py:173`).
+- El póster cacheado se sigue encontrando (`get_anime_image` busca `{id}.jpg`, `utils.py:192`).
 
 *Implicación práctica*: la fila de BD queda con el slug del proveedor que **descubrió** el anime.
 Es una elección arbitraria pero estable y sin pérdida de datos.
 
-*Alternativa descartada*: añadir una columna `provider_id` a `ANIMES` y re-clavar la identidad al
-proveedor activo. Es la solución «correcta» a largo plazo pero implica **migrar la BD real del
-usuario** y decidir qué hacer con las 25 filas existentes (`provider_id` a `NULL`). Se aparta a
-[§8 Fase 4 diferida](#8-fase-4-diferida-columna-provider_id-en-animes).
+> 🆕 **Ampliación del 2026-08-16.** La identidad de persistencia ya no se deduce solo del `AnimeInfo`
+> de apertura: el constructor recibe **`anime_record`** (`anime_window.py:232-233`) y, si el slug
+> guardado no coincide con el que se está viendo, manda el de la fila. Y ahora incluye el
+> **proveedor**, porque `persistence_anime_id` es un slug *suyo*: separarlos haría que la fila
+> guardase el proveedor equivocado.
+>
+> Regla: **quien abra una ficha que pueda venir de otro proveedor está obligado a pasar
+> `anime_record=`.** Omitirlo reintrodujo la trampa 21 durante la propia fase 4
+> ([trampa 21](10-invariantes-y-trampas.md)).
+>
+> 📌 Si los dos slugs **coinciden** manda el de visualización, aunque haya entrado el fallback: ahí el
+> proveedor que respondió sí sirve ese slug, y es la respuesta correcta para el autorrelleno de la
+> columna.
+
+*Alternativa que en su día se descartó*: añadir una columna `provider_id` a `ANIMES` y re-clavar la
+identidad al proveedor activo. Se apartó por implicar **migrar la BD real del usuario**;
+✅ **entró el 2026-08-16** ([§8](#8-columna-provider_id-en-animes)) y **no sustituye a D5**: las dos
+identidades siguen siendo necesarias, porque el fallback y la desviación del desplegable las separan
+igual. Lo que la columna añade es saber **cuál de las dos es la buena**.
 
 ⚠️ **Supuesto que asume D5**: los **números** de episodio coinciden entre proveedores (episodio 5 es
 el episodio 5 en los dos sitios), así que los `watched_episodes` guardados siguen siendo válidos tras
@@ -212,8 +228,25 @@ no debe saber que los slugs difieren ([01 §dependencias](01-arquitectura.md)).
 *Coste*: **2 peticiones HTTP** por cambio de proveedor → obligatoriamente en hilo daemon con cursor
 `watch` ([07](07-concurrencia-e-hilos.md)).
 
-⚠️ El umbral 0.75 es una estimación sin calibrar. Hay que probarlo con títulos reales antes de darlo
-por bueno (ver [§9](#9-verificación)).
+⚠️ El umbral 0.75 era una estimación sin calibrar. ✅ **Calibrado el 2026-08-16** contra los tres
+sitios reales: los animes probados resuelven con similitud **1.00** entre proveedores, así que el
+umbral no ha necesitado moverse. Los títulos coinciden literalmente entre sitios más a menudo de lo
+que se suponía.
+
+🆕 **Quién lo llama hoy** (la fase 7 lo dejó sin ningún llamante):
+
+| Llamante | Para qué |
+|---|---|
+| `open_saved_anime()` (`anime_window.py:167-189`) | Abrir un anime guardado cuando el desplegable está desviado: el slug guardado no vale en el proveedor elegido |
+| `__repair_to_target_provider()` (`anime_window.py:593-598`) | Localizar el anime en el proveedor destino antes de migrar la fila |
+
+Los dos construyen la referencia **a mano** (`AnimeInfo(id=…, title=…, poster=…)`), sin
+`provider_id`: es el único `AnimeInfo` del sistema que no pasa por el manager, y por eso su
+`provider_id` es `None` ([04 §1b](04-modelo-de-datos.md)).
+
+⚠️ **Si no lo encuentra, no se bloquea al usuario**: `open_saved_anime()` sigue por la vía normal y la
+ficha dirá quién la sirvió de verdad; el botón de migrar avisa con un `showinfo` y deja el anime como
+estaba.
 
 ### D7 — La preferencia se lee de forma **síncrona** en `MainWindow.__init__`
 
@@ -294,9 +327,9 @@ el predeterminado de código (AnimeAV1). Una preferencia perdida no puede impedi
 | Fichero | Cambio | Fase |
 |---|---|---|
 | **`dataPersistence/userPersistence.py`** | 🆕 Módulo completo: `UserSettingField`, `UserSettingKey`, `UserSetting`, `UserPersistence`, `UserPersistenceSingleton` | 1 |
-| **`APIs/common/animeProviderMgr.py`** | `get_provider_name()`, `get_provider_names()` (`{id: PROVIDER_NAME}` para poblar los desplegables), `get_anime_info_with_provider()` (expone el `provider_id` que `call_with_fallback` ya devuelve y los wrappers tiraban), `resolve_anime_in_provider()` ([D6](#d6)). Corregir de paso el docstring **D2** de [12 §3](12-deuda-tecnica-y-roadmap.md) (el ejemplo pone AnimeFLV por defecto; el código real usa AnimeAV1) | 1-2 |
-| **`gui/main_window.py`** | `UserPersistence` en `__init__` + aplicar preferencia ([D7](#d7)); desplegable en `load_sidebar_buttons()`; `change_anime_provider_event()`; recarga de recientes ([D8](#d8)); **borrar los TODO de `:31-34`** | 3 |
-| **`gui/anime_window.py`** | `__init__(…, provider_id=None)`; identidad doble ([D5](#d5)); desplegable en la ficha; `provider_id=…, strict=True` en `get_anime_episode_servers` (`:490`) — **hoy usa el predeterminado global, que es un bug latente en cuanto exista el selector**; todas las llamadas a BD y a los helpers de póster pasan a la identidad de persistencia | 4 |
+| **`APIs/common/animeProviderMgr.py`** | `get_provider_name()`, `get_provider_names()` (`{id: PROVIDER_NAME}` para poblar los desplegables), `get_anime_info_with_provider()` (expone el `provider_id` que `call_with_fallback` ya devuelve y los wrappers tiraban), `resolve_anime_in_provider()` ([D6](#d6--resolución-cross-provider-por-búsqueda-de-título--similitud)). Corregir de paso el docstring **D2** de [12 §3](12-deuda-tecnica-y-roadmap.md) (el ejemplo pone AnimeFLV por defecto; el código real usa AnimeAV1) | 1-2 |
+| **`gui/main_window.py`** | `UserPersistence` en `__init__` + aplicar preferencia ([D7](#d7--la-preferencia-se-lee-de-forma-síncrona-en-mainwindow__init__)); desplegable en `load_sidebar_buttons()`; `change_anime_provider_event()`; recarga de recientes ([D8](#d8--al-cambiar-el-predeterminado-se-recarga-la-lista-de-recientes)); **borrar los TODO de `:31-34`** | 3 |
+| **`gui/anime_window.py`** | `__init__(…, provider_id=None)`; identidad doble ([D5](#d5--identidad-de-visualización-vs-identidad-de-persistencia)); desplegable en la ficha; `provider_id=…, strict=True` en `get_anime_episode_servers` (`:490`) — **hoy usa el predeterminado global, que es un bug latente en cuanto exista el selector**; todas las llamadas a BD y a los helpers de póster pasan a la identidad de persistencia | 4 |
 | **`gui/sidebarButtons/recentAnimes/recentAnimes.py`** | `:91` → `get_anime_info_with_provider`, propagar `provider_id` al viewer | 5 |
 | **`gui/sidebarButtons/favouriteAnimes/favouriteAnimes.py`** | `:131` ídem | 5 |
 | **`gui/sidebarButtons/finishedAnimes/finishedAnimes.py`** | `:131` ídem | 5 |
@@ -356,7 +389,7 @@ column=1, columnspan=3, sticky=E`). Ya no es un desplegable, sino una etiqueta:
 widget haya pasado de desplegable a etiqueta, que ocupa menos.
 
 El valor mostrado es **el proveedor que sirvió realmente esta ficha**, no el predeterminado — es lo
-que hace visible el fallback silencioso de [D3](#d3).
+que hace visible el fallback silencioso de [D3](#d3--la-preferencia-global-fija-el-predeterminado-del-manager-con-fallback-activo).
 
 ---
 
@@ -367,18 +400,19 @@ Cada fase deja la app **arrancable**. Si retomas la tarea, mira aquí dónde est
 | Fase | Qué entra | Estado |
 |---|---|---|
 | **1** | `userPersistence.py` + `DB_user.db` | ✅ 23/23 comprobaciones |
-| **2** | Métodos nuevos del manager (`get_provider_names`, `get_provider_id_by_name`, `get_anime_info_with_provider`, `normalize_title`, `resolve_anime_in_provider`) | ✅ 26/26 |
-| **3** | Desplegable de la sidebar + persistencia + recarga de recientes ([D7](#d7), [D8](#d8)) | ✅ verificado con la app real |
-| **4** | Desplegable de la ficha + identidad doble ([D5](#d5)) + `strict` en servidores | ✅ 25/25 sobre copia de la BD real |
+| **2** | Métodos nuevos del manager (`get_provider_names`, `get_provider_id_by_name`, `get_anime_info_with_provider`, `normalize_title`, `resolve_anime_in_provider`). ⚠️ Los dos primeros **ya no existen**: los sustituyeron `list_provider_infos()` y `get_provider_info_by_name()` el 2026-08-16 | ✅ 26/26 |
+| **3** | Desplegable de la sidebar + persistencia + recarga de recientes ([D7](#d7--la-preferencia-se-lee-de-forma-síncrona-en-mainwindow__init__), [D8](#d8--al-cambiar-el-predeterminado-se-recarga-la-lista-de-recientes)) | ✅ verificado con la app real |
+| **4** | Desplegable de la ficha + identidad doble ([D5](#d5--identidad-de-visualización-vs-identidad-de-persistencia)) + `strict` en servidores | ✅ 25/25 sobre copia de la BD real |
 | **5** | Propagar `provider_id` en los 6 puntos de clic | ✅ escrito; ⚠️ no probado clic a clic |
 | **6** | Actualizar [02](02-mapa-de-modulos.md), [04](04-modelo-de-datos.md), [05](05-proveedores-y-scraping.md), [06](06-gui-y-vistas.md), [09](09-verificacion-y-pruebas.md), [10](10-invariantes-y-trampas.md), [11](11-playbooks.md), [12](12-deuda-tecnica-y-roadmap.md) | ✅ hecho |
-| **7** | **El pin** ([§12](#12-fase-7-el-pin-de-proveedor-predeterminado)): iconos nuevos, separación usar/fijar en la sidebar y retirada del desplegable de la ficha | ✅ 29/29 sin GUI + 3 capturas de la app real (2026-08-06) |
+| **7** | **El pin** ([§12](#12-fase-7--el-pin-de-proveedor-predeterminado)): iconos nuevos, separación usar/fijar en la sidebar y retirada del desplegable de la ficha | ✅ 29/29 sin GUI + 3 capturas de la app real (2026-08-06) |
+| **8** | **La columna `provider_id`** ([§14](#14-fase-8--la-columna-provider_id-2026-08-16)), en 7 subfases | ✅ **351/351** en 8 scripts (2026-08-16) |
 
 ### Lo que se hizo distinto de lo planeado
 
 | Planeado | Lo que se hizo | Por qué |
 |---|---|---|
-| Selector de la ficha en `row=0, column=2, columnspan=2` (mock de [§6](#6-ubicación-de-los-dos-desplegables)) | `row=0, column=1, columnspan=3, sticky=E`, en **su propia fila**; título, sinopsis, géneros, estados y episodios bajan una fila (0-2/3/4 → 1-3/4/5) | Reservar ancho en las columnas 2-3 **recortaba la sinopsis**: su `wraplength` va calculado a mano sobre el ancho del `content_frame`, no de la celda. Detectado por captura, no a ojo → **[trampa 22](10-invariantes-y-trampas.md)** |
+| Selector de la ficha en `row=0, column=2, columnspan=2` (mock de [§6](#6-ubicación-de-los-controles)) | `row=0, column=1, columnspan=3, sticky=E`, en **su propia fila**; título, sinopsis, géneros, estados y episodios bajan una fila (0-2/3/4 → 1-3/4/5) | Reservar ancho en las columnas 2-3 **recortaba la sinopsis**: su `wraplength` va calculado a mano sobre el ancho del `content_frame`, no de la celda. Detectado por captura, no a ojo → **[trampa 22](10-invariantes-y-trampas.md)** |
 | — | `main_window` lleva un **contador de generación** de la lista de recientes | Sin él, la precarga en segundo plano de un proveedor seguía escribiendo por índice en la lista del proveedor nuevo. Carrera preexistente que el selector habría hecho fácil de disparar |
 | — | Etiqueta «Apariencia:» en el selector de tema, que estaba vacía | Con una etiqueta «Proveedor de anime:» justo encima, un desplegable sin etiquetar parecía roto |
 | — | `__toggle_servers_frame` avisa si el proveedor no da servidores | Efecto de `strict=True`: antes el fallback tapaba el caso y se pintaba un selector de servidores vacío |
@@ -386,52 +420,67 @@ Cada fase deja la app **arrancable**. Si retomas la tarea, mira aquí dónde est
 
 ---
 
-## 8. Fase 4 diferida: columna `provider_id` en `ANIMES`
+## 8. Columna `provider_id` en `ANIMES`
 
-**No entra en esta iteración.** Queda escrito aquí para que la siguiente sesión no lo redescubra.
+> ✅ **Implementada el 2026-08-16** (fase 8). Estuvo diferida a propósito desde el 2026-07-30.
 
-*Qué resolvería*: que cada fila de `ANIMES` recuerde de qué proveedor es su `anime_id`, para que el
-clic en una vista de estado use directamente el proveedor correcto (`provider_id=record.provider_id`)
-en vez de depender del fallback ([§2](#2-el-problema-de-fondo-la-identidad-de-un-anime-es-específica-del-proveedor)).
+*Qué resuelve*: que cada fila de `ANIMES` recuerde de qué proveedor es su `anime_id`, para que el
+clic en una vista de estado use directamente el proveedor correcto en vez de depender del fallback
+([§2](#2-el-problema-de-fondo-la-identidad-de-un-anime-es-específica-del-proveedor)).
 
-### 🔴 Orden de prioridad — decidido por el usuario el 2026-08-06
+Esta sección conserva **lo que se decidió y por qué**. Lo entregado, con sus desviaciones respecto a
+este plan, está en [§14](#14-fase-8--la-columna-provider_id-2026-08-16).
 
-Cuando exista la columna, al abrir un anime el proveedor se elige **en este orden**:
+### 🔴 Orden de prioridad — decidido por el usuario el 2026-08-06, implementado el 2026-08-16
+
+Al abrir un anime el proveedor se elige **en este orden**. 📖 `MainWindow.provider_for_saved_anime()`
+(`main_window.py:345-372`):
 
 | # | Fuente | Cuándo manda |
 |---|---|---|
-| 1 | **Selección actual del desplegable** de la sidebar | Solo si **difiere del pin**, es decir, si el usuario se ha desviado a propósito en esta sesión |
+| 1 | **Selección actual del desplegable** de la sidebar | Solo si **difiere de la referencia**, es decir, si el usuario se ha desviado a propósito en esta sesión |
 | 2 | **`provider_id` de la fila en `ANIMES`** | Anime ya guardado y desplegable sin desviar |
-| 3 | **Proveedor fijado con el pin** (`DB_user.db`) | Anime no guardado |
+| 3 | **Proveedor fijado con el pin** (`DB_user.db`) | Anime no guardado, o fila sin proveedor anotado |
 | 4 | Predeterminado del registro (AnimeAV1) | Sin pin |
+
+> 📌 **Los casos 3 y 4 se funden en el código**: son `reference_provider_id()`
+> (`main_window.py:335-343`), «el pin, o el predeterminado del registro si no hay pin». Esa misma
+> referencia es contra la que se mide la desviación del caso 1 — y **no** contra el predeterminado
+> vivo del manager, que el desplegable va cambiando. Por eso `MainWindow.__init__` captura
+> `__registry_default_provider_id` (`:65-66`) **antes** de aplicar la preferencia guardada: después ya
+> es tarde, `set_default()` lo ha pisado.
 
 *Por qué la desviación gana a la BD*: desviarse en el desplegable es una acción deliberada del
 usuario, y si la BD ganara siempre, un anime guardado **nunca** podría verse desde otro proveedor —
 que es justo el caso de uso («ver si este otro sitio tiene servidores que funcionen») por el que
-existía el desplegable de la ficha. Con esta regla, retirarlo ([§12](#12-fase-7-el-pin-de-proveedor-predeterminado))
+existía el desplegable de la ficha. Con esta regla, retirarlo ([§12](#12-fase-7--el-pin-de-proveedor-predeterminado))
 no pierde funcionalidad: se cambia en la sidebar y se abre el anime.
 
+*Por qué la desviación gana a la BD* (razonamiento original, confirmado en uso): desviarse en el
+desplegable es una acción deliberada, y si la BD ganara siempre, un anime guardado **nunca** podría
+verse desde otro proveedor — que es justo el caso de uso por el que existía el desplegable de la
+ficha.
+
 *Consecuencia*: el caso 1 sobre un anime guardado necesita **re-resolver** por título, o sea
-`resolve_anime_in_provider()` ([D6](#d6)) — el método que la fase 7 dejó **sin ningún llamante en la
-GUI**. No se borró por esto: aquí vuelve, y ahora en los puntos de clic en vez de en el viewer.
+`resolve_anime_in_provider()` ([D6](#d6--resolución-cross-provider-por-búsqueda-de-título--similitud)) — el método que la fase 7 dejó sin ningún llamante en la
+GUI. ✅ **Aquí volvió**, y en dos sitios: `open_saved_anime()` (`anime_window.py:167-189`) y el botón
+«Actualizar a …» (`:593-598`).
 
-⚠️ **Hasta que exista la columna**, la desviación del desplegable solo afecta de verdad a recientes y
-búsquedas: al abrir un anime guardado se llama `get_anime_info(record.anime_id)` con el slug de quien
-lo guardó y quien resuelve es el **fallback**, no el proveedor elegido.
+### Lo que costó de verdad, frente a lo estimado
 
-*Qué costaría*:
+| Estimado el 2026-08-06 | Lo que pasó |
+|---|---|
+| «Un miembro **al final** de `AnimeField` → `ALTER TABLE ADD COLUMN`» | ❌ Fue **en la posición 2**, con reconstrucción de tabla. La identidad de la fila pesaba más que el ahorro ([04 §2](04-modelo-de-datos.md)) |
+| «`to_db_dict` / `from_db_dict` / `from_anime_info` a mano» | ✅ Exacto, más un helper `_provider_id_from_db` para degradar valores desconocidos |
+| «Dejar las 25 filas a `NULL` y tratarlo como desconocido» | ✅ Se hizo así, **y además** se rellenan solas al abrirlas. Hoy quedan **0 filas a `NULL`** sin haber escrito ningún script de migración de datos |
+| «Cero escrituras de datos, cero riesgo» | ⚠️ Cierto para la columna, pero la fase acabó incluyendo una operación que **sí** reescribe filas: la migración de un anime a otro proveedor ([§14](#14-fase-8--la-columna-provider_id-2026-08-16)) |
+| «Probar sobre una copia de `DB_Animes.db`» | ✅ Las 8 tandas de comprobaciones corren sobre copia |
 
-- Un miembro nuevo **al final** de `AnimeField` → `validate_db_integrity()` lo resuelve con
-  `ALTER TABLE ADD COLUMN`, sin mover datos ([11 §2](11-playbooks.md)).
-- `AnimeRecord.to_db_dict()` / `from_db_dict()` / `from_anime_info()` **a mano** — la migración de
-  esquema es automática, la del dataclass no.
-- Decidir qué hacer con las **25 filas existentes**: se propone dejarlas a `NULL` y tratar `NULL` como
-  «desconocido → usar el predeterminado con fallback», que es exactamente el comportamiento de hoy.
-  Cero escrituras de datos, cero riesgo.
-- Probar **sobre una copia** de `DB_Animes.db` ([09 §3b](09-verificacion-y-pruebas.md)).
-
-*Por qué se difiere*: es la única parte que toca la BD real del usuario, y el fallback ya cubre el
-caso funcionalmente. Separarla mantiene esta iteración en «solo crea una BD nueva».
+*Lo que no se había previsto*: que el proveedor tuviera que dejar de ser una cadena para ser un enum
+(`AnimeProviderId`, [04 §1b](04-modelo-de-datos.md)). En cuanto el dato se persiste, «`"animeflv"`
+suelto» deja de valer: hay que poder decir qué valores son legales y qué pasa con los que ya no lo
+son. Eso tocó los 3 proveedores y todas las firmas del manager, y fue **la mitad del trabajo de la
+fase**.
 
 ---
 
@@ -449,7 +498,7 @@ ejecutó de verdad el 2026-07-30 y qué no**.
 | Emparejamiento de títulos y registro | Script con un **proveedor falso** (catálogo fijo, cero red) | **26/26**: `normalize_title` (tildes, guiones, signos), `get_provider_names`/`_by_name`, `get_anime_info_with_provider` devuelve `(ficha, id)` y `(None, None)`, resolución exacta, y los 3 casos negativos (proveedor desconocido, título vacío, título sin relación → 0.35 rechazado) |
 | Umbral de similitud | Título con una letra menos | 0.968 → aceptado con 0.75, rechazado con 0.99 |
 | Resolución contra el sitio real | AnimeAV1, 3 peticiones en serie con pausas | `Kimetsu no Yaiba Movie 1: Mugenjou-hen - Akaza Sairai` resuelve al mismo slug, similitud **1.00**, con episodios |
-| 🔴 **[D5](#d5) — no duplicar filas** | Script sobre una **copia** de `DB_Animes.db` (25 filas), con los helpers de póster espiados (cero red, cero escritura de imágenes) | **25/25**: tras cambiar de proveedor y pulsar los **8** botones de estado, **25 filas antes y 25 después**, ninguna con el slug del otro proveedor, la fila original correctamente marcada/desmarcada, y los episodios vistos bajo la identidad de persistencia |
+| 🔴 **[D5](#d5--identidad-de-visualización-vs-identidad-de-persistencia) — no duplicar filas** | Script sobre una **copia** de `DB_Animes.db` (25 filas), con los helpers de póster espiados (cero red, cero escritura de imágenes) | **25/25**: tras cambiar de proveedor y pulsar los **8** botones de estado, **25 filas antes y 25 después**, ninguna con el slug del otro proveedor, la fila original correctamente marcada/desmarcada, y los episodios vistos bajo la identidad de persistencia |
 | Arranque real de la app | `python src/app.py`, log capturado | Sin excepciones. `DB_user.db` creada con las 3 columnas y `setting_key` como PK. `DB_Animes.db`: «esquema correcto, no hay nada que migrar» → **ni migración ni copia de seguridad** |
 | Preferencia entre arranques | Guardar `animeflv`, relanzar la app, leer el log | «Proveedor predeterminado del usuario: animeflv». Estado restaurado a prístino después |
 | Layout de la sidebar | Captura de la ventana | «Proveedor de anime: AnimeAV1» sobre «Apariencia: System», sin solaparse con el espaciador de la fila 8 |
@@ -476,8 +525,14 @@ ejecutó de verdad el 2026-07-30 y qué no**.
    que no hay un segundo proveedor sano. Se probó con un proveedor falso y resolviendo *en el
    mismo* proveedor, que recorre el mismo código, pero **el umbral 0.75 no está calibrado con datos
    reales de dos sitios**. Recalíbralo al integrar el tercer proveedor.
-   ⚠️ Desde la fase 7 esto solo se puede ejercitar cuando exista `provider_id` ([§8](#8-fase-4-diferida-columna-provider_id-en-animes)):
+   ⚠️ Desde la fase 7 esto solo se puede ejercitar cuando exista `provider_id` ([§8](#8-columna-provider_id-en-animes)):
    `resolve_anime_in_provider()` **no lo llama nadie** en la GUI.
+   > ✅ **Cerrado el 2026-08-16.** Con JKAnime sano y la columna en su sitio, la resolución
+   > *cross-provider* se ha ejercitado contra los tres sitios reales: los tres animes reportados por
+   > el usuario resuelven con similitud **1.00** entre AnimeAV1, JKAnime y AnimeFLV. El umbral 0.75
+   > **no ha necesitado recalibrarse**: los títulos coinciden literalmente entre sitios más a menudo
+   > de lo previsto, y el margen sobra. Y se usa a diario: es lo que hace funcionar el desplegable
+   > desviado sobre un anime guardado.
 2. **Clic de ratón real sobre el pin y el desplegable.** El pin se ha ejercitado invocando su
    `command` sobre la app real —lo que recorre todo salvo el *hit testing* de Tk— y comprobando el
    icono por captura, pero no se ha pulsado con el ratón.
@@ -485,8 +540,15 @@ ejecutó de verdad el 2026-07-30 y qué no**.
    (`__on_recent_animes_reloaded`) pero no se ha provocado con la red real caída.
 4. **Abrir una ficha desde cada una de las 6 vistas.** Solo se ha ejercitado la de recientes; el
    cambio es el mismo texto en las 6.
+   > ✅ **Cerrado el 2026-08-16** por el uso real: el usuario ha abierto fichas desde las vistas de
+   > estado con los tres proveedores seleccionados, que es lo que destapó los dos ajustes de
+   > [§14](#14-fase-8--la-columna-provider_id-2026-08-16).
 5. **Servidores de vídeo desde un proveedor distinto al que guardó el anime.** Requiere dos
    proveedores sanos; ver el punto 1.
+   > ✅ **Cerrado el 2026-08-16.** Es el flujo normal al desviar el desplegable: la ficha se sirve del
+   > proveedor elegido y `__toggle_servers_frame` le pide los servidores a **él**, con `strict=True`
+   > y el slug que le corresponde. Lo que hace que sea correcto es que la identidad de visualización y
+   > la de persistencia estén separadas ([D5](#d5--identidad-de-visualización-vs-identidad-de-persistencia)).
 
 ---
 
@@ -497,8 +559,9 @@ Lo que esta tarea deja listo (y lo que no) para el punto grande del roadmap:
 | Preparado | Cómo |
 |---|---|
 | Preferencia por tipo de medio | La clave es `default_anime_provider`, no `default_provider`. `default_manga_provider` es una fila más, **sin migración** |
-| Cualquier preferencia futura | Clave/valor genérico ([D2](#d2)): el desplegable global anime/manga/ambos de la esquina inferior izquierda ya tiene dónde guardarse |
-| Poblar el desplegable | `get_provider_names()` es la única fuente del contenido del widget; cuando existan proveedores de manga se filtra por tipo de medio ahí, no en la GUI |
+| Cualquier preferencia futura | Clave/valor genérico ([D2](#d2--tabla-clavevalor-genérica-no-una-columna-por-preferencia)): el desplegable global anime/manga/ambos de la esquina inferior izquierda ya tiene dónde guardarse |
+| Poblar el desplegable | **`list_provider_infos()`** es la única fuente del contenido del widget; cuando existan proveedores de manga se filtra por tipo de medio ahí, no en la GUI |
+| Identificar un proveedor | 🆕 `AnimeProviderId` + `ProviderInfo` ([04 §1b](04-modelo-de-datos.md)). `ProviderInfo` es donde irá el **tipo de medio** como un campo más; hoy tiene `id`, `name` y `base_url` |
 
 **Lo que NO resuelve**: `AnimeProviderManager` registra proveedores en un único diccionario plano, sin
 noción de tipo de medio. Cuando entren los de manga habrá que decidir si se generaliza a
@@ -511,10 +574,10 @@ noción de tipo de medio. Cuando entren los de manga habrá que decidir si se ge
 
 | # | Riesgo | Mitigación |
 |---|---|---|
-| 1 | **Duplicar animes en `ANIMES`** al cambiar de proveedor con la ficha abierta | [D5](#d5) + la prueba 6 y 9 de [§9](#9-verificación). Es el fallo que más daño haría: escribe en la biblioteca real |
+| 1 | **Duplicar animes en `ANIMES`** al cambiar de proveedor con la ficha abierta | [D5](#d5--identidad-de-visualización-vs-identidad-de-persistencia) + la prueba 6 y 9 de [§9](#9-verificación). Es el fallo que más daño haría: escribe en la biblioteca real |
 | 2 | Resolución *cross-provider* con **falso positivo** (te abre otro anime parecido) | Umbral de similitud + coincidencia exacta preferente; hay que calibrar con títulos reales |
 | 3 | Reconstruir la ficha desde un hilo daemon agrava **A6/R3** (widgets Tk fuera del hilo de UI) | El código nuevo marshalliza con `main_window.after(0, …)` en vez de tocar widgets desde el hilo. No se propaga el patrón heredado ([07](07-concurrencia-e-hilos.md)) |
-| 4 | El usuario elige un proveedor caído y la app parece rota | Fallback activo en el ámbito global ([D3](#d3)) + la **etiqueta** de la ficha muestra quién sirvió de verdad. Y desde la fase 7, probar un proveedor ya no ensucia la configuración: si va mal, basta con no fijarlo |
+| 4 | El usuario elige un proveedor caído y la app parece rota | Fallback activo en el ámbito global ([D3](#d3--la-preferencia-global-fija-el-predeterminado-del-manager-con-fallback-activo)) + la **etiqueta** de la ficha muestra quién sirvió de verdad. Y desde la fase 7, probar un proveedor ya no ensucia la configuración: si va mal, basta con no fijarlo |
 | 5 | `DB_user.db` corrupta impide arrancar | La preferencia es opcional por diseño: sin ella se usa el predeterminado de código |
 
 ---
@@ -543,12 +606,12 @@ echar un vistazo a otro catálogo te reescribía la preferencia guardada.
 
 | Acción | Efecto |
 |---|---|
-| **Cambiar el desplegable** | `set_default()` en el manager + recarga de recientes ([D8](#d8)). **Solo esta sesión: no escribe en `DB_user.db`** |
+| **Cambiar el desplegable** | `set_default()` en el manager + recarga de recientes ([D8](#d8--al-cambiar-el-predeterminado-se-recarga-la-lista-de-recientes)). **Solo esta sesión: no escribe en `DB_user.db`** |
 | **Pulsar el pin** | Persiste el proveedor **actualmente seleccionado** como predeterminado |
 | **Pulsar el pin estando ya fijado** | **Desfija**: `set_default_provider_id(None)`. El proveedor en uso **no cambia**; solo deja de recordarse |
 | **Arranque** | Se lee la preferencia, se aplica y el desplegable nace con ella; el pin nace marcado |
 
-Esto **sustituye** la parte de persistencia inmediata de [D3](#d3). El resto de D3 (el ámbito global
+Esto **sustituye** la parte de persistencia inmediata de [D3](#d3--la-preferencia-global-fija-el-predeterminado-del-manager-con-fallback-activo). El resto de D3 (el ámbito global
 conserva el **fallback**) no cambia.
 
 **Estado visual del pin** — se distingue por **color**, no por relleno frente a contorno:
@@ -586,17 +649,83 @@ desplegable de la ficha **hacía lo mismo con más código**. Para ver un anime 
 cambia en la sidebar y se abre.
 
 Lo que **sí** se conserva es su función informativa: la etiqueta «Proveedor: X» sigue diciendo quién
-sirvió realmente la ficha, que es lo único que hace visible el fallback silencioso ([D4](#d4)).
+sirvió realmente la ficha, que es lo único que hace visible el fallback silencioso ([D4](#d4--el-selector-de-la-ficha-es-stricttrue-y-de-ámbito-local)).
 
-⚠️ Que esto no pierda funcionalidad **depende del orden de prioridad** de
-[§8](#8-fase-4-diferida-columna-provider_id-en-animes): la desviación del desplegable tiene que ganar
-al `provider_id` guardado. Mientras esa columna no exista, un anime ya guardado se seguirá abriendo
-por *fallback* y no por el proveedor elegido.
+⚠️ Que esto no pierda funcionalidad **dependía del orden de prioridad** de
+[§8](#8-columna-provider_id-en-animes): la desviación del desplegable
+tiene que ganar al `provider_id` guardado. ✅ Implementado el 2026-08-16; hasta entonces un anime ya
+guardado se abría por *fallback* y no por el proveedor elegido.
 
 ### Fuera de alcance, a propósito
 
-- **La columna `provider_id`** ([§8](#8-fase-4-diferida-columna-provider_id-en-animes)) — es lo único
-  que toca la BD real del usuario y va aparte.
-- La recarga de recientes al cambiar de proveedor ([D8](#d8)) **se mantiene**: depende de «usar
+- **La columna `provider_id`** — era lo único que tocaba la BD real del usuario e iba aparte.
+  ✅ Entró en la fase 8 ([§14](#14-fase-8--la-columna-provider_id-2026-08-16)).
+- La recarga de recientes al cambiar de proveedor ([D8](#d8--al-cambiar-el-predeterminado-se-recarga-la-lista-de-recientes)) **se mantiene**: depende de «usar
   ahora», no de la persistencia.
 - No hay *tooltip* en el pin: CTk no trae, y el usuario pidió explícitamente el icono.
+
+---
+
+## 14. Fase 8 — la columna `provider_id` (2026-08-16)
+
+Lo que entró, en 7 subfases. Cada una deja la aplicación arrancable y tiene su tanda de
+comprobaciones ([09](09-verificacion-y-pruebas.md)).
+
+| Subfase | Qué entra | Comprobaciones |
+|---|---|---|
+| 1 | `AnimeProviderId` + `ProviderInfo`; `PROVIDER_ID` pasa de `str` a enum en los 3 proveedores y en todo el manager | 31 |
+| 2 | La columna: `AnimeField.PROVIDER_ID`, campo en `AnimeRecord`, serialización, `update_anime_provider_id` | 50 |
+| 3 | Estampado automático (`__stamp_provider`) + autorrelleno de las filas antiguas | 20 |
+| 4 | `provider_for_saved_anime()` + `open_saved_anime()`: abrir un anime guardado por el proveedor correcto | 44 |
+| 5 | El proveedor visible en las 4 vistas de estado y en la ficha | 26 |
+| 6 | Migrar una fila a otro proveedor + aviso de duplicado | 105 + 26 (GUI) |
+| 7 | Esta documentación | — |
+| — | Buscador local de la biblioteca (trampa 26), fuera del plan inicial | 49 |
+| | **Total** | **351, sin fallos** |
+
+### Las tres funcionalidades que trajo la columna
+
+**1. Abrir cada anime por su proveedor.** `open_saved_anime()` (`anime_window.py:108-193`) es hoy el
+punto de entrada único de las 4 vistas de estado, que antes repetían las mismas líneas. Además de
+elegir el proveedor, saca la petición HTTP del hilo de Tkinter — la ventana se quedaba congelada
+segundos enteros con los animes cuyo slug el predeterminado ya no reconoce, porque AnimeAV1 reintenta
+tres veces cada 404 antes de ceder al fallback.
+
+> El fallback **sigue activo** a propósito: la propiedad de un slug caduca. Fijar el proveedor de la
+> fila con `strict=True` convertiría un anime que hoy se abre despacio en uno que no se abre.
+
+**2. Migrar una fila a otro proveedor** — el botón «Actualizar a …» de la ficha. Es la única acción
+de la aplicación que reescribe la identidad de una fila ([04 §8](04-modelo-de-datos.md)), conservando
+lo irrecuperable: episodios vistos y categorías. También renombra el póster cacheado
+(`move_anime_poster_by_status`), o lo vuelve a bajar si no estaba.
+
+**3. Aviso de duplicado al guardar.** Abrir un anime desde otro proveedor y pulsar un estado insertaba
+una segunda fila del mismo anime, en silencio. Ahora `__confirm_save()` compara por título
+normalizado contra **toda** la biblioteca (umbral **0.9**, muy por encima del 0.75 de búsqueda: aquí
+un falso positivo interrumpe con un diálogo por dos animes de la misma saga) y ofrece la salida
+correcta, que es la migración.
+
+### Los dos ajustes que salieron del uso real
+
+Ninguno de los dos se detectó probando; los dos los reportó el usuario al usar la aplicación.
+
+| Síntoma reportado | Causa | Arreglo |
+|---|---|---|
+| «El botón de actualizar solo me aparece con *One Piece: Heroines*» | El botón se ofrecía solo si había **identidad partida**. Pero al abrir un anime guardado **sin desviar el desplegable** lo sirve el proveedor de su propia fila: nunca hay nada partido. Heroines funcionaba **por accidente** (AnimeFLV no lo tiene → fallback) | `__repair_target_provider_id()` (`:528-554`): si no hay nada partido pero el proveedor **seleccionado** difiere del de la fila, se ofrece migrar a él. Cuesta dos peticiones para localizar el anime allí, así que va en un hilo |
+| «El aviso solo sale con JKAnime o AnimeFLV seleccionados, nunca con AnimeAV1, pero el botón sale siempre» | La línea «En tu biblioteca: X» solo se pintaba al detectar discrepancia. Con AnimeAV1 —la referencia— no hay desviación, así que no había discrepancia, no salía la línea, y el botón aparecía **sin nada que lo explicara** | La línea se muestra **siempre** que el anime esté guardado. El ⚠ ámbar se reserva para la discrepancia real; en gris es solo informativa |
+
+**La regla que quedó**, y que conviene no volver a tocar: el ⚠ compara las **dos líneas del bloque**.
+`Proveedor: X` (de dónde vienen los datos que ves) frente a `En tu biblioteca: Y` (de quién es tu
+fila). Iguales → gris. Distintas → ámbar con ⚠, porque entonces los botones de estado y el póster
+escriben en algo distinto de lo que tienes delante ([trampa 21](10-invariantes-y-trampas.md)).
+
+### Lo que se hizo distinto de lo planeado
+
+| Planeado | Lo que se hizo | Por qué |
+|---|---|---|
+| Columna al final de `AnimeField` | En la **posición 2** | Es identidad; va con `anime_id` ([04 §2](04-modelo-de-datos.md)) |
+| `PROVIDER_ID` sigue siendo `str` | **Enum `AnimeProviderId`** | Un dato que se persiste necesita valores legales y una degradación definida para los que dejen de serlo |
+| Filas antiguas a `NULL` para siempre | Se **autorrellenan** al abrirlas | Sale gratis: al abrir la ficha ya se sabe quién sirve ese slug |
+| Solo elegir proveedor al abrir | + migrar la fila + avisar de duplicados | Elegir proveedor destapa que el mismo anime puede acabar dos veces en la biblioteca; sin salida, la funcionalidad creaba un problema nuevo |
+| — | **Buscador local de la biblioteca** | El buscador de las 4 vistas cruzaba por slug y perdía animes según el proveedor puesto ([trampa 26](10-invariantes-y-trampas.md)). Apareció al probar la fase 5 |
+| — | `provider_for_saved_anime` mide la desviación contra una **referencia capturada en `__init__`** | El predeterminado vivo del manager lo cambia el propio desplegable: comparar contra él daría «nunca hay desviación» |

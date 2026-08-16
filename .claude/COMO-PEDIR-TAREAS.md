@@ -198,7 +198,7 @@ antes de tocar nada.
 ### Bugs ya conocidos
 
 Antes de reportar, un vistazo a [`docs/10-invariantes-y-trampas.md`](docs/10-invariantes-y-trampas.md)
-te ahorra tiempo: hay 25 trampas documentadas con su síntoma observable. Si tu síntoma está ahí,
+te ahorra tiempo: hay **28** trampas documentadas con su síntoma observable. Si tu síntoma está ahí,
 basta con **«arregla la trampa N»**.
 
 ---

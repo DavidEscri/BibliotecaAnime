@@ -2,8 +2,8 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-08-07 · **Commit** `18311e3` · árbol **limpio** |
-| **Última revisión** | 2026-08-07 (**auditoría**): recuentos de líneas corregidos, `__init__.py` de `watchingAnimes` retirado del inventario |
+| **Fecha** | 2026-08-16 · **Commit** `54fb3d6` · árbol **sucio** (columna `provider_id`, 16 ficheros) |
+| **Última revisión** | 2026-08-16 (**columna `provider_id`**): recuentos rehechos — el proyecto pasa de 5 460 a **6 245** líneas; fichas de `models.py`, `animeProviderMgr.py`, `animesPersistence.py`, `utils.py`, `utilsButtons.py`, `main_window.py` y `anime_window.py` actualizadas |
 | **Cubre** | los **37** ficheros `.py` de `src/` (**19** con contenido + **18** `__init__.py` vacíos) |
 
 Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ sin verificar.
@@ -16,27 +16,32 @@ Todas las líneas citadas corresponden al **árbol de trabajo actual**, no al ú
 | Ruta | Líneas | Capa |
 |---|---:|---|
 | `src/app.py` | 17 | arranque |
-| `src/APIs/common/models.py` | 93 | dominio |
-| `src/APIs/common/animeProviderMgr.py` | 416 | dominio |
-| `src/APIs/animeav1/animeav1.py` | 367 | infraestructura |
-| `src/APIs/jkanime/jkanime.py` | 531 | infraestructura |
-| `src/APIs/animeflv/animeflv.py` | 245 | infraestructura |
-| `src/dataPersistence/animesPersistence.py` | 553 | dominio/datos |
+| `src/APIs/common/models.py` | **130** | dominio |
+| `src/APIs/common/animeProviderMgr.py` | **468** | dominio |
+| `src/APIs/animeav1/animeav1.py` | 366 | infraestructura |
+| `src/APIs/jkanime/jkanime.py` | 534 | infraestructura |
+| `src/APIs/animeflv/animeflv.py` | 244 | infraestructura |
+| `src/dataPersistence/animesPersistence.py` | **705** | dominio/datos |
 | `src/dataPersistence/userPersistence.py` | 240 | dominio/datos |
-| `src/utils/db/sqlite.py` | 447 | infraestructura |
-| `src/utils/utils.py` | 199 | infraestructura |
-| `src/utils/buttons/utilsButtons.py` | 197 | GUI |
-| `src/gui/main_window.py` | 483 | GUI |
-| `src/gui/anime_window.py` | 647 | GUI |
-| `src/gui/sidebarButtons/recentAnimes/recentAnimes.py` | 110 | GUI |
-| `src/gui/sidebarButtons/favouriteAnimes/favouriteAnimes.py` | 142 | GUI |
-| `src/gui/sidebarButtons/finishedAnimes/finishedAnimes.py` | 140 | GUI |
+| `src/utils/db/sqlite.py` | 446 | infraestructura |
+| `src/utils/utils.py` | **217** | infraestructura |
+| `src/utils/buttons/utilsButtons.py` | **350** | GUI |
+| `src/gui/main_window.py` | **542** | GUI |
+| `src/gui/anime_window.py` | **1 155** | GUI |
+| `src/gui/sidebarButtons/recentAnimes/recentAnimes.py` | 119 | GUI |
+| `src/gui/sidebarButtons/favouriteAnimes/favouriteAnimes.py` | 145 | GUI |
+| `src/gui/sidebarButtons/finishedAnimes/finishedAnimes.py` | 141 | GUI |
 | `src/gui/sidebarButtons/watchingAnimes/watchingAnimes.py` | 142 | GUI |
-| `src/gui/sidebarButtons/pendingAnimes/pendingAnimes.py` | 142 | GUI |
-| `src/gui/sidebarButtons/searchAnimes/searchAnimes.py` | 349 | GUI |
+| `src/gui/sidebarButtons/pendingAnimes/pendingAnimes.py` | 143 | GUI |
+| `src/gui/sidebarButtons/searchAnimes/searchAnimes.py` | 381 | GUI |
 
-**5 460 líneas** en 19 módulos. ✅ Recontado el 2026-08-07; la revisión anterior daba 699 a
-`anime_window.py` (son **647**) y 251 a `userPersistence.py` (son **240**).
+**6 245 líneas** en 19 módulos. ✅ Recontado el 2026-08-16: **+785 líneas** respecto al 2026-08-07,
+casi todas de la columna `provider_id`. El grueso está en `anime_window.py` (647→**1 155**),
+`animesPersistence.py` (553→**705**) y `utilsButtons.py` (197→**350**).
+
+⚠️ **`anime_window.py` es hoy el módulo más grande del proyecto**, con diferencia, y el más citado por
+esta documentación. Cualquier inserción en él desplaza decenas de anclas: reubícalas comparando el
+**contenido** de la línea, no sumando un desplazamiento ([README](README.md)).
 
 Los **18** `__init__.py` están **vacíos** (0 bytes) y solo marcan paquete. ✅ El último con contenido,
 `watchingAnimes/__init__.py`, se vació en `e6d1a73` (2026-08-07).
@@ -66,17 +71,29 @@ Los **18** `__init__.py` están **vacíos** (0 bytes) y solo marcan paquete. ✅
 
 | Símbolo | Línea | Detalle |
 |---|---|---|
-| `AnimeGenreFilter(Enum)` | `:18-65` | **40 miembros**. Valor = slug (`ACCIÓN = "accion"`) |
-| `AnimeOrderFilter(Enum)` | `:68-71` | `POR_DEFECTO="default"`, `ALFABÉTICAMENTE="title"`, `CALIFICACIÓN="rating"` |
-| `ServerInfo` | `:74-77` | `server: str`, `url: str` |
-| `EpisodeInfo` | `:80-83` | `id: Union[str,int]`, `anime: str` |
-| `AnimeInfo` | `:86-93` | `id`, `title`, `poster` + `synopsis=None`, `genres=None`, `episodes=None` |
+| 🆕 `AnimeProviderId(Enum)` | `:18-31` | **3 miembros**. Valor = id corto y **estable**: es lo que se persiste |
+| 🆕 `ProviderInfo` | `:34-47` | `frozen`. `id: AnimeProviderId`, `name: str`, `base_url: str` |
+| `AnimeGenreFilter(Enum)` | `:50-97` | **40 miembros**. Valor = slug (`ACCIÓN = "accion"`) |
+| `AnimeOrderFilter(Enum)` | `:100-103` | `POR_DEFECTO="default"`, `ALFABÉTICAMENTE="title"`, `CALIFICACIÓN="rating"` |
+| `ServerInfo` | `:106-109` | `server: str`, `url: str` |
+| `EpisodeInfo` | `:112-115` | `id: Union[str,int]`, `anime: str` |
+| `AnimeInfo` | `:118-131` | `id`, `title`, `poster` + `synopsis=None`, `genres=None`, `episodes=None`, 🆕 `provider_id=None` |
 
-**Entrantes**: proveedores, `animeProviderMgr`, `animesPersistence`, `utilsButtons`, todas las vistas.
+**Entrantes**: proveedores, `animeProviderMgr`, `animesPersistence`, `utilsButtons`, `main_window`,
+`anime_window`, todas las vistas.
 **Salientes**: solo stdlib. **Efectos**: ninguno.
 
-> 📖 Los tres campos opcionales de `AnimeInfo` valen `None` en los **listados** (recientes/búsqueda)
-> y solo se rellenan al pedir `get_anime_info()`. ✅ Verificado en ambos proveedores.
+> 📖 Los tres campos opcionales originales de `AnimeInfo` valen `None` en los **listados**
+> (recientes/búsqueda) y solo se rellenan al pedir `get_anime_info()`. ✅ Verificado en los tres
+> proveedores.
+
+> 🆕 **`provider_id` es distinto**: no lo rellena el proveedor sino
+> `AnimeProviderManager.call_with_fallback()`, que es el único que sabe cuál acabó respondiendo.
+> `None` significa «este `AnimeInfo` **no pasó por el manager**» (lo construyó alguien a mano), no
+> «no se sabe». Detalle en [04 §1b](04-modelo-de-datos.md).
+
+> ⚠️ **Añadir un proveedor obliga a tocar este fichero**, que antes no hacía falta: un miembro más en
+> `AnimeProviderId`. Sin él, la clase del proveedor **no importa** ([11 §3](11-playbooks.md)).
 
 ---
 
@@ -84,49 +101,57 @@ Los **18** `__init__.py` están **vacíos** (0 bytes) y solo marcan paquete. ✅
 
 **Responsabilidad**: contrato `AnimeProvider` (ABC) + registro y fallback (`AnimeProviderManager`).
 
-### `AnimeProvider` (`:21-107`)
+### `AnimeProvider` (`:24-128`)
 
 | Miembro | Línea |
 |---|---|
-| `PROVIDER_ID` / `PROVIDER_NAME` / `BASE_URL` | `:45` / `:48` / `:52` |
-| `__init_subclass__` | `:54-64` — valida los 3 atributos |
-| `search_animes_by_genres_and_order(genres, order=None, page=None) -> (List[AnimeInfo], int)` | `:66-70` |
-| `search_animes_by_query(query=None, page=None) -> (List[AnimeInfo], int)` | `:72-75` |
-| `get_anime_episode_servers(anime_id, episode_id) -> List[ServerInfo]` | `:77-80` |
-| `get_recent_animes() -> List[AnimeInfo]` | `:82-85` |
-| `get_anime_info(anime_id) -> AnimeInfo` | `:87-90` |
-| `is_available(timeout=5.0) -> bool` | `:92-104` — `GET BASE_URL` |
+| `PROVIDER_ID` / `PROVIDER_NAME` / `BASE_URL` | `:48` / `:51` / `:55` — 🆕 `PROVIDER_ID` es un `AnimeProviderId` |
+| `__init_subclass__` | `:57-75` — valida los 3 atributos **y** que `PROVIDER_ID` sea del enum |
+| 🆕 `provider_info() -> ProviderInfo` *(classmethod)* | `:77-85` — **ya implementado**; no lo sobrescribas |
+| `search_animes_by_genres_and_order(genres, order=None, page=None) -> (List[AnimeInfo], int)` | `:87-91` |
+| `search_animes_by_query(query=None, page=None) -> (List[AnimeInfo], int)` | `:93-96` |
+| `get_anime_episode_servers(anime_id, episode_id) -> List[ServerInfo]` | `:98-101` |
+| `get_recent_animes() -> List[AnimeInfo]` | `:103-105` |
+| `get_anime_info(anime_id) -> AnimeInfo` | `:107-108` |
+| `is_available(timeout=5.0) -> bool` | `:110-126` — `GET BASE_URL` |
 
-> ✅ **Trampa**: la comprobación es `if ABC not in cls.__bases__` (`:59`). Como solo `AnimeProvider`
+> ✅ **Trampa**: la comprobación es `if ABC not in cls.__bases__` (`:62`). Como solo `AnimeProvider`
 > lista `ABC` entre sus bases, **cualquier** subclase — incluida una clase base intermedia
 > abstracta — debe definir los 3 atributos o `NotImplementedError` salta **al importar**.
 
-### `AnimeProviderManager` (`:110-274`)
+### `AnimeProviderManager` (`:131-460`)
 
 | Método | Línea | Nota |
 |---|---|---|
-| `register(provider, default=False)` | `:141-149` | el primero registrado queda por defecto aunque no lo pidas |
-| `unregister(provider_id)` | `:151-154` | si era el default, pasa al siguiente registrado |
-| `set_default` / `get_default_provider_id` | `:156-162` | `set_default` lanza `UnknownProviderError` |
-| `get(provider_id=None)` | `:164-171` | lanza `UnknownProviderError` |
-| `list_providers()` / `list_available_providers()` | `:173-178` | la segunda hace **una petición HTTP por proveedor** |
-| `_ordered_providers(provider_id=None)` | `:180-191` | preferido primero, resto por orden de registro |
-| `__is_empty_result(result)` | `:193-202` | `None`, `[]`, o `([], …)` cuentan como vacío |
-| `call_with_fallback(...) -> (Any, Optional[str])` | `:204-242` | devuelve `(None, None)` si todos fallan |
-| wrappers `get_recent_animes`, `get_anime_info`, `search_animes_by_query`, `search_animes_by_genres_and_order`, `get_anime_episode_servers` | | mismos nombres que el contrato + `provider_id=`, `strict=` |
-| `AnimeProviderManagerSingleton` | | |
+| `register(provider, default=False)` | `:173-181` | el primero registrado queda por defecto aunque no lo pidas |
+| `unregister(provider_id)` | `:183-186` | si era el default, pasa al siguiente registrado |
+| `set_default` / `get_default_provider_id` | `:188-194` | `set_default` lanza `UnknownProviderError` |
+| `get(provider_id=None)` | `:196-203` | lanza `UnknownProviderError` |
+| `list_providers()` / `list_available_providers()` | `:205-247` | la segunda hace **una petición HTTP por proveedor** |
+| `_ordered_providers(provider_id=None)` | `:249-259` | preferido primero, resto por orden de registro |
+| 🆕 `__stamp_provider(result, provider_id)` | `:262-283` | sella quién respondió en cada `AnimeInfo` del resultado |
+| `__is_empty_result(result)` | `:285-291` | `None`, `[]`, o `([], …)` cuentan como vacío |
+| `call_with_fallback(...) -> (Any, Optional[AnimeProviderId])` | `:293-334` | devuelve `(None, None)` si todos fallan |
+| wrappers `get_recent_animes`, `get_anime_info`, `search_animes_by_query`, `search_animes_by_genres_and_order`, `get_anime_episode_servers` | `:340-382` | mismos nombres que el contrato + `provider_id=`, `strict=` |
+| `AnimeProviderManagerSingleton` | `:463-469` | |
 
-**Añadidos el 2026-07-30** ([13](13-selector-de-proveedor.md)) — v0.1 → **v0.2**:
+**Añadidos el 2026-07-30** ([13](13-selector-de-proveedor.md)) — v0.1 → v0.2, **revisados el
+2026-08-16** (v0.3): todo lo que era `str` ahora es `AnimeProviderId`.
 
-| Método | Nota |
-|---|---|
-| `get_provider_name(provider_id)` | nombre legible; si no está registrado devuelve el id |
-| `get_provider_names() -> {id: nombre}` | **única** fuente del contenido de los desplegables de la GUI; aquí se filtrará por tipo de medio cuando haya mangas |
-| `get_provider_id_by_name(nombre)` | vuelta atrás: los widgets muestran nombre, el código usa ids |
-| `get_anime_info_with_provider(...) -> (AnimeInfo\|None, str\|None)` | expone el `provider_id` que `call_with_fallback` ya devolvía y los wrappers tiraban |
-| `normalize_title(title)` *(static)* | minúsculas, sin tildes, resto a espacios |
-| `resolve_anime_in_provider(anime_info, provider_id, threshold=None)` | localiza el mismo anime en otro proveedor por título. **2 peticiones HTTP** → solo desde hilo secundario. Devuelve `None` antes que un falso positivo. ⚠️ **Sin llamantes en la GUI desde el 2026-08-06** (se retiró el selector de la ficha): vuelve a usarse con la columna `provider_id` ([13 §8](13-selector-de-proveedor.md)). No lo borres |
-| `TITLE_MATCH_THRESHOLD = 0.75` | umbral de similitud de `resolve_anime_in_provider`. Sin calibrar con dos sitios reales |
+| Método | Línea | Nota |
+|---|---|---|
+| `get_provider_name(provider_id)` | `:222-231` | nombre legible. 🆕 **tolera `None`** → `"desconocido"`; si el id no está registrado devuelve su `.value` |
+| 🆕 `get_provider_info(provider_id) -> ProviderInfo\|None` | `:208-211` | ficha de un proveedor registrado |
+| 🆕 `list_provider_infos() -> List[ProviderInfo]` | `:213-220` | **única** fuente del contenido de los desplegables de la GUI, en orden de registro. Sustituye a `get_provider_names()` |
+| 🆕 `get_provider_info_by_name(nombre)` | `:233-243` | vuelta atrás: los widgets muestran nombre, el código usa enums. Sustituye a `get_provider_id_by_name()` |
+| `get_anime_info_with_provider(...)` | `:348-361` | expone el `provider_id` que `call_with_fallback` ya devolvía y los wrappers tiraban |
+| `normalize_title(title)` *(static)* | `:385-396` | minúsculas, sin tildes, resto a espacios |
+| `resolve_anime_in_provider(anime_info, provider_id, threshold=None)` | `:398-460` | localiza el mismo anime en otro proveedor por título. **2 peticiones HTTP** → solo desde hilo secundario. Devuelve `None` antes que un falso positivo. ✅ **Vuelve a tener llamantes** desde el 2026-08-16: `open_saved_anime()` y el botón «Actualizar a …» |
+| `TITLE_MATCH_THRESHOLD = 0.75` | `:167` | ✅ **calibrado el 2026-08-16** contra los 3 sitios reales; no ha necesitado moverse |
+
+> ⚠️ **Dos métodos desaparecieron** en el cambio a enum: `get_provider_names()` y
+> `get_provider_id_by_name()`. Si encuentras una cita a ellos en documentación o en un script del
+> scratchpad, es anterior al 2026-08-16.
 
 **Efectos**: red (indirecta, vía proveedores) + `print` de diagnóstico.
 Semántica exacta y casos límite verificados: [05 §5](05-proveedores-y-scraping.md).
@@ -254,26 +279,31 @@ esfuerzo en diagnosticarlo.
 | Símbolo | Línea |
 |---|---|
 | `AnimeStatus(Enum)` | `:21-25` — el **valor** es el nombre de la columna |
-| `AnimeField(Enum)` | `:28-55` — `(columna, tipo SQLite)`, props `.column` / `.sql_type` |
-| `AnimeRecord` | `:62-201` |
-| `AnimeRecord.to_db_dict()` | `:86-104` — **invierte `episodes`** (`:88`), comprime `watched` (`:89`) |
-| `AnimeRecord.from_db_dict()` | `:110-146` — **no** deshace la inversión |
-| `AnimeRecord.from_anime_info()` | `:152-172` |
-| `_episodes_to_ranges` / `_ranges_to_episodes` | `:178-192` / `:195-201` |
-| `AnimesPersistence` | `:207-541` |
-| `FIELDS` / `FIELD_TYPES` / `PRIMARY_KEY` | `:210-212` — derivados del enum |
-| `SCHEMA: List[TableSchema]` | `:218-224` — **esquema declarado de la BD**; añadir una tabla = añadir un `TableSchema` |
-| `start()` | `:233-245` — crea la BD si falta **y llama siempre a `validate_db_integrity()`** |
-| `validate_db_integrity()` | `:247-273` — ✅ alinea la BD con `SCHEMA`; delega en `ServiceDB.validate_schema` |
-| `get_anime_by_anime_id` / `get_watched_episodes` | `:276-285` / `:287-292` |
-| `get_favourite/watching/pending/finished_animes` | `:294-308` |
-| `get_anime_by_genre_and_order` | `:310-346` |
-| `update_watched_episodes` | `:351-371` — **devuelve `False` si el anime no existe** |
-| `update_anime_episodes` | `:373-381` — invierte con `[::-1]` (`:375`) |
-| `update_anime_to_[not_]favourite/watching/finished/pending` | `:386-444` |
-| `_query_by_status` / `_insert_anime` / `_update_flag` / `_set_status` | `:449-531` |
-| `_create_db_animes()` | `:533-541` — crea **todas** las tablas de `SCHEMA` |
-| `AnimesPersistenceSingleton` | `:547-552` |
+| `AnimeField(Enum)` | `:28-57` — `(columna, tipo SQLite)`, props `.column` / `.sql_type`. 🆕 `PROVIDER_ID` en **posición 2** |
+| `AnimeRecord` | `:63-236` — 🆕 campo `provider_id: Optional[AnimeProviderId]` |
+| `AnimeRecord.to_db_dict()` | `:88-110` — **invierte `episodes`** (`:90`), comprime `watched` (`:91`), 🆕 `provider_id` → `.value` o `None` (`:94`) |
+| `AnimeRecord.from_db_dict()` | `:112-150` — **no** deshace la inversión |
+| 🆕 `AnimeRecord._provider_id_from_db()` | `:152-171` — texto → enum; **degrada a `None`** ante un valor desconocido, sin lanzar |
+| `AnimeRecord.from_anime_info()` | `:176-207` — 🆕 acepta `provider_id=`; si falta, toma el del `AnimeInfo` |
+| `_episodes_to_ranges` / `_ranges_to_episodes` | `:209-224` / `:226-236` |
+| `AnimesPersistence` | `:239-697` |
+| `FIELDS` / `FIELD_TYPES` / `PRIMARY_KEY` | `:242-244` — derivados del enum |
+| `SCHEMA: List[TableSchema]` | `:250-256` — **esquema declarado de la BD**; añadir una tabla = añadir un `TableSchema` |
+| `start()` | `:265-277` — crea la BD si falta **y llama siempre a `validate_db_integrity()`** |
+| `validate_db_integrity()` | `:279-306` — ✅ alinea la BD con `SCHEMA`; delega en `ServiceDB.validate_schema` |
+| `get_anime_by_anime_id` | `:308-317` |
+| 🆕 `get_all_animes()` | `:319-331` — **todas** las filas, incluidas las que no están en ninguna categoría. Para detectar duplicados |
+| `get_watched_episodes` | `:333-338` |
+| `get_favourite/watching/pending/finished_animes` | `:340-354` |
+| `get_anime_by_genre_and_order` | `:356-395` |
+| `update_watched_episodes` | `:397-417` — **devuelve `False` si el anime no existe** |
+| 🆕 `update_anime_provider_id(anime_id, provider_id)` | `:419-440` — anota o corrige el proveedor de una fila. `False` si no existe |
+| 🆕 `migrate_anime_identity(current_anime_id, anime_info, provider_id=None)` | `:442-516` — **la única reescritura de identidad**. Conserva episodios vistos y estados; **rechaza el destino ocupado** ([trampa 28](10-invariantes-y-trampas.md)) |
+| `update_anime_episodes` | `:518-529` — invierte con `[::-1]` (`:519-520`) |
+| `update_anime_to_[not_]favourite/watching/finished/pending` | `:531-592` |
+| `_query_by_status` / `_insert_anime` / `_update_flag` / `_set_status` | `:594-684` — 🆕 `_set_status` **autorrellena** `provider_id` si la fila lo tenía a `NULL` (`:643-644`) |
+| `_create_db_animes()` | `:686-697` — crea **todas** las tablas de `SCHEMA` |
+| `AnimesPersistenceSingleton` | `:700-706` |
 
 **Efectos**: escribe en `resources/DB/DB_Animes.db`. **Salientes**: `APIs.common.models`,
 `utils.db.sqlite.ServiceDB`, `utils.utils.get_resource_path`.
@@ -331,17 +361,18 @@ pool; transacciones solo en las migraciones.
 | `refactor_genre_text(genre_text)` | `:41-45` | `capitalize()` + `-`/`_` → espacio |
 | `update_gif(label, gif_frames, root, frame=0)` | `:48-51` | ⚠️ **código muerto y roto**: `root.after(100, update_gif, frame)` pasaría `frame` como `label`. Sin llamadas en `src/` |
 | `download_anime_poster_by_status(status, anime)` | `:53-60` | red + disco → `resources/images/{status.name.lower()}/{id}.jpg`, `(130,185)` |
-| `remove_anime_poster_by_status(status, anime)` | `:62-69` | borra ese fichero; si no existe, imprime y vuelve |
-| `download_animes_poster(images_path, animes)` | `:71-105` | descarga las que faltan (8 hilos) y **purga huérfanas** `:97-105` |
-| `download_images_progress(images_path, recent_animes, progress_bar, progress_label)` | `:107-163` | igual + progreso 90 %→100 % `:126`; **toca widgets Tk desde workers** |
-| `get_anime_image(anime, image_size=(195,275)) -> CTkImage` | `:166-177` | busca en las **6** categorías `:168`; si no está en ninguna, la baja de la red `:176-177` |
-| `load_image(image_path, image_size=(130,185))` | `:179-182` | placeholder gris si no existe |
-| `get_resource_path(relative_path)` | `:185-199` | `sys._MEIPASS` si está congelado; si no, raíz calculada desde este fichero |
+| 🆕 `move_anime_poster_by_status(status, old_id, new_id) -> bool` | `:62-79` | **renombra** el póster cacheado al cambiar el `anime_id`. `False` si no había nada que mover → quien llama lo descarga. Usa `os.replace`, no `os.rename`: en Windows `rename` falla si el destino existe |
+| `remove_anime_poster_by_status(status, anime)` | `:81-88` | borra ese fichero; si no existe, imprime y vuelve |
+| `download_animes_poster(images_path, animes)` | `:90-124` | descarga las que faltan (8 hilos) y **purga huérfanas** `:116-124` |
+| `download_images_progress(images_path, recent_animes, progress_bar, progress_label)` | `:126-183` | igual + progreso 90 %→100 % `:145`; **toca widgets Tk desde workers** |
+| `get_anime_image(anime, image_size=(195,275)) -> CTkImage` | `:185-196` | busca en las **6** categorías `:187`; si no está en ninguna, la baja de la red `:195-196` |
+| `load_image(image_path, image_size=(130,185))` | `:198-202` | placeholder gris si no existe |
+| `get_resource_path(relative_path)` | `:204-217` | `sys._MEIPASS` si está congelado; si no, raíz calculada desde este fichero |
 
 > ✅ **Los dos bugs que tenía `get_anime_image` están resueltos** (2026-07-30, `83a8448`): la lista de
 > carpetas incluye ya `watching` (era B1) y la rama de red pasa `size=` (era A4, el póster salía a
 > 20×20). Ver trampas [15 y 16](10-invariantes-y-trampas.md), que conservan el invariante vigente:
-> **toda carpeta a la que escriba `download_anime_poster_by_status` debe estar en `:168`**, y todo
+> **toda carpeta a la que escriba `download_anime_poster_by_status` debe estar en `:187`**, y todo
 > `CTkImage` nuevo necesita `size=` explícito.
 
 ---
@@ -350,17 +381,20 @@ pool; transacciones solo en las migraciones.
 
 | Clase | Línea | Rol |
 |---|---|---|
-| `BaseButton(ctk.CTkButton)` | `:14-21` | base de todos |
-| `EpisodeButton` | `:24-34` | «{título} - Episodio {n}» |
-| `SearchButton` | `:37-44` | ⚠️ **homónimo** del `SearchButton` de la sidebar (`searchAnimes.py:35`) |
-| `ApplyFiltersButton` | `:47-54` | |
-| `SidebarButton` | `:57-83` | base de las 6 vistas; `update_icon(mode)` `:78-80`; `show_frame()` abstracto `:82-83` |
-| `AccordionFilterButton` | `:85-197` | filtro plegable de género + orden |
+| 🆕 `filter_animes_by_title(records, query)` | `:23-56` | búsqueda **local** en la biblioteca, sin red y sin mirar el proveedor ([trampa 26](10-invariantes-y-trampas.md)) |
+| 🆕 `match_animes_from_search(records, results)` | `:59-94` | traduce resultados web → filas guardadas, por slug **y** por título |
+| 🆕 `SavedAnimeSearch` | `:97-166` | el buscador de las 4 vistas de estado: local al instante + web con `after(0,…)`. Contador de generación y guarda de visibilidad |
+| `BaseButton(ctk.CTkButton)` | `:168-176` | base de todos |
+| `EpisodeButton` | `:178-189` | «{título} - Episodio {n}» |
+| `SearchButton` | `:191-199` | ⚠️ **homónimo** del `SearchButton` de la sidebar (`searchAnimes.py:35`) |
+| `ApplyFiltersButton` | `:201-209` | |
+| `SidebarButton` | `:211-237` | base de las 6 vistas; `update_icon(mode)` `:232-234`; `show_frame()` abstracto `:236-237` |
+| `AccordionFilterButton` | `:239-351` | filtro plegable de género + orden |
 
-**Efectos**: lee iconos de disco (`load_image`), consulta la BD en `__apply_filters` (`:182-194`).
+**Efectos**: lee iconos de disco (`load_image`), consulta la BD en `__apply_filters` (`:336-348`) y 🆕 **la red** en `SavedAnimeSearch` (hilo daemon).
 
-> ✅ **Bug**: `__apply_filters` (`:187`) pasa `self.selected_order.get()`, un **`str`**, a
-> `get_anime_by_genre_and_order`, que compara contra el **enum** (`animesPersistence.py:294`). La
+> ✅ **Bug**: `__apply_filters` (`:341`) pasa `self.selected_order.get()`, un **`str`**, a
+> `get_anime_by_genre_and_order`, que compara contra el **enum** (`animesPersistence.py:384`). La
 > comparación siempre es `True` → *return* temprano → **la ordenación por coincidencias de género
 > nunca se aplica**. Trampa 6.
 
@@ -377,14 +411,16 @@ pool; transacciones solo en las migraciones.
 
 | Método | Nota |
 |---|---|
-| `__init__` | registra proveedores, **arranca `UserPersistence` y aplica la preferencia de proveedor de forma síncrona**, `load_sidebar_buttons()`, `show_loading_screen()` |
+| `__init__` | registra proveedores, **captura el predeterminado del registro** (`:65-66`) **antes** de aplicar la preferencia guardada, arranca `UserPersistence` de forma síncrona, `load_sidebar_buttons()`, `show_loading_screen()` |
 | `clear_frame()` | destruye los hijos de `content_frame` |
 | `create_sidebar_frame` / `create_content_frame` | |
 | `load_sidebar_buttons()` | instancia las 6 vistas + **desplegable de proveedor y su pin** (en un frame propio) + selector de apariencia |
-| `__apply_saved_provider_preference()` | lee `DB_user.db`, aplica el proveedor **fijado** y recuerda cuál es; una preferencia inválida solo avisa por consola y deja el pin sin marcar |
+| `__apply_saved_provider_preference()` | lee `DB_user.db`, **convierte el texto a `AnimeProviderId`** (`:264`), aplica el proveedor fijado y recuerda cuál es; una preferencia inválida —texto huérfano o proveedor no registrado— solo avisa por consola y deja el pin sin marcar |
 | `change_anime_provider_event(nombre)` | `set_default` + recargar recientes. **No persiste**: eso es el pin ([13 §12](13-selector-de-proveedor.md)) |
-| `toggle_pinned_provider_event()` | fija el proveedor en uso como predeterminado, o lo desfija (`set_default_provider_id(None)`). No cambia qué proveedor se usa |
+| `toggle_pinned_provider_event()` | fija el proveedor en uso como predeterminado, o lo desfija (`set_default_provider_id(None)`). Persiste el **`.value`** (`:307`). No cambia qué proveedor se usa |
 | `__refresh_pin_provider_button()` | icono azul si lo que usas es tu predeterminado, gris si te has desviado |
+| 🆕 `reference_provider_id()` | `:335-343` — el pin, o el predeterminado del **registro** si no hay pin. Es contra esto, y no contra el predeterminado vivo del manager, contra lo que se mide una desviación |
+| 🆕 `provider_for_saved_anime(record_provider_id) -> (id, hay_desviación)` | `:345-372` — **implementa el orden de prioridad** de [13 §8](13-selector-de-proveedor.md). Devuelve además si hay desviación, porque eso obliga a re-resolver el anime por título (2 peticiones más) |
 | `__reload_recent_animes()` | guarda antidoble + incrementa la **generación** y lanza el hilo |
 | `__reload_recent_animes_worker(gen)` | **hilo daemon**: red + pósters; devuelve al hilo de UI con `after(0, …)` |
 | `__on_recent_animes_reloaded(animes, gen)` | **hilo de UI**: descarta resultados de una generación caducada |
@@ -408,40 +444,53 @@ pool; transacciones solo en las migraciones.
 **Responsabilidad**: `AnimeWindowViewer` — la ficha de detalle. **No es una ventana**: reemplaza el
 contenido de `content_frame`.
 
-**Función de módulo** (pública, la importan las 6 vistas):
+**Constantes de módulo**: 🆕 `DUPLICATE_TITLE_THRESHOLD = 0.9` (`:31`), `STATUS_SECTION_NAMES`
+(`:36-41`, cómo se llama cada estado de cara al usuario).
 
-| Función | Nota |
-|---|---|
-| `show_anime_info_error(anime_id)` | `print` + `messagebox.showerror`. Se llama cuando `get_anime_info` devuelve `None`; sin ella, el clic no hacía nada (trampa 10) |
+**Funciones de módulo** (públicas, las importan las 6 vistas):
 
-**v0.1 → v0.2 el 2026-07-30**: la clase maneja ahora **dos identidades del mismo anime**
+| Función | Línea | Nota |
+|---|---|---|
+| `show_anime_info_error(anime_id)` | `:50-66` | `print` + `messagebox.showerror`. Se llama cuando `get_anime_info` devuelve `None`; sin ella, el clic no hacía nada (trampa 10) |
+| 🆕 `find_saved_duplicate(records, title, exclude_anime_id=None)` | `:69-105` | el mismo anime guardado con otro slug, por título normalizado. **No** detecta títulos completamente distintos («Solo Leveling» / «Ore dake Level Up na Ken»): eso necesitaría red y esto corre en el hilo de la UI |
+| 🆕 `open_saved_anime(main_window, anime_id)` | `:108-193` | **punto de entrada único de las 4 vistas de estado**. Elige el proveedor con `provider_for_saved_anime()`, re-resuelve por título si hay desviación, y saca la petición del hilo de Tkinter |
+
+**v0.1 → v0.2 el 2026-07-30**: la clase maneja **dos identidades del mismo anime**
 (**[trampa 21](10-invariantes-y-trampas.md)**, [13 D5](13-selector-de-proveedor.md)).
 **v0.2 → v0.3 el 2026-08-06**: se retira el desplegable de proveedor de la ficha; queda una etiqueta.
-Las dos identidades **siguen siendo necesarias**: el fallback puede servir la ficha desde un proveedor
-distinto al que guardó la fila.
+**v0.5 → v0.6 el 2026-08-16**: la identidad de persistencia sale de la **fila guardada**, no del
+`AnimeInfo` de apertura; y la ficha gana la migración de proveedor y el aviso de duplicado.
 
 | Atributo | Qué es |
 |---|---|
 | `anime_info` | identidad de **visualización**: la del proveedor que sirvió la ficha |
 | `provider_id` | quién sirvió lo que se está viendo; es lo que muestra la etiqueta y lo que se pasa con `strict=True` a `get_anime_episode_servers` |
-| `persistence_anime_id`, `persistence_poster_url` | identidad de **persistencia**: la de apertura. **No cambia nunca** |
+| `persistence_anime_id`, `persistence_poster_url`, 🆕 `persistence_provider_id` | identidad de **persistencia**: la de la fila guardada. **No cambia mientras la ficha está en pantalla** |
+| 🆕 `__is_saved`, `__saved_provider_id` | si hay fila en `ANIMES` y de quién es. Son datos **distintos**: una fila anterior a la columna está guardada y no declara proveedor |
 
-| Método | Nota |
-|---|---|
-| `__init__(main_window, anime_info, provider_id=None)` | **contrato**: `None` → `ValueError`; `episodes=None` → copia con `[]`; congela la identidad de persistencia |
-| `__with_episodes(anime_info)` *(static)* | normaliza `episodes=None` sobre una **copia** |
-| `__persistence_anime_info()` | copia de la ficha con `id`/`poster` de persistencia. **Lo que hay que pasar a la BD y a los helpers de póster** |
-| `display_anime_info()` | punto de entrada |
-| `__load_anime_status()` | si cambió el nº de episodios, los actualiza en BD |
-| `__display_anime_info()` | póster + título + sinopsis + géneros. Filas **1-3** (la 0 es la del proveedor) |
-| `__show_provider_label()` | etiqueta **no interactiva** «Proveedor: X», `row=0, column=1, columnspan=3` ([trampa 22](10-invariantes-y-trampas.md)). Muestra quién sirvió de verdad la ficha, no el predeterminado |
-| `__show_anime_status()` / `__display_anime_status()` | los 4 botones de estado, fila **4** |
-| `add_to_*` / `remove_from_*` | BD + póster + refresco. **Siempre con la identidad de persistencia** |
-| `__display_episodes(episodes_to_show=None)` | **`[:25]`**; frame en la fila **5** |
-| `__toggle_sort_order` | ordena `anime_info.episodes` **in place** |
-| `__search_episodes` | filtra por número exacto |
-| `__previous_episode` / `__next_episode` | |
-| `__toggle_episode_switch(episode_id)` | marcado **acumulativo**; desmarcado unitario |
+| Método | Línea | Nota |
+|---|---|---|
+| `__init__(main_window, anime_info, provider_id=None, anime_record=None)` | `:232-295` | **contrato**: `anime_info=None` → `ValueError`. 🆕 `anime_record` es de donde sale la identidad de persistencia cuando los slugs difieren |
+| `__with_episodes(anime_info)` *(static)* | `:297-307` | normaliza `episodes=None` sobre una **copia** |
+| `__persistence_anime_info()` | `:309-321` | copia de la ficha con `id`/`poster`/`provider_id` de persistencia. **Lo que hay que pasar a la BD y a los helpers de póster** |
+| `display_anime_info()` | `:323-326` | punto de entrada |
+| `__load_anime_status()` | `:328-356` | estados + episodios vistos. 🆕 **autorrellena `provider_id`** si la fila lo tenía a `NULL` (`:341-345`) |
+| `__display_anime_info()` | `:358-429` | póster + título + sinopsis + géneros. Filas **1-3** (la 0 es la del proveedor) |
+| `__show_provider_label()` | `:434-511` | bloque **no interactivo** de hasta 3 líneas, `row=0, column=1, columnspan=3` ([trampa 22](10-invariantes-y-trampas.md)). Detalle en [06 §4](06-gui-y-vistas.md) |
+| 🆕 `__has_split_identity()` | `:513-526` | si la fila guardada y lo que se ve no son la misma cosa |
+| 🆕 `__repair_target_provider_id()` | `:528-554` | a qué proveedor se ofrece migrar, o `None` |
+| 🆕 `__repair_to_target_provider()` | `:556-600` | el `command` del botón. Si el destino ya sirve la ficha, 0 peticiones; si no, hilo + cursor `watch` |
+| 🆕 `__confirm_and_migrate(anime_info, target)` | `:602-683` | diálogo enumerando cambios y episodios conservados → `migrate_anime_identity` + pósters, en hilo. Al terminar **reconstruye la ficha entera** en vez de mutar atributos que el resto de la clase da por inmutables |
+| 🆕 `__move_posters(...)` | `:685-709` | renombra el póster en cada categoría activa, o lo baja. Un fallo aquí **no revierte** la migración: el peor caso es un recuadro gris |
+| `__show_anime_status()` / `__display_anime_status()` | `:711-770` | los 4 botones de estado, fila **4** |
+| 🆕 `__confirm_save(status)` | `:779-828` | guarda de duplicado antes de los 4 `add_to_*` |
+| `add_to_*` / `remove_from_*` | `:830-903` | BD + póster + refresco. **Siempre con la identidad de persistencia** |
+| `__display_episodes(episodes_to_show=None)` | `:915-981` | **`[:25]`**; frame en la fila **5** |
+| `__toggle_sort_order` | `:1004-1014` | ordena `anime_info.episodes` **in place** |
+| `__search_episodes` | `:1016-1030` | filtra por número exacto |
+| `__previous_episode` / `__next_episode` | `:1032-1050` | |
+| `__toggle_episode_switch(episode_id)` | `:1052-1105` | marcado **acumulativo**; desmarcado unitario |
+| `__toggle_servers_frame(...)` | `:1107-1151` | `provider_id=self.provider_id, strict=True`. ⚠️ **HTTP en el hilo de Tkinter** ([07 C5](07-concurrencia-e-hilos.md)) |
 | `__toggle_servers_frame` | ⚠️ **HTTP en el hilo de UI**. Pide los servidores con `provider_id=self.provider_id, strict=True`; si no hay, lo dice y sugiere cambiar de proveedor |
 | `__play_video(url)` | `webbrowser.open` |
 
@@ -466,11 +515,21 @@ distinto al que guardó la fila.
 | `pendingAnimes.py` | `PendingAnimeButton` | `pending` | `PENDING` |
 | `searchAnimes.py` | `SearchButton` + `AnimeSearch` | `search` | — |
 
-`recentAnimes.py` es la **única** que carga la ficha en un hilo secundario (`:90-102`) y la única con
-`show_frame()` que revela la sidebar (`:31`).
+🆕 **Ya no hay una «única» que cargue la ficha en hilo secundario**: desde el 2026-08-16 lo hacen las
+seis. `recentAnimes.py` sigue siendo la única con `show_frame()` que revela la sidebar (`:31`).
+
+| Vista | Cómo abre la ficha | Buscador |
+|---|---|---|
+| `recentAnimes.py` | hilo propio (`:105-114`) → `after(0,…)`; pide al proveedor que trajo la portada | — |
+| las **4 de estado** | 🆕 `open_saved_anime()` (`anime_window.py:108-193`) | 🆕 `SavedAnimeSearch`: local + web |
+| `searchAnimes.py` | 🆕 hilo propio (`:363-382`) → `after(0,…)`; **arrastra el `provider_id`** del resultado, porque su `id` es el slug de ESE sitio | propio, contra el proveedor |
 
 `searchAnimes.py` añade `AnimeSearch` (`:24-31`, `dataclasses.dataclass` de la stdlib), paginación
-(`:267-324`) y un frame de carga con GIF (`:170-215`).
+(`:273-330`) y un frame de carga con GIF (`:171-216`).
+
+> ⚠️ **Las 4 vistas de estado ya no son intercambiables con las otras dos** en lo que toca al clic y
+> al buscador. Al copiar código de una a otra, mira primero cuál de los dos grupos es: las de estado
+> trabajan con `AnimeRecord` (la biblioteca), las otras con `AnimeInfo` (el catálogo).
 
 ---
 

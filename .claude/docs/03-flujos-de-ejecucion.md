@@ -2,8 +2,8 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-08-07 · **Commit** `18311e3` · árbol **limpio** |
-| **Última revisión** | 2026-08-07 (**auditoría**): anclas de `anime_window.py` reubicadas tras su crecimiento a 647 líneas |
+| **Fecha** | 2026-08-16 · **Commit** `54fb3d6` · árbol **sucio** (columna `provider_id`, 16 ficheros) |
+| **Última revisión** | 2026-08-16 (**columna `provider_id`**): §3 pasa de 2 caminos a **3, todos asíncronos**; **flujo 10 nuevo** (migrar una fila a otro proveedor); anclas de `anime_window.py` reubicadas tras crecer a 1 155 líneas |
 | **Cubre** | `main_window.py`, `anime_window.py`, `recentAnimes.py`, `searchAnimes.py`, las 4 vistas de estado, `animeProviderMgr.py`, `animesPersistence.py`, `utils.py` |
 
 Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ sin verificar.
@@ -29,34 +29,37 @@ sequenceDiagram
 
     U->>APP: python src/app.py
     APP->>MW: MainWindow()
-    MW->>MW: __config_main_window() :71-82
-    MW->>MW: __config_main_frames() :84-87
-    MW->>MGR: register(AnimeAV1, default=True) :48
+    MW->>MW: __config_main_window() :100-111
+    MW->>MW: __config_main_frames() :113-116
+    MW->>MGR: register(AnimeAV1, default=True) :47
+    MW->>MGR: register(JKAnime) :48
     MW->>MGR: register(AnimeFLV) :49
-    MW->>MW: load_sidebar_buttons() :125-151
-    MW->>MW: show_loading_screen() :165
-    MW->>MW: sidebar_frame.grid_forget() :166
-    Note over MW: GIF + barra a 0 %#59; update_gif se reprograma con self.after(100,...) :199
-    MW->>T: Thread(download_images_and_show_animes).start() :204
+    MW->>MW: __registry_default_provider_id = get_default_provider_id() :65-66
+    MW->>MW: __apply_saved_provider_preference() :68
+    MW->>MW: load_sidebar_buttons() :154-238
+    MW->>MW: show_loading_screen() :440
+    MW->>MW: sidebar_frame.grid_forget() :441
+    Note over MW: GIF + barra a 0 %#59; update_gif se reprograma con self.after(100,...) :474
+    MW->>T: Thread(download_images_and_show_animes).start() :479
     APP->>MW: mainloop()
 
-    T->>P: load_animes() :208 → start() :246
+    T->>P: load_animes() :483 → start() :265
     P-->>T: favourite/finished/watching/pending
-    Note over T: progreso 10→40 % (:248-258)<br/>⚠️ progress_bar.set() desde hilo daemon
-    T->>MGR: get_recent_animes() :209
+    Note over T: progreso 10→40 % (:530-543)<br/>⚠️ progress_bar.set() desde hilo daemon
+    T->>MGR: get_recent_animes() :484
     MGR->>NET: GET https://animeav1.com
     NET-->>MGR: HTML
     MGR-->>T: List[AnimeInfo] (20 elementos ✅)
 
     alt lista vacía
-        T->>U: messagebox.showwarning(...) :211-213
-        T->>MW: __recent_animes_button.show_frame() :214
+        T->>U: messagebox.showwarning(...) :486-488
+        T->>MW: __recent_animes_button.show_frame() :489
     else lista con datos
-        T->>T: progress_bar.set(0.9) :216
-        T->>FS: download_images_progress(...) :218
-        T->>MW: loading_frame.place_forget() :219
-        T->>MW: __recent_animes_button.show_frame() :220
-        T->>T: Thread(__preload_recent_animes_info).start() :224
+        T->>T: progress_bar.set(0.9) :491
+        T->>FS: download_images_progress(...) :493
+        T->>MW: loading_frame.place_forget() :494
+        T->>MW: __recent_animes_button.show_frame() :495
+        T->>T: Thread(__preload_recent_animes_info).start() :499-500
     end
 ```
 
@@ -64,8 +67,12 @@ sequenceDiagram
 
 - `show_frame()` de `RecentAnimeButton` (`recentAnimes.py:29-34`) **revela la sidebar** con
   `sidebar_frame.grid(...)` (`:31`) antes de pintar. Es el único sitio donde reaparece.
-- 📖 Los `progress_bar.set()` / `configure()` de `load_animes` (`main_window.py:248-258`) y el
-  `messagebox.showwarning` (`:211`) corren en **hilo daemon** ([07 §4](07-concurrencia-e-hilos.md)).
+- 📖 Los `progress_bar.set()` / `configure()` de `load_animes` (`main_window.py:530-543`) y el
+  `messagebox.showwarning` (`:486`) corren en **hilo daemon** ([07 §4](07-concurrencia-e-hilos.md)).
+- 🆕 El paso `__registry_default_provider_id` (`:65-66`) va **antes** de aplicar la preferencia
+  guardada, y no es cosmético: `__apply_saved_provider_preference()` llama a `set_default()`, que lo
+  pisaría. Es la referencia contra la que se mide si el desplegable está desviado
+  ([13 §8](13-selector-de-proveedor.md)).
 - ✅ El arranque **no escribe** en la BD: el `LastWriteTime` de `DB_Animes.db` no cambió.
 
 ---
@@ -79,21 +86,21 @@ sequenceDiagram
     participant NET as animeav1.com
     participant ST as MainWindow.recent_animes
 
-    loop por cada anime de recent_animes  (:234)
-        T->>ST: ¿synopsis/genres/episodes ya rellenos? :235
+    loop por cada anime de recent_animes  (:515-526)
+        T->>ST: ¿synopsis/genres/episodes ya rellenos? :521
         alt ya precargado
-            T->>T: continue :237
+            T->>T: continue :522
         else
-            T->>MGR: get_anime_info(anime.id) :239
+            T->>MGR: get_anime_info(anime.id) :523
             MGR->>NET: GET /media/{slug}  (3 intentos, timeout 5)
             NET-->>MGR: HTML con payload SvelteKit
             MGR-->>T: AnimeInfo completo
-            T->>ST: recent_animes[index] = anime_info :241
+            T->>ST: recent_animes[index] = anime_info :526
         end
     end
 ```
 
-📖 `main_window.py:226-243`. El código justifica la ausencia de `Lock` (`:230-233`): asignar un
+📖 `main_window.py:502-528`. El código justifica la ausencia de `Lock` (`:507-513`): asignar un
 elemento de lista es atómico en CPython. ✅ Con AnimeAV1 cada `get_anime_info` tarda ~0,5 s → los 20
 recientes ≈ 10 s de precarga en serie.
 
@@ -101,9 +108,16 @@ recientes ≈ 10 s de precarga en serie.
 
 ## 3. Clic en un anime → ficha de detalle
 
-Hay **dos** caminos, según la vista.
+Hay **tres** caminos, según la vista. 🆕 Desde el 2026-08-16 los tres son **asíncronos** y los tres
+vuelven al hilo de Tkinter con `after(0, …)`; lo que cambia es **cómo se decide el proveedor**.
 
-### 3a. Desde «Animes recientes» (asíncrono)
+| Vista | Proveedor | Por qué |
+|---|---|---|
+| **3a** Recientes | el que trajo la portada (`anime_clicked.provider_id`) | el slug es suyo |
+| **3b** Las 4 de estado | `provider_for_saved_anime()` — puede re-resolver por título | el slug es del proveedor que **guardó la fila** |
+| **3c** Buscador | el que sirvió el resultado | el slug es de **ese** sitio |
+
+### 3a. Desde «Animes recientes»
 
 ```mermaid
 sequenceDiagram
@@ -116,47 +130,89 @@ sequenceDiagram
     U->>V: clic en el póster  (bind :70)
     V->>V: localizar índice en recent_animes :83
     alt ya precargado (synopsis/genres/episodes != None)
-        V->>AW: AnimeWindowViewer(...).display_anime_info() :106-107
+        V->>AW: AnimeWindowViewer(mw, anime_clicked).display_anime_info() :117-118
+        Note over V,AW: el provider_id sale del propio AnimeInfo (lo estampó el manager)
     else falta info
-        V->>V: cursor="watch"#59; update() :87-88
-        V->>T: Thread(_load_and_show).start() :104
-        T->>MGR: get_anime_info(anime_id) :91
-        MGR-->>T: AnimeInfo | None
-        T->>V: cursor="" :93  (antes de cualquier salida)
+        V->>V: cursor="watch"#59; update_idletasks() :86-87
+        V->>T: Thread(_load_and_show).start() :114
+        T->>MGR: get_anime_info_with_provider(id, provider_id=anime_clicked.provider_id) :108-109
+        MGR-->>T: (AnimeInfo | None, AnimeProviderId | None)
+        T->>V: after(0, _show, anime_info, provider_id) :111
+        V->>V: 🖥️ winfo_exists()#59; cursor="" :92-94
         alt None → todos los proveedores fallaron
-            T->>U: show_anime_info_error(anime_id) :97 y return
+            V->>U: show_anime_info_error(anime_id) y return
         else AnimeInfo
-            T->>V: recent_animes[index] = anime_info :99
-            T->>AW: display_anime_info() :100-101  ⚠️ widgets desde hilo daemon
+            V->>V: recent_animes[index] = anime_info
+            V->>AW: display_anime_info() :102-103
         end
     end
 ```
 
-> ✅ **Corregido en `1bfdf0f`** (2026-07-30). Antes, cuando `get_anime_info` devolvía `None`, esta vista
-> caía de vuelta al objeto obsoleto de `recent_animes` — cuyo `.episodes` es precisamente `None`, que es
-> lo que la trajo a esta rama — y petaba igual que las otras cinco. El cursor `watch` se restaura ahora
-> **antes** de cualquier salida; antes se quedaba clavado si la construcción de la ficha fallaba.
+> ✅ **Corregido en `1bfdf0f`** (2026-07-30) el caso `None`, que antes caía de vuelta al objeto obsoleto
+> de `recent_animes` y petaba. 🆕 **Corregido el 2026-08-16** que el repintado ocurría en el hilo
+> daemon: ahora vuelve con `after(0, …)` ([07 C2](07-concurrencia-e-hilos.md)).
 
-### 3b. Desde favoritos / finalizados / viendo / pendientes / buscador (**bloqueante**)
+### 3b. Desde favoritos / finalizados / viendo / pendientes 🆕
 
-📖 `favouriteAnimes.py:130-136` y homólogos. Llaman a `get_anime_info(anime_id)` **directamente en el
-hilo de UI** → la ventana se congela durante la petición. Ver [07 §4](07-concurrencia-e-hilos.md).
+📖 `open_saved_anime()` (`anime_window.py:108-193`). Las cuatro vistas se limitan a llamarlo.
 
-Si `get_anime_info` devuelve `None` (fallan todos los proveedores), la vista **no** construye la ficha:
-avisa con `show_anime_info_error(anime_id)` (`anime_window.py:30-46`) y vuelve.
+```mermaid
+sequenceDiagram
+    participant U as Usuario
+    participant V as 🖥️ vista de estado
+    participant MW as MainWindow
+    participant T as 🧵 daemon (_load_and_show)
+    participant MGR as AnimeProviderManager
+    participant AW as AnimeWindowViewer
 
-```python
-anime_clicked: AnimeInfo | None = self.anime_provider_mgr.get_anime_info(anime_id)
-if anime_clicked is None:
-    show_anime_info_error(anime_id)
-    return
+    U->>V: clic en el póster
+    V->>MW: open_saved_anime(main_window, anime_id) :142
+    MW->>MW: anime_record = get_anime_by_anime_id(anime_id) :142
+    MW->>MW: provider_id, hay_desviación = provider_for_saved_anime(record.provider_id) :143
+    MW->>MW: cursor="watch"#59; update_idletasks() :145-149
+    MW->>T: Thread(_load_and_show).start() :193
+    alt hay desviación (el desplegable difiere de la referencia)
+        T->>MGR: resolve_anime_in_provider(referencia, provider_id) :178
+        Note over T,MGR: 2 peticiones: buscar por título + traer la ficha
+        alt resuelto
+            MGR-->>T: AnimeInfo del proveedor elegido (OTRO slug)
+        else no lo tiene
+            T->>T: print y sigue por la vía normal :185-186
+        end
+    end
+    opt no se resolvió
+        T->>MGR: get_anime_info_with_provider(anime_id, provider_id=…) :189
+    end
+    T->>MW: after(0, _show, anime_info, served_by) :191
+    MW->>AW: AnimeWindowViewer(mw, anime_info, served_by, anime_record=anime_record) :164-165
 ```
 
-> ✅ Hasta `1bfdf0f` (2026-07-30) estas vistas construían `AnimeWindowViewer(main_window, None)`, que
-> petaba con `AttributeError` — y Tkinter se tragaba la excepción, así que el clic no hacía nada.
-> Verificado el 2026-07-30 simulando la caída total de proveedores. Ver trampa 10.
+🔴 **El `anime_record=` del último paso no es opcional.** Con el desplegable desviado, `anime_info.id`
+es el slug de **otro** sitio; sin la fila, la ficha congelaría la identidad de persistencia sobre ese
+slug ajeno, se mostraría como no guardada y el primer botón de estado insertaría una **fila
+duplicada**. Es la [trampa 21](10-invariantes-y-trampas.md), y ocurrió de verdad durante la fase 4.
 
-### 3c. Qué hace la ficha al mostrarse
+⚠️ Cuando el proveedor elegido **no tiene** el anime no se bloquea al usuario: se sigue por la vía
+normal y la ficha muestra quién lo ha servido de verdad.
+
+### 3c. Desde el buscador 🆕
+
+📖 `searchAnimes.py:344-382`. Igual que 3a en estructura, pero **arrastrando el `provider_id` del
+resultado** desde el `bind` del póster (`:254-259`):
+
+```python
+img_label.bind("<Button-1>",
+               lambda e, anime_id=anime.id, provider_id=anime.provider_id:
+               self.__on_anime_click(anime_id, provider_id))
+```
+
+Sin eso se le pediría al predeterminado un slug que puede no ser suyo, **y habría que esperar sus
+reintentos** —AnimeAV1 hace 3 con `sleep(1)`— antes de que entrase el fallback.
+
+> No usa `open_saved_anime()` a propósito: un resultado de búsqueda no tiene por qué estar en la
+> biblioteca, y aquí el proveedor **no se decide**, ya se sabe.
+
+### 3d. Qué hace la ficha al mostrarse
 
 ```mermaid
 sequenceDiagram
@@ -166,38 +222,50 @@ sequenceDiagram
     participant FS as resources/images/*
     participant NET as red
 
-    AW->>AW: display_anime_info() :73
-    AW->>AW: main_window.clear_frame() :74
-    AW->>P: get_anime_by_anime_id(id) :79
+    AW->>AW: display_anime_info() :323
+    AW->>AW: main_window.clear_frame() :324
+    AW->>P: get_anime_by_anime_id(persistence_anime_id) :329-330
     P->>DB: SELECT * FROM ANIMES WHERE anime_id = ?
     DB-->>P: fila | ninguna
     alt existe en BD
-        AW->>P: si len(episodes) difiere → update_anime_episodes() :82-83
-        P->>DB: UPDATE ANIMES SET episodes = ?
-        AW->>P: get_watched_episodes(id) :90
-        AW->>AW: watched_status[ep.id] = ep.id in watched :91-92
+        AW->>AW: __is_saved = True#59; __saved_provider_id = record.provider_id :333-340
+        opt la fila no declara proveedor 🆕
+            AW->>P: update_anime_provider_id(id, persistence_provider_id) :342
+            P->>DB: UPDATE ANIMES SET provider_id = ?
+        end
+        AW->>P: si len(episodes) difiere → update_anime_episodes() :346-347
+        AW->>P: get_watched_episodes(id) :354
+        AW->>AW: watched_status[ep.id] = ep.id in watched :355-356
     end
-    AW->>AW: __display_anime_info() :75 → clear_frame() + time.sleep(0.1) :95-96
-    AW->>FS: get_anime_image(anime_info) :107
+    AW->>AW: __display_anime_info() :326 → clear_frame() + time.sleep(0.1) :359-360
+    AW->>FS: get_anime_image(__persistence_anime_info()) :378
     alt póster en alguna de las 6 carpetas de estado/caché
         FS-->>AW: CTkImage (195,275)
     else no está en ninguna
-        AW->>NET: requests.get(anime.poster, timeout=10) (utils.py:176)
+        AW->>NET: requests.get(anime.poster, timeout=10) (utils.py:195-196)
         NET-->>AW: CTkImage (195,275) con size= explícito
     end
-    AW->>AW: __show_anime_status() :157 → __display_anime_status() :166
-    AW->>AW: __show_anime_episodes() :218 → __display_episodes() :293
+    AW->>AW: __show_provider_label() :428 → hasta 3 líneas 🆕
+    AW->>AW: __show_anime_status() :429 → __display_anime_status() :716
+    AW->>AW: __show_anime_episodes() :770 → __display_episodes() :913
 ```
+
+🆕 **El autorrelleno del proveedor ocurre aquí**, y **solo si la columna estaba a `NULL`**: si la fila
+ya declara proveedor, cambiarlo es una decisión explícita del usuario (el botón «Actualizar a …»), no
+algo que deba pasar por el hecho de abrir la ficha. Ver [04 §8](04-modelo-de-datos.md).
+
+⚠️ El póster se pide con `__persistence_anime_info()`, no con `anime_info`: así sigue encontrando el
+`{anime_id}.jpg` ya cacheado aunque se esté mostrando la ficha de otro proveedor.
 
 ---
 
 ## 4. Marcar / desmarcar un episodio
 
-📖 `anime_window.py:544-597`. Es el flujo más delicado del proyecto.
+📖 `anime_window.py:1052-1105`. Es el flujo más delicado del proyecto.
 
 ```mermaid
 flowchart TD
-    A["Usuario mueve el switch<br/>__toggle_episode_switch(ep_id) :544"] --> B{"¿ep_id en anime_info.episodes?<br/>:546-550"}
+    A["Usuario mueve el switch<br/>__toggle_episode_switch(ep_id) :1052"] --> B{"¿ep_id en anime_info.episodes?<br/>:546-550"}
     B -->|no| B2["print error + return"]
     B -->|sí| C{"marking_as_watched<br/>= not watched_status[ep_id] :552-553"}
 
@@ -241,7 +309,7 @@ flowchart TD
 
 ## 5. Cambios de estado (los 4 botones)
 
-📖 `anime_window.py:330-395` + `animesPersistence.py:469-531`. ✅ Máquina de estados verificada
+📖 `anime_window.py:830-903` + `animesPersistence.py:594-684`. ✅ Máquina de estados verificada
 completa sobre una copia de la BD.
 
 ```mermaid
@@ -252,40 +320,42 @@ sequenceDiagram
     participant DB as DB_Animes.db
     participant FS as resources/images/{estado}/
 
-    U->>AW: clic en «Añadir a viendo» (:171)
-    AW->>P: update_anime_to_watching(anime_info) :221
-    P->>P: _set_status(info, WATCHING, True) :355
-    P->>DB: SELECT * WHERE anime_id = ? :437
-    alt no existe → INSERT (:440-447)
-        Note over DB: episodes se guarda INVERTIDO (to_db_dict :88)
-    else ya existe → UPDATE (:458-465)
+    U->>AW: clic en «Añadir a viendo» (:747)
+    AW->>AW: __confirm_save(WATCHING) :868  🆕
+    AW->>P: update_anime_to_watching(__persistence_anime_info()) :871
+    P->>P: _set_status(info, WATCHING, True) :542-544
+    P->>DB: SELECT * WHERE anime_id = ? :626
+    alt no existe → INSERT (:629-636)
+        Note over DB: episodes se guarda INVERTIDO (to_db_dict :90)
+    else ya existe → UPDATE (:638-682)
+        Note over P,DB: 🆕 si provider_id estaba a NULL, se anota de paso (:643-644)
         Note over DB: is_watching=?, is_finished=0, is_pending=0
     end
-    AW->>FS: download_anime_poster_by_status(WATCHING, info) :222
+    AW->>FS: download_anime_poster_by_status(WATCHING, info) :872
     Note over FS: GET anime.poster → resize (130,185)<br/>→ resources/images/watching/{id}.jpg
-    AW->>AW: flags locales + __display_anime_status() :224-227
+    AW->>AW: flags locales + __display_anime_status() :874-877
 ```
 
 **Tabla de transiciones** ✅ verificada (líneas de `animesPersistence.py`):
 
 | Acción | `fav` | `watch` | `fin` | `pend` | Línea |
 |---|---|---|---|---|---|
-| `update_anime_to_favourite` | **1** | = | = | = | `:449-455` |
-| `update_anime_to_not_favourite` | **0** | = | = | = | `:346-348` |
-| `update_anime_to_watching` | = | **1** | **0** | **0** | `:457-465` |
-| `update_anime_to_not_watching` | = | **0** | = | `is_pending` previo | `:357-368` |
-| `update_anime_to_finished` | = | **0** | **1** | **0** | `:467-475` |
-| `update_anime_to_not_finished` | = | `is_watching` previo | **0** | **1** | `:377-389` |
-| `update_anime_to_pending` | = | **0** | **0** | **1** | `:477-485` |
-| `update_anime_to_not_pending` | = | = | = | **0** | `:398-400` |
+| `update_anime_to_favourite` | **1** | = | = | = | `:531-533` |
+| `update_anime_to_not_favourite` | **0** | = | = | = | `:535-540` |
+| `update_anime_to_watching` | = | **1** | **0** | **0** | `:542-544` |
+| `update_anime_to_not_watching` | = | **0** | = | `is_pending` previo | `:546-560` |
+| `update_anime_to_finished` | = | **0** | **1** | **0** | `:562-564` |
+| `update_anime_to_not_finished` | = | `is_watching` previo | **0** | **1** | `:566-581` |
+| `update_anime_to_pending` | = | **0** | **0** | **1** | `:583-585` |
+| `update_anime_to_not_pending` | = | = | = | **0** | `:587-592` |
 
-⚠️ **`remove_from_*` no crea el anime**: usan `_update_flag` (`:416-423`), un `UPDATE` puro; si el
+⚠️ **`remove_from_*` no crea el anime**: usan `_update_flag` (`:605-612`), un `UPDATE` puro; si el
 anime no está en BD, ✅ `update_sql` devuelve `True` sin haber tocado nada. `add_to_*` sí lo insertan
-(`_set_status:439-447`).
+(`_set_status:628-636`).
 
 ⚠️ **El póster no se mueve de categoría.** Al hacer `remove_from_finished` el anime pasa a
-*pendiente* en BD (`:377-389`) pero su póster se borra de `finished/` y **no** se crea en `pending/`
-(`anime_window.py:355-361`) → la vista «pendientes» lo muestra en gris. Deuda B7 en
+*pendiente* en BD (`:566-581`) pero su póster se borra de `finished/` y **no** se crea en `pending/`
+(`anime_window.py:859-865`) → la vista «pendientes» lo muestra en gris. Deuda B7 en
 [12 §4](12-deuda-tecnica-y-roadmap.md).
 
 ---
@@ -448,8 +518,75 @@ está verificado**.
 
 ---
 
-## 10. Flujos documentados en otro sitio
+## 10. Migrar un anime guardado a otro proveedor 🆕 *(2026-08-16)*
 
-- **Cambio de tema claro/oscuro** (`main_window.py:153-163`) → [06 §5](06-gui-y-vistas.md).
+📖 `anime_window.py:556-709`. Es el **único flujo que reescribe la identidad de una fila** de la
+biblioteca, y por eso es el que más comprobaciones lleva.
+
+```mermaid
+sequenceDiagram
+    participant U as Usuario
+    participant AW as 🖥️ AnimeWindowViewer
+    participant T as 🧵 daemon
+    participant MGR as AnimeProviderManager
+    participant P as AnimesPersistence
+    participant FS as resources/images/*
+
+    U->>AW: clic en «Actualizar a X» :509
+    AW->>AW: target = __repair_target_provider_id() :565
+    alt X ya sirve esta ficha
+        AW->>AW: __confirm_and_migrate(self.anime_info, target) :571
+        Note over AW: 0 peticiones: los datos ya están en pantalla
+    else X es el seleccionado en la sidebar
+        AW->>AW: cursor="watch" :574-575
+        AW->>T: Thread(_resolve).start() :600
+        T->>MGR: resolve_anime_in_provider(referencia, target) :596-597
+        MGR-->>T: AnimeInfo | None
+        T->>AW: after(0, _resolved, …) :598
+        alt None
+            AW->>U: showinfo «X no tiene este anime» :584-589
+            Note over AW: el anime sigue guardado como estaba
+        else resuelto
+            AW->>AW: __confirm_and_migrate(resuelto, target) :591
+        end
+    end
+
+    AW->>P: get_anime_by_anime_id(persistence_anime_id) :614
+    alt la fila ya no existe
+        AW->>U: showinfo «ya no está guardado» :617-620 y return
+    end
+    alt el anime_id destino ya lo ocupa otra fila
+        AW->>U: showwarning «no se puede actualizar» :630-634 y return
+        Note over AW,P: sin UNIQUE, el UPDATE dejaría DOS filas del mismo anime<br/>(trampa 28)
+    end
+    AW->>U: askyesno con los cambios + «se conservan N episodios vistos» :644-650
+    U-->>AW: sí
+    AW->>T: Thread(_migrate).start() :683
+    T->>P: migrate_anime_identity(old_id, anime_info, target) :676-677
+    P->>P: comprueba OTRA VEZ el destino ocupado
+    P-->>T: True | False
+    opt migrada
+        T->>FS: __move_posters(...) :679 → renombrar, o descargar si no había :705-706
+    end
+    T->>AW: after(0, _done, migrated) :680
+    AW->>AW: AnimeWindowViewer(mw, anime_info, target).display_anime_info() :673
+```
+
+**Tres decisiones que se ven en el diagrama y conviene no revertir**:
+
+1. **La comprobación del destino ocupado está en las dos capas.** En la GUI para poder **explicarla**;
+   en persistencia porque `migrate_anime_identity` es pública y no puede fiarse de quien la llame.
+2. **Al terminar se construye una ficha nueva**, no se retocan atributos. La identidad de persistencia
+   se congela en el constructor y el resto de la clase la da por inmutable; mutarla a mano sería
+   pedir la [trampa 21](10-invariantes-y-trampas.md) otra vez.
+3. **Un fallo moviendo pósters no revierte la migración.** El peor caso es un recuadro gris hasta la
+   próxima descarga; revertir una escritura de BD correcta por una imagen sería peor.
+
+---
+
+## 11. Flujos documentados en otro sitio
+
+- **Cambio de tema claro/oscuro** (`main_window.py:428-438`) → [06 §5](06-gui-y-vistas.md).
 - **Semántica interna del fallback entre proveedores** → [05 §5](05-proveedores-y-scraping.md).
 - **Serialización de `episodes` y `watched_episodes`** → [04 §4](04-modelo-de-datos.md).
+- 🆕 **Buscar dentro de la biblioteca** (`SavedAnimeSearch`) → [06 §7](06-gui-y-vistas.md).

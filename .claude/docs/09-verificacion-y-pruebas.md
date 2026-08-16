@@ -2,8 +2,8 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-08-07 · **Commit** `18311e3` · árbol **limpio** |
-| **Última revisión** | 2026-08-07 (**auditoría**): recetas revisadas contra el árbol limpio en `18311e3` |
+| **Fecha** | 2026-08-16 · **Commit** `54fb3d6` · árbol **sucio** (columna `provider_id`, 16 ficheros) |
+| **Última revisión** | 2026-08-16 (**columna `provider_id`**): **§3c nuevo** — las 8 tandas de comprobaciones de la fase 8, **351 sin fallos**; checklist de §7 puesto al día con lo que ha cambiado de comportamiento |
 | **Cubre** | procedimiento; scripts ejecutados el 2026-07-28 contra el código de `src/` |
 
 Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ sin verificar.
@@ -246,6 +246,49 @@ nueva `CONFIG`, BD desde cero, idempotencia y rollback ante SQL inválido.
 
 ---
 
+## 3c. Cómo se verificó la columna `provider_id` *(2026-08-16)*
+
+**351 comprobaciones en 8 scripts, 0 fallos.** Todos en el scratchpad de la sesión —**no en el
+repo**—, todos sobre una **copia** de la BD real. Sirven de plantilla para el siguiente cambio grande.
+
+| Script | Comprobaciones | Qué cubre |
+|---|---:|---|
+| `test_fase1.py` | 31 | `AnimeProviderId` / `ProviderInfo`, `provider_info()`, validación de `__init_subclass__`, los 3 proveedores registrando bien |
+| `test_fase2.py` | 50 | la columna: esquema, migración sobre copia, serialización, `update_anime_provider_id` |
+| `test_fase3.py` | 20 | estampado (`__stamp_provider`) en las 3 formas de resultado + autorrelleno |
+| `test_fase4.py` | 44 | `provider_for_saved_anime()` y los 4 casos del orden de prioridad |
+| `test_fase5.py` | 26 | el proveedor visible en las vistas y en la ficha |
+| `test_buscador.py` | 49 | `filter_animes_by_title`, `match_animes_from_search`, `SavedAnimeSearch` |
+| `test_fase6.py` | 105 | migración de identidad, aviso de duplicado, movimiento de pósters |
+| `test_fase6_gui.py` | 26 | **CTk real** (`withdraw()`): los 4 estados del bloque de proveedor, su posición en el grid y el `wraplength` |
+
+### Las cinco técnicas que hicieron falta
+
+1. **Dobles de las dependencias que no se pueden ejercitar sin usuario.** `MessageBoxFalso` registra
+   qué diálogo se abriría y devuelve la respuesta programada; `HiloFalso` ejecuta el `target` en el
+   acto, así que un flujo con hilo + `after()` se prueba de forma **síncrona y determinista**.
+2. **CTk real, pero con la ventana oculta.** `root.withdraw()` + `get_anime_image` parcheada permite
+   comprobar el layout de verdad —a qué `row`/`column` fue cada widget— sin abrir una ventana.
+   ⚠️ En una ventana oculta `winfo_width()` no vale: hay que **capturar el ancho en el momento de
+   pintar**, no leerlo después.
+3. **`check(nombre, condición, detalle)` en vez de `assert`.** Una comprobación rota no puede ocultar
+   las 40 siguientes. ⚠️ Y el `print` del detalle debe pasar por
+   `.encode("ascii", "replace").decode("ascii")`: la consola de Windows es **cp1252** y no puede
+   imprimir `⚠`, así que un fallo con ese carácter revienta el propio informe y **enmascara el fallo
+   real**. Pasó de verdad.
+4. **Guardas que comprueban la premisa, no solo el resultado.** Una comprobación de «el póster se ha
+   renombrado» sobre un anime que no está en ninguna categoría **pasa siempre**, porque no hay nada
+   que renombrar. Un `check` previo de «la fila de prueba está en alguna categoría» es lo que destapó
+   dos comprobaciones vacías.
+5. **Demostrar el bug antes de arreglarlo.** La sección 6b de `test_fase6.py` construye el viewer
+   **como estaba** y comprueba que un solo clic crea la fila duplicada. Sin eso, «lo arreglé» es una
+   afirmación sin respaldo.
+
+> ⚠️ **Estos scripts no están en el repo y no son una suite.** No hay `TESTS/` del proyecto y esto no
+> lo cambia: son verificaciones de una sesión. Si el siguiente cambio los necesita, se reescriben.
+
+---
+
 ## 3d. Verificar un proveedor nuevo contra el sitio real *(2026-08-06)*
 
 Un proveedor no toca la BD, así que aquí **sí se ejecuta contra la red**. Sé educado: peticiones en
@@ -429,8 +472,13 @@ Sin tests automáticos, esto es lo que hay. Marca lo que compruebes.
 - [ ] ⚠️ Los pósters se leen de `resources/images/<categoría>/`; si faltan, salen **grises**.
 - [ ] «Abrir filtro de animes» despliega los 40 géneros y los 3 órdenes.
 - [ ] «Aplicar Filtros» filtra por género (⚠️ el **orden** no se aplica — trampa 6).
-- [ ] El buscador va **contra la red**, no contra la BD: sin conexión no encuentra nada.
-- [ ] Clic en un anime **congela la ventana** durante la petición (es el comportamiento actual).
+- [ ] 🆕 El buscador encuentra **con el cable desenchufado**: es local. Escribir «one piece»
+      devuelve One Piece **con cualquiera de los tres proveedores seleccionado** (trampa 26).
+- [ ] 🆕 Con conexión, buscar «Solo Leveling» devuelve también «Ore dake Level Up na Ken» si lo
+      tienes guardado: eso solo lo aporta la búsqueda web, y **se suma**, nunca quita.
+- [ ] 🆕 Clic en un anime **NO congela la ventana**: cursor «watch» y la UI sigue respondiendo.
+- [ ] 🆕 Bajo el título de cada anime aparece **el proveedor** en gris; vacío si la fila no lo
+      declara (no debe poner «desconocido»).
 
 ### Buscador
 - [ ] Búsqueda por texto → GIF → rejilla + paginación.
@@ -454,7 +502,8 @@ Sin tests automáticos, esto es lo que hay. Marca lo que compruebes.
 - [ ] Buscar un número de episodio muestra ese episodio + navegación anterior/siguiente.
 - [ ] Marcar el episodio 10 marca del 1 al 10; desmarcar el 5 desmarca **solo** el 5.
 - [ ] Salir de la ficha y volver: el estado de los switches se restaura desde BD.
-- [ ] Clic en un episodio despliega los servidores (⚠️ congela la ventana mientras carga).
+- [ ] Clic en un episodio despliega los servidores (⚠️ congela la ventana mientras carga: es la
+      única llamada HTTP que sigue en el hilo de Tkinter, [07 C5](07-concurrencia-e-hilos.md)).
 - [ ] Elegir un servidor abre el navegador.
 
 ### Tema
@@ -504,11 +553,43 @@ Sin tests automáticos, esto es lo que hay. Marca lo que compruebes.
       URL); si ese proveedor no ofrece ninguno, sale un aviso y no un selector vacío.
 - [ ] `SELECT COUNT(*) FROM ANIMES` antes y después de toda la sesión → **el mismo número**.
 
-> 🗑️ Se han retirado las pruebas de «cambiar de proveedor dentro de la ficha» (duplicado de filas,
-> reversión del desplegable al fallar, servidores tras el cambio): ese control ya no existe. La
-> **trampa 21** sigue viva —el fallback puede servir la ficha desde otro proveedor—, pero desde la
-> GUI ya no se puede disparar a mano; volverá a poder probarse con la columna `provider_id`
-> ([13 §8](13-selector-de-proveedor.md)).
+> 🗑️ Se han retirado las pruebas de «cambiar de proveedor dentro de la ficha»: ese control ya no
+> existe. La **trampa 21** sigue viva, y desde el 2026-08-16 **vuelve a poder dispararse a mano** —
+> ver el bloque siguiente.
+
+### Columna `provider_id` *(2026-08-16, [13 §14](13-selector-de-proveedor.md))*
+
+**Abrir un anime guardado**
+- [ ] Con **AnimeAV1** seleccionado (la referencia), abrir un anime guardado desde AnimeFLV: el bloque
+      dice `Proveedor: AnimeFLV` / `En tu biblioteca: AnimeFLV`, **en gris y sin ⚠**.
+- [ ] Con **JKAnime** seleccionado, el mismo anime: `Proveedor: JKAnime` /
+      `⚠ En tu biblioteca: AnimeFLV`, **en ámbar**. Los datos vienen de JKAnime.
+- [ ] 🔴 En ese estado, pulsar un botón de estado **no crea una fila nueva**:
+      `SELECT COUNT(*) FROM ANIMES` no cambia. Es la [trampa 21](10-invariantes-y-trampas.md), que
+      llegó a reintroducirse una vez.
+- [ ] Un anime guardado **antes** de existir la columna: al abrirlo por primera vez, su `provider_id`
+      pasa de `NULL` al proveedor que lo sirvió. Al reabrirlo, **no vuelve a escribirse**.
+
+**Migrar a otro proveedor**
+- [ ] El botón «Actualizar a X» aparece siempre que el proveedor seleccionado difiera del de la fila
+      — **no solo** cuando hay discrepancia. (Fue el fallo reportado por el usuario.)
+- [ ] Confirmar la migración: el diálogo enumera proveedor, identificador y título, y dice **cuántos
+      episodios vistos se conservan**.
+- [ ] Tras migrar: `anime_id` y `provider_id` cambiados, **`watched_episodes` idéntico**, los cuatro
+      estados intactos, y el póster sigue viéndose (renombrado, no re-descargado).
+- [ ] Si el `anime_id` destino ya lo ocupa otra fila → **aviso y no se toca nada**.
+- [ ] Si el proveedor destino no tiene el anime → `showinfo` y el anime sigue guardado igual.
+
+**Aviso de duplicado**
+- [ ] Abrir un anime desde un proveedor distinto al que lo guardó y pulsar «Añadir a favoritos»: sale
+      el aviso nombrando **«tu Biblioteca de Favoritos»** (la sección pulsada), dónde está el
+      duplicado y desde qué proveedor.
+- [ ] Aceptar crea de verdad la segunda fila; cancelar **no escribe nada**.
+
+**Regresión global**
+- [ ] `SELECT COUNT(*) FROM ANIMES` antes y después de toda la sesión → el mismo número, salvo lo que
+      hayas añadido a propósito.
+- [ ] `SELECT COUNT(*) FROM ANIMES WHERE provider_id IS NULL` → cuenta que **solo baja**, nunca sube.
 
 ---
 

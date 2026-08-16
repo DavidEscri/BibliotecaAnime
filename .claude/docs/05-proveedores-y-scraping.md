@@ -2,8 +2,8 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-08-07 · **Commit** `18311e3` · árbol **limpio** |
-| **Última revisión** | 2026-08-07 (**auditoría**): ancla del contrato `AnimeProvider` corregida a `animeProviderMgr.py:24-110`. Contenido de §3b reverificado |
+| **Fecha** | 2026-08-16 · **Commit** `54fb3d6` · árbol **sucio** (columna `provider_id`, 16 ficheros) |
+| **Última revisión** | 2026-08-16: `PROVIDER_ID` deja de ser una cadena y pasa a ser **`AnimeProviderId`** (§1); `provider_info()` nuevo; el fallback ahora **estampa** quién respondió (§5) |
 | **Cubre** | `src/APIs/common/animeProviderMgr.py`, `src/APIs/common/models.py`, `src/APIs/animeav1/animeav1.py`, `src/APIs/animeflv/animeflv.py`, `src/APIs/jkanime/jkanime.py` |
 
 Procedencia: ✅ verificado en ejecución contra los sitios reales el 2026-07-28 · 📖 leído en código ·
@@ -13,12 +13,12 @@ Procedencia: ✅ verificado en ejecución contra los sitios reales el 2026-07-28
 
 ## 1. El contrato `AnimeProvider`
 
-📖 `animeProviderMgr.py:24-110`.
+📖 `animeProviderMgr.py:24-128`.
 
 ```python
 class MiProveedor(AnimeProvider):
-    PROVIDER_ID   = "misitio"          # clave del registro, corta y estable
-    PROVIDER_NAME = "MiSitio"          # nombre legible para la UI
+    PROVIDER_ID   = AnimeProviderId.MISITIO   # ← ENUM, no una cadena (2026-08-16)
+    PROVIDER_NAME = "MiSitio"                 # nombre legible para la UI
     BASE_URL      = "https://misitio.com"
 
     def search_animes_by_genres_and_order(self, genres: List[AnimeGenreFilter],
@@ -31,17 +31,32 @@ class MiProveedor(AnimeProvider):
     def get_anime_info(self, anime_id) -> AnimeInfo | None: ...
 ```
 
-**Cinco métodos abstractos**, ni uno más. `is_available(timeout=5.0)` (`:92-104`) tiene
+**Cinco métodos abstractos**, ni uno más. `is_available(timeout=5.0)` (`:110-126`) tiene
 implementación por defecto (un `GET BASE_URL`) y es opcional sobrescribirla.
+
+🆕 `provider_info()` (`:77-85`) es un `classmethod` **ya implementado**: devuelve un `ProviderInfo`
+construido desde los 3 atributos de clase. No hay que escribirlo, y es lo que consume la GUI para
+poblar el desplegable — así no existe en ningún sitio una lista paralela de nombres que mantener.
+
+### 🆕 `PROVIDER_ID` es un `AnimeProviderId`, no una cadena *(2026-08-16)*
+
+Cambió al persistirse el proveedor en `ANIMES.provider_id`: un dato que se guarda necesita un
+conjunto cerrado de valores legales y una degradación definida para los que dejen de serlo
+([04 §1b](04-modelo-de-datos.md)). El `value` del miembro es exactamente lo que se escribe en BD, así
+que **elegirlo bien es una decisión permanente**.
 
 ### Validación en `__init_subclass__`
 
-✅ Verificado. `:54-64`. Si falta cualquiera de los 3 atributos de clase, salta
-`NotImplementedError` **en el momento del import**, no al usar la clase:
+✅ Verificado. `:54-75`. Dos comprobaciones, las dos **en el momento del import**, no al usar la clase:
 
-```
-NotImplementedError: Incompleto debe definir el atributo de clase 'PROVIDER_ID'
-```
+1. Falta cualquiera de los 3 atributos de clase →
+   `NotImplementedError: Incompleto debe definir el atributo de clase 'PROVIDER_ID'`
+2. 🆕 `PROVIDER_ID` no es un miembro de `AnimeProviderId` (`:71-75`) →
+   `NotImplementedError: MiProveedor.PROVIDER_ID debe ser un miembro de AnimeProviderId, no str`
+
+La segunda existe porque el registro **indexa por enum**: dejar ahí la cadena `"misitio"` registraría
+el proveedor bajo una clave que nadie busca, y el fallo no aparecería hasta el primer `get()` fallido
+—probablemente en otra sesión, y sin relación aparente con la causa—.
 
 > ✅ **Trampa poco intuitiva**: la condición es `if ABC not in cls.__bases__` (`:59`). Solo
 > `AnimeProvider` lista `ABC` entre sus bases directas. Por tanto **cualquier** subclase —incluida una
@@ -56,7 +71,10 @@ NotImplementedError: Incompleto debe definir el atributo de clase 'PROVIDER_ID'
    proveedor** (`:31-35`). Quien llama siempre pasa el enum común.
 4. ⚠️ *No escrito en el contrato, pero asumido por la GUI*: en los **listados**, `synopsis`, `genres`
    y `episodes` valen `None`; solo `get_anime_info` los rellena. La precarga de recientes
-   (`main_window.py:235`) y `recentAnimes.py:86` dependen de ello.
+   (`main_window.py:296`) y `recentAnimes.py:85` dependen de ello.
+5. 🆕 **No rellenes `AnimeInfo.provider_id`.** Lo estampa el manager al responder (§5), que es el único
+   que sabe cuál de los proveedores acabó contestando cuando entra el fallback. Un proveedor que lo
+   rellenara a mano mentiría en cuanto alguien llamara a su método directamente.
 
 ---
 
@@ -67,7 +85,8 @@ NotImplementedError: Incompleto debe definir el atributo de clase 'PROVIDER_ID'
 
 | | **AnimeAV1** (por defecto) | **JKAnime** | **AnimeFLV** |
 |---|---|---|---|
-| `PROVIDER_ID` | `animeav1` | `jkanime` | `animeflv` |
+| `PROVIDER_ID` | `AnimeProviderId.ANIMEAV1` | `AnimeProviderId.JKANIME` | `AnimeProviderId.ANIMEFLV` |
+| `PROVIDER_ID.value` (lo que se persiste) | `animeav1` | `jkanime` | `animeflv` |
 | `BASE_URL` | `https://animeav1.com` | `https://jkanime.net` | `https://www3.animeflv.net` |
 | Tecnología del sitio | **SvelteKit** | **Laravel** | HTML clásico |
 | Técnica de parseo | regex sobre payload JS + DOM | **las dos**: CSS en portada/búsqueda/ficha, payload JS en directorio y episodios | selectores CSS |
@@ -323,12 +342,12 @@ devuelve de la Z a la A:
 
 ## 5. Semántica exacta del fallback
 
-📖 `call_with_fallback` (`:204-242`). ✅ **Todos los casos de esta sección verificados** con
+📖 `call_with_fallback` (`:293-334`). ✅ **Todos los casos de esta sección verificados** con
 proveedores falsos (`Boom` lanza excepción, `Empty` devuelve vacío, `Good` devuelve datos).
 
 ### Qué cuenta como «resultado vacío»
 
-📖 `__is_empty_result` (`:193-202`):
+📖 `__is_empty_result` (`:285-291`):
 
 | Valor devuelto | ¿Vacío? |
 |---|---|
@@ -340,7 +359,7 @@ proveedores falsos (`Boom` lanza excepción, `Empty` devuelve vacío, `Good` dev
 
 ### Orden de intento
 
-📖 `_ordered_providers` (`:180-191`): primero el `provider_id` pedido (o el por defecto), luego
+📖 `_ordered_providers` (`:249-259`): primero el `provider_id` pedido (o el por defecto), luego
 **todos los demás por orden de registro**.
 
 ✅ Orden de registro actual (`main_window.py`), verificado el 2026-08-06:
@@ -362,19 +381,44 @@ estaba muerta, así que en la práctica no había fallback. Ahora la primera par
 
 | Wrapper | Línea | Si todos fallan |
 |---|---|---|
-| `get_recent_animes` | `:250-252` | **`[]`** |
-| `get_anime_info` | `:254-256` | **`None`** |
-| `search_animes_by_query` | `:258-262` | **`([], 1)`** ⚠️ el `1` es constante, no la página real |
-| `search_animes_by_genres_and_order` | `:264-268` | **`([], 1)`** ⚠️ ídem |
-| `get_anime_episode_servers` | `:270-274` | **`[]`** |
-| `call_with_fallback` directo | `:242` | **`(None, None)`** |
+| `get_recent_animes` | `:340-342` | **`[]`** |
+| `get_anime_info` | `:344-348` | **`None`** |
+| `search_animes_by_query` | `:363-368` | **`([], 1)`** ⚠️ el `1` es constante, no la página real |
+| `search_animes_by_genres_and_order` | `:370-375` | **`([], 1)`** ⚠️ ídem |
+| `get_anime_episode_servers` | `:377-382` | **`[]`** |
+| `call_with_fallback` directo | `:334` | **`(None, None)`** |
 
 **El manager nunca lanza excepciones** desde estos wrappers. `UnknownProviderError` solo sale de
-`get()` (`:164-171`) y `set_default()` (`:156-159`), que la GUI no usa.
+`get()` (`:196-203`) y `set_default()` (`:188-191`), que la GUI no usa.
+
+⚠️ Ojo: `set_default()` **sí** la lanza, y `__apply_saved_provider_preference` la captura a propósito
+(`main_window.py:270-275`) — una preferencia guardada que apunte a un proveedor retirado del código no
+puede impedir arrancar.
+
+### 🆕 El sello del proveedor *(2026-08-16)*
+
+📖 `__stamp_provider` (`:262-283`), llamado desde `call_with_fallback` en `:325`, **justo antes de
+devolver**. Escribe el `AnimeProviderId` de quien realmente respondió sobre cada `AnimeInfo` del
+resultado.
+
+| Forma del resultado | Método | ¿Se sella? |
+|---|---|---|
+| `AnimeInfo` suelto | `get_anime_info` | ✅ |
+| `List[AnimeInfo]` | `get_recent_animes` | ✅ cada elemento |
+| `(List[AnimeInfo], int)` | las dos búsquedas | ✅ cada elemento de la lista |
+| `List[ServerInfo]` | `get_anime_episode_servers` | ❌ se ignora en silencio |
+
+**Lo hace el manager y no cada proveedor** por dos motivos: es el único que sabe cuál acabó
+respondiendo cuando entra el fallback, y así los proveedores no tienen que acordarse de nada.
+
+*Consecuencia útil*: un `AnimeInfo` ya sabe de dónde viene, así que quien lo abra no tiene que
+arrastrar el `provider_id` por parámetro. Es lo que permite que `AnimeWindowViewer` caiga a
+`anime_info.provider_id` (`anime_window.py:258`) en vez de asumir el predeterminado — que era lo que
+hacía antes al abrir un anime **precargado**, y mentía si lo había servido otro.
 
 ### `strict=True`
 
-📖 `:218-219` → `providers_to_try = providers_to_try[:1]`. Desactiva el fallback: solo se intenta el
+📖 `:308-309` → `providers_to_try = providers_to_try[:1]`. Desactiva el fallback: solo se intenta el
 primer proveedor de la lista ordenada. ✅ Verificado que con `strict=True` sobre un proveedor que
 explota, el wrapper devuelve el valor vacío correspondiente sin probar a nadie más.
 
@@ -383,10 +427,10 @@ explota, el wrapper devuelve el valor vacío correspondiente sin probar a nadie 
 📖 El manager imprime, y esos mensajes son la mejor pista al depurar:
 
 ```
-[animeav1] Fallo en 'get_recent_animes': <excepción>              # :228
-[animeav1] 'get_recent_animes' no devolvió resultados, probando…  # :232-233
-Todos los proveedores fallaron en 'get_recent_animes': <exc>      # :239
-Ningún proveedor devolvió resultados para 'get_recent_animes'     # :241
+[animeav1] Fallo en 'get_recent_animes': <excepción>              # :317
+[animeav1] 'get_recent_animes' no devolvió resultados, probando…  # :321-322
+Todos los proveedores fallaron en 'get_recent_animes': <exc>      # :330-331
+Ningún proveedor devolvió resultados para 'get_recent_animes'     # :333
 ```
 
 ---
@@ -401,10 +445,15 @@ registro de `MainWindow`: hay **tres niveles**, de menos a más específico.
 | Registro en código | `main_window.__init__` → `register(AnimeAV1Singleton(), default=True)` | — | — |
 | **Predeterminado del usuario** | el **pin** de la sidebar → `DB_user.db`; se aplica en el arranque | **activo** | ✅ sí |
 | **Sesión** | desplegable de la sidebar → solo `set_default()` | **activo** | ❌ no |
+| 🆕 **Por anime guardado** | `ANIMES.provider_id` de la fila | **activo** | ✅ sí |
 
 **Por qué el ámbito global conserva el fallback**: `ANIMES.anime_id` guarda el *slug* del
 proveedor que sirvió cada anime. Si el usuario elige un proveedor distinto y se usara `strict`, el clic
 en un anime guardado dejaría de resolver. Con fallback degrada a una petición perdida.
+
+🆕 **Y el nivel «por anime» también lo conserva**, por un motivo distinto: la propiedad de un slug
+**caduca**. Hay animes guardados que su proveedor original ya no sirve, así que abrirlos con
+`strict=True` convertiría uno que hoy se abre despacio en uno que no se abre.
 
 > 🗑️ **El nivel «puntual, por ficha» ya no existe.** El desplegable de la ficha de detalle, que
 > llamaba con `strict=True` y re-resolvía el anime por título, se retiró el 2026-08-06: con el
@@ -415,8 +464,10 @@ en un anime guardado dejaría de resolver. Con fallback degrada a una petición 
 > proveedor que la sirvió y no los de un fallback silencioso. Si ese proveedor no da servidores, se
 > avisa en vez de pintar un selector vacío.
 >
-> ⚠️ El orden de prioridad que vendrá con la columna `provider_id` (desviación del desplegable >
-> `provider_id` en BD > pin > registro) está decidido en [13 §8](13-selector-de-proveedor.md).
+> ✅ **El orden de prioridad ya está implementado** (2026-08-16): desviación del desplegable >
+> `provider_id` en BD > pin > registro. Vive en `MainWindow.provider_for_saved_anime()`
+> (`main_window.py:345-372`) y lo consume `open_saved_anime()`. Detalle en
+> [13 §8](13-selector-de-proveedor.md).
 
 ### Identidad de un anime entre proveedores
 
@@ -436,10 +487,28 @@ Prefiere **no encontrar** a encontrar mal: por debajo del umbral devuelve `None`
 y un título sin relación 0.35 (se rechaza). Contra AnimeAV1 real, un título largo con puntuación
 (`Kimetsu no Yaiba Movie 1: Mugenjou-hen - Akaza Sairai`) resuelve al mismo slug con similitud 1.00.
 
-⚠️ **Lo que no se ha podido verificar**: una resolución cruzada real entre **dos** proveedores
-distintos. AnimeFLV está en desuso, así que hoy no hay un segundo proveedor sano contra el que probarlo.
-El umbral 0.75 sigue siendo, por tanto, una estimación calibrada solo con datos sintéticos: revísalo al
-integrar el tercer proveedor.
+✅ **Resolución cruzada real, verificada el 2026-08-16** — lo que faltaba desde julio. Con los tres
+sitios en marcha:
+
+| Anime (fila del usuario) | Destino | Resultado |
+|---|---|---|
+| `one-piece-tv` (AnimeFLV) | AnimeAV1 / JKAnime | `one-piece`, similitud **1.00** |
+| `ore-dake-level-up-na-ken-season-2-…` | los otros dos | resuelto, similitud **1.00** |
+| `one-piece-heroines` | los otros dos | resuelto, similitud **1.00** |
+
+**El umbral 0.75 no ha necesitado moverse.** Los títulos coinciden literalmente entre sitios mucho más
+a menudo de lo que se suponía —los tres normalizan igual el título de MyAnimeList—, así que el margen
+sobra. Lo que el umbral protege no es la variación ortográfica sino los **falsos positivos de saga**
+(«One Piece» vs. «One Piece Film: Red»), y para eso 0.75 ya es holgado.
+
+⚠️ **Lo que sigue sin verificarse**: un título que difiera **de verdad** entre sitios (un nombre
+localizado frente al romaji). No ha aparecido ninguno en la biblioteca del usuario. Si algún día
+falla, el síntoma es «*X no tiene este anime*» sobre algo que sí está: bájale el umbral **con datos**,
+no a ojo.
+
+> 📌 `resolve_anime_in_provider` **valida** que el proveedor esté registrado y devuelve `None` con un
+> aviso (`:418-420`). Es la excepción entre los métodos del manager, y conviene copiar el patrón:
+> los wrappers de `call_with_fallback` no validan y caen en la [trampa 13](10-invariantes-y-trampas.md).
 
 ---
 
@@ -507,7 +576,7 @@ puede acertar mal, mientras que aquí el encoding real del sitio es un hecho ver
 | `id` | ✅ no | slugs ASCII |
 
 ⚠️ Sigue sin comprobarse si AnimeFLV tiene el mismo problema — está en desuso y no sirve servidores
-([§2](#2-estado-de-los-proveedores)), así que no se ha diagnosticado.
+([§2](#2-tabla-comparativa)), así que no se ha diagnosticado.
 
 > **Invariante**: debe haber **exactamente una** aparición de `requests.get` en `animeav1.py`, la de
 > dentro de `_fetch`. Comprobable con `grep -c "requests.get" src/APIs/animeav1/animeav1.py` → `1`.
@@ -521,9 +590,13 @@ puede acertar mal, mientras que aquí el encoding real del sitio es un hecho ver
 
 Pasos detallados con checklist en [11 §3](11-playbooks.md). Resumen:
 
+0. 🆕 **Añadir su miembro a `AnimeProviderId`** (`models.py:18-31`). Su `value` es lo que quedará
+   escrito en la biblioteca de los usuarios: **elígelo bien, porque no se puede cambiar** sin dejar
+   filas huérfanas.
 1. Crear `src/APIs/<sitio>/__init__.py` (vacío) y `src/APIs/<sitio>/<sitio>.py`.
 2. Cabecera de módulo obligatoria ([08 §1](08-convenciones-y-estilo.md)).
-3. `class MiSitio(AnimeProvider)` con `PROVIDER_ID`, `PROVIDER_NAME`, `BASE_URL` **y los 5 métodos**.
+3. `class MiSitio(AnimeProvider)` con `PROVIDER_ID` (**el miembro del enum**), `PROVIDER_NAME`,
+   `BASE_URL` **y los 5 métodos**. `provider_info()` ya viene implementado.
 4. Devolver siempre `AnimeInfo` / `EpisodeInfo` / `ServerInfo` de `APIs.common.models`.
 5. Traducir géneros dentro del proveedor si los slugs difieren de `AnimeGenreFilter`.
 6. Crear `MiSitioSingleton` siguiendo el patrón de `animeav1.py:361-367`.

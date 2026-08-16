@@ -2,9 +2,9 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-08-07 · **Commit** `18311e3` · árbol **limpio** |
+| **Fecha** | 2026-08-16 · **Commit** `54fb3d6` · árbol **sucio**: 16 ficheros de `src/` sin commitear |
 | **Cubre** | `src/**`, `.claude/CLAUDE.md`, `README.md`, `requirements.txt`, `MiBibliotecaAnime.spec` |
-| **Última revisión** | 2026-08-07 (**auditoría**): árbol limpio en `18311e3`; inventario de TODOs corregido (**3**, no 5); **B9** y **D9** cerrados; anclas `fichero:línea` reubicadas |
+| **Última revisión** | 2026-08-16 (**columna `provider_id`**): **B4 y B10 cerrados**, R2 cerrado del todo, punto 2 del roadmap cerrado, e inventario de TODOs corregido otra vez (**5**, no 3 — los 2 de `jkanime.py` nunca se inventariaron) |
 
 Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ sin verificar.
 
@@ -12,8 +12,20 @@ Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ si
 
 ## 1. Estado del árbol de trabajo
 
-✅ `git status` sobre **`18311e3`** (rama `develop`), 2026-08-07. **El árbol está limpio.** Las dos
-tareas que la revisión anterior daba por pendientes de commitear ya están dentro:
+⚠️ **2026-08-16: el árbol NO está limpio.** La columna `provider_id` está implementada y verificada
+(351 comprobaciones, [09 §3c](09-verificacion-y-pruebas.md)) pero **sin commitear**: 16 ficheros
+modificados bajo `src/`, +1 312 / −273 líneas. El commit es lo siguiente que hay que hacer.
+
+| Capa | Ficheros |
+|---|---|
+| Dominio | `APIs/common/models.py`, `APIs/common/animeProviderMgr.py` |
+| Proveedores | `animeav1.py`, `jkanime.py`, `animeflv.py` (solo el tipo de `PROVIDER_ID`) |
+| Datos | `dataPersistence/animesPersistence.py` |
+| GUI | `gui/main_window.py`, `gui/anime_window.py`, las **6** vistas, `utils/buttons/utilsButtons.py` |
+| Infra | `utils/utils.py` |
+
+✅ `git status` sobre **`18311e3`** (rama `develop`), 2026-08-07. El árbol estaba limpio entonces. Las
+dos tareas que la revisión anterior daba por pendientes de commitear ya están dentro:
 
 | Commit | Fecha | Qué entró |
 |---|---|---|
@@ -49,14 +61,25 @@ antes del arreglo de A5. Se re-descargaron con el scraper corregido; copia previ
 
 ## 2. TODOs reales en el código
 
-✅ Inventario **reconstruido con `git grep` el 2026-08-07**. Quedan **3** vivos, no 5:
+✅ Inventario **rehecho con `git grep -n "TODO" -- src/` el 2026-08-16**. Son **5**, no 3:
 
 | # | Ubicación | Contenido | Documento afectado |
 |---|---|---|---|
-| 1 | `gui/anime_window.py:24-25` | Al final de la lista de episodios, frame «Si te ha gustado X, te puede interesar…» con 4 animes del mismo género | [06](06-gui-y-vistas.md), [03](03-flujos-de-ejecucion.md) |
-| 2 | `gui/anime_window.py:27` | Botón para alternar entre manga y anime | [06](06-gui-y-vistas.md), [01](01-arquitectura.md) |
+| 1 | `gui/anime_window.py:44-45` | Al final de la lista de episodios, frame «Si te ha gustado X, te puede interesar…» con 4 animes del mismo género | [06](06-gui-y-vistas.md), [03](03-flujos-de-ejecucion.md) |
+| 2 | `gui/anime_window.py:47` | Botón para alternar entre manga y anime | [06](06-gui-y-vistas.md), [01](01-arquitectura.md) |
 | 3 | `gui/main_window.py:32` | Quitar la palabra «Anime» de los nombres de botones y del título | [06](06-gui-y-vistas.md) |
-| ~~4~~ | ~~`gui/main_window.py:31-34`~~ | ✅ **Cerrado el 2026-07-30**: selector de proveedor en la sidebar **y** en la ficha, con la preferencia persistida en la BD nueva `DB_user.db`. El TODO se ha borrado del código. Ver **[13](13-selector-de-proveedor.md)** | **[13](13-selector-de-proveedor.md)**, [04 §0](04-modelo-de-datos.md), [05 §5b](05-proveedores-y-scraping.md) |
+| **4** | `APIs/jkanime/jkanime.py:191` | Si el texto de búsqueda está vacío, buscar en `DIRECTORY_URL` en vez de en `SEARCH_URL` | [05 §3b](05-proveedores-y-scraping.md) |
+| **5** | `APIs/jkanime/jkanime.py:264` | Corregir `get_recent_animes` para no quedarse con todo lo que aparece en la portada | [05 §3b](05-proveedores-y-scraping.md) |
+| ~~—~~ | ~~`gui/main_window.py:31-34`~~ | ✅ **Cerrado el 2026-07-30**: selector de proveedor en la sidebar **y** en la ficha, con la preferencia persistida en la BD nueva `DB_user.db`. El TODO se ha borrado del código. Ver **[13](13-selector-de-proveedor.md)** | **[13](13-selector-de-proveedor.md)**, [04 §0](04-modelo-de-datos.md), [05 §5b](05-proveedores-y-scraping.md) |
+
+> ⚠️ **Segunda corrección de este inventario, y por el motivo contrario a la primera.** El 2026-08-07
+> se bajó de 5 a 3 quitando dos TODOs **inventados**; hoy sube a 5 porque faltaban dos **reales**, los
+> de `jkanime.py`, que entraron con el proveedor el 2026-08-06 y nadie volvió a contar. `CLAUDE.md`
+> siguió diciendo «3» nueve días.
+>
+> La lección de 2026-08-07 seguía siendo correcta —no inventariar de memoria— pero incompleta: hay que
+> **volver a ejecutar el `git grep` después de cada cambio en `src/`**, no solo cuando se sospecha de
+> una cifra.
 
 > ⚠️ **Corrección de esta sección (2026-08-07).** Las revisiones anteriores listaban dos TODOs más que
 > **no existen ni han existido nunca** con ese contenido:
@@ -88,13 +111,13 @@ Auditado punto por punto. Donde el código contradice a `CLAUDE.md`, **gana el c
 | # | `CLAUDE.md` afirma | Realidad | Evidencia |
 |---|---|---|---|
 | D1 | «el resto de updates asumen que ya está en BD y **devuelven `False`** si no» | ✅ Solo 3 de 6 lo hacen. `update_anime_episodes`, `update_anime_to_not_favourite` y `update_anime_to_not_pending` devuelven **`True`** | `sqlite.py:106-120` no mira `rowcount` |
-| D2 | Registro: «`AnimeFLVSingleton(), default=True` … `AnimeAV1Singleton()`» en el ejemplo del docstring | 📖 En el código real es al revés: **AnimeAV1 por defecto** | `animeProviderMgr.py:129-130` (docstring) vs `main_window.py:48-49` |
-| ~~D3~~ | «`get_anime_image()` busca en `favourite`, `finished`, `pending`, `recent_animes` y `search`» | ✅ **Resuelto (2026-07-30, `83a8448`)**: `watching` ya está en la lista. `CLAUDE.md:224` actualizado a las 6 carpetas | `utils.py:168` |
-| ~~D4~~ | «la ficha de detalle los pide a `(195, 275)`» | ✅ **Resuelto (2026-07-30, `83a8448`)**: la rama de red ya pasa `size=`, así que ahora es cierto sin excepciones | `utils.py:176-177` |
+| ~~D2~~ | Registro: «`AnimeFLVSingleton(), default=True` …» en el ejemplo del docstring | ✅ **Corregido el 2026-08-16**: el docstring del manager ya muestra el registro real, con los tres proveedores y el orden del fallback | `animeProviderMgr.py:146-149` vs `main_window.py:47-49` |
+| ~~D3~~ | «`get_anime_image()` busca en `favourite`, `finished`, `pending`, `recent_animes` y `search`» | ✅ **Resuelto (2026-07-30, `83a8448`)**: `watching` ya está en la lista | `utils.py:187` |
+| ~~D4~~ | «la ficha de detalle los pide a `(195, 275)`» | ✅ **Resuelto (2026-07-30, `83a8448`)**: la rama de red ya pasa `size=` | `utils.py:195-196` |
 | D5 | «`AnimeAV1` … usa el DOM solo como *fallback*» | 📖 Matiz: **`poster` y `genres` salen SIEMPRE del DOM**, no del payload — aunque los géneros están en el payload | `animeav1.py:219-222` |
 | D6 | «`episodes` se guarda invertido» | ✅ Cierto, pero no dice que **el orden de partida depende del proveedor** (AV1 ascendente, FLV descendente), así que el resultado en BD es opuesto según quién sirvió el dato | `animeav1.py:227` vs `animeflv.py:222-223` |
-| D7 | «Muestra … la lista de episodios (**los 25 primeros**, `[:25]`)» | ✅ Correcto. El comentario del propio código dice «24» (`anime_window.py:447`) | `anime_window.py:408` |
-| **D8** | Lista los TODOs de `main_window.py`, `anime_window.py`, **`recentAnimes.py` y `utilsButtons.py`** | ❌ **Falso (detectado 2026-08-07)**. Solo hay **3** TODOs, en `main_window.py` y `anime_window.py`. Esos dos ficheros no contienen ninguno, y `recentAnimes.py` no lo ha contenido nunca. `CLAUDE.md` corregido | `git grep -n TODO -- src/`, §2 |
+| D7 | «Muestra … la lista de episodios (**los 25 primeros**, `[:25]`)» | ✅ Correcto. El comentario del propio código dice «24» (`anime_window.py:955`) | `anime_window.py:916` |
+| **D8** | «Hay **3** `# TODO:` en el código, todos en dos ficheros» | ❌ **Falso otra vez, por el motivo contrario (2026-08-16)**. Son **5**: faltaban los dos de `jkanime.py`, que entraron el 2026-08-06. El diagnóstico de 2026-08-07 (que `recentAnimes.py` y `utilsButtons.py` no tenían ninguno) seguía siendo correcto | `git grep -n TODO -- src/`, §2 |
 | ~~D9~~ | «`.spec` … no incluye `APIs.animeav1.animeav1`, `APIs.common.animeProviderMgr` ni `APIs.common.models`, y declara `gui.anime_windows`» | ✅ **Cerrado del todo (2026-08-07)**: corregido en el `.spec` y reescrito en `CLAUDE.md`; `gui.sidebarButtons.sidebarButton` retirado en `ae126fd`. ✅ Los 18 `hiddenimports` resuelven a módulos reales | `MiBibliotecaAnime.spec:21-40` |
 | D10 | No menciona `attrs` | ✅ **Ya no aplica (2026-07-28)**: era una dependencia no declarada; el import se cambió a `dataclasses` de la stdlib y `attrs` deja de ser dependencia | [10, trampa 18b](10-invariantes-y-trampas.md) |
 | D11 | No menciona el estado de AnimeFLV | ✅ `get_anime_episode_servers` devuelve `[]`; el usuario confirma que el sitio está caído / en desuso | [05 §2](05-proveedores-y-scraping.md) |
@@ -119,7 +142,7 @@ Auditado punto por punto. Donde el código contradice a `CLAUDE.md`, **gana el c
 | # | Problema | Dónde | Impacto |
 |---|---|---|---|
 | A3 | ~~**`.spec` desactualizado**~~ → queda **solo** el empaquetado de `resources/DB` | `MiBibliotecaAnime.spec:12` | ✅ **`hiddenimports` cerrado el 2026-08-07**; el problema grave (la BD) **sigue vivo** |
-| A6 | **Widgets Tk desde hilos daemon** | `main_window.py:421-440`, `searchAnimes.py:219-223`, `utils.py:127-128` | Riesgo de cuelgue; funciona por suerte estructural |
+| A6 | **Widgets Tk desde hilos daemon** | `main_window.py:481-500`, `searchAnimes.py:220-225`, `utils.py:146-147` | Riesgo de cuelgue; funciona por suerte estructural. 🆕 **Reducido**: los 6 puntos de clic y el buscador de la biblioteca ya no lo hacen, y **C2 se cerró** — era un crash reproducible, no teórico ([07 C2](07-concurrencia-e-hilos.md)) |
 
 > **A3 — corrección de diagnóstico** 📖. La versión anterior afirmaba que el `.exe` «falla en runtime»
 > por los `hiddenimports` incompletos. **No es así**: todos los imports del proyecto son estáticos, así
@@ -146,13 +169,13 @@ Auditado punto por punto. Donde el código contradice a `CLAUDE.md`, **gana el c
 
 | # | Problema | Dónde |
 |---|---|---|
-| B2 | La ordenación por géneros nunca se aplica (`str` vs enum) | `utilsButtons.py:187` |
-| B3 | Guard antidoble-búsqueda inoperante (`.start()` → `None`) | `searchAnimes.py:205,211,329` |
-| B4 | HTTP en el hilo de UI: servidores y clic desde 5 de las 6 vistas | `anime_window.py:608`, `favouriteAnimes.py:131`… |
-| B6 | Las 4 listas cacheadas de `MainWindow` **no las usa nadie** | `main_window.py:81-86` vs `favouriteAnimes.py:75` |
-| B7 | `remove_from_finished` mueve a *pendiente* en BD pero **borra el póster sin recrearlo** en `pending/` | `anime_window.py:355-361` |
+| B2 | La ordenación por géneros nunca se aplica (`str` vs enum) | `utilsButtons.py:341` |
+| B3 | Guard antidoble-búsqueda inoperante (`.start()` → `None`) | `searchAnimes.py:206,212,335` |
+| ~~B4~~ | ~~HTTP en el hilo de UI: servidores y clic desde 5 de las 6 vistas~~ ✅ **Casi cerrado (2026-08-16)**: los **6** puntos de clic van ya en hilo + `after(0,…)`. Queda **solo** la llamada de servidores | `anime_window.py:1116-1121` ([07 C5](07-concurrencia-e-hilos.md)) |
+| B6 | Las 4 listas cacheadas de `MainWindow` **no las usa nadie** | `main_window.py:87-93` vs `favouriteAnimes.py:75` |
+| B7 | `remove_from_finished` mueve a *pendiente* en BD pero **borra el póster sin recrearlo** en `pending/` | `anime_window.py:859-865` |
 | B8 | `time.sleep(0.1)` en el hilo de UI × 7 | [07 §5](07-concurrencia-e-hilos.md) |
-| B10 | El buscador de las vistas de estado va **contra la red**, no contra la BD | `favouriteAnimes.py:82` y homólogos |
+| ~~B10~~ | ~~El buscador de las vistas de estado va **contra la red**, no contra la BD~~ ✅ **Cerrado (2026-08-16)**: búsqueda **local** primero, la web solo suma. Era peor de lo diagnosticado —no era solo «no funciona sin conexión», sino que **perdía animes** según el proveedor puesto ([trampa 26](10-invariantes-y-trampas.md)) | `utilsButtons.py:23-166` |
 
 > **B7, alcance medido el 2026-07-30** ✅. Es un caso particular de algo más general: la BD fuerza la
 > exclusividad viendo/finalizado/pendiente (`_set_status`), pero la GUI solo gestiona el póster **del
@@ -215,7 +238,7 @@ alinea en cada arranque, con copia de seguridad previa. Ver [A1 en §4 → Resue
 declaradas en `SCHEMA` (quedan en la copia de seguridad, y se avisa por consola). No se purgan las
 copias antiguas, así que `resources/DB/backups/` crece una copia por migración.
 
-### ~~R2 — Dependencia de un único proveedor sano~~ 🚧 **Muy mitigado (2026-08-06)**
+### ~~R2 — Dependencia de un único proveedor sano~~ ✅ **Cerrado como riesgo alto (2026-08-16)**
 
 ✅ **JKAnime integrado y verificado** el 2026-08-06 ([05 §3b](05-proveedores-y-scraping.md)), y
 registrado **entre** AnimeAV1 y AnimeFLV, así que el fallback ya tiene una primera parada que
@@ -237,13 +260,16 @@ probabilidad de quedarse a ciegas, **no** la de que cualquiera de los dos se rom
 
 ⚠️ Tampoco resuelve el fallo **parcial** descrito abajo, que sigue sin detectarse.
 
-🚧 **Mitigación parcial (2026-07-30, ajustada el 2026-08-06)**: el selector de proveedor
-([13](13-selector-de-proveedor.md)) no añade proveedores, pero da al usuario la palanca para
-**saltarse** el que esté roto, y la etiqueta de la ficha hace **visible** qué proveedor sirvió
-realmente cada anime, que el fallback oculta. Desde el pin, además, probar un proveedor roto ya no
-ensucia la configuración. ⚠️ Lo que se **perdió** al retirar el selector de la ficha es poder saltarse
-el proveedor roto *para un anime concreto ya guardado*; eso vuelve con la columna `provider_id`
-([13 §8](13-selector-de-proveedor.md)). La medida de fondo sigue siendo integrar un tercer proveedor.
+✅ **Mitigación completada (2026-08-16)**: el selector de proveedor
+([13](13-selector-de-proveedor.md)) da la palanca para **saltarse** el que esté roto, la etiqueta de
+la ficha hace **visible** qué proveedor sirvió realmente cada anime, y el pin permite probar un
+proveedor roto sin ensuciar la configuración.
+
+✅ **Lo que faltaba —poder saltarse el proveedor roto para un anime concreto ya guardado— entró con la
+columna `provider_id`**: hoy un anime guardado se abre por su proveedor, una desviación del
+desplegable lo abre por otro **re-localizándolo por título**, y el botón «Actualizar a X» permite
+**mudar la fila** al proveedor que funcione, conservando los episodios vistos. Es la respuesta
+completa a este riesgo desde la GUI ([13 §14](13-selector-de-proveedor.md)).
 
 **Agravado el 2026-07-30** por lo aprendido al arreglar A5: el proveedor no solo puede romperse
 devolviendo *nada* (lo que el fallback sí cubre), sino devolviendo **datos silenciosamente corruptos**.
@@ -252,12 +278,23 @@ persistió en la BD del usuario. `__is_empty_result` mide *presencia*, no *corre
 cambio de encoding, de idioma o de estructura del payload que devuelva texto plausible no lo detecta
 nadie. Con B5 resuelto, el fallo total ya avisa al usuario; el fallo **parcial** sigue sin detectarse.
 
-### R3 — Manipulación de widgets Tk desde hilos daemon
+### R3 — Manipulación de widgets Tk desde hilos daemon 🚧 **Reducido (2026-08-16)**
 
 El arranque construye **toda** la vista de recientes desde un hilo secundario
-(`main_window.py:435`), y el buscador hace lo mismo con cada resultado. Tkinter no es thread-safe.
+(`main_window.py:495`), y el buscador hace lo mismo con cada resultado. Tkinter no es thread-safe.
 ✅ Hoy funciona, pero es el tipo de fallo que aparece como un cuelgue esporádico e irreproducible en
 la máquina del usuario, imposible de depurar sin logs (y `console=False` en el `.exe` los borra).
+
+🆕 **Dejó de ser teórico, y luego se acotó.** Durante la fase 8 este riesgo se materializó en un crash
+**reproducible**: construir la ficha desde el hilo secundario revienta con
+`invalid command name ...!searchbutton.!ctkcanvas` si la vista que se está destruyendo tenía un
+`<Configure>` encolado —lo tienen las 4 vistas de estado, por su barra de búsqueda—. Los **6 puntos de
+clic**, el buscador de la biblioteca y la migración devuelven ya con `after(0, …)`
+([07 C2](07-concurrencia-e-hilos.md)); los `after()` correctos pasan de 1 a **7**.
+
+⚠️ **Lo que sigue vivo** es el arranque, el buscador de la lupa y la llamada de servidores. Es código
+anterior y no se ha tocado en esta fase: la regla del proyecto es no propagar el patrón heredado, no
+reescribirlo de golpe.
 
 ---
 
@@ -268,18 +305,18 @@ Roadmap declarado en `.claude/CLAUDE.md` y `README.md:124-130`.
 | Punto del roadmap | Módulos a tocar | Requisitos previos | Docs a actualizar |
 |---|---|---|---|
 | **Renombrar «recientes» → «nuevos lanzamientos»** | `recentAnimes.py:22`, `main_window.py:32` | ninguno — es el más barato | [06](06-gui-y-vistas.md), [02](02-mapa-de-modulos.md) |
-| **Quitar «Anime» de los nombres de pestañas** | las 6 vistas + `main_window.py:128` | ninguno | [06](06-gui-y-vistas.md) |
+| **Quitar «Anime» de los nombres de pestañas** | las 6 vistas + `main_window.py:134` | ninguno | [06](06-gui-y-vistas.md) |
 | ~~**Selector de proveedor con preferencia persistida**~~ | ✅ **Hecho el 2026-07-30**: `userPersistence.py` (nuevo), `animeProviderMgr.py` v0.2, `main_window.py`, `anime_window.py` v0.2 y los 6 puntos de clic | — | **[13](13-selector-de-proveedor.md)** |
 | ~~**Separar «usar ahora» de «fijar como predeterminado»**~~ | ✅ **Hecho el 2026-08-06** con un **pin** junto al desplegable: `main_window.py` v0.2, `anime_window.py` v0.3 (se retira el selector de la ficha), `userPersistence.py` v0.2, 4 iconos nuevos | — | **[13 §12](13-selector-de-proveedor.md)** |
-| 🔴 **Columna `provider_id` en `ANIMES`** | `AnimeField`, `AnimeRecord`, los 6 puntos de clic | la migración es automática; el **orden de prioridad ya está decidido** | **[13 §8](13-selector-de-proveedor.md)** |
+| ~~**Columna `provider_id` en `ANIMES`**~~ | ✅ **Hecha el 2026-08-16**: `models.py` (`AnimeProviderId`, `ProviderInfo`), `animeProviderMgr.py` v0.3, `animesPersistence.py` v2.3, `main_window.py` v0.4, `anime_window.py` v0.6, `utilsButtons.py` v0.2, `utils.py` v0.3, los 3 proveedores y las 6 vistas | — | **[13 §14](13-selector-de-proveedor.md)**, [04 §8](04-modelo-de-datos.md) |
 | **Calificación personal en favoritos + ordenar por ella** | `AnimeField`, `AnimeRecord`, `anime_window.py`, `favouriteAnimes.py` | arreglar B2 (`str` vs enum); la migración ya es automática | [04](04-modelo-de-datos.md), [06](06-gui-y-vistas.md) |
-| **Paginar favoritos/viendo/pendientes/finalizados de 10 en 10** | las 4 vistas de estado; reutilizar `searchAnimes.py:267-324` | extraer la paginación a `utilsButtons.py` | [06](06-gui-y-vistas.md), [03](03-flujos-de-ejecucion.md) |
+| **Paginar favoritos/viendo/pendientes/finalizados de 10 en 10** | las 4 vistas de estado; reutilizar `searchAnimes.py:273-330` | extraer la paginación a `utilsButtons.py` | [06](06-gui-y-vistas.md), [03](03-flujos-de-ejecucion.md) |
 | **«Viendo» en cascada con el último capítulo visto** | `watchingAnimes.py` | ya está en BD (`last_watched_episode`) — barato | [06](06-gui-y-vistas.md) |
-| **Bloque «Si te ha gustado X…» (4 animes del mismo género)** | `anime_window.py:24-25`, `get_anime_by_genre_and_order` | arreglar B2 primero | [03](03-flujos-de-ejecucion.md), [06](06-gui-y-vistas.md) |
-| **Convivencia anime + manga** | 🔴 **transversal**: `models.py` (¿`MediaInfo`?), `AnimeProvider` (¿`MediaProvider`?), `AnimeField`, las 6 vistas, `anime_window.py:27` | decidir si se generalizan los modelos o se duplican | **todos** |
-| **Nuevos lanzamientos a dos columnas, 3 por fila, pósters grandes** | `recentAnimes.py:39,55-80`, tamaños de `utils.py:59,87,137` | el redimensionado a `(130,185)` está **hardcodeado en 4 sitios** | [06 §4](06-gui-y-vistas.md), [10](10-invariantes-y-trampas.md) |
+| **Bloque «Si te ha gustado X…» (4 animes del mismo género)** | `anime_window.py:44-45`, `get_anime_by_genre_and_order` | arreglar B2 primero | [03](03-flujos-de-ejecucion.md), [06](06-gui-y-vistas.md) |
+| **Convivencia anime + manga** | 🔴 **transversal**: `models.py` (¿`MediaInfo`?, y `ProviderInfo` gana el tipo de medio), `AnimeProvider` (¿`MediaProvider`?), `AnimeField`, las 6 vistas, `anime_window.py:47` | decidir si se generalizan los modelos o se duplican | **todos** |
+| **Nuevos lanzamientos a dos columnas, 3 por fila, pósters grandes** | `recentAnimes.py:39,55-80`, tamaños de `utils.py:59,105,156` | el redimensionado a `(130,185)` está **hardcodeado en 4 sitios** | [06 §4](06-gui-y-vistas.md), [10](10-invariantes-y-trampas.md) |
 | **Filtro radio Animes/Mangas/Ambos en las 4 vistas** | `utilsButtons.AccordionFilterButton` | modelo de manga | [06](06-gui-y-vistas.md) |
-| **Desplegable global anime/manga/ambos (esquina inferior izquierda)** | `main_window.py:160-231` | modelo de manga (la preferencia persistida ya es viable) | [06](06-gui-y-vistas.md), [01](01-arquitectura.md) |
+| **Desplegable global anime/manga/ambos (esquina inferior izquierda)** | `main_window.py:166-238` | modelo de manga (la preferencia persistida ya es viable) | [06](06-gui-y-vistas.md), [01](01-arquitectura.md) |
 | ~~**Integrar JKAnime**~~ | ✅ **Hecho el 2026-08-06**: `APIs/jkanime/jkanime.py` (nuevo, v0.1), `main_window.py`, `MiBibliotecaAnime.spec` | — | **[05 §3b](05-proveedores-y-scraping.md)**, [02](02-mapa-de-modulos.md), trampas 23-25 |
 | **Integrar MonosChinos2, TioAnime** | `APIs/<sitio>/` nuevos + registro en `main_window.py` | ninguno — sigue mitigando R2 | [05](05-proveedores-y-scraping.md), [11 §3](11-playbooks.md) |
 | **Proveedores de manga** | contrato nuevo o generalización de `AnimeProvider` | decisión de diseño de la convivencia | [01](01-arquitectura.md), [05](05-proveedores-y-scraping.md) |
@@ -290,22 +327,25 @@ Roadmap declarado en `.claude/CLAUDE.md` y `README.md:124-130`.
 *(Revisado el 2026-07-30. ~~A1~~, ~~A2~~, ~~A4~~, ~~A5~~, ~~B1~~ y ~~B5~~ ya pagadas: ver
 [§4 → Resuelto](#-resuelto).)*
 
-**El orden lo fijó el usuario el 2026-07-30. Sus dos primeros puntos ya están cerrados —el selector
-el 2026-08-06 y la integración de un proveedor nuevo ese mismo día—, así que la lista avanza.**
+**El orden lo fijó el usuario el 2026-07-30. Sus tres primeros puntos ya están cerrados —el selector
+y la integración de un proveedor nuevo el 2026-08-06, y la columna `provider_id` el 2026-08-16—, así
+que la lista avanza.**
 
 1. ~~🔴 **Integrar un proveedor nuevo**~~ — ✅ **hecho el 2026-08-06 con JKAnime**. Validó que la
    abstracción aguanta: fue el primer proveedor que necesitó traducir géneros y el primero que mezcla
-   dos técnicas de parseo, y el contrato no hubo que tocarlo. Ahora sí hay un segundo proveedor sano
-   con el que probar la resolución *cross-provider*, que hasta hoy solo se había probado con un
-   proveedor falso ([05 §5b](05-proveedores-y-scraping.md)).
-2. 🔴 **La columna `provider_id` en `ANIMES`** ([13 §8](13-selector-de-proveedor.md)) — **la
-   siguiente, y ya desbloqueada**. Es lo único que hace que desviarse de proveedor afecte también a
-   los animes ya guardados, y el orden de prioridad está decidido. Es además donde vuelve a usarse
-   `resolve_anime_in_provider()`, hoy sin llamantes en la GUI. Su requisito previo —un segundo
-   proveedor sano con el que probar— **ya se cumple**.
+   dos técnicas de parseo, y el contrato no hubo que tocarlo.
+2. ~~🔴 **La columna `provider_id` en `ANIMES`**~~ — ✅ **hecha el 2026-08-16**
+   ([13 §14](13-selector-de-proveedor.md)). Trajo consigo tres cosas que no estaban en el plan y
+   resultaron inseparables: que el proveedor deje de ser una cadena (`AnimeProviderId`), **migrar una
+   fila a otro proveedor** y el **aviso de duplicado** — porque elegir proveedor sin ellas convierte
+   la biblioteca en un sitio donde el mismo anime puede acabar dos veces. Cerró **B4** (casi), **B10**
+   y **R2**, y redujo **R3**.
 3. **Arreglar B2** — barato, y desbloquea dos puntos del roadmap (recomendaciones por género, ordenar
-   favoritos por calificación).
-4. **Entonces** abordar la convivencia anime/manga, que es la refactorización grande.
+   favoritos por calificación). **Es lo siguiente que queda barato.**
+4. **Sacar la llamada de servidores del hilo de Tkinter** — lo único que queda de B4, y ahora el
+   patrón está establecido en 7 sitios: es copiar y pegar.
+5. **Entonces** abordar la convivencia anime/manga, que es la refactorización grande. `ProviderInfo`
+   ya tiene dónde llevar el tipo de medio, y `USER_SETTINGS` dónde guardar la preferencia.
 
 > ~~**Selector de proveedor con preferencia persistida** (TODO #4)~~ — ✅ **hecho el 2026-07-30**
 > ([13](13-selector-de-proveedor.md)) y **cerrado del todo el 2026-08-06** con el pin. Estrenó la

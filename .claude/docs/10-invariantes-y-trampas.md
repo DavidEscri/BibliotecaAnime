@@ -2,9 +2,9 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-08-07 · **Commit** `18311e3` · árbol **limpio** |
+| **Fecha** | 2026-08-16 · **Commit** `54fb3d6` · árbol **sucio** (columna `provider_id`, 16 ficheros) |
 | **Cubre** | los 19 módulos con contenido de `src/` + `MiBibliotecaAnime.spec` + `requirements.txt` |
-| **Última revisión** | 2026-08-07 (**auditoría**): **trampas 18a y 19 resueltas** por los commits `ae126fd` y `e6d1a73`; ~30 anclas `fichero:línea` reubicadas tras el crecimiento de `anime_window.py` (490→647) |
+| **Última revisión** | 2026-08-16 (**columna `provider_id`**): **3 trampas nuevas** (26, 27, 28), trampa **21 reescrita** —ahora se puede provocar a voluntad y la ficha la señala en pantalla—, trampas **4** y **13** ampliadas, y anclas de `anime_window.py` (647→1156) y `animesPersistence.py` reubicadas |
 
 Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ sin verificar.
 
@@ -20,7 +20,7 @@ Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ si
 **Por qué**: todas las consultas son `SELECT *` y `SqlUtils.query_sql` (`utils/db/sqlite.py:122-144`)
 empareja `fila[i] → FIELDS[i]` **por posición**, no por nombre.
 
-**Si lo rompes**: reordenar `AnimeField` (`animesPersistence.py:28-47`), o insertar un miembro en
+**Si lo rompes**: reordenar `AnimeField` (`animesPersistence.py:28-57`), o insertar un miembro en
 medio, desplaza todos los valores posteriores.
 
 **Síntoma**: ningún error. Títulos donde deberían ir sinopsis, `is_favourite` con el valor de
@@ -71,21 +71,25 @@ seis escenarios de migración, incluida la idempotencia y el rollback.
 
 ### 3. `watched_episodes` se guarda como rangos comprimidos ✅
 
-**Formato**: `{1,2,3,5,9}` → `[[1,3],[5,5],[9,9]]` (`_episodes_to_ranges:177-192`).
+**Formato**: `{1,2,3,5,9}` → `[[1,3],[5,5],[9,9]]` (`_episodes_to_ranges:210-224`).
 
 **Nunca escribas ese campo a mano.** Un elemento con longitud ≠ 2 se **descarta en silencio**
-(`_ranges_to_episodes:199-200`).
+(`_ranges_to_episodes:233-234`).
 
 **Síntoma**: episodios vistos que desaparecen sin error al recargar la ficha.
 
-**Además**: `last_watched_episode` se recalcula siempre como `max(watched)` (`:363`); si escribes uno
+**Además**: `last_watched_episode` se recalcula siempre como `max(watched)` (`:409`); si escribes uno
 a mano, el siguiente `update_watched_episodes` lo pisa.
+
+**Y es lo único irrecuperable de la biblioteca**: título, póster, sinopsis, géneros y episodios se
+vuelven a bajar de la red; esto no. Por eso `migrate_anime_identity` lo conserva
+([04 §8](04-modelo-de-datos.md)).
 
 ---
 
 ### 4. `episodes` se guarda **invertido** y no se des-invierte al leer ✅
 
-`to_db_dict:88` hace `list(reversed(...))`; `update_anime_episodes:375` hace `[::-1]`;
+`to_db_dict:90` hace `list(reversed(...))`; `update_anime_episodes:519-520` hace `[::-1]`;
 `from_db_dict` **no** deshace nada.
 
 ✅ Verificado: entrada `[1..10]` → BD `[10..1]` → leído `[10..1]`.
@@ -96,6 +100,21 @@ guardado desde un proveedor u otro queda **al revés** en BD.
 
 **Síntoma**: `anime_record.episodes[0]` es el último episodio, no el primero. Lógicas de «por dónde
 voy» que salen invertidas.
+
+⚠️ **Ampliación 2026-08-16 — la asimetría muerde al escribir código nuevo.** Ahora hay dos orígenes
+para la lista de episodios y **solo uno de ellos debe invertirse**:
+
+| Origen | ¿Invertir? | Por qué |
+|---|---|---|
+| `anime_info.episodes` (recién bajado de la red) | **sí** | Es el sentido normal de `to_db_dict` |
+| `record.episodes` (releído de la BD) | **no** | **Ya viene invertido**; invertirlo otra vez lo deja al derecho, que aquí es «al revés» |
+
+`migrate_anime_identity` (`animesPersistence.py:487-488`) es el primer sitio que mezcla los dos, y por
+eso lo hace explícito: `new_episode_ids[::-1] if new_episode_ids else record.episodes`. Cualquier
+método nuevo que caiga a «lo que ya había» tiene el mismo problema.
+
+**Síntoma**: migrar un anime a otro proveedor que no devuelve episodios deja la lista **invertida
+respecto a antes**, y la ficha muestra el episodio 1 arriba donde antes estaba el último. Sin error.
 
 ---
 
@@ -108,6 +127,7 @@ SQL se ejecutó sin excepción».
 |---|---|
 | `update_watched_episodes` | `False` ✅ (comprueba antes) |
 | `update_anime_to_not_watching` / `not_finished` | `False` ✅ |
+| `update_anime_provider_id` / `migrate_anime_identity` | `False` ✅ (2026-08-16, comprueban antes) |
 | `update_anime_episodes` | ⚠️ **`True`** |
 | `update_anime_to_not_favourite` / `not_pending` | ⚠️ **`True`** |
 
@@ -119,8 +139,8 @@ SQL se ejecutó sin excepción».
 
 ### 6. `get_anime_by_genre_and_order` recibe un `str` donde espera un enum ✅
 
-`AccordionFilterButton.__apply_filters` (`utilsButtons.py:187`) pasa `self.selected_order.get()` →
-`"default"`. La comparación `order != AnimeOrderFilter.POR_DEFECTO` (`animesPersistence.py:338`) es
+`AccordionFilterButton.__apply_filters` (`utilsButtons.py:341`) pasa `self.selected_order.get()` →
+`"default"`. La comparación `order != AnimeOrderFilter.POR_DEFECTO` (`animesPersistence.py:384`) es
 entonces **siempre `True`** → *return* temprano → **la ordenación por coincidencias de género nunca
 se aplica desde la GUI**.
 
@@ -241,12 +261,22 @@ proveedor.
 
 ### 13. `provider_id` desconocido + `strict=True` usa el primer proveedor registrado ✅
 
-`_ordered_providers` (`:218-229`) no valida el `provider_id`: si no está registrado, simplemente no
+`_ordered_providers` (`:249-259`) no valida el `provider_id`: si no está registrado, simplemente no
 antepone a nadie. Con `strict=True` se toma `[:1]` → **el primero por orden de registro**.
 
 **Síntoma**: pides datos «solo de JKAnime», JKAnime no está registrado, y recibes datos de AnimeAV1
-sin ningún aviso. `get()` sí lanza `UnknownProviderError` (`:180-183`) — pero los wrappers no usan
+sin ningún aviso. `get()` sí lanza `UnknownProviderError` (`:196-203`) — pero los wrappers no usan
 `get()`.
+
+✅ **Mitigada en parte desde 2026-08-16**, no resuelta. Al pasar `PROVIDER_ID` de cadena a
+`AnimeProviderId` (`models.py:18`), el error frecuente —una errata (`"animeflb"`), o un id que nunca
+existió— ya no llega hasta aquí: `AnimeProviderId("animeflb")` lanza `ValueError` en el sitio donde se
+escribió. Lo que **sigue vivo** es el caso real: un miembro del enum que existe pero **no está
+registrado** en este arranque. Eso pasa el tipado y cae otra vez en el primer proveedor, en silencio.
+
+**Dónde importa hoy**: `resolve_anime_in_provider` sí valida y devuelve `None` con un aviso
+(`:418-420`); los wrappers de `call_with_fallback`, no. Si añades un método nuevo al manager, valida
+como el primero.
 
 ---
 
@@ -457,30 +487,53 @@ duplicadas en la biblioteca real del usuario**:
 
 | Atributo | Qué es | Puede diferir del otro |
 |---|---|---|
-| `self.anime_info.id` | slug del proveedor que **sirvió** la ficha | **sí** |
-| `self.persistence_anime_id` | slug con el que se **abrió** la ficha | **no, nunca cambia** |
+| `self.anime_info.id` / `self.provider_id` | identidad de **visualización**: quién sirvió esta ficha | **sí** |
+| `self.persistence_anime_id` / `persistence_provider_id` / `persistence_poster_url` | identidad de **persistencia**: la fila guardada | **no, nunca cambia mientras la ficha está en pantalla** |
 
-`AnimeInfo.id` es el slug del sitio, no un identificador universal: el mismo anime es
-`one-piece-gyojin-touhen` en AnimeAV1 y `one-piece` en AnimeFLV.
+`AnimeInfo.id` es el slug del sitio, no un identificador universal: el mismo anime es `one-piece` en
+AnimeAV1 y `one-piece-tv` en AnimeFLV.
 
 **Regla**: en `anime_window.py`, **toda** llamada a `animes_persistence` y a
-`download/remove_anime_poster_by_status` usa `self.persistence_anime_id` o
-`self.__persistence_anime_info()`. Nunca `self.anime_info` a secas.
+`download/move/remove_anime_poster_by_status` usa `self.persistence_anime_id` o
+`self.__persistence_anime_info()` (`:309-321`). Nunca `self.anime_info` a secas.
 
 **Síntoma si se incumple**: pulsas «Añadir a favoritos» y el anime aparece **dos veces** en la vista
 de favoritos, con dos pósters en disco; o pulsas «Eliminar de favoritos» y no desaparece, porque se ha
 desmarcado una fila distinta de la que ve la vista.
 
-⚠️ **Sigue viva aunque la ficha ya no permita cambiar de proveedor** (el desplegable se retiró el
-2026-08-06, [13 §12](13-selector-de-proveedor.md)). Lo que la dispara ahora no es un clic del usuario
-sino el **fallback**: si el proveedor en uso falla, `call_with_fallback` sirve la ficha desde otro y
-`anime_info.id` deja de coincidir con la fila guardada, sin que nada lo anuncie salvo la etiqueta
-«Proveedor:». Volverá a poder provocarse a voluntad con la columna `provider_id`
-([13 §8](13-selector-de-proveedor.md)).
+### Qué cambió el 2026-08-16 ⚠️ *(sigue viva, y ahora es provocable a voluntad)*
+
+Con la columna `provider_id` hay **tres** formas de partir la identidad, no una:
+
+| Cómo | Slugs | Quién lo provoca |
+|---|---|---|
+| **Fallback** | iguales | nadie: el proveedor de la fila falló y respondió otro |
+| **Desviación del desplegable** | **distintos** | el usuario, eligiendo otro proveedor en la sidebar |
+| **Migración a medias** | — | imposible hoy: `__confirm_and_migrate` reconstruye la ficha entera al terminar |
+
+La segunda es nueva y es la peligrosa: `open_saved_anime()` **re-localiza el anime por título** en el
+proveedor elegido (`anime_window.py:167-189`), así que `anime_info.id` es directamente el slug de otro
+sitio.
+
+> 🔴 **Esto reintrodujo el bug una vez, durante la propia fase 4.** `open_saved_anime()` construía el
+> viewer con el `AnimeInfo` resuelto y **sin** pasar la fila, así que la identidad de persistencia
+> pasaba a ser el slug desviado: la ficha mostraba el anime como no guardado y cualquier botón de
+> estado insertaba una **fila duplicada**. Se detectó al implementar la fase 6 y se arregló añadiendo
+> el parámetro `anime_record` al constructor (`:232-233`). ✅ Reproducido en `test_fase6.py` §6b: con
+> el constructor antiguo, **un solo clic** crea la fila duplicada.
+
+**La regla nueva**: quien abra una ficha de un anime que **puede venir de otro proveedor** está
+obligado a pasar `anime_record=`. Sin él, `AnimeWindowViewer` asume que lo que ve es lo que hay
+guardado — cierto al abrir desde recientes o desde una búsqueda, falso al abrir desde la biblioteca.
+
+**Ahora se ve en pantalla**: la ficha muestra `⚠ En tu biblioteca: <proveedor>` en ámbar cuando las dos
+identidades no coinciden ([06](06-gui-y-vistas.md)). Es la primera vez que esta trampa tiene un
+síntoma visible **antes** de romper algo.
 
 ✅ Verificado el 2026-07-30 sobre una copia de la BD real (25 filas): tras cambiar de proveedor y
 pulsar los 8 botones de estado, siguen habiendo 25 filas y ninguna con el slug del otro proveedor.
-Ver [13 D5](13-selector-de-proveedor.md) y el script de [09](09-verificacion-y-pruebas.md).
+✅ Re-verificado el 2026-08-16 con las tres formas de partir la identidad (`test_fase6.py`, 105
+comprobaciones). Ver [13 D5](13-selector-de-proveedor.md) y [09](09-verificacion-y-pruebas.md).
 
 ### 22. El `wraplength` de la ficha se calcula sobre el `content_frame`, no sobre la celda 📖
 
@@ -568,16 +621,90 @@ ficha de detalle.
 
 ---
 
+## Columna `provider_id` *(añadidas 2026-08-16)*
+
+### 26. Buscar en la biblioteca preguntando al proveedor no encuentra lo que tienes guardado ✅
+
+**El bug**: las cuatro vistas de estado buscaban así — pedir la búsqueda al proveedor seleccionado y
+quedarse con los resultados cuyo `anime_id` estuviera en la BD. Cruzar **por slug**.
+
+**Por qué falla**: el `anime_id` guardado es el slug **de quien guardó la fila**. One Piece estaba
+guardado como `one-piece-tv` (AnimeFLV) y es `one-piece` en los otros dos, así que con AnimeAV1
+seleccionado —el predeterminado— buscar «One Piece» en favoritos **no devolvía One Piece**. Y al
+revés: con AnimeFLV seleccionado desaparecían de la búsqueda los animes que ese sitio no tiene.
+
+**Síntoma**: un anime que estás viendo en la rejilla desaparece en cuanto escribes su nombre en el
+buscador de esa misma pestaña. Sin error, y sin patrón aparente — depende del proveedor que tengas
+puesto y de quién guardó cada fila.
+
+**Regla**: **los datos son locales, la búsqueda también.** `filter_animes_by_title`
+(`utilsButtons.py:23-56`) compara contra los títulos guardados, normalizados, sin red y sin mirar el
+proveedor. La búsqueda web se **suma** encima (`SavedAnimeSearch`, `:97-166`) porque aporta algo que
+un título guardado no puede saber —que «Solo Leveling» es «Ore dake Level Up na Ken»—, pero **nunca
+quita** resultados.
+
+**Invariante**: cualquier filtro sobre la biblioteca del usuario debe funcionar con el cable
+desenchufado. Si depende del proveedor seleccionado, está mal.
+
+---
+
+### 27. `provider_id` dice **quién sirve el slug**, no de dónde salió el anime ⚠️
+
+Las filas anteriores a la columna se rellenan solas al abrirlas ([04 §8](04-modelo-de-datos.md)),
+anotando **quién sirvió la ficha esa vez**. Cuando el slug existe en varios sitios —`dandadan` está
+igual en los tres— el que queda anotado es el que tuvieras seleccionado ese día.
+
+**Síntoma**: el reparto por proveedor de la biblioteca cambia según cómo hayas navegado, no según de
+dónde vinieran los animes. ✅ Comprobado en la BD real: 19 filas dicen `animeflv` mientras que un
+barrido independiente, preguntando en el orden de la aplicación, había concluido `animeav1` para 12 de
+ellas. **Las dos respuestas son ciertas**; solo cambia quién contestó primero.
+
+**Por qué no es un bug**: para lo que se usa la columna —a quién preguntar al reabrir este anime— la
+respuesta es correcta, porque ese proveedor **sí** sirve ese slug. Lo que no puedes hacer es
+interpretarla como procedencia, ni fiarte de ella para estadísticas.
+
+**Si algún día hace falta la procedencia real**, es un dato distinto y necesita su propia columna; no
+lo saques de esta.
+
+---
+
+### 28. Reapuntar una fila a otro proveedor puede duplicarla en silencio ✅
+
+`ANIMES` **no tiene `UNIQUE` sobre `anime_id`** ([04 §3](04-modelo-de-datos.md)). Un
+`UPDATE … SET anime_id = ?` hacia un slug que ya ocupa otra fila se ejecuta **sin error** y deja dos
+filas del mismo anime, cada una con sus propios episodios vistos y sin forma de desempatarlas.
+
+**Cuándo pasa de verdad**: tienes One Piece guardado desde AnimeFLV (`one-piece-tv`) **y** desde
+AnimeAV1 (`one-piece`) porque en su día lo añadiste dos veces; migras el primero a AnimeAV1.
+
+**Cómo está tapado**, en dos capas a propósito:
+
+| Capa | Línea | Qué hace |
+|---|---|---|
+| GUI | `anime_window.py:625-635` | Comprueba antes y lo **explica** con un diálogo: «ya hay otra entrada de este anime en X» |
+| Persistencia | `animesPersistence.py:478-481` | Vuelve a comprobarlo y devuelve `False` |
+
+La segunda no es redundante: `migrate_anime_identity` es pública y no puede fiarse de que quien la
+llame haya mirado. La primera existe porque un `False` a secas no le dice nada al usuario.
+
+**Invariante**: cualquier escritura que cambie `anime_id` de una fila existente comprueba primero que
+el destino esté libre. La BD no lo va a hacer por ti.
+
+---
+
 ## Resumen: las 5 que más duelen
 
 1. **Trampa 21** — en la ficha, `anime_info.id` no es la clave de la BD; confundirlas duplica filas
-   en la biblioteca real.
-2. **Trampa 4** — el orden de `episodes` depende del proveedor y se invierte al guardar.
-3. **Trampa 7** — marcar episodios sin estado asignado no guarda nada, sin avisar.
-4. **Trampa 6** — la ordenación por géneros nunca se aplica desde la GUI (`str` vs enum).
+   en la biblioteca real. **La única que ya se ha reintroducido una vez** (fase 4, 2026-08-16).
+2. **Trampa 26** — buscar en la biblioteca por slug hace desaparecer animes que sí tienes guardados,
+   según qué proveedor tengas puesto.
+3. **Trampa 4** — el orden de `episodes` depende del proveedor y se invierte al guardar; y ahora hay
+   una lista que **no** hay que invertir.
+4. **Trampa 7** — marcar episodios sin estado asignado no guarda nada, sin avisar.
 5. **Trampa 17** — la purga de pósters borra todo lo que no esté en la lista actual.
 
-*(Cae de la lista la trampa 8 —solo 25 episodios—, que sigue vigente pero duele menos que la 21.)*
+*(Caen de la lista la trampa 8 —solo 25 episodios— y la 6 —`str` vs enum en la ordenación—, las dos
+vigentes pero menos dañinas que las de arriba.)*
 
 > **Trampas retiradas de esta lista el 2026-07-30**, todas por estar resueltas: **1** y **2**
 > (desalineación de columnas y ausencia de migraciones, mitigadas por `validate_db_integrity()`),

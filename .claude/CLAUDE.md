@@ -18,7 +18,7 @@ internamente lo pedido usando [`.claude/COMO-PEDIR-TAREAS.md`](COMO-PEDIR-TAREAS
    primero que hay que aclarar, y lo que más cambia el tamaño del trabajo.
 3. **Ficheros exactos y frontera de alcance.** Las 4 vistas de estado son casi idénticas línea por
    línea: decide si la tarea afecta a una o a las cuatro.
-4. **¿Es una trampa conocida?** Coteja con `docs/10-invariantes-y-trampas.md` (25 trampas con su
+4. **¿Es una trampa conocida?** Coteja con `docs/10-invariantes-y-trampas.md` (**28** trampas con su
    síntoma) **antes** de investigar desde cero.
 5. **Nivel de verificación** — ejecutar la GUI · script en el scratchpad · solo lectura. No hay
    tests: si no se ejecuta, se entrega marcado como no verificado.
@@ -74,14 +74,20 @@ El código de la GUI **nunca** habla con un sitio concreto. Todo pasa por tres p
 
 | Fichero | Rol |
 |---|---|
-| `APIs/common/models.py` | **Única fuente de verdad** de los tipos de dominio: `AnimeInfo`, `EpisodeInfo`, `ServerInfo` (dataclasses) y `AnimeGenreFilter`, `AnimeOrderFilter` (enums). Ningún proveedor redefine estos tipos. |
+| `APIs/common/models.py` | **Única fuente de verdad** de los tipos de dominio: `AnimeInfo`, `EpisodeInfo`, `ServerInfo`, `ProviderInfo` (dataclasses) y `AnimeProviderId`, `AnimeGenreFilter`, `AnimeOrderFilter` (enums). Ningún proveedor redefine estos tipos. |
 | `APIs/common/animeProviderMgr.py` | `AnimeProvider` (ABC con el contrato) + `AnimeProviderManager` (registro, selección y *fallback*). |
 | `APIs/animeav1/`, `APIs/jkanime/`, `APIs/animeflv/` | Implementaciones concretas. |
 
 **Contrato de `AnimeProvider`** — cinco métodos abstractos: `get_recent_animes`, `get_anime_info`,
 `search_animes_by_query`, `search_animes_by_genres_and_order`, `get_anime_episode_servers`. Toda subclase concreta debe
 definir `PROVIDER_ID`, `PROVIDER_NAME` y `BASE_URL`; `__init_subclass__` lanza `NotImplementedError` al importar si
-falta alguno. Las búsquedas devuelven siempre `Tuple[List[AnimeInfo], int]` (resultados, última página).
+falta alguno **o si `PROVIDER_ID` no es un miembro de `AnimeProviderId`**. Las búsquedas devuelven siempre
+`Tuple[List[AnimeInfo], int]` (resultados, última página). `provider_info()` ya viene implementado: construye un
+`ProviderInfo` desde esos tres atributos, y es lo que puebla el desplegable de la sidebar.
+
+⚠️ **`PROVIDER_ID` es un enum desde el 2026-08-16**, no una cadena: su `value` es lo que se persiste en
+`ANIMES.provider_id` y en `USER_SETTINGS`, así que **elegirlo es una decisión permanente**. Añadir un proveedor
+empieza por añadir su miembro a `AnimeProviderId` ([`docs/11 §3`](docs/11-playbooks.md)).
 
 Si un sitio usa slugs de género distintos a `AnimeGenreFilter`, **el proveedor los traduce internamente**: quien llama
 siempre pasa el enum común.
@@ -112,10 +118,21 @@ en la sidebar:
   `MainWindow.__init__` lo aplica con `set_default()` antes de la primera petición. Azul = lo que usas
   es tu predeterminado; gris = desviación temporal.
 
-La ficha de detalle **ya no permite cambiar de proveedor**: solo muestra una etiqueta con quién sirvió
-realmente esos datos, que es lo que hace visible el fallback. `resolve_anime_in_provider()` sigue en el
-manager pero **sin llamantes en la GUI**; vuelve con la columna `provider_id`. Detalle, decisiones y el
-orden de prioridad decidido: [`docs/13`](docs/13-selector-de-proveedor.md).
+La ficha de detalle **ya no permite cambiar de proveedor**: muestra quién sirvió realmente esos datos
+—lo que hace visible el fallback— y, si el anime está guardado, **de quién es tu fila**.
+
+**Desde el 2026-08-16 cada fila de `ANIMES` recuerda su proveedor** (`provider_id`), y eso cambia cómo se
+abre un anime guardado. `MainWindow.provider_for_saved_anime()` aplica este orden:
+
+1. **la selección del desplegable**, si difiere de la referencia (pin, o predeterminado del registro) —
+   desviarse es deliberado y manda;
+2. **el `provider_id` de la fila**;
+3. la referencia.
+
+El caso 1 obliga a **re-localizar el anime por título** en el proveedor elegido, porque el slug guardado es de
+otro sitio: ahí es donde vuelve a usarse `resolve_anime_in_provider()`. Y cuando lo que ves no lo sirve el
+proveedor de tu fila, la ficha lo marca con **⚠ en ámbar** y ofrece **«Actualizar a X»**, que reapunta la fila
+conservando los episodios vistos. Detalle y decisiones: [`docs/13 §8 y §14`](docs/13-selector-de-proveedor.md).
 
 **Añadir un proveedor nuevo**: heredar de `AnimeProvider` en `APIs/<sitio>/`, implementar los 5 métodos devolviendo
 tipos de `APIs.common.models`, crear su `...Singleton` y registrarlo en `MainWindow`. El recorrido completo, con el
@@ -144,7 +161,7 @@ Dos bases de datos SQLite en `resources/DB/`, cada una con su clase derivada de 
 
 | BD | Clase | Contenido | Reemplazable |
 |---|---|---|---|
-| `DB_Animes.db` | `AnimesPersistence` | Tabla `ANIMES`: la **biblioteca real del usuario** | ❌ irrecuperable |
+| `DB_Animes.db` | `AnimesPersistence` | Tabla `ANIMES`: la **biblioteca real del usuario** (28 filas) | ❌ irrecuperable |
 | `DB_user.db` | `UserPersistence` | Tabla `USER_SETTINGS` (clave/valor): preferencias, hoy el proveedor predeterminado | ✅ se regenera |
 
 Detalle de `DB_user.db` y de por qué está separada: [`docs/13`](docs/13-selector-de-proveedor.md).
@@ -153,7 +170,15 @@ Tabla única `ANIMES` en `resources/DB/DB_Animes.db`, creada en el primer arranq
 
 - **`AnimeField`** (enum) define columna + tipo SQLite de cada campo; `FIELDS`/`FIELD_TYPES` se derivan de él, así que
   **añadir una columna es añadir un miembro al enum**. `validate_db_integrity()` migra la BD existente
-  en el siguiente arranque (ver más abajo).
+  en el siguiente arranque (ver más abajo). ✅ **Ejecutado de verdad el 2026-08-16** con `provider_id`,
+  y por el camino caro —en la posición 2, con reconstrucción de tabla—: 25 filas antes y después, las
+  otras 12 columnas idénticas.
+- **`provider_id`** (columna 2, `VARCHAR(50)`) guarda el `value` de `AnimeProviderId`, o `NULL`.
+  `NULL` y «un proveedor que ya no existe en el código» se tratan igual: se degradan a `None` al leer
+  (`_provider_id_from_db`), **nunca lanzan**. Las filas antiguas se rellenan solas al abrir la ficha o
+  al marcar un estado, y **solo si estaban a `NULL`**.
+  ⚠️ La columna responde «**quién sirve este slug**», no «quién lo trajo»: cuando el mismo slug existe
+  en varios sitios, queda anotado el que respondiera la primera vez ([trampa 27](docs/10-invariantes-y-trampas.md)).
 - **`AnimeRecord`** (dataclass) es la representación tipada de una fila. Conversión: `from_db_dict()` /
   `to_db_dict()` / `from_anime_info()`. La GUI trabaja con `AnimeRecord` para lo guardado y con `AnimeInfo` para lo que
   viene de la red — no son intercambiables (`anime_record.anime_id` vs `anime_info.id`, `poster_url` vs `poster`).
@@ -166,6 +191,11 @@ Tabla única `ANIMES` en `resources/DB/DB_Animes.db`, creada en el primer arranq
   a *pendiente*.
 - `_set_status` **inserta el anime si no existía**; el resto de updates asumen que ya está en BD y devuelven `False`
   si no.
+- **`migrate_anime_identity()`** es la única operación que reescribe la identidad de una fila
+  (`anime_id` + `provider_id`). Conserva `watched_episodes`, `last_watched_episode` y los cuatro
+  estados; sobrescribe título, póster, sinopsis, géneros y episodios. **Se niega a migrar si el
+  `anime_id` destino ya lo ocupa otra fila**: no hay `UNIQUE` en la tabla, así que el `UPDATE` pasaría
+  sin error y dejaría dos filas del mismo anime ([trampa 28](docs/10-invariantes-y-trampas.md)).
 - `sqlite.py` es una capa mínima: `SqlUtils` abre y cierra una conexión por operación (sin pool), captura las
   excepciones y devuelve `bool`. Los errores se imprimen, no se lanzan. `query_sql` recibe la lista de campos y
   devuelve `List[Dict]` mapeando posición → nombre de columna, así que **el orden de `FIELDS` debe coincidir con el
@@ -204,20 +234,48 @@ Arranque:
 
 **Botones de la sidebar** (`gui/sidebarButtons/<vista>/`): heredan de `utilsButtons.SidebarButton`, se instancian en
 `MainWindow.load_sidebar_buttons()` y siguen todos el mismo patrón — `show_frame()` → `clear_frame()` →
-construir widgets en `main_window.content_frame` → `__on_anime_click()` → `AnimeWindowViewer(...).display_anime_info()`.
+construir widgets en `main_window.content_frame` → `__on_anime_click()` → la ficha.
 Para una vista nueva: heredar de `SidebarButton`, implementar `show_frame()` y registrarla en `load_sidebar_buttons()`.
 
+**Las 4 vistas de estado ya no son iguales que las otras dos** (2026-08-16): trabajan con la
+biblioteca, no con el catálogo.
+
+- Su clic delega en **`open_saved_anime()`** (`anime_window.py`), que elige el proveedor y saca la
+  petición del hilo de Tkinter. Las otras dos abren la ficha con el proveedor que ya conocen.
+- Su buscador es **local** (`SavedAnimeSearch`): compara títulos guardados, funciona sin conexión y no
+  depende del proveedor seleccionado; la búsqueda web se **suma** encima y nunca quita resultados.
+  Antes cruzaba por slug y perdía animes según el proveedor puesto —One Piece está guardado como
+  `one-piece-tv`— ([trampa 26](docs/10-invariantes-y-trampas.md)).
+- Su rejilla usa **3 filas de grid** por fila visual (póster / título / proveedor), no 2.
+
+⚠️ **Todo lo que abra una ficha va en hilo daemon y repinta con `after(0, …)`.** Hacerlo desde el hilo
+secundario revienta con `invalid command name ...!ctkcanvas` al destruir una vista que tenía un
+`<Configure>` encolado.
+
 **`AnimeWindowViewer`** (`gui/anime_window.py`) no es una ventana: reemplaza el contenido de `content_frame`. Muestra
-la etiqueta del proveedor + póster + sinopsis + géneros, los 4 botones de estado y la lista de episodios
+el bloque de proveedor + póster + sinopsis + géneros, los 4 botones de estado y la lista de episodios
 (**los 25 primeros**, `[:25]`).
 Marcar un episodio como visto es **acumulativo**: marca todos los anteriores hasta ése; desmarcar afecta solo a ese
 episodio. Conserva en BD los episodios posteriores ya vistos.
 
+**El bloque de proveedor** son hasta tres líneas: `Proveedor: X` (de dónde vienen los datos que ves),
+`En tu biblioteca: Y` (de quién es tu fila) y el botón «Actualizar a Z». **El ⚠ ámbar compara las dos
+primeras**: iguales → gris informativo; distintas → hay identidad partida.
+
 ⚠️ Maneja **dos identidades del mismo anime** y confundirlas duplica filas en la biblioteca del usuario:
-`anime_info` es la del proveedor que sirvió la ficha —que puede no ser el que guardó la fila, si entró
-el fallback—, mientras que `persistence_anime_id` / `persistence_poster_url` son las de apertura y **no
-cambian nunca**. Toda operación de BD y de póster usa las segundas, vía `__persistence_anime_info()`.
-Es la [trampa 21](docs/10-invariantes-y-trampas.md), y sigue viva aunque la ficha ya no tenga selector.
+`anime_info` / `provider_id` son las del proveedor que sirvió la ficha, mientras que
+`persistence_anime_id` / `persistence_poster_url` / `persistence_provider_id` salen de la **fila
+guardada** y **no cambian mientras la ficha está en pantalla**. Toda operación de BD y de póster usa las
+segundas, vía `__persistence_anime_info()`. Es la [trampa 21](docs/10-invariantes-y-trampas.md).
+
+🔴 **Quien abra una ficha de algo que puede estar en la biblioteca tiene que pasar `anime_record=`** al
+constructor. Omitirlo reintrodujo el bug durante la fase 4 del 2026-08-16: con el desplegable desviado,
+`anime_info.id` es el slug de otro sitio, la ficha se mostraba como no guardada y un solo clic en un
+estado creaba una fila duplicada.
+
+**Antes de guardar**, `__confirm_save()` busca en toda la biblioteca un anime con el **mismo título
+normalizado** (umbral 0.9) y avisa nombrando la sección concreta, porque un mismo anime tiene slug
+distinto en cada sitio y la comprobación por `anime_id` no lo detecta.
 
 **Imágenes** (`utils/utils.py`): los pósters se guardan como `{anime_id}.jpg` en `resources/images/<categoría>/`,
 redimensionados a `(130, 185)`; la ficha de detalle los pide a `(195, 275)`. `get_anime_image()` busca en las **6**
@@ -259,12 +317,15 @@ red, y en esa rama pasa `size=` explícito — sin él `CTkImage` pinta a 20×20
   reales. Revísalo antes de empaquetar y al añadir módulos o carpetas de `resources/` (sección `datas`).
 - La versión de la app vive en `APP_VERSION` dentro del `.spec`.
 - `resources/DB/` y las carpetas de pósters están en `.gitignore`: se generan en tiempo de ejecución.
-- Hay **3** `# TODO:` en el código, todos en dos ficheros: `main_window.py:32` (quitar la palabra «Anime» de los
-  botones y el título) y `anime_window.py:24-25,27` (recomendaciones por género; alternar anime/manga). El del
+- Hay **5** `# TODO:` en el código, en tres ficheros: `main_window.py:32` (quitar la palabra «Anime» de los
+  botones y el título), `anime_window.py:44-45,47` (recomendaciones por género; alternar anime/manga) y
+  `jkanime.py:191,264` (buscar en el directorio con texto vacío; acotar `get_recent_animes`). El del
   selector de proveedor se cerró el 2026-07-30.
-  ⚠️ Hasta el 2026-08-07 este apartado citaba además TODOs en `recentAnimes.py` y `utilsButtons.py` que **no
-  existen** (detalle en [`docs/12 §2`](docs/12-deuda-tecnica-y-roadmap.md)). Inventaríalos con
-  `git grep -n "TODO" -- src/`, no de memoria.
+  ⚠️ **Este apartado se ha equivocado dos veces y en direcciones opuestas**: hasta el 2026-08-07 citaba
+  dos TODOs inventados en `recentAnimes.py` y `utilsButtons.py`; desde entonces y hasta el 2026-08-16 se
+  dejó fuera los **dos reales de `jkanime.py`**, que entraron el 2026-08-06. Inventaríalos con
+  `git grep -n "TODO" -- src/` **después de cada cambio en `src/`**, no de memoria (detalle en
+  [`docs/12 §2`](docs/12-deuda-tecnica-y-roadmap.md)).
 - **`MiBibliotecaAnime.spec` empaqueta `resources/DB`**, así que el `.exe` distribuye la biblioteca **y ahora
   también las preferencias** del desarrollador. Ver A3/C11 en [`docs/12 §4`](docs/12-deuda-tecnica-y-roadmap.md).
 - En `resources/images/utils/` ya existen los iconos `viendo_light/dark.png` y `pendientes_light/dark.png`, pero su uso
@@ -278,18 +339,20 @@ red, y en esa rama pasa `size=` explícito — sin él `CTkImage` pinta a 20×20
 
 ## Roadmap
 
-**El orden lo fijó el usuario el 2026-07-30 y no se reinterpreta. Sus dos primeros puntos ya están
-cerrados —el pin y la integración de un proveedor nuevo, ambos el 2026-08-06—, así que la lista
-avanza.**
+**El orden lo fijó el usuario el 2026-07-30 y no se reinterpreta. Sus tres primeros puntos ya están
+cerrados —el pin y la integración de un proveedor nuevo el 2026-08-06, y la columna `provider_id` el
+2026-08-16—, así que la lista avanza.**
 
 1. ✅ ~~**Integrar un proveedor nuevo**~~ — **hecho el 2026-08-06 con JKAnime**. Validó que la
    abstracción aguanta sin tocarla: fue el primero que necesitó traducir géneros y el primero que
    mezcla dos técnicas de parseo. Quedan MonosChinos2 y TioAnime, ya sin urgencia.
-2. 🔴 **Columna `provider_id` en `ANIMES`** — que cada anime guardado recuerde qué proveedor lo sirvió.
-   **La siguiente, y ya desbloqueada**: su requisito previo era un segundo proveedor sano con el que
-   probar, y ahora existe. Es lo que hace que desviarse de proveedor valga también para los animes ya
-   guardados, y donde vuelve a usarse `resolve_anime_in_provider()`. El orden de prioridad ya está
-   decidido en [`docs/13 §8`](docs/13-selector-de-proveedor.md).
+2. ✅ ~~**Columna `provider_id` en `ANIMES`**~~ — **hecha el 2026-08-16**
+   ([`docs/13 §14`](docs/13-selector-de-proveedor.md)). Trajo con ella tres cosas que resultaron
+   inseparables: el proveedor como **tipo** (`AnimeProviderId`), **migrar una fila a otro proveedor** y
+   el **aviso de duplicado** — sin las dos últimas, poder elegir proveedor convierte la biblioteca en
+   un sitio donde el mismo anime puede acabar dos veces. De paso, el buscador de las cuatro vistas de
+   estado pasó a ser **local**. 351/351 comprobaciones.
+   ⚠️ **Sin commitear**: 16 ficheros de `src/` modificados.
 
 Después, sin orden fijado:
 
@@ -305,7 +368,7 @@ Después, sin orden fijado:
   - En «viendo», resultados en cascada de uno por fila indicando el último capítulo visto.
   - En «favoritos», calificación personal guardada y ordenación por ella.
 - Bloque «Si te ha gustado *X*, te puede interesar…» al final de la lista de episodios, con 4 animes del mismo género.
-- Integrar más proveedores (JKAnime, MonosChinos2, TioAnime) y proveedores de manga.
+- Integrar más proveedores (MonosChinos2, TioAnime) y proveedores de manga.
 
 ---
 
@@ -318,24 +381,24 @@ Guía de colaboración (cómo plantear una tarea en este repo, qué asumo por de
 cambian mi comportamiento): [`.claude/COMO-PEDIR-TAREAS.md`](COMO-PEDIR-TAREAS.md).
 
 **Antes de tocar cualquier cosa, lee [`docs/10-invariantes-y-trampas.md`](docs/10-invariantes-y-trampas.md)**
-— 25 trampas con su síntoma observable.
+— **28** trampas con su síntoma observable.
 
 | Documento | Qué responde |
 |---|---|
 | [docs/README.md](docs/README.md) | Índice, mapa de lectura «si tocas X, lee Y», cómo mantenerlo vivo |
 | [docs/01-arquitectura.md](docs/01-arquitectura.md) | Capas, dependencias permitidas/prohibidas, invariantes de diseño |
 | [docs/02-mapa-de-modulos.md](docs/02-mapa-de-modulos.md) | Ficha por módulo: API pública, dependencias, efectos secundarios |
-| [docs/03-flujos-de-ejecucion.md](docs/03-flujos-de-ejecucion.md) | Los 10 flujos en diagramas de secuencia, con el hilo de cada paso |
+| [docs/03-flujos-de-ejecucion.md](docs/03-flujos-de-ejecucion.md) | Los **11** flujos en diagramas de secuencia, con el hilo de cada paso |
 | [docs/04-modelo-de-datos.md](docs/04-modelo-de-datos.md) | `AnimeInfo` vs `AnimeRecord`, esquema real de `ANIMES`, rangos, estados |
 | [docs/05-proveedores-y-scraping.md](docs/05-proveedores-y-scraping.md) | Contrato, payload de AnimeAV1, selectores de AnimeFLV, fallback, diagnóstico |
 | [docs/06-gui-y-vistas.md](docs/06-gui-y-vistas.md) | `MainWindow` como hub, ciclo de vida de una vista, layout, temas |
 | [docs/07-concurrencia-e-hilos.md](docs/07-concurrencia-e-hilos.md) | Qué corre en qué hilo, reglas y carreras conocidas |
 | [docs/08-convenciones-y-estilo.md](docs/08-convenciones-y-estilo.md) | Cabecera obligatoria, singletons, **plantillas copiables** |
 | [docs/09-verificacion-y-pruebas.md](docs/09-verificacion-y-pruebas.md) | Cómo probar cada capa sin GUI; scripts listos; checklist manual |
-| [docs/10-invariantes-y-trampas.md](docs/10-invariantes-y-trampas.md) | **Empieza por aquí.** 25 trampas con síntoma observable |
+| [docs/10-invariantes-y-trampas.md](docs/10-invariantes-y-trampas.md) | **Empieza por aquí.** **28** trampas con síntoma observable |
 | [docs/11-playbooks.md](docs/11-playbooks.md) | Recetas: añadir vista, columna, proveedor, campo; empaquetar |
 | [docs/12-deuda-tecnica-y-roadmap.md](docs/12-deuda-tecnica-y-roadmap.md) | TODOs con `fichero:línea`, discrepancias, riesgos, roadmap técnico |
-| [docs/13-selector-de-proveedor.md](docs/13-selector-de-proveedor.md) | Selector de proveedor (sidebar + ficha) y `DB_user.db`. **Léelo antes de tocar `animeProviderMgr.py`, `main_window.py` o `anime_window.py`** |
+| [docs/13-selector-de-proveedor.md](docs/13-selector-de-proveedor.md) | Selector de proveedor, `DB_user.db` **y la columna `provider_id`** (§14). **Léelo antes de tocar `animeProviderMgr.py`, `main_window.py` o `anime_window.py`** |
 
 > Los documentos marcan la procedencia de cada afirmación: ✅ verificado en ejecución ·
 > 📖 leído en código · ⚠️ sin verificar.
