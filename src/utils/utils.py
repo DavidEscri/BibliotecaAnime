@@ -1,7 +1,7 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "utils"
 __module__ = "utils.py"
-__version__ = "0.2"
+__version__ = "0.3"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 import os
@@ -58,6 +58,25 @@ def download_anime_poster_by_status(status, anime):
     response = requests.get(anime.poster, timeout=_REQUEST_TIMEOUT)
     img_data = Image.open(BytesIO(response.content)).resize((130, 185))
     img_data.save(os.path.join(anime_status_dir, image_name))
+
+def move_anime_poster_by_status(status, old_anime_id, new_anime_id) -> bool:
+    """Renombra el póster cacheado de un anime cuando cambia su ``anime_id``.
+
+    Los pósters se guardan como ``{anime_id}.jpg``, así que reapuntar una fila de
+    la biblioteca a otro proveedor deja su imagen huérfana con el nombre viejo:
+    la vista buscaría ``{nuevo_id}.jpg``, no lo encontraría y pintaría el
+    placeholder gris. Renombrar evita volver a bajarla.
+
+    :return: ``True`` si había imagen y se ha movido; ``False`` si no había nada
+        que mover (quien llama puede entonces descargarla).
+    """
+    anime_status_dir = get_resource_path(f"resources/images/{status.name.lower()}")
+    old_poster_path = os.path.join(anime_status_dir, f"{old_anime_id}.jpg")
+    if not os.path.exists(old_poster_path):
+        return False
+    # os.replace y no os.rename: en Windows rename falla si el destino ya existe.
+    os.replace(old_poster_path, os.path.join(anime_status_dir, f"{new_anime_id}.jpg"))
+    return True
 
 def remove_anime_poster_by_status(status, anime):
     anime_status_dir = get_resource_path(f"resources/images/{status.name.lower()}")
