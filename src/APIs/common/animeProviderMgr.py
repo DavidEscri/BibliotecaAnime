@@ -1,7 +1,7 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "APIs.common"
 __module__ = "animeProviderMgr.py"
-__version__ = "0.2"
+__version__ = "0.3"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 import difflib
@@ -11,7 +11,7 @@ from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional, Tuple, Union
 import requests
 
-from APIs.common.models import AnimeGenreFilter, AnimeInfo, ServerInfo
+from APIs.common.models import AnimeGenreFilter, AnimeInfo, AnimeProviderId, ProviderInfo, ServerInfo
 
 # Alias de tipo para no repetir la tupla (lista de animes, última página) en cada firma de método.
 AnimeSearchResult = Tuple[List[AnimeInfo], int]
@@ -43,9 +43,9 @@ class AnimeProvider(ABC):
     proveedor si el primero falla o no devuelve resultados.
     """
 
-    #: Identificador corto y estable del proveedor (se usa como clave en el
-    #: registro de AnimeProviderManager). Ej: "animeflv", "animeav1".
-    PROVIDER_ID: str = NotImplemented
+    #: Identificador del proveedor (se usa como clave en el registro de
+    #: AnimeProviderManager). Es un miembro de AnimeProviderId, no una cadena.
+    PROVIDER_ID: AnimeProviderId = NotImplemented
 
     #: Nombre legible para mostrar en la interfaz. Ej: "AnimeFLV".
     PROVIDER_NAME: str = NotImplemented
@@ -56,15 +56,27 @@ class AnimeProvider(ABC):
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
-        # Evita registrar por error un proveedor a medio implementar: si una
-        # subclase concreta (no abstracta) olvida rellenar estos atributos,
-        # falla pronto y con un mensaje claro en vez de romper en tiempo de uso.
         if ABC not in cls.__bases__:
             for attr in ("PROVIDER_ID", "PROVIDER_NAME", "BASE_URL"):
                 if getattr(cls, attr, NotImplemented) is NotImplemented:
                     raise NotImplementedError(
                         f"{cls.__name__} debe definir el atributo de clase '{attr}'"
                     )
+            if not isinstance(cls.PROVIDER_ID, AnimeProviderId):
+                raise NotImplementedError(
+                    f"{cls.__name__}.PROVIDER_ID debe ser un miembro de AnimeProviderId, "
+                    f"no {type(cls.PROVIDER_ID).__name__}"
+                )
+
+    @classmethod
+    def provider_info(cls) -> ProviderInfo:
+        """
+        Ficha de identidad del proveedor, construida desde sus atributos de clase.
+
+        Es lo que consume la interfaz para poblar el desplegable de proveedor, de forma que no haya en la GUI ninguna
+        lista de nombres que mantener a mano.
+        """
+        return ProviderInfo(id=cls.PROVIDER_ID, name=cls.PROVIDER_NAME, base_url=cls.BASE_URL)
 
     @abstractmethod
     def search_animes_by_genres_and_order(self, genres: List[AnimeGenreFilter], order: str = None,
@@ -107,7 +119,7 @@ class AnimeProvider(ABC):
             return False
 
     def __repr__(self) -> str:
-        return f"<{self.__class__.__name__} provider_id={self.PROVIDER_ID!r}>"
+        return f"<{self.__class__.__name__} provider_id={self.PROVIDER_ID.value!r}>"
 
 
 class AnimeProviderManager:
@@ -126,15 +138,16 @@ class AnimeProviderManager:
     Uso típico (tal y como está hoy en main_window.py, al arrancar la aplicación):
 
         manager = AnimeProviderManagerSingleton()
-        manager.register(AnimeAV1Singleton(), default=True)
+        manager.register(AnimeAV1Singleton(), default=True)   # el orden de registro es el del fallback
+        manager.register(JKAnimeSingleton())
         manager.register(AnimeFLVSingleton())
         # más adelante: manager.register(MonosChinos2Singleton())
 
     Y luego, en vez de llamar directamente a AnimeAV1Singleton().get_recent_animes(),
     cualquier parte de la app puede llamar a:
 
-        manager.get_recent_animes()                        # usa el predeterminado, con fallback
-        manager.get_recent_animes(provider_id="animeflv")  # fuerza un proveedor concreto
+        manager.get_recent_animes()                                          # predeterminado, con fallback
+        manager.get_recent_animes(provider_id=AnimeProviderId.ANIMEFLV)      # fuerza un proveedor concreto
 
     El predeterminado no es solo un detalle de arranque: es una **preferencia del
     usuario** persistida en DB_user.db y aplicada con set_default() antes de la
@@ -148,8 +161,8 @@ class AnimeProviderManager:
     TITLE_MATCH_THRESHOLD: float = 0.75
 
     def __init__(self):
-        self._providers: Dict[str, AnimeProvider] = {}
-        self._default_provider_id: Optional[str] = None
+        self._providers: Dict[AnimeProviderId, AnimeProvider] = {}
+        self._default_provider_id: Optional[AnimeProviderId] = None
 
     def register(self, provider: AnimeProvider, default: bool = False) -> None:
         """
@@ -161,20 +174,20 @@ class AnimeProviderManager:
         if default or self._default_provider_id is None:
             self._default_provider_id = provider.PROVIDER_ID
 
-    def unregister(self, provider_id: str) -> None:
+    def unregister(self, provider_id: AnimeProviderId) -> None:
         self._providers.pop(provider_id, None)
         if self._default_provider_id == provider_id:
             self._default_provider_id = next(iter(self._providers), None)
 
-    def set_default(self, provider_id: str | None) -> None:
+    def set_default(self, provider_id: AnimeProviderId | None) -> None:
         if provider_id is None or provider_id not in self._providers:
             raise UnknownProviderError(f"Proveedor desconocido: {provider_id}")
         self._default_provider_id = provider_id
 
-    def get_default_provider_id(self) -> Optional[str]:
+    def get_default_provider_id(self) -> Optional[AnimeProviderId]:
         return self._default_provider_id
 
-    def get(self, provider_id: str = None) -> AnimeProvider:
+    def get(self, provider_id: AnimeProviderId = None) -> AnimeProvider:
         """Devuelve un proveedor concreto, o el predeterminado si no se indica ninguno."""
         target_id = provider_id or self._default_provider_id
         if target_id is None:
@@ -183,39 +196,51 @@ class AnimeProviderManager:
             raise UnknownProviderError(f"Proveedor desconocido: {target_id}")
         return self._providers[target_id]
 
-    def list_providers(self) -> List[str]:
+    def list_providers(self) -> List[AnimeProviderId]:
         return list(self._providers.keys())
 
-    def get_provider_name(self, provider_id: str) -> str:
-        """Nombre legible de un proveedor. Si no está registrado, devuelve su id."""
+    def get_provider_info(self, provider_id: AnimeProviderId) -> Optional[ProviderInfo]:
+        """Ficha de identidad de un proveedor registrado, o ``None`` si no lo está."""
         provider = self._providers.get(provider_id)
-        return provider.PROVIDER_NAME if provider is not None else provider_id
+        return provider.provider_info() if provider is not None else None
 
-    def get_provider_names(self) -> Dict[str, str]:
-        """Devuelve ``{PROVIDER_ID: PROVIDER_NAME}`` en orden de registro.
+    def list_providers_info(self) -> List[ProviderInfo]:
+        """Devuelve la ficha de todos los proveedores registrados, **en orden de registro**.
 
         Es la **única** fuente del contenido de los desplegables de proveedor de
         la interfaz: la GUI no debe construir esa lista a mano. Cuando existan
         proveedores de manga, el filtrado por tipo de medio se hará aquí.
         """
-        return {pid: provider.PROVIDER_NAME for pid, provider in self._providers.items()}
+        return [provider.provider_info() for provider in self._providers.values()]
 
-    def get_provider_id_by_name(self, provider_name: str) -> Optional[str]:
-        """Traduce un ``PROVIDER_NAME`` de vuelta a su ``PROVIDER_ID``.
+    def get_provider_name(self, provider_id: Optional[AnimeProviderId]) -> str:
+        """Nombre legible de un proveedor. Si no está registrado, devuelve su id.
+
+        Tolera ``None`` porque quien lo llama suele venir de un ``provider_id``
+        opcional (una ficha servida por nadie, una fila de BD sin proveedor).
+        """
+        if provider_id is None:
+            return "desconocido"
+        provider = self._providers.get(provider_id)
+        return provider.PROVIDER_NAME if provider is not None else provider_id.value
+
+    def get_provider_info_by_name(self, provider_name: str) -> Optional[ProviderInfo]:
+        """Traduce un ``PROVIDER_NAME`` de vuelta a la ficha de su proveedor.
 
         Los widgets muestran el nombre legible pero el resto del código trabaja
-        con ids; esto cierra ese círculo sin que la GUI mantenga su propio mapa.
+        con ``AnimeProviderId``; esto cierra ese círculo sin que la GUI mantenga
+        su propio mapa.
         """
-        for pid, provider in self._providers.items():
+        for provider in self._providers.values():
             if provider.PROVIDER_NAME == provider_name:
-                return pid
+                return provider.provider_info()
         return None
 
-    def list_available_providers(self) -> List[str]:
+    def list_available_providers(self) -> List[AnimeProviderId]:
         """Subconjunto de proveedores registrados que responden ahora mismo (is_available)."""
         return [pid for pid, provider in self._providers.items() if provider.is_available()]
 
-    def _ordered_providers(self, provider_id: str = None) -> List[AnimeProvider]:
+    def _ordered_providers(self, provider_id: AnimeProviderId = None) -> List[AnimeProvider]:
         """
         Orden en el que se intentan los proveedores para el fallback: primero
         el solicitado explícitamente (o si no, el predeterminado), y después
@@ -229,6 +254,26 @@ class AnimeProviderManager:
         return ordered
 
     @staticmethod
+    def __stamp_provider(result: Any, provider_id: AnimeProviderId) -> None:
+        """Marca en cada ``AnimeInfo`` del resultado quién lo ha servido.
+
+        Lo hace el manager y no cada proveedor por dos motivos: es el único que
+        sabe cuál de ellos acabó respondiendo cuando entra el fallback, y así los
+        proveedores no tienen que acordarse de rellenar el campo.
+
+        Cubre las tres formas en que viaja un AnimeInfo por esta capa: suelto
+        (``get_anime_info``), en lista (``get_recent_animes``) y en la tupla
+        ``(lista, última_página)`` de las búsquedas. Cualquier otro resultado
+        (``ServerInfo``, por ejemplo) se ignora en silencio.
+        """
+        if isinstance(result, tuple) and len(result) > 0:
+            result = result[0]
+        candidates = result if isinstance(result, list) else [result]
+        for candidate in candidates:
+            if isinstance(candidate, AnimeInfo):
+                candidate.provider_id = provider_id
+
+    @staticmethod
     def __is_empty_result(result: Any) -> bool:
         """Considera 'sin resultado útil' tanto None como listas vacías o (lista_vacía, ...)."""
         if result is None:
@@ -239,8 +284,8 @@ class AnimeProviderManager:
             return len(result[0]) == 0
         return False
 
-    def call_with_fallback(self, method_name: str, *args, provider_id: str = None,
-                           strict: bool = False, **kwargs) -> Tuple[Any, Optional[str]]:
+    def call_with_fallback(self, method_name: str, *args, provider_id: AnimeProviderId = None,
+                           strict: bool = False, **kwargs) -> Tuple[Any, Optional[AnimeProviderId]]:
         """
         Llama a `method_name` sobre el proveedor solicitado (o el predeterminado).
         Si lanza una excepción, o devuelve un resultado vacío, prueba con el resto
@@ -263,14 +308,15 @@ class AnimeProviderManager:
                 result = method(*args, **kwargs)
             except Exception as exc:
                 last_exception = exc
-                print(f"[{provider.PROVIDER_ID}] Fallo en '{method_name}': {exc}")
+                print(f"[{provider.PROVIDER_ID.value}] Fallo en '{method_name}': {exc}")
                 continue
 
             if self.__is_empty_result(result):
-                print(f"[{provider.PROVIDER_ID}] '{method_name}' no devolvió resultados, "
+                print(f"[{provider.PROVIDER_ID.value}] '{method_name}' no devolvió resultados, "
                       f"probando siguiente proveedor...")
                 continue
 
+            self.__stamp_provider(result, provider.PROVIDER_ID)
             return result, provider.PROVIDER_ID
 
         if last_exception is not None:
@@ -285,16 +331,17 @@ class AnimeProviderManager:
     # fallback automático transparente al resto de proveedores registrados.
     # ------------------------------------------------------------------
 
-    def get_recent_animes(self, provider_id: str = None, strict: bool = False) -> List[AnimeInfo]:
+    def get_recent_animes(self, provider_id: AnimeProviderId = None, strict: bool = False) -> List[AnimeInfo]:
         result, _ = self.call_with_fallback("get_recent_animes", provider_id=provider_id, strict=strict)
         return result if result is not None else []
 
-    def get_anime_info(self, anime_id, provider_id: str = None, strict: bool = False) -> Optional[AnimeInfo]:
+    def get_anime_info(self, anime_id, provider_id: AnimeProviderId = None,
+                       strict: bool = False) -> Optional[AnimeInfo]:
         result, _ = self.call_with_fallback("get_anime_info", anime_id, provider_id=provider_id, strict=strict)
         return result
 
-    def get_anime_info_with_provider(self, anime_id, provider_id: str = None,
-                                     strict: bool = False) -> Tuple[Optional[AnimeInfo], Optional[str]]:
+    def get_anime_info_with_provider(self, anime_id, provider_id: AnimeProviderId = None,
+                                     strict: bool = False) -> Tuple[Optional[AnimeInfo], Optional[AnimeProviderId]]:
         """Como ``get_anime_info``, pero devuelve también **quién** sirvió la ficha.
 
         El fallback es silencioso por diseño: quien llama pide el predeterminado y
@@ -307,19 +354,19 @@ class AnimeProviderManager:
         """
         return self.call_with_fallback("get_anime_info", anime_id, provider_id=provider_id, strict=strict)
 
-    def search_animes_by_query(self, query: str = None, page: int = None, provider_id: str = None,
-                               strict: bool = False):
+    def search_animes_by_query(self, query: str = None, page: int = None,
+                               provider_id: AnimeProviderId = None, strict: bool = False):
         result, _ = self.call_with_fallback("search_animes_by_query", query, page,
                                             provider_id=provider_id, strict=strict)
         return result if result is not None else ([], 1)
 
     def search_animes_by_genres_and_order(self, genres, order: str = None, page: int = None,
-                                          provider_id: str = None, strict: bool = False):
+                                          provider_id: AnimeProviderId = None, strict: bool = False):
         result, _ = self.call_with_fallback("search_animes_by_genres_and_order", genres, order, page,
                                             provider_id=provider_id, strict=strict)
         return result if result is not None else ([], 1)
 
-    def get_anime_episode_servers(self, anime_id, episode_id, provider_id: str = None,
+    def get_anime_episode_servers(self, anime_id, episode_id, provider_id: AnimeProviderId = None,
                                   strict: bool = False) -> List[ServerInfo]:
         result, _ = self.call_with_fallback("get_anime_episode_servers", anime_id, episode_id,
                                             provider_id=provider_id, strict=strict)
@@ -342,7 +389,7 @@ class AnimeProviderManager:
         without_accents = "".join(char for char in decomposed if not unicodedata.combining(char))
         return re.sub(r"[^a-z0-9]+", " ", without_accents.lower()).strip()
 
-    def resolve_anime_in_provider(self, anime_info: AnimeInfo, provider_id: str,
+    def resolve_anime_in_provider(self, anime_info: AnimeInfo, provider_id: AnimeProviderId,
                                   threshold: float = None) -> Optional[AnimeInfo]:
         """Busca el equivalente de un anime en otro proveedor y devuelve su ficha.
 
@@ -363,7 +410,7 @@ class AnimeProviderManager:
         :return: ``AnimeInfo`` del proveedor destino, o ``None``. Nunca lanza.
         """
         if provider_id not in self._providers:
-            print(f"No se puede resolver el anime: proveedor desconocido {provider_id!r}")
+            print(f"No se puede resolver el anime: proveedor no registrado {provider_id}")
             return None
 
         threshold = self.TITLE_MATCH_THRESHOLD if threshold is None else threshold
@@ -377,7 +424,7 @@ class AnimeProviderManager:
         candidates, _ = self.search_animes_by_query(anime_info.title, provider_id=provider_id,
                                                     strict=True)
         if not candidates:
-            print(f"[{provider_id}] Sin resultados al buscar {anime_info.title!r}")
+            print(f"[{provider_id.value}] Sin resultados al buscar {anime_info.title!r}")
             return None
 
         best_candidate: Optional[AnimeInfo] = None
@@ -392,17 +439,17 @@ class AnimeProviderManager:
                 best_candidate, best_ratio = candidate, ratio
 
         if best_candidate is None or best_ratio < threshold:
-            print(f"[{provider_id}] {anime_info.title!r} no encontrado "
+            print(f"[{provider_id.value}] {anime_info.title!r} no encontrado "
                   f"(mejor coincidencia {best_ratio:.2f} < {threshold})")
             return None
 
         resolved = self.get_anime_info(best_candidate.id, provider_id=provider_id, strict=True)
         if resolved is None:
-            print(f"[{provider_id}] {best_candidate.id!r} apareció en la búsqueda "
+            print(f"[{provider_id.value}] {best_candidate.id!r} apareció en la búsqueda "
                   f"pero su ficha no se pudo obtener")
             return None
 
-        print(f"[{provider_id}] {anime_info.title!r} resuelto como {resolved.title!r} "
+        print(f"[{provider_id.value}] {anime_info.title!r} resuelto como {resolved.title!r} "
               f"(id={resolved.id!r}, similitud {best_ratio:.2f})")
         return resolved
 

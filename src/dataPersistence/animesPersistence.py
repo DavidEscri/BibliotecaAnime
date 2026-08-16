@@ -1,7 +1,7 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "DataPersistence"
 __module__ = "animesPersistence"
-__version__ = "2.1"
+__version__ = "2.3"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 import json
@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Dict, List, Optional, Set, Any
 
-from APIs.common.models import AnimeInfo, AnimeGenreFilter, AnimeOrderFilter, EpisodeInfo
+from APIs.common.models import AnimeInfo, AnimeGenreFilter, AnimeOrderFilter, AnimeProviderId, EpisodeInfo
 from utils.db.sqlite import ServiceDB, TableSchema
 from utils.utils import get_resource_path
 
@@ -33,6 +33,7 @@ class AnimeField(Enum):
       - ``sql_type`` → tipo SQLite usado al crear la tabla.
     """
     ID                   = ("id",                   "INTEGER")
+    PROVIDER_ID          = ("provider_id",          "VARCHAR(50)")
     ANIME_ID             = ("anime_id",             "VARCHAR(100)")
     TITLE                = ("title",                "VARCHAR(100)")
     POSTER_URL           = ("poster_url",           "VARCHAR(200)")
@@ -78,6 +79,7 @@ class AnimeRecord:
     is_watching:          bool           = False
     is_finished:          bool           = False
     is_pending:           bool           = False
+    provider_id:          Optional[AnimeProviderId] = None
     id:                   Optional[int]  = None  # autoincrement → None en inserción
 
     # ------------------------------------------------------------------
@@ -89,6 +91,7 @@ class AnimeRecord:
         watched_ranges    = AnimeRecord._episodes_to_ranges(self.watched_episodes)
         return {
             AnimeField.ID.column:                   "NULL",
+            AnimeField.PROVIDER_ID.column:          self.provider_id.value if self.provider_id else None,
             AnimeField.ANIME_ID.column:             self.anime_id,
             AnimeField.TITLE.column:                self.title,
             AnimeField.POSTER_URL.column:           self.poster_url,
@@ -131,6 +134,7 @@ class AnimeRecord:
 
         return cls(
             id                   = data.get(AnimeField.ID.column),
+            provider_id=cls._provider_id_from_db(data.get(AnimeField.PROVIDER_ID.column)),
             anime_id             = str(data.get(AnimeField.ANIME_ID.column, "")),
             title                = data.get(AnimeField.TITLE.column, ""),
             poster_url           = data.get(AnimeField.POSTER_URL.column, ""),
@@ -145,6 +149,27 @@ class AnimeRecord:
             is_pending           = bool(data.get(AnimeField.IS_PENDING.column,   False)),
         )
 
+    @staticmethod
+    def _provider_id_from_db(raw_value: Optional[str]) -> Optional[AnimeProviderId]:
+        """Convierte el texto de la columna ``provider_id`` al enum.
+
+        Es una de las dos fronteras donde el proveedor deja de ser un
+        ``AnimeProviderId`` y pasa a ser texto (la otra es ``DB_user.db``).
+
+        Devuelve ``None`` en los dos casos en los que no se sabe de quién es la
+        fila, que se tratan igual: la columna está a ``NULL`` (fila anterior a la
+        migración), o guarda un proveedor que ya no existe en el código. Nunca
+        lanza: un valor raro en una fila no puede impedir leer la biblioteca.
+        """
+        if not raw_value:
+            return None
+        try:
+            return AnimeProviderId(raw_value)
+        except ValueError:
+            print(f"Proveedor desconocido en BD: {raw_value!r}; la fila se tratará "
+                  f"como si no tuviera proveedor")
+            return None
+
     # ------------------------------------------------------------------
     # Constructor de conveniencia desde AnimeInfo (API)
     # ------------------------------------------------------------------
@@ -152,14 +177,21 @@ class AnimeRecord:
     def from_anime_info(
         cls,
         anime_info:   AnimeInfo,
+        provider_id:  Optional[AnimeProviderId] = None,
         is_favourite: bool = False,
         is_watching:  bool = False,
         is_finished:  bool = False,
         is_pending:   bool = False,
     ) -> "AnimeRecord":
-        """Crea un ``AnimeRecord`` a partir de un ``AnimeInfo`` de la API."""
+        """Crea un ``AnimeRecord`` a partir de un ``AnimeInfo`` de la API.
+
+        :param provider_id: proveedor del que salió ``anime_info.id``. Si no se
+            indica, se toma el que traiga el propio ``AnimeInfo``. Que la fila
+            recuerde su proveedor es lo que evita reabrirla a ciegas más tarde.
+        """
         return cls(
             anime_id     = anime_info.id,
+            provider_id  = provider_id if provider_id is not None else anime_info.provider_id,
             title        = anime_info.title,
             poster_url   = anime_info.poster,
             synopsis     = anime_info.synopsis,
@@ -284,6 +316,20 @@ class AnimesPersistence(ServiceDB):
             return None
         return AnimeRecord.from_db_dict(rows[0])
 
+    def get_all_animes(self) -> List[AnimeRecord]:
+        """Devuelve **todas** las filas de la biblioteca, en cualquier estado.
+
+        Incluye las que no están en ninguna categoría (todos los flags a 0), que
+        siguen ocupando una fila: para detectar si un anime ya está guardado hay
+        que mirarlas también, o se acabaría creando un duplicado de algo que ya
+        existe.
+        """
+        sql = f"SELECT * FROM {self.TABLE_NAME}"
+        res, rows = self._db.query_sql(sql, tuple(), self.FIELDS)
+        if not res or not rows:
+            return []
+        return [AnimeRecord.from_db_dict(r) for r in rows]
+
     def get_watched_episodes(self, anime_id: str) -> Set[int]:
         """Devuelve el conjunto de IDs de episodios vistos para un anime."""
         record = self.get_anime_by_anime_id(anime_id)
@@ -369,6 +415,105 @@ class AnimesPersistence(ServiceDB):
             f"WHERE {AnimeField.ANIME_ID.column} = ?"
         )
         return self._db.update_sql(sql, (serialized, last_watched, str(anime_id)))
+
+    def update_anime_provider_id(self, anime_id: str, provider_id: Optional[AnimeProviderId]) -> bool:
+        """Deja constancia de qué proveedor sirve el ``anime_id`` de una fila.
+
+        Se usa para dos cosas distintas:
+
+        - **rellenar** el proveedor de una fila que lo tiene a ``NULL`` (todas las
+          anteriores a esta columna) la primera vez que se abre ese anime y se
+          sabe quién lo ha servido;
+        - **corregirlo** cuando el anime se re-resuelve en otro proveedor.
+
+        Devuelve ``False`` si el anime no está en BD, para no dar por guardado un
+        UPDATE que no ha tocado ninguna fila (``SqlUtils.update_sql`` no mira el
+        ``rowcount``).
+        """
+        if self.get_anime_by_anime_id(anime_id) is None:
+            return False
+        sql = (
+            f"UPDATE {self.TABLE_NAME} "
+            f"SET {AnimeField.PROVIDER_ID.column} = ? "
+            f"WHERE {AnimeField.ANIME_ID.column} = ?"
+        )
+        return self._db.update_sql(sql, (provider_id.value if provider_id else None, str(anime_id)))
+
+    def migrate_anime_identity(self, current_anime_id: str, anime_info: AnimeInfo,
+                               provider_id: Optional[AnimeProviderId] = None) -> bool:
+        """Reapunta una fila ya guardada al anime de **otro proveedor**.
+
+        Es la única operación que reescribe la identidad de una fila existente
+        (``anime_id`` y ``provider_id``), y existe porque un *slug* no es
+        universal ni eterno: el mismo anime es "one-piece" en AnimeAV1 y
+        "one-piece-tv" en AnimeFLV, y hay slugs guardados que su proveedor
+        original ya no sirve. Sin esto, la única salida sería borrar el anime y
+        volver a añadirlo, perdiendo los episodios vistos.
+
+        **Lo que se conserva** es justamente lo que el usuario ha construido y no
+        se puede recuperar de la red: ``watched_episodes``,
+        ``last_watched_episode`` y los cuatro estados. Se sobrescribe el resto
+        (título, póster, sinopsis, géneros y episodios), porque a partir de ahora
+        la fila *es* la del proveedor nuevo y dejar datos del anterior la
+        volvería incoherente consigo misma.
+
+        Se niega a migrar si el ``anime_id`` destino ya lo ocupa otra fila: la
+        tabla no tiene UNIQUE sobre esa columna, así que el UPDATE pasaría sin
+        error y dejaría **dos filas del mismo anime** —cada una con sus propios
+        episodios vistos— que ninguna consulta sabría desempatar.
+
+        :param current_anime_id: ``anime_id`` actual de la fila.
+        :param anime_info: ficha del proveedor destino; su ``id`` pasa a ser el
+            nuevo ``anime_id``.
+        :param provider_id: proveedor destino. Si se omite se usa el que traiga
+            ``anime_info``.
+        :return: ``True`` si la fila se ha actualizado.
+        """
+        record = self.get_anime_by_anime_id(current_anime_id)
+        if record is None:
+            print(f"No se puede migrar {current_anime_id}: no está en la biblioteca")
+            return False
+
+        new_anime_id = str(anime_info.id)
+        if new_anime_id != str(current_anime_id) and self.get_anime_by_anime_id(new_anime_id) is not None:
+            print(f"No se puede migrar {current_anime_id} a {new_anime_id}: "
+                  f"ya hay otra fila con ese identificador")
+            return False
+
+        new_provider_id = provider_id if provider_id is not None else anime_info.provider_id
+        # Los episodios se guardan invertidos, pero `record.episodes` ya viene tal
+        # cual está en la BD: si hay que conservarlos, se vuelven a escribir sin
+        # invertir. Invertirlos otra vez los dejaría al revés.
+        new_episode_ids = [ep.id for ep in (anime_info.episodes or [])]
+        episodes_json = json.dumps(new_episode_ids[::-1] if new_episode_ids else record.episodes)
+
+        sql = (
+            f"UPDATE {self.TABLE_NAME} "
+            f"SET {AnimeField.PROVIDER_ID.column} = ?, "
+            f"    {AnimeField.ANIME_ID.column}    = ?, "
+            f"    {AnimeField.TITLE.column}       = ?, "
+            f"    {AnimeField.POSTER_URL.column}  = ?, "
+            f"    {AnimeField.SYNOPSIS.column}    = ?, "
+            f"    {AnimeField.GENRES.column}      = ?, "
+            f"    {AnimeField.EPISODES.column}    = ? "
+            f"WHERE {AnimeField.ANIME_ID.column} = ?"
+        )
+        params = (
+            new_provider_id.value if new_provider_id else None,
+            new_anime_id,
+            anime_info.title    or record.title,
+            anime_info.poster   or record.poster_url,
+            anime_info.synopsis or record.synopsis,
+            json.dumps(anime_info.genres or record.genres),
+            episodes_json,
+            str(current_anime_id),
+        )
+        if not self._db.update_sql(sql, params):
+            return False
+        print(f"Anime {current_anime_id} migrado a {new_anime_id} "
+              f"({new_provider_id.value if new_provider_id else 'sin proveedor'}); "
+              f"conserva {len(record.watched_episodes)} episodios vistos")
+        return True
 
     def update_anime_episodes(self, anime_id: str, episodes: List[EpisodeInfo]) -> bool:
         """Actualiza la lista de episodios de un anime (almacenados en orden descendente)."""
@@ -489,6 +634,14 @@ class AnimesPersistence(ServiceDB):
                 is_pending   = (status == AnimeStatus.PENDING   and value),
             )
             return self._insert_anime(new_record)
+
+        # La fila ya existe. Si venía sin proveedor (guardada antes de que la
+        # columna existiera) y ahora sabemos de quién es su slug, se anota de
+        # paso. La ficha ya hace este mismo autorrelleno al abrirse; repetirlo
+        # aquí es lo que hace que el invariante «una fila tocada sabe de dónde
+        # viene» no dependa de por qué puerta se haya entrado.
+        if record.provider_id is None and anime_info.provider_id is not None:
+            self.update_anime_provider_id(str(anime_info.id), anime_info.provider_id)
 
         if status == AnimeStatus.FAVOURITE:
             sql = (
