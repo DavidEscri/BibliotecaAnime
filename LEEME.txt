@@ -1,0 +1,73 @@
+﻿===============================================================================
+                              BibliotecaAnime
+===============================================================================
+
+Gestor local de tu biblioteca personal de anime para Windows.
+
+Copyright (C) 2024-2026 Jose David Escribano Orts
+
+Código fuente: https://github.com/DavidEscri/BibliotecaAnime
+
+
+-------------------------------------------------------------------------------
+LICENCIA
+-------------------------------------------------------------------------------
+
+Este programa es software libre: puedes redistribuirlo y/o modificarlo bajo los
+términos de la GNU General Public License publicada por la Free Software
+Foundation, ya sea la versión 3 de la licencia o (a tu elección) cualquier
+versión posterior.
+
+Este programa se distribuye con la esperanza de que sea útil, pero SIN NINGUNA
+GARANTÍA; ni siquiera la garantía implícita de COMERCIABILIDAD o IDONEIDAD PARA
+UN PROPÓSITO PARTICULAR. Consulta la GNU General Public License para más
+detalles.
+
+El texto completo de la licencia acompaña a este programa en el fichero LICENSE.
+Si no lo has recibido, consulta <https://www.gnu.org/licenses/>.
+
+
+-------------------------------------------------------------------------------
+CÓDIGO FUENTE
+-------------------------------------------------------------------------------
+
+La GPL te da derecho a obtener el código fuente completo de este programa. Está
+publicado íntegramente y sin restricciones de acceso en:
+
+    https://github.com/DavidEscri/BibliotecaAnime
+
+Allí encontrarás el código correspondiente a esta versión, el fichero de
+configuración de empaquetado (MiBibliotecaAnime.spec) usado para generar este
+ejecutable y las instrucciones para compilarlo tú mismo.
+
+
+-------------------------------------------------------------------------------
+COMPONENTES DE TERCEROS
+-------------------------------------------------------------------------------
+
+Este ejecutable incorpora bibliotecas de terceros (requests, Pillow,
+customtkinter, BeautifulSoup, Tcl/Tk y el intérprete de Python, entre otras),
+cada una con su propia licencia y su propio copyright.
+
+Todas ellas son compatibles con la GPL-3.0, y sus avisos se reproducen
+íntegramente en el fichero:
+
+    THIRD-PARTY-NOTICES.txt
+
+
+-------------------------------------------------------------------------------
+TUS DATOS
+-------------------------------------------------------------------------------
+
+BibliotecaAnime no tiene servidor propio ni envía tus datos a ningún sitio: no
+hay cuenta, ni registro, ni telemetría.
+
+Tu biblioteca (base de datos SQLite y portadas descargadas) se crea al primer
+arranque dentro de la carpeta de este programa. Si borras la carpeta, borras tu
+biblioteca; para conservarla al actualizar a una versión nueva, copia la carpeta
+resources/ antes de reemplazar los ficheros.
+
+Los datos del catálogo (fichas, episodios y enlaces) se obtienen en tiempo real
+de sitios web públicos de anime, por lo que esa parte del programa necesita
+conexión a internet. Navegar por tu biblioteca ya guardada funciona sin
+conexión.

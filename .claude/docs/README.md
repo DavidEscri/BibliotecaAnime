@@ -2,12 +2,12 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-08-16 |
-| **Commit** | `54fb3d6` |
-| **Árbol de trabajo** | ⚠️ **sucio**: **16 ficheros de `src/`** con la columna `provider_id` sin commitear (+1 312 / −273). Sin trackear siguen los 4 PNG sin usar, `.vscode/` y `.claude/settings.local.json` (ver [12 §1](12-deuda-tecnica-y-roadmap.md)) |
-| **Última revisión** | 2026-08-16 — **columna `provider_id`**: los **14** documentos actualizados, **3 trampas nuevas** (26, 27, 28), trampa 21 reescrita, **§3c de [09]** con las 351 comprobaciones, **flujo 10 de [03]** y **§14 de [13]** nuevos. Inventario de TODOs corregido otra vez: **5**, no 3 |
-| **Último cambio** | ✅ 2026-08-16 — **la columna `provider_id` en `ANIMES`**: cada anime guardado recuerda quién lo sirvió, se puede **mudar una fila a otro proveedor** sin perder episodios vistos, y el buscador de la biblioteca pasa a ser local. **351/351** comprobaciones. Cierra el punto 2 del roadmap, **B4**, **B10** y **R2** |
-| **Siguiente tarea** | **Commitear** los 16 ficheros. Después, del roadmap: arreglar **B2** (`str` vs enum, barato y desbloquea dos puntos) → [12 §6](12-deuda-tecnica-y-roadmap.md) |
+| **Fecha** | 2026-08-17 |
+| **Commit** | `bec0fbc` (rama `main`) |
+| **Árbol de trabajo** | ⚠️ **sucio**: la tanda de **licencia y empaquetado** sin commitear — `README.md`, `MiBibliotecaAnime.spec`, `.claude/**` modificados y `LEEME.txt` + `THIRD-PARTY-NOTICES.txt` sin trackear. La columna `provider_id` **ya está commiteada** (`a3d4331`). Sin trackear siguen los 4 PNG sin usar, `.vscode/` y `.claude/settings.local.json` (ver [12 §1](12-deuda-tecnica-y-roadmap.md)) |
+| **Última revisión** | 2026-08-17 — **licencia y distribución**: **§7 nueva en [12]**, trampa **18d cerrada** y **18e nueva** (destinos de `datas` dentro de `_internal/`), playbook de empaquetado reescrito con checklist ampliada, y **B11 abierta** (origen de los recursos gráficos) |
+| **Último cambio** | ✅ 2026-08-17 — **el proyecto es formalmente GPL-3.0-or-later**: `LICENSE`, aviso de copyright, `LEEME.txt` y `THIRD-PARTY-NOTICES.txt` junto al `.exe`. El `.spec` deja de empaquetar la BD y los pósters del desarrollador y queda **verificado compilando y arrancando el `.exe`** por primera vez. Cierra **A3**, **C11** y **C10** |
+| **Siguiente tarea** | **Commitear** la tanda de licencia. Después, del roadmap: arreglar **B2** (`str` vs enum, barato y desbloquea dos puntos) → [12 §6](12-deuda-tecnica-y-roadmap.md) |
 | **Cubre** | los **37 ficheros `.py`** de `src/`: **19 módulos reales** (**6 245** líneas) + 18 `__init__.py`, ✅ **los 18 vacíos** desde `e6d1a73` |
 
 `.claude/CLAUDE.md` es el **resumen de entrada** (qué es el proyecto, comandos, arquitectura en una
@@ -43,7 +43,7 @@ Toda afirmación de comportamiento va marcada:
 | [09-verificacion-y-pruebas.md](09-verificacion-y-pruebas.md) | Cómo arrancar y probar; scripts listos para pegar; checklist manual |
 | [10-invariantes-y-trampas.md](10-invariantes-y-trampas.md) | **Lee esto siempre.** **28** trampas con síntoma observable |
 | [11-playbooks.md](11-playbooks.md) | Recetas paso a paso con ficheros exactos y checklist |
-| [12-deuda-tecnica-y-roadmap.md](12-deuda-tecnica-y-roadmap.md) | TODOs con `fichero:línea`, discrepancias, riesgos, roadmap técnico |
+| [12-deuda-tecnica-y-roadmap.md](12-deuda-tecnica-y-roadmap.md) | TODOs con `fichero:línea`, discrepancias, riesgos, roadmap técnico **y §7: licencia GPL-3.0 y cumplimiento de la distribución** |
 | [13-selector-de-proveedor.md](13-selector-de-proveedor.md) | Selector de proveedor, `DB_user.db` **y la columna `provider_id`** (§14): decisiones de diseño, qué quedó fuera y **qué está verificado y qué no** |
 
 ---
@@ -66,8 +66,9 @@ Toda afirmación de comportamiento va marcada:
 | El buscador **de la biblioteca** (las 4 vistas de estado) | [06 §7](06-gui-y-vistas.md) → **trampa 26** |
 | Hilos, `after`, congelaciones | [07](07-concurrencia-e-hilos.md) → [03](03-flujos-de-ejecucion.md) |
 | Pósters / imágenes / caché | [02 §utils.py](02-mapa-de-modulos.md) → [03 §9](03-flujos-de-ejecucion.md) → trampas 15-17 |
-| Empaquetar con PyInstaller | [11 §6](11-playbooks.md) → trampa 18 (a, b, c, d) |
-| Iconos, tema claro/oscuro | [06 §5](06-gui-y-vistas.md) → [11 §5](11-playbooks.md) |
+| **Empaquetar con PyInstaller o distribuir el `.exe`** | [11 §6](11-playbooks.md) → trampa 18 (**a, b, c, d, e**) → [12 §7](12-deuda-tecnica-y-roadmap.md) |
+| **Licencia, avisos legales, dependencias nuevas** | [12 §7](12-deuda-tecnica-y-roadmap.md) → [11 §6](11-playbooks.md) |
+| Iconos, tema claro/oscuro | [06 §5](06-gui-y-vistas.md) → [11 §5](11-playbooks.md) → **B11** ([12 §4](12-deuda-tecnica-y-roadmap.md)) |
 
 ---
 

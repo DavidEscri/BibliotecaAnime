@@ -313,8 +313,8 @@ red, y en esa rama pasa `size=` explícito — sin él `CTkImage` pinta a 20×20
 
 - **`MiBibliotecaAnime.spec`**: `hiddenimports` quedó **completo y sin fantasmas el 2026-08-07**. ✅ Comprobado uno a
   uno: los **18** nombres declarados resuelven a ficheros reales de `src/`, y el único módulo que no figura es
-  `app.py`, que es el script de entrada. ⚠️ **Sin verificar compilando**: la lista se corrigió leyendo los `import`
-  reales. Revísalo antes de empaquetar y al añadir módulos o carpetas de `resources/` (sección `datas`).
+  `app.py`, que es el script de entrada. ✅ **Verificado compilando el 2026-08-17**: `pyinstaller` termina sin
+  errores y el `.exe` resultante arranca. Revísalo al añadir módulos o carpetas de `resources/` (sección `datas`).
 - La versión de la app vive en `APP_VERSION` dentro del `.spec`.
 - `resources/DB/` y las carpetas de pósters están en `.gitignore`: se generan en tiempo de ejecución.
 - Hay **5** `# TODO:` en el código, en tres ficheros: `main_window.py:32` (quitar la palabra «Anime» de los
@@ -326,14 +326,30 @@ red, y en esa rama pasa `size=` explícito — sin él `CTkImage` pinta a 20×20
   dejó fuera los **dos reales de `jkanime.py`**, que entraron el 2026-08-06. Inventaríalos con
   `git grep -n "TODO" -- src/` **después de cada cambio en `src/`**, no de memoria (detalle en
   [`docs/12 §2`](docs/12-deuda-tecnica-y-roadmap.md)).
-- **`MiBibliotecaAnime.spec` empaqueta `resources/DB`**, así que el `.exe` distribuye la biblioteca **y ahora
-  también las preferencias** del desarrollador. Ver A3/C11 en [`docs/12 §4`](docs/12-deuda-tecnica-y-roadmap.md).
+- ✅ **`datas` del `.spec` ya no lleva datos de usuario** (2026-08-17). Hasta entonces empaquetaba `resources/DB` y
+  las 6 carpetas de pósters, así que el `.exe` distribuía la biblioteca **y las preferencias** del desarrollador.
+  Hoy contiene **solo `resources/images/utils`**: la app crea el resto en el primer arranque. **No las vuelvas a
+  añadir.** Dos trampas asociadas, ambas silenciosas: PyInstaller **ignora las carpetas vacías** (por eso parecían
+  obligatorias) y los destinos de `datas` caen **dentro de `_internal/`**, no junto al `.exe` — por eso los ficheros
+  legales se copian en un bloque posterior a `COLLECT`.
+  Ver [`docs/10 § trampa 18d y 18e`](docs/10-invariantes-y-trampas.md) y [`docs/12 §7`](docs/12-deuda-tecnica-y-roadmap.md).
+- **Licencia: GPL-3.0-or-later** desde el 2026-08-17. `LICENSE` (texto íntegro), aviso de copyright en el `README.md`,
+  y `LEEME.txt` + `THIRD-PARTY-NOTICES.txt` que se copian junto al `.exe` al empaquetar — no son opcionales: cubren
+  la §6 de la GPL y los avisos MIT/BSD/Apache/MPL de las dependencias. ⚠️ **`THIRD-PARTY-NOTICES.txt` caduca al tocar
+  `requirements.txt`**; regenéralo ([`docs/11 §6`](docs/11-playbooks.md)). Estado completo en
+  [`docs/12 §7`](docs/12-deuda-tecnica-y-roadmap.md).
 - En `resources/images/utils/` ya existen los iconos `viendo_light/dark.png` y `pendientes_light/dark.png`, pero su uso
   está comentado en `watchingAnimes.py` y `pendingAnimes.py` (siguen con el icono único).
 - Los iconos del pin (`fijado_light/dark.png`, `no_fijado_light/dark.png`) se **generaron con PIL**; el
   script está en el scratchpad de la sesión, no en el repo. Si hay que retocarlos, se redibujan: son
   cuatro polígonos. ⚠️ Se distinguen por **color** (azul/gris), no por relleno vs. contorno — la
   silueta contorneada es ilegible a los 20×20 a los que se pintan.
+- ⚠️ **El resto de iconos de la sidebar y los dos GIF de carga son de origen desconocido** y
+  probablemente incompatibles con la GPL del proyecto. Sus metadatos (512×512, `Software:
+  www.inkscape.org`, DPI distintos entre sí) apuntan a descargas de **Flaticon**, cuya licencia
+  gratuita **no permite sublicenciar**; los GIF no tienen metadatos y uno lleva un recorte `320×319`.
+  La salida más probable es **redibujarlos con PIL**, como ya se hizo con el pin. Es la deuda **B11**:
+  evidencia y alternativas en [`docs/12 §4`](docs/12-deuda-tecnica-y-roadmap.md).
 
 ---
 
@@ -352,7 +368,7 @@ cerrados —el pin y la integración de un proveedor nuevo el 2026-08-06, y la c
    el **aviso de duplicado** — sin las dos últimas, poder elegir proveedor convierte la biblioteca en
    un sitio donde el mismo anime puede acabar dos veces. De paso, el buscador de las cuatro vistas de
    estado pasó a ser **local**. 351/351 comprobaciones.
-   ⚠️ **Sin commitear**: 16 ficheros de `src/` modificados.
+   ✅ **Commiteado** en `a3d4331` («Actualización v0.2.0 del proyecto»), rama `main`.
 
 Después, sin orden fijado:
 
@@ -397,7 +413,7 @@ cambian mi comportamiento): [`.claude/COMO-PEDIR-TAREAS.md`](COMO-PEDIR-TAREAS.m
 | [docs/09-verificacion-y-pruebas.md](docs/09-verificacion-y-pruebas.md) | Cómo probar cada capa sin GUI; scripts listos; checklist manual |
 | [docs/10-invariantes-y-trampas.md](docs/10-invariantes-y-trampas.md) | **Empieza por aquí.** **28** trampas con síntoma observable |
 | [docs/11-playbooks.md](docs/11-playbooks.md) | Recetas: añadir vista, columna, proveedor, campo; empaquetar |
-| [docs/12-deuda-tecnica-y-roadmap.md](docs/12-deuda-tecnica-y-roadmap.md) | TODOs con `fichero:línea`, discrepancias, riesgos, roadmap técnico |
+| [docs/12-deuda-tecnica-y-roadmap.md](docs/12-deuda-tecnica-y-roadmap.md) | TODOs con `fichero:línea`, discrepancias, riesgos, roadmap técnico **y licencia/cumplimiento de la distribución (§7)** |
 | [docs/13-selector-de-proveedor.md](docs/13-selector-de-proveedor.md) | Selector de proveedor, `DB_user.db` **y la columna `provider_id`** (§14). **Léelo antes de tocar `animeProviderMgr.py`, `main_window.py` o `anime_window.py`** |
 
 > Los documentos marcan la procedencia de cada afirmación: ✅ verificado en ejecución ·

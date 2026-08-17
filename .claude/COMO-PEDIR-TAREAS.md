@@ -242,14 +242,19 @@ Si haces un cambio de código y quieres que la documentación acompañe, **dilo 
 
 ## 8 · Empaquetar/release
 
-✅ El `hiddenimports` del `.spec` quedó completo y sin fantasmas el 2026-08-07, pero verificado
-**resolviendo cada nombre a su fichero, sin compilar nunca**. Al pedir un empaquetado, dime:
+✅ El `.spec` está sano desde el 2026-08-17: `hiddenimports` completo (2026-08-07), `datas` sin datos
+de usuario, y **verificado compilando y arrancando el `.exe`**, no solo leyendo. Al pedir un
+empaquetado, dime nada más:
 
-- **Qué hacer con `('resources/DB', 'resources/DB')`**: tal cual, tu biblioteca personal viaja
-  dentro del `.exe`. Es el único problema serio que queda en el `.spec`.
 - La `APP_VERSION` nueva.
 
-Asumiré que el primer empaquetado hay que **verificarlo arrancando el `.exe`**, no solo compilarlo.
+Asumiré tres cosas sin preguntar: que hay que **arrancar el `.exe`** además de compilarlo; que
+`LICENSE`, `LEEME.txt` y `THIRD-PARTY-NOTICES.txt` deben acabar **junto al ejecutable** (lo exigen la
+GPL y las licencias de las dependencias); y que si `requirements.txt` ha cambiado, hay que
+**regenerar `THIRD-PARTY-NOTICES.txt`**.
+
+⚠️ Y no volveré a meter `resources/DB` ni las carpetas de pósters en `datas`: la app las crea sola, y
+empaquetarlas distribuye tu biblioteca personal.
 
 Receta completa con checklist: [`docs/11 §6`](docs/11-playbooks.md).
 

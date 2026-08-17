@@ -413,8 +413,6 @@ para claro y oscuro, así que `update_icon()` (`utilsButtons.py:78-80`) no cambi
 
 ## §6 — Empaquetar con PyInstaller
 
-> 🔴 El `.spec` está **desactualizado**: falla en runtime, no al compilar (trampa 18).
-
 **Pasos**
 
 1. **Revisa `hiddenimports`.** ✅ **Ya no hay nada pendiente aquí.** Entre el 2026-08-06 y el
@@ -429,20 +427,32 @@ para claro y oscuro, así que `update_icon()` (`utilsButtons.py:78-80`) no cambi
 
    Al añadir un módulo nuevo, añádelo aquí también — este playbook es el sitio donde se comprueba.
 
-   ⚠️ **Nada de esto se ha comprobado ejecutando PyInstaller**: la lista se verificó resolviendo cada
-   nombre a su fichero, no compilando. Sigue siendo obligatorio arrancar el `.exe` antes de distribuir.
+   ✅ **Comprobado compilando el 2026-08-17**: `pyinstaller MiBibliotecaAnime.spec` termina sin
+   errores y el `.exe` resultante arranca. Hasta esa fecha la lista solo se había verificado
+   resolviendo cada nombre a su fichero.
 
 2. Sube `APP_VERSION` (`:3`) — determina el nombre de `dist/MiBibliotecaAnime_v<X>/`.
-3. ⚠️ **Decide qué hacer con `('resources/DB', 'resources/DB')`** (`:12`): tal cual, **empaqueta la
-   biblioteca personal del desarrollador** dentro del ejecutable.
-4. Revisa que toda carpeta nueva de `resources/` esté en `datas` (`:11-20`).
-5. Compila:
+3. ✅ **`datas` ya no empaqueta datos de usuario.** Desde el 2026-08-17 contiene **solo**
+   `resources/images/utils`. No vuelvas a añadir `resources/DB` ni las carpetas de pósters: la app
+   las crea sola en el primer arranque, y empaquetarlas distribuye la biblioteca personal del
+   desarrollador ([10 § trampa 18d](10-invariantes-y-trampas.md)).
+4. Revisa que toda carpeta nueva de recursos **de solo lectura** esté en `datas` (`:11-13`).
+   ⚠️ Los destinos son relativos a `_internal/`, no a la carpeta del `.exe`
+   ([10 § trampa 18e](10-invariantes-y-trampas.md)).
+5. **Si añades un fichero que el usuario final deba ver** (licencias, LÉEME), no lo pongas en
+   `datas`: añádelo al bucle posterior a `COLLECT` (`:83-86`), que copia al primer nivel usando
+   `DISTPATH`. Hoy copia `LICENSE`, `LEEME.txt` y `THIRD-PARTY-NOTICES.txt`.
+6. **Regenera `THIRD-PARTY-NOTICES.txt` si has tocado `requirements.txt`** — caduca en cuanto cambia
+   una dependencia. Se construye leyendo los `LICENSE` reales de `biblio_anime_env/Lib/site-packages`,
+   con la lista de paquetes contrastada contra `build/MiBibliotecaAnime/Analysis-00.toc` (lo que
+   PyInstaller mete de verdad en el binario, no lo que declara `requirements.txt`).
+7. Compila:
 
    ```bash
    pyinstaller MiBibliotecaAnime.spec
    ```
 
-6. Para depurar: cambia `console=False` → `console=True` (`:60`) y verás los `print`.
+8. Para depurar: cambia `console=False` → `console=True` (`:60`) y verás los `print`.
 
 **Checklist**
 
@@ -453,7 +463,10 @@ para claro y oscuro, así que `update_icon()` (`utilsButtons.py:78-80`) no cambi
 - [ ] Los iconos y el GIF de carga se ven (→ `datas` correcto).
 - [ ] La ficha de detalle abre y los servidores cargan.
 - [ ] Comprobado en una máquina **sin** el entorno de desarrollo.
-- [ ] Decidido conscientemente si la BD viaja dentro del `.exe`.
+- [ ] `dist/MiBibliotecaAnime_v<X>/` **no** contiene ningún `.db` ni `.jpg`
+      (`find dist/… -name "*.db" -o -name "*.jpg"` → 0).
+- [ ] `LICENSE`, `LEEME.txt` y `THIRD-PARTY-NOTICES.txt` están **junto al `.exe`**, no en `_internal/`.
+- [ ] `THIRD-PARTY-NOTICES.txt` refleja las dependencias actuales.
 
 ---
 

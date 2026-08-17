@@ -101,10 +101,11 @@ el TODO #4 original, «una tabla nueva»). Se descarta porque:
 - `resources/DB/backups/` es compartido, pero el nombre del fichero de copia lleva el *stem* de la BD
   (`sqlite.py:401-403`), así que `DB_user_<ts>.db` y `DB_Animes_<ts>.db` no colisionan. 📖
 
-⚠️ **Efecto colateral en el empaquetado**: `MiBibliotecaAnime.spec:12` mete `resources/DB` en `datas`,
-así que el `.exe` distribuiría **también** el `DB_user.db` del desarrollador. Es el mismo defecto ya
-registrado como **A3/C11** ([12 §4](12-deuda-tecnica-y-roadmap.md)), ahora con un fichero más. No se
-arregla aquí, pero súmalo a la lista cuando se toque el `.spec`.
+✅ ~~**Efecto colateral en el empaquetado**~~ **Resuelto el 2026-08-17**. `MiBibliotecaAnime.spec`
+metía `resources/DB` en `datas`, así que el `.exe` distribuía **también** el `DB_user.db` del
+desarrollador —confirmado en el build de v0.2.0: 12 KB de preferencias personales dentro del
+ejecutable—. Era el defecto **A3/C11** ([12 §4](12-deuda-tecnica-y-roadmap.md)), hoy cerrado: `datas`
+conserva solo `resources/images/utils` y ambas BD se crean en el primer arranque.
 
 ### D2 — Tabla clave/valor genérica, no una columna por preferencia
 

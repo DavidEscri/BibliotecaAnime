@@ -411,10 +411,11 @@ directorio que no corresponda a un anime de la lista recibida.
 
 **Síntoma que tenía**: `ModuleNotFoundError` al arrancar el `.exe`, no al compilar.
 
-⚠️ **Nada de esto se verificó compilando**: la lista se corrigió leyendo los `import` reales. Sigue
-siendo obligatorio arrancar el `.exe` antes de distribuir. Y el problema **grave** del `.spec` no era
-este, sino que `datas` empaqueta `resources/DB` ([12 §4 → A3](12-deuda-tecnica-y-roadmap.md)); eso
-**no se ha tocado**.
+✅ **Verificado compilando el 2026-08-17.** Hasta esa fecha la lista solo se había corregido leyendo
+los `import` reales. Ese día se compiló (`pyinstaller MiBibliotecaAnime.spec`) **y se arrancó el
+`.exe` resultante**: build sin errores y aplicación operativa. El problema **grave** del `.spec` —que
+`datas` empaquetaba `resources/DB`— también quedó cerrado ese día
+([12 §4 → A3](12-deuda-tecnica-y-roadmap.md)).
 
 **b) `attrs` no declarada** — ✅ **RESUELTO (2026-07-28)**:
 
@@ -435,9 +436,39 @@ es `True` y la instancia se construye. `src/` ya no referencia `attrs` ni `selen
 **c) `console=False` en el `.spec`** 📖 (`:60`): todos los `print` desaparecen en el `.exe`. Para
 depurar el empaquetado, cambia temporalmente a `console=True`.
 
-**d) `datas` del `.spec` incluye `resources/DB`** 📖 (`:12`): se **empaqueta la BD del desarrollador**
-dentro del ejecutable. ⚠️ No verificado qué ocurre al distribuirlo, pero es un problema de privacidad
-evidente.
+**d) ~~`datas` del `.spec` incluye `resources/DB`~~** ✅ **Resuelto el 2026-08-17**: se
+**empaquetaba la BD del desarrollador** dentro del ejecutable, junto con las 6 carpetas de pósters.
+Medido antes de quitarlo sobre el build de v0.2.0: `DB_Animes.db` (77 KB), `DB_user.db`, la carpeta
+`backups/` **y 85 pósters** viajaban en el `.exe`.
+
+> **Por qué parecía obligatorio** — y es la parte que hay que recordar: **PyInstaller no puede
+> empaquetar una carpeta vacía**; una entrada de `datas` que apunta a un directorio sin ficheros se
+> ignora en silencio. La única forma de que esas rutas «aparecieran» en el build era enviarlas
+> llenas, lo que da la impresión falsa de que el `.exe` las necesita.
+>
+> **No las necesita**: la app crea cada uno de esos directorios en tiempo de ejecución —
+> `sqlite.py:233-235` (padre del `.db`), `utils.py:55-56`, `:91-92`, `:127-128` (pósters) — y
+> `get_anime_image` **salta** las carpetas ausentes (`utils.py:190-191`) en vez de fallar.
+> ✅ Comprobado arrancando el `.exe` ya sin ellas: `resources/DB/DB_Animes.db` aparece a los 3 s.
+>
+> `datas` conserva **solo** `resources/images/utils`, que sí son recursos de solo lectura.
+
+**e) Los destinos de `datas` se resuelven dentro de `_internal/`, no junto al `.exe`** ✅
+*(añadida el 2026-08-17)*
+
+**Solución aplicada** (`MiBibliotecaAnime.spec`, tras `COLLECT`): el `.spec` es Python y se ejecuta
+de arriba abajo, así que el código posterior a `COLLECT` corre con la carpeta ya montada y puede
+copiar al primer nivel usando la variable `DISTPATH` que inyecta PyInstaller:
+
+```python
+_dist_dir = os.path.join(DISTPATH, f'MiBibliotecaAnime_v{APP_VERSION}')
+for _legal_file in ('LICENSE', 'LEEME.txt', 'THIRD-PARTY-NOTICES.txt'):
+    shutil.copy(_legal_file, _dist_dir)
+```
+
+⚠️ **Importa más allá de la comodidad**: esos tres ficheros son los que hacen que la distribución
+binaria cumpla la GPL-3.0 (§4 avisos, §6 oferta de código fuente) y las licencias MIT/BSD/Apache/MPL
+de las dependencias. En `_internal/` no cumplirían su función.
 
 ---
 

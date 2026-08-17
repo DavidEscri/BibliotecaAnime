@@ -2,14 +2,14 @@
 
 # BibliotecaAnime
 
-**Tu colección personal de anime, 100% offline, privada y sin dependencias web.**
+**Tu biblioteca de anime: tu colección vive solo en tu equipo; el catálogo llega de proveedores web públicos.**
 
 [![Python Version](https://img.shields.io/badge/Python-3.10+-blue.svg?style=flat-square&logo=python)](https://www.python.org/)
-[![License: GPL-3.0](https://img.shields.io/badge/License-GPL-yellow.svg?style=flat-square)](https://opensource.org/licenses/gpl-3.0)
+[![License: GPL-3.0](https://img.shields.io/badge/License-GPL--3.0-yellow.svg?style=flat-square)](LICENSE)
 [![OS: Windows](https://img.shields.io/badge/OS-Windows-lightgrey.svg?style=flat-square)](#)
 [![Status: En Desarrollo](https://img.shields.io/badge/Status-Activo-success.svg?style=flat-square)](#)
 
-[Características](#caracteristicas-principales) • [Instalación](##instalación-y-despliegue) • [Estructura](#-estructura-del-proyecto) • [Próximos pasos](#-proximos-pasos)
+[Características](#caracteristicas-principales) • [Instalación](##instalación-y-despliegue) • [Estructura](#-estructura-del-proyecto) • [Próximos pasos](#-proximos-pasos) • [Licencia](#licencia)
 
 </div>
 
@@ -22,9 +22,10 @@ A diferencia de plataformas como MyAnimeList o Anilist, este proyecto nace con u
 
 ## Características Principales
 
-- **100% Local y Privado:** Toda la base de datos y las imágenes (portadas) se almacenan localmente en tu equipo.
-- **Rendimiento Nativo:** Sin latencia de red. Navegación instantánea por tu biblioteca.
-- **Gestión Integral (CRUD):** Añade nuevos animes, actualiza episodios vistos, asigna calificaciones y categoriza por estados (*Viendo, Completado, Dropeado, Pendiente*).
+- **Tu colección, solo en tu equipo:** La base de datos y las portadas se almacenan en local. Sin cuenta, sin registro y sin telemetría: la aplicación no tiene backend propio ni envía tus datos a ningún sitio.
+- **Catálogo de varios proveedores:** Los datos de los animes (fichas, episodios y enlaces) se obtienen por *web scraping* de sitios públicos de anime, con selección de proveedor y sistema de reserva si uno falla. **Esta parte sí requiere conexión a internet.**
+- **Rendimiento Nativo:** Una vez guardado un anime, navegar por tu biblioteca y buscar en ella es instantáneo y funciona sin conexión.
+- **Gestión Integral (CRUD):** Añade nuevos animes, marca los episodios vistos y organízalos por estados (*Favoritos, Viendo, Finalizados, Pendientes*).
 - **Portable:** Posibilidad de compilar la aplicación en un único archivo ejecutable (`.exe`) para llevar tu librería en un pendrive a cualquier parte.
 
 ---
@@ -151,3 +152,18 @@ Siendo un proyecto personal, las sugerencias y mejoras son siempre bienvenidas. 
  3. Haz commit de tus cambios (git commit -m 'Añade NuevaFuncion').
  4. Haz push a la rama (git push origin feature/NuevaFuncion).
  5. Abre un Pull Request.
+
+## Licencia
+
+Copyright © 2024-2026 Jose David Escribano Orts
+
+Este programa es software libre: puedes redistribuirlo y/o modificarlo bajo los términos de la
+**GNU General Public License** publicada por la Free Software Foundation, ya sea la versión 3 de la
+licencia o (a tu elección) cualquier versión posterior.
+
+Este programa se distribuye con la esperanza de que sea útil, pero **SIN NINGUNA GARANTÍA**; ni
+siquiera la garantía implícita de COMERCIABILIDAD o IDONEIDAD PARA UN PROPÓSITO PARTICULAR. Consulta
+la GNU General Public License para más detalles.
+
+Junto con este programa deberías haber recibido una copia de la GNU General Public License. Si no es
+así, consulta [LICENSE](LICENSE) o <https://www.gnu.org/licenses/>.

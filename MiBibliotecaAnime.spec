@@ -1,6 +1,6 @@
 # -*- mode: python ; coding: utf-8 -*-
 
-APP_VERSION = "0.2.0"
+APP_VERSION = "0.2.1"
 
 block_cipher = None
 
@@ -9,13 +9,6 @@ a = Analysis(
     pathex=['src'],
     binaries=[],
     datas=[
-        ('resources/DB', 'resources/DB'),
-        ('resources/images/favourite', 'resources/images/favourite'),
-        ('resources/images/finished', 'resources/images/finished'),
-        ('resources/images/pending', 'resources/images/pending'),
-        ('resources/images/watching', 'resources/images/watching'),
-        ('resources/images/search', 'resources/images/search'),
-        ('resources/images/recent_animes', 'resources/images/recent_animes'),
         ('resources/images/utils', 'resources/images/utils')
     ],
     hiddenimports=[
@@ -75,3 +68,19 @@ coll = COLLECT(
     upx_exclude=[],
     name=f'MiBibliotecaAnime_v{APP_VERSION}'
 )
+
+# --- Ficheros legales, al lado del .exe ---------------------------------------
+# Se copian aquí, tras COLLECT, para que queden en el primer nivel de la
+# carpeta distribuida, junto al ejecutable.
+#
+# La GPL-3.0 obliga a conservar los avisos de licencia al
+# distribuir binarios y a indicar cómo obtener el código fuente
+# correspondiente, y las licencias MIT/BSD/Apache/MPL de las dependencias
+# exigen reproducir sus avisos de copyright en cualquier redistribución.
+import os
+import shutil
+
+_dist_dir = os.path.join(DISTPATH, f'MiBibliotecaAnime_v{APP_VERSION}')
+for _legal_file in ('LICENSE', 'LEEME.txt', 'THIRD-PARTY-NOTICES.txt'):
+    shutil.copy(_legal_file, _dist_dir)
+    print(f'Copiado junto al ejecutable: {_legal_file}')

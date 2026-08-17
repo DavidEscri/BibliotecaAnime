@@ -2,9 +2,9 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-08-16 · **Commit** `54fb3d6` · árbol **sucio**: 16 ficheros de `src/` sin commitear |
-| **Cubre** | `src/**`, `.claude/CLAUDE.md`, `README.md`, `requirements.txt`, `MiBibliotecaAnime.spec` |
-| **Última revisión** | 2026-08-16 (**columna `provider_id`**): **B4 y B10 cerrados**, R2 cerrado del todo, punto 2 del roadmap cerrado, e inventario de TODOs corregido otra vez (**5**, no 3 — los 2 de `jkanime.py` nunca se inventariaron) |
+| **Fecha** | 2026-08-17 · **Commit** `bec0fbc` (rama `main`) · árbol **sucio**: licencia y empaquetado sin commitear |
+| **Cubre** | `src/**`, `.claude/CLAUDE.md`, `README.md`, `requirements.txt`, `MiBibliotecaAnime.spec`, `LICENSE`, `LEEME.txt`, `THIRD-PARTY-NOTICES.txt` |
+| **Última revisión** | 2026-08-17 (**licencia y distribución**): **A3 y C11 cerrados** —`datas` ya no lleva datos de usuario y el `.spec` está por fin **verificado compilando**—, C10 cerrado, **B11 abierto** (origen de los recursos gráficos) y §7 nueva |
 
 Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ sin verificar.
 
@@ -12,20 +12,24 @@ Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ si
 
 ## 1. Estado del árbol de trabajo
 
-⚠️ **2026-08-16: el árbol NO está limpio.** La columna `provider_id` está implementada y verificada
-(351 comprobaciones, [09 §3c](09-verificacion-y-pruebas.md)) pero **sin commitear**: 16 ficheros
-modificados bajo `src/`, +1 312 / −273 líneas. El commit es lo siguiente que hay que hacer.
+✅ **La columna `provider_id` ya está commiteada** — entró en `a3d4331` («Actualización v0.2.0 del
+proyecto») junto con el resto de los 16 ficheros de `src/` que la revisión anterior daba por
+pendientes. El trabajo está hoy en **`main`**, no en `develop`.
 
-| Capa | Ficheros |
-|---|---|
-| Dominio | `APIs/common/models.py`, `APIs/common/animeProviderMgr.py` |
-| Proveedores | `animeav1.py`, `jkanime.py`, `animeflv.py` (solo el tipo de `PROVIDER_ID`) |
-| Datos | `dataPersistence/animesPersistence.py` |
-| GUI | `gui/main_window.py`, `gui/anime_window.py`, las **6** vistas, `utils/buttons/utilsButtons.py` |
-| Infra | `utils/utils.py` |
+⚠️ **2026-08-17: el árbol vuelve a estar sucio**, ahora por la tanda de licencia y empaquetado:
+
+| Estado | Ruta | Qué cambió |
+|---|---|---|
+| M | `README.md` | Sección «Licencia» con el copyright, badge apuntando a `LICENSE`, y corregidos los reclamos falsos (§3) |
+| M | `MiBibliotecaAnime.spec` | `datas` sin datos de usuario + copia de los ficheros legales tras `COLLECT` |
+| ?? | `LEEME.txt` | Aviso de licencia y **oferta de código fuente** para la distribución binaria |
+| ?? | `THIRD-PARTY-NOTICES.txt` | Avisos de los 14 componentes de terceros que viajan en el `.exe` |
+| M | `.claude/docs/{10,11,12}` | Esta sincronización |
+
+Y `LICENSE` (texto GPL-3.0 íntegro, 674 líneas) ya está dentro, en **`bec0fbc`**.
 
 ✅ `git status` sobre **`18311e3`** (rama `develop`), 2026-08-07. El árbol estaba limpio entonces. Las
-dos tareas que la revisión anterior daba por pendientes de commitear ya están dentro:
+dos tareas que aquella revisión daba por pendientes de commitear ya están dentro:
 
 | Commit | Fecha | Qué entró |
 |---|---|---|
@@ -122,17 +126,6 @@ Auditado punto por punto. Donde el código contradice a `CLAUDE.md`, **gana el c
 | D10 | No menciona `attrs` | ✅ **Ya no aplica (2026-07-28)**: era una dependencia no declarada; el import se cambió a `dataclasses` de la stdlib y `attrs` deja de ser dependencia | [10, trampa 18b](10-invariantes-y-trampas.md) |
 | D11 | No menciona el estado de AnimeFLV | ✅ `get_anime_episode_servers` devuelve `[]`; el usuario confirma que el sitio está caído / en desuso | [05 §2](05-proveedores-y-scraping.md) |
 
-### El `README.md` también miente un poco
-
-📖 Anuncia funcionalidades que **no existen en el código**:
-
-- «asigna **calificaciones**» (`README.md:27`) — no hay campo de calificación en `AnimeField`.
-- «categoriza por estados (*Viendo, Completado, **Dropeado**, Pendiente*)» (`:27`) — **no hay estado
-  «dropeado»**; los estados reales son favorito/viendo/finalizado/pendiente.
-- «**100 % offline**, privada y **sin dependencias web**» (`:5`) — la app **depende** de la red para
-  todo lo que no esté ya en BD (recientes, fichas, búsquedas, servidores, pósters).
-- El árbol de `:83-122` no incluye `APIs/animeav1/` ni `APIs/common/`.
-
 ---
 
 ## 4. Deuda técnica, por gravedad
@@ -141,7 +134,7 @@ Auditado punto por punto. Donde el código contradice a `CLAUDE.md`, **gana el c
 
 | # | Problema | Dónde | Impacto |
 |---|---|---|---|
-| A3 | ~~**`.spec` desactualizado**~~ → queda **solo** el empaquetado de `resources/DB` | `MiBibliotecaAnime.spec:12` | ✅ **`hiddenimports` cerrado el 2026-08-07**; el problema grave (la BD) **sigue vivo** |
+| ~~A3~~ | ~~**`.spec` desactualizado**~~ → ~~queda **solo** el empaquetado de `resources/DB`~~ | `MiBibliotecaAnime.spec` | ✅ **Cerrado del todo el 2026-08-17** (ver abajo) |
 | A6 | **Widgets Tk desde hilos daemon** | `main_window.py:481-500`, `searchAnimes.py:220-225`, `utils.py:146-147` | Riesgo de cuelgue; funciona por suerte estructural. 🆕 **Reducido**: los 6 puntos de clic y el buscador de la biblioteca ya no lo hacen, y **C2 se cerró** — era un crash reproducible, no teórico ([07 C2](07-concurrencia-e-hilos.md)) |
 
 > **A3 — corrección de diagnóstico** 📖. La versión anterior afirmaba que el `.exe` «falla en runtime»
@@ -161,9 +154,22 @@ Auditado punto por punto. Donde el código contradice a `CLAUDE.md`, **gana el c
 > `gui.anime_window` (`d99a2ee`) y se retiró `gui.sidebarButtons.sidebarButton` (`ae126fd`).
 > Comprobado el 2026-08-07: los **18** nombres declarados resuelven a ficheros reales de `src/`, y el
 > único módulo ausente es `app.py`, que es el script de entrada y no debe figurar.
-> ⚠️ **Nada de esto se verificó compilando**: la lista se corrigió leyendo los `import` reales.
-> Lo de `resources/DB` **no se ha tocado** — es una decisión de distribución, no un descuido, y es lo
-> que mantiene A3 en 🔴.
+> ✅ **Cerrado del todo el 2026-08-17.** Dos cosas a la vez:
+>
+> 1. **`datas` ya no lleva datos de usuario.** Se retiraron las 7 entradas de `resources/DB` y de las
+>    6 carpetas de pósters; queda **solo** `resources/images/utils`. Medido sobre el build de v0.2.0
+>    antes de quitarlas: viajaban `DB_Animes.db` (77 KB), `DB_user.db`, la carpeta `backups/` **y 85
+>    pósters**. Resultó que **no hacían falta**: la app crea esos directorios en tiempo de ejecución
+>    (`sqlite.py:233-235`, `utils.py:55-56/91-92/127-128`) y `get_anime_image` salta los ausentes
+>    (`utils.py:190-191`). Lo que las hacía parecer obligatorias es que **PyInstaller ignora en
+>    silencio las carpetas vacías** ([10 § trampa 18d](10-invariantes-y-trampas.md)).
+> 2. **Verificado compilando**, que era la otra mitad pendiente: `pyinstaller MiBibliotecaAnime.spec`
+>    termina sin errores, el `.exe` arranca y **crea `resources/DB/DB_Animes.db` a los 3 segundos**.
+>    `find dist/… -name "*.db" -o -name "*.jpg"` → **0 ficheros**.
+>
+> Se añadió además un bloque tras `COLLECT` que copia `LICENSE`, `LEEME.txt` y
+> `THIRD-PARTY-NOTICES.txt` **junto al `.exe`** — no en `datas`, porque sus destinos caen dentro de
+> `_internal/` ([10 § trampa 18e](10-invariantes-y-trampas.md)). Motivo en §7.
 
 ### 🟡 Media
 
@@ -176,6 +182,50 @@ Auditado punto por punto. Donde el código contradice a `CLAUDE.md`, **gana el c
 | B7 | `remove_from_finished` mueve a *pendiente* en BD pero **borra el póster sin recrearlo** en `pending/` | `anime_window.py:859-865` |
 | B8 | `time.sleep(0.1)` en el hilo de UI × 7 | [07 §5](07-concurrencia-e-hilos.md) |
 | ~~B10~~ | ~~El buscador de las vistas de estado va **contra la red**, no contra la BD~~ ✅ **Cerrado (2026-08-16)**: búsqueda **local** primero, la web solo suma. Era peor de lo diagnosticado —no era solo «no funciona sin conexión», sino que **perdía animes** según el proveedor puesto ([trampa 26](10-invariantes-y-trampas.md)) | `utilsButtons.py:23-166` |
+| B11 | 🆕 **Los iconos de la sidebar y los GIF de carga son de origen desconocido**, y muy probablemente incompatibles con la GPL-3.0 del proyecto | `resources/images/utils/` |
+
+> **B11 — origen de los recursos gráficos** (abierto el 2026-08-17). El proyecto pasó a GPL-3.0 ese
+> día (`bec0fbc` + sección «Licencia» del `README.md`), y eso convierte la procedencia de los recursos
+> en un problema real: **el autor no recuerda de dónde salieron**.
+>
+> 📖 **Evidencia recogida de los metadatos PNG** (`PIL.Image.open(...).info`):
+>
+> | Fichero | Tamaño | `Software` | DPI |
+> |---|---|---|---|
+> | `buscar.png`, `favoritos.png`, `no_favoritos.png`, `finalizados.png`, `recientes.png`, `viendo.png`, `pendientes.png` (+ variantes `_light`/`_dark`) | 512×512 | `www.inkscape.org` | 95.99 / 96.01 / 89.99 / 94.26 — **distintos entre sí** |
+> | `fijado_*.png`, `no_fijado_*.png` | 64×64 | *(ninguno)* | — |
+> | `loading-image.gif` | 400×400 | *(ninguno)* | — |
+> | `loading-image-3.gif` | **320×319** | *(ninguno)* | — |
+>
+> ⚠️ **Inferencia, no prueba.** El patrón 512×512 + exportado con Inkscape + DPI inconsistentes entre
+> ficheros es la firma del *pipeline* de descarga de **Flaticon**: SVGs de origen distinto bajados en
+> momentos distintos, no un set dibujado de una vez. El contraste lo refuerza: `fijado_*` y
+> `no_fijado_*`, que **sí** se generaron con PIL en este proyecto (2026-08-06), no llevan tag
+> `Software` — la ausencia de metadatos es la huella de «generado aquí».
+>
+> **Por qué no basta con un `ATTRIBUTIONS.md`.** La licencia gratuita de Flaticon no solo exige
+> crédito: **no permite sublicenciar**. La GPL-3.0 obliga a que todo lo distribuido sea
+> redistribuible bajo sus términos, y un icono de Flaticon empaquetado en el `.exe` no lo es. Un
+> fichero de atribuciones documentaría el conflicto, no lo resolvería.
+>
+> **Soluciones posibles, en orden de probabilidad:**
+>
+> 1. 🎯 **Redibujarlos con PIL** — *la vía elegida como más probable*. Ya hay precedente en el
+>    proyecto: los cuatro iconos del pin se generaron así y el script son cuatro polígonos
+>    ([nota en `CLAUDE.md`](../CLAUDE.md)). Provenencia limpia por construcción, cero dependencias
+>    nuevas y control total del par claro/oscuro. Son ~8 glifos de sidebar.
+> 2. **Sustituirlos por un set con licencia compatible** — Lucide (ISC), Bootstrap Icons (MIT) o
+>    Material Symbols (Apache-2.0). Las tres son compatibles con GPL-3.0 y no exigen crédito visible.
+>    Más rápido que dibujar, a cambio de aceptar el estilo del set.
+> 3. **Búsqueda inversa en Flaticon** para recuperar autor y atribuir en regla. Recupera los iconos
+>    actuales, pero es tedioso para 8 ficheros y **no resuelve la incompatibilidad** de sublicencia:
+>    solo sirve si el proyecto dejara de ser GPL.
+>
+> 🔴 **Los dos GIF son el caso peor y no tienen metadatos que ayuden**: sin tags, en modo paleta, y
+> uno con recorte `320×319` — la marca de algo recortado a mano y descargado de Giphy/Tenor. Si son
+> fotogramas de un anime, son obra con copyright, están commiteados y viajan dentro del `.exe`. La
+> pantalla de carga ya tiene barra de progreso (`show_loading_screen()`), así que **quitar el GIF o
+> sustituirlo por un spinner propio** es la opción barata.
 
 > **B7, alcance medido el 2026-07-30** ✅. Es un caso particular de algo más general: la BD fuerza la
 > exclusividad viendo/finalizado/pendiente (`_set_status`), pero la GUI solo gestiona el póster **del
@@ -201,8 +251,8 @@ Auditado punto por punto. Donde el código contradice a `CLAUDE.md`, **gana el c
 | C7 | `info_frame` con `fg_color="white"` fijo, no respeta el tema | `anime_window.py:176` |
 | C8 | `-> (bool, list)` como anotación de tipo | `sqlite.py:122` |
 | C9 | Comentario «24 primeros» donde el código dice 25 | `anime_window.py:447` |
-| C10 | `README.md` describe funciones inexistentes | §3 |
-| C11 | La BD del desarrollador se empaqueta en el `.exe` | `MiBibliotecaAnime.spec:12` |
+| ~~C10~~ | ~~`README.md` describe funciones inexistentes~~ ✅ **Cerrado el 2026-08-17**: calificaciones, «dropeado» y «100 % offline» corregidos. Queda solo el árbol de directorios desactualizado | §3 |
+| ~~C11~~ | ~~La BD del desarrollador se empaqueta en el `.exe`~~ ✅ **Cerrado el 2026-08-17** junto con A3 | `MiBibliotecaAnime.spec` |
 
 ### ✅ Resuelto
 
@@ -352,10 +402,65 @@ que la lista avanza.**
 > infraestructura de esquema declarativo con **una BD nueva** (`DB_user.db`) y dejó el sitio donde
 > guardar la futura preferencia anime/manga.
 
-**A3** queda fuera de ese orden porque su urgencia depende de si vas a distribuir el `.exe`: mientras
-no empaquetes, no molesta; en cuanto empaquetes, es lo primero (ver la nota de reevaluación en §4).
+~~**A3** queda fuera de ese orden porque su urgencia depende de si vas a distribuir el `.exe`~~
+✅ **Resuelto el 2026-08-17**, antes de que llegara a bloquear nada (§4 y §7).
 
 Con R1 resuelto, cualquier punto del roadmap que necesite columnas o tablas nuevas (preferencia de
 proveedor, calificación personal) es ya abordable sin riesgo para los datos existentes.
 
 ⚠️ Este orden es una **recomendación**, no una decisión tomada. Las prioridades son del usuario.
+
+---
+
+## 7. Licencia y cumplimiento de la distribución *(nueva, 2026-08-17)*
+
+El proyecto pasó a ser formalmente **GPL-3.0-or-later** el 2026-08-17. Antes de esa fecha el
+`README.md` lucía una *badge* de GPL **sin que existiera el fichero `LICENSE`**: es decir, no se
+había concedido ninguna licencia y el código era, por defecto, «todos los derechos reservados».
+
+### Qué se hizo
+
+| # | Acción | Dónde | Por qué |
+|---|---|---|---|
+| L1 | `LICENSE` con el texto GPL-3.0 íntegro (674 líneas) | raíz, `bec0fbc` | Sin él la *badge* no respaldaba nada |
+| L2 | Aviso de copyright a nombre del autor + sección «Licencia» | `README.md` | El `LICENSE` por sí solo no dice **de quién** es la obra; la §4 de la GPL obliga a conservar avisos, y no había ninguno que conservar |
+| L3 | `LEEME.txt` junto al `.exe` | raíz → `dist/` | **§6**: toda distribución binaria debe indicar cómo obtener el código fuente correspondiente |
+| L4 | `THIRD-PARTY-NOTICES.txt` (14 componentes) | raíz → `dist/` | MIT, BSD, Apache-2.0, HPND y MPL-2.0 **exigen** reproducir sus avisos en redistribuciones binarias |
+| L5 | Reclamos falsos corregidos | `README.md` | Ver §3: «100 % offline» y «sin dependencias web» en una app que vive del scraping |
+
+### Compatibilidad de licencias ✅
+
+Comprobado el 2026-08-17 leyendo los `LICENSE` reales de `biblio_anime_env/Lib/site-packages`, con
+la lista de paquetes contrastada contra `build/MiBibliotecaAnime/Analysis-00.toc` — **lo que
+PyInstaller mete de verdad en el binario**, no lo que declara `requirements.txt`:
+
+| Componente | Licencia | ¿Compatible con GPL-3.0? |
+|---|---|---|
+| requests 2.32.3, packaging 24.1 | Apache-2.0 | ✅ (con GPLv3, no con GPLv2) |
+| urllib3, charset-normalizer, beautifulsoup4, soupsieve, customtkinter | MIT | ✅ |
+| idna, darkdetect | BSD-3-Clause | ✅ |
+| Pillow 11.0.0 | MIT-CMU (HPND) | ✅ |
+| typing_extensions | PSF-2.0 | ✅ |
+| **certifi 2024.8.30** | **MPL-2.0** | ✅ vía cláusula 3.3 (*Secondary Licenses*) |
+| CPython, Tcl/Tk | PSF-2.0 / BSD-style | ✅ |
+| PyInstaller (bootloader) | GPL-2.0 **con excepción** | ✅ no contamina el `.exe` |
+
+Dos apuntes que costaron una comprobación extra:
+
+- **`customtkinter`**: sus metadatos declaran `CC0`, pero el fichero `LICENSE` real del paquete es
+  **MIT © 2023 Tom Schimansky**. Manda el fichero → sí lleva atribución.
+- ✅ **`selenium`, `pythonnet` y `shiboken2` están en el venv pero NO viajan en el `.exe`.** Se
+  comprobó expresamente: `shiboken2` es GPL/LGPL/comercial y habría sido un conflicto real.
+
+### Qué queda abierto
+
+| # | Pendiente | Gravedad |
+|---|---|---|
+| **B11** | Origen desconocido de los iconos y los GIF de carga → probable incompatibilidad con la GPL (§4 🟡) | 🟡 |
+| L6 | Descargo de responsabilidad sobre el origen de los datos | 🟢 criterio, no obligación |
+| L7 | Cabeceras `SPDX-License-Identifier` de una línea en los `.py` | 🟢 cosmético |
+| L8 | Diálogo «Acerca de» con versión, copyright y licencia — lo sugiere el propio apéndice de la GPL para programas con GUI | 🟢 |
+| L9 | El generador de `THIRD-PARTY-NOTICES.txt` vive en el scratchpad, no en el repo | 🟢 el fichero caduca al tocar `requirements.txt` |
+
+⚠️ **`THIRD-PARTY-NOTICES.txt` caduca**: hay que regenerarlo cada vez que cambie una dependencia.
+El paso está en el playbook de empaquetado ([11 §6](11-playbooks.md)).
