@@ -31,8 +31,8 @@ A diferencia de plataformas como MyAnimeList o Anilist, este proyecto nace con u
 
 ## Capturas de Pantalla
 
-| Vista Principal | Detalles del Anime |
-| :---: | :---: |
+|               Vista Principal               |               Detalles del Anime               |
+|:-------------------------------------------:|:----------------------------------------------:|
 | ![](resources/images/utils/MainWindows.PNG) | ![](resources/images/utils/AnimeWindow.PNG) |
 
 ---
@@ -85,20 +85,34 @@ MiBibliotecaAnime/
 ├── src/
 │   ├── app.py                          # Punto de entrada principal
 │   ├── APIs/
+│   │   ├── common/
+│   │   │   ├── models.py               # Estructuras de datos comunes a todos los proveedores
+│   │   │   └── animeProviderMgr.py     # Gestor de proveedores de Anime
+│   │   ├── animeav1/
+│   │   │   └── animeav.py              # Cliente web scraping de AnimeAV1
+│   │   ├── jkanime/
+│   │   │   └── jkanime.py              # Cliente web scraping de JKAnime
 │   │   └── animeflv/
 │   │       └── animeflv.py             # Cliente web scraping de AnimeFLV
 │   ├── dataPersistence/
-│   │   └── animesPersistence.py        # Capa de acceso a datos (SQLite)
+│   │   ├── animesPersistence.py        # Capa de acceso a datos de animes persistidos (SQLite)
+│   │   └── userPersistence.py          # Capa de acceso a datos del usuario persistidos (SQLite)
 │   ├── gui/
 │   │   ├── main_window.py              # Ventana principal (CTk)
 │   │   ├── anime_window.py             # Vista de detalle de un anime
 │   │   └── sidebarButtons/
-│   │       ├── recentAnimes/           # Botón y vista: animes recientes
-│   │       ├── favouriteAnimes/        # Botón y vista: favoritos
-│   │       ├── finishedAnimes/         # Botón y vista: finalizados
-│   │       ├── watchingAnimes/         # Botón y vista: viendo
-│   │       ├── pendingAnimes/          # Botón y vista: pendientes
-│   │       └── searchAnimes/           # Botón y vista: buscador
+│   │       ├── recentAnimes/           
+│   │       │   └── recentAnimes.py     # Botón y vista: animes recientes
+│   │       ├── favouriteAnimes/        
+│   │       │   └── favouriteAnimes.py  # Botón y vista: favoritos
+│   │       ├── finishedAnimes/         
+│   │       │   └── favouriteAnimes.py  # Botón y vista: favoritos
+│   │       ├── watchingAnimes/         
+│   │       │   └── watchingAnimes.py   # Botón y vista: viendo
+│   │       ├── pendingAnimes/          
+│   │       │   └── pendingAnimes.py    # Botón y vista: pendientes
+│   │       └── searchAnimes/           
+│   │           └── searchAnimes.py     # Botón y vista: buscador
 │   └── utils/
 │       ├── utils.py                    # Helpers generales (imágenes, rutas, descarga)
 │       ├── buttons/
@@ -107,7 +121,8 @@ MiBibliotecaAnime/
 │           └── sqlite.py               # Abstracción sobre sqlite3
 ├── resources/
 │   ├── DB/
-│   │   └── DB_Animes.db                # Base de datos SQLite (generada en tiempo de ejecución)
+│   │   ├── DB_Animes.db                # Base de datos SQLite de Animes (generada en tiempo de ejecución)
+│   │   └── DB_user.db                  # Base de datos SQLite de configuración del usuario (generada en tiempo de ejecución)
 │   └── images/
 │       ├── utils/                      # Iconos de la app (app_icon.ico, loading-image.gif, etc.)
 │       ├── recent_animes/              # Posters en caché de animes recientes
@@ -117,12 +132,12 @@ MiBibliotecaAnime/
 │       ├── pending/                    # Posters de animes pendientes
 │       └── search/                     # Posters temporales del buscador
 ├── MiBibliotecaAnime.spec              # Configuración de PyInstaller
-└── requirements.txt
+└── requirements.txt                    # Librerías externas de python requeridas
 └── README.md                           # Documentación del proyecto
 ```
 
 ## Próximos Pasos
- - Integración con mas servicios de streaming online de anime como animeav1 o jkanime.
+ - Integración con mas servicios de streaming online de anime como MonosChinos2 o TioAnime.
  - Integración con servicios de visualización de manga online.
  - Alternar entre visualización de anime y manga.
  - Capacidad de identificar el capitulo del manga por el que continuar tras finalizar un anime.
