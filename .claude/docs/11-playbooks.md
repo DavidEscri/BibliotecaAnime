@@ -2,8 +2,8 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-08-16 · **Commit** `54fb3d6` · árbol **sucio** (columna `provider_id`, 16 ficheros) |
-| **Última revisión** | 2026-08-16: §2 reescrito con el **caso real ya ejecutado** (`provider_id` en medio del enum, con reconstrucción de tabla) y §3 con el paso 0 nuevo — añadir un proveedor empieza por `AnimeProviderId` |
+| **Fecha** | 2026-08-17 · **Commit** `e337d20` (rama `main`, tag `v0.2.1`) · árbol **limpio** |
+| **Última revisión** | 2026-08-17: **§6 reescrito** — 8 pasos en vez de 6, con la verificación compilando, la regla de no volver a meter datos de usuario en `datas`, la copia de los ficheros legales tras `COLLECT` y la regeneración de `THIRD-PARTY-NOTICES.txt`. Antes, 2026-08-16: §2 reescrito con el **caso real ya ejecutado** (`provider_id` en medio del enum, con reconstrucción de tabla) y §3 con el paso 0 nuevo — añadir un proveedor empieza por `AnimeProviderId` |
 | **Cubre** | recetas operativas sobre los 19 módulos de `src/` + `MiBibliotecaAnime.spec` |
 
 Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ sin verificar.

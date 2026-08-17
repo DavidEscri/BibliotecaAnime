@@ -2,9 +2,9 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-08-16 · **Commit** `54fb3d6` · árbol **sucio** (columna `provider_id`, 16 ficheros) |
+| **Fecha** | 2026-08-17 · **Commit** `e337d20` (rama `main`, tag `v0.2.1`) · árbol **limpio** |
 | **Cubre** | los 19 módulos con contenido de `src/` + `MiBibliotecaAnime.spec` + `requirements.txt` |
-| **Última revisión** | 2026-08-16 (**columna `provider_id`**): **3 trampas nuevas** (26, 27, 28), trampa **21 reescrita** —ahora se puede provocar a voluntad y la ficha la señala en pantalla—, trampas **4** y **13** ampliadas, y anclas de `anime_window.py` (647→1156) y `animesPersistence.py` reubicadas |
+| **Última revisión** | 2026-08-17 (**licencia y empaquetado**): la trampa **18** se subdivide en **a-e** — **18d cerrada** (`datas` ya no lleva datos de usuario; PyInstaller **ignora en silencio las carpetas vacías**) y **18e nueva** (los destinos de `datas` caen dentro de `_internal/`, no junto al `.exe`). Antes, 2026-08-16 (**columna `provider_id`**): **3 trampas nuevas** (26, 27, 28), trampa **21 reescrita** —ahora se puede provocar a voluntad y la ficha la señala en pantalla—, trampas **4** y **13** ampliadas, y anclas de `anime_window.py` (647→1156) y `animesPersistence.py` reubicadas |
 
 Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ sin verificar.
 

@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-08-16 · **Commit** `54fb3d6` · árbol **sucio**: 16 ficheros de `src/` con la columna `provider_id` sin commitear |
+| **Fecha** | 2026-08-16 · **Commit** `a3d4331` (2026-08-17, rama `main`) · árbol **limpio** |
 | **Última revisión** | 2026-08-16 — **`provider_id` implementada**: columna nueva en `ANIMES` (§2, §3), `AnimeProviderId` y `ProviderInfo` en `models.py` (§1b), `migrate_anime_identity()` y `get_all_animes()` (§8). La migración automática se ha ejecutado **sobre la BD real** por primera vez (§3) |
 | **Cubre** | `src/APIs/common/models.py`, `src/dataPersistence/animesPersistence.py`, `src/dataPersistence/userPersistence.py`, `src/utils/db/sqlite.py` |
 

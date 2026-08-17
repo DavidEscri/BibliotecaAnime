@@ -2,11 +2,11 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-07-30 fases 1-6 (`a9b44ea`, `fd53056`) · 2026-08-06 fase 7: el pin · **2026-08-16 fase 8: la columna `provider_id`** · rama `develop` |
+| **Fecha** | 2026-07-30 fases 1-6 (`a9b44ea`, `fd53056`) · 2026-08-06 fase 7: el pin · **2026-08-16 fase 8: la columna `provider_id`** · todo en **`main`**, la fase 8 en `a3d4331` |
 | **Estado** | ✅ **Cerrado del todo.** La fase 8 implementa la columna que quedaba diferida ([§14](#14-fase-8--la-columna-provider_id-2026-08-16)) |
 | **Cierra** | TODO #4 (borrado de `main_window.py`), el punto «Selector de proveedor con preferencia persistida» y el punto 2 del roadmap ([12 §6](12-deuda-tecnica-y-roadmap.md)) |
 | **Mitiga** | **R2** — dependencia de un único proveedor sano ([12 §5](12-deuda-tecnica-y-roadmap.md)) |
-| **Última revisión** | 2026-08-16 (**fase 8**): §8 pasa de «diferida» a **implementada**, §9 cierra los puntos 1 y 5 de lo no verificado, y §14 documenta lo entregado. Árbol **sucio**: 16 ficheros de `src/` sin commitear |
+| **Última revisión** | 2026-08-16 (**fase 8**): §8 pasa de «diferida» a **implementada**, §9 cierra los puntos 1 y 5 de lo no verificado, y §14 documenta lo entregado. ✅ Los 16 ficheros de `src/` que entonces estaban sin commitear entraron en **`a3d4331`** |
 
 Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ sin verificar.
 

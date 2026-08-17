@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-08-16 · **Commit** `54fb3d6` · árbol **sucio** (columna `provider_id`, 16 ficheros) |
+| **Fecha** | 2026-08-16 · **Commit** `a3d4331` (2026-08-17, rama `main`) · árbol **limpio** |
 | **Última revisión** | 2026-08-16: `PROVIDER_ID` deja de ser una cadena y pasa a ser **`AnimeProviderId`** (§1); `provider_info()` nuevo; el fallback ahora **estampa** quién respondió (§5) |
 | **Cubre** | `src/APIs/common/animeProviderMgr.py`, `src/APIs/common/models.py`, `src/APIs/animeav1/animeav1.py`, `src/APIs/animeflv/animeflv.py`, `src/APIs/jkanime/jkanime.py` |
 

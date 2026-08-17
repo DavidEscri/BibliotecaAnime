@@ -90,7 +90,7 @@ MiBibliotecaAnime/
 │   │   │   ├── models.py               # Estructuras de datos comunes a todos los proveedores
 │   │   │   └── animeProviderMgr.py     # Gestor de proveedores de Anime
 │   │   ├── animeav1/
-│   │   │   └── animeav.py              # Cliente web scraping de AnimeAV1
+│   │   │   └── animeav1.py             # Cliente web scraping de AnimeAV1
 │   │   ├── jkanime/
 │   │   │   └── jkanime.py              # Cliente web scraping de JKAnime
 │   │   └── animeflv/
@@ -107,7 +107,7 @@ MiBibliotecaAnime/
 │   │       ├── favouriteAnimes/        
 │   │       │   └── favouriteAnimes.py  # Botón y vista: favoritos
 │   │       ├── finishedAnimes/         
-│   │       │   └── favouriteAnimes.py  # Botón y vista: favoritos
+│   │       │   └── finishedAnimes.py   # Botón y vista: finalizados
 │   │       ├── watchingAnimes/         
 │   │       │   └── watchingAnimes.py   # Botón y vista: viendo
 │   │       ├── pendingAnimes/          
@@ -133,7 +133,10 @@ MiBibliotecaAnime/
 │       ├── pending/                    # Posters de animes pendientes
 │       └── search/                     # Posters temporales del buscador
 ├── MiBibliotecaAnime.spec              # Configuración de PyInstaller
-└── requirements.txt                    # Librerías externas de python requeridas
+├── requirements.txt                    # Librerías externas de python requeridas
+├── LICENSE                             # Licencia del proyecto (GNU GPL v3)
+├── LEEME.txt                           # Aviso de licencia y oferta de código fuente (se copia junto al .exe)
+├── THIRD-PARTY-NOTICES.txt             # Avisos de licencia de las librerías de terceros (se copia junto al .exe)
 └── README.md                           # Documentación del proyecto
 ```
 

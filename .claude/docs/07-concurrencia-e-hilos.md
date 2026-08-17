@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-08-16 · **Commit** `54fb3d6` · árbol **sucio** (columna `provider_id`, 16 ficheros) |
+| **Fecha** | 2026-08-16 · **Commit** `a3d4331` (2026-08-17, rama `main`) · árbol **limpio** |
 | **Última revisión** | 2026-08-16 (**columna `provider_id`**): hilos a **13** (eran 8) y `after()` a **10** (eran 4); **C2 resuelta** — los 4 puntos que abren una ficha pintan ya en el hilo de Tk. C5 sigue viva |
 | **Cubre** | `src/gui/main_window.py`, `src/gui/anime_window.py`, `src/gui/sidebarButtons/**`, `src/utils/utils.py` |
 

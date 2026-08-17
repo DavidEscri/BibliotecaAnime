@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-08-16 · **Commit** `54fb3d6` · árbol **sucio** (columna `provider_id`, 16 ficheros) |
+| **Fecha** | 2026-08-16 · **Commit** `a3d4331` (2026-08-17, rama `main`) · árbol **limpio** |
 | **Última revisión** | 2026-08-16 (**columna `provider_id`**): recuentos rehechos — el proyecto pasa de 5 460 a **6 245** líneas; fichas de `models.py`, `animeProviderMgr.py`, `animesPersistence.py`, `utils.py`, `utilsButtons.py`, `main_window.py` y `anime_window.py` actualizadas |
 | **Cubre** | los **37** ficheros `.py` de `src/` (**19** con contenido + **18** `__init__.py` vacíos) |
 

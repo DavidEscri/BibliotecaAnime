@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-08-16 · **Commit** `54fb3d6` · árbol **sucio** (columna `provider_id`, 16 ficheros) |
+| **Fecha** | 2026-08-16 · **Commit** `a3d4331` (2026-08-17, rama `main`) · árbol **limpio** |
 | **Última revisión** | 2026-08-16 (**columna `provider_id`**): las 4 vistas de estado pasan a **3 filas de grid** por fila visual y a buscador **local**; la ficha gana el bloque de proveedor de hasta 3 líneas (§4) y `open_saved_anime()` unifica el clic (§3). `anime_window.py` crece de 647 a 1156 líneas |
 | **Cubre** | `src/gui/main_window.py`, `src/gui/anime_window.py`, `src/gui/sidebarButtons/**`, `src/utils/buttons/utilsButtons.py` |
 

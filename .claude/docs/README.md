@@ -2,12 +2,12 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-08-17 |
-| **Commit** | `bec0fbc` (rama `main`) |
-| **Árbol de trabajo** | ⚠️ **sucio**: la tanda de **licencia y empaquetado** sin commitear — `README.md`, `MiBibliotecaAnime.spec`, `.claude/**` modificados y `LEEME.txt` + `THIRD-PARTY-NOTICES.txt` sin trackear. La columna `provider_id` **ya está commiteada** (`a3d4331`). Sin trackear siguen los 4 PNG sin usar, `.vscode/` y `.claude/settings.local.json` (ver [12 §1](12-deuda-tecnica-y-roadmap.md)) |
-| **Última revisión** | 2026-08-17 — **licencia y distribución**: **§7 nueva en [12]**, trampa **18d cerrada** y **18e nueva** (destinos de `datas` dentro de `_internal/`), playbook de empaquetado reescrito con checklist ampliada, y **B11 abierta** (origen de los recursos gráficos) |
-| **Último cambio** | ✅ 2026-08-17 — **el proyecto es formalmente GPL-3.0-or-later**: `LICENSE`, aviso de copyright, `LEEME.txt` y `THIRD-PARTY-NOTICES.txt` junto al `.exe`. El `.spec` deja de empaquetar la BD y los pósters del desarrollador y queda **verificado compilando y arrancando el `.exe`** por primera vez. Cierra **A3**, **C11** y **C10** |
-| **Siguiente tarea** | **Commitear** la tanda de licencia. Después, del roadmap: arreglar **B2** (`str` vs enum, barato y desbloquea dos puntos) → [12 §6](12-deuda-tecnica-y-roadmap.md) |
+| **Fecha** | 2026-08-18 |
+| **Commit** | `e337d20` (rama `main`, tag **`v0.2.1`**) |
+| **Árbol de trabajo** | ✅ **limpio y publicado** — `main == origin/main`, 0 adelante / 0 detrás. Sin trackear quedan solo los 4 PNG sin usar, `.vscode/`, `.claude/settings.local.json` y `.claude/plans/` (ver [12 §1](12-deuda-tecnica-y-roadmap.md)) |
+| **Última revisión** | 2026-08-18 — **sincronización de estado**: las cabeceras de los 14 documentos dejan de decir «árbol sucio» (la tanda de licencia entró en `e337d20`; la columna `provider_id`, en `a3d4331`) y se corrige el **árbol de directorios del `README.md`**, que cerraba **C10** |
+| **Último cambio** | ✅ 2026-08-17 — **el proyecto es formalmente GPL-3.0-or-later**: `LICENSE`, aviso de copyright, `LEEME.txt` y `THIRD-PARTY-NOTICES.txt` junto al `.exe`. El `.spec` deja de empaquetar la BD y los pósters del desarrollador y queda **verificado compilando y arrancando el `.exe`** por primera vez. Cierra **A3**, **C11** y **C10**. Publicado como **`v0.2.1`** |
+| **Siguiente tarea** | Del roadmap: arreglar **B2** (`str` vs enum, barato y desbloquea dos puntos) → [12 §6](12-deuda-tecnica-y-roadmap.md) |
 | **Cubre** | los **37 ficheros `.py`** de `src/`: **19 módulos reales** (**6 245** líneas) + 18 `__init__.py`, ✅ **los 18 vacíos** desde `e6d1a73` |
 
 `.claude/CLAUDE.md` es el **resumen de entrada** (qué es el proyecto, comandos, arquitectura en una

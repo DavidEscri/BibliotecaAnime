@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-08-16 · **Commit** `54fb3d6` · árbol **sucio** (columna `provider_id`, 16 ficheros) |
+| **Fecha** | 2026-08-16 · **Commit** `a3d4331` (2026-08-17, rama `main`) · árbol **limpio** |
 | **Última revisión** | 2026-08-16 (**columna `provider_id`**): **§3c nuevo** — las 8 tandas de comprobaciones de la fase 8, **351 sin fallos**; checklist de §7 puesto al día con lo que ha cambiado de comportamiento |
 | **Cubre** | procedimiento; scripts ejecutados el 2026-07-28 contra el código de `src/` |
 

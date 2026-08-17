@@ -2,9 +2,9 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-08-17 · **Commit** `bec0fbc` (rama `main`) · árbol **sucio**: licencia y empaquetado sin commitear |
+| **Fecha** | 2026-08-18 · **Commit** `e337d20` (rama `main`, tag `v0.2.1`) · árbol **limpio** |
 | **Cubre** | `src/**`, `.claude/CLAUDE.md`, `README.md`, `requirements.txt`, `MiBibliotecaAnime.spec`, `LICENSE`, `LEEME.txt`, `THIRD-PARTY-NOTICES.txt` |
-| **Última revisión** | 2026-08-17 (**licencia y distribución**): **A3 y C11 cerrados** —`datas` ya no lleva datos de usuario y el `.spec` está por fin **verificado compilando**—, C10 cerrado, **B11 abierto** (origen de los recursos gráficos) y §7 nueva |
+| **Última revisión** | 2026-08-18: §1 rehecho —la tanda de licencia ya está publicada— y **C10 cerrado del todo**: el árbol de directorios del `README.md` tenía dos erratas de copiar-pegar y omitía los ficheros legales. Antes, 2026-08-17 (**licencia y distribución**): **A3 y C11 cerrados** —`datas` ya no lleva datos de usuario y el `.spec` está por fin **verificado compilando**—, C10 cerrado a medias, **B11 abierto** (origen de los recursos gráficos) y §7 nueva |
 
 Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ sin verificar.
 
@@ -12,24 +12,26 @@ Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ si
 
 ## 1. Estado del árbol de trabajo
 
-✅ **La columna `provider_id` ya está commiteada** — entró en `a3d4331` («Actualización v0.2.0 del
-proyecto») junto con el resto de los 16 ficheros de `src/` que la revisión anterior daba por
-pendientes. El trabajo está hoy en **`main`**, no en `develop`.
+✅ **Árbol limpio y publicado.** `git status` sobre **`e337d20`** (rama `main`, tag **`v0.2.1`**),
+2026-08-18: sin ficheros modificados ni en el índice, y **`main == origin/main`** — 0 adelante,
+0 detrás. **Todo el trabajo vive en `main`**; `develop` va 3 commits por detrás y no queda ninguna
+rama local sin fusionar.
 
-⚠️ **2026-08-17: el árbol vuelve a estar sucio**, ahora por la tanda de licencia y empaquetado:
+Las dos tandas que las revisiones anteriores daban por pendientes ya están dentro:
 
-| Estado | Ruta | Qué cambió |
+| Commit | Fecha | Qué entró |
 |---|---|---|
-| M | `README.md` | Sección «Licencia» con el copyright, badge apuntando a `LICENSE`, y corregidos los reclamos falsos (§3) |
-| M | `MiBibliotecaAnime.spec` | `datas` sin datos de usuario + copia de los ficheros legales tras `COLLECT` |
-| ?? | `LEEME.txt` | Aviso de licencia y **oferta de código fuente** para la distribución binaria |
-| ?? | `THIRD-PARTY-NOTICES.txt` | Avisos de los 14 componentes de terceros que viajan en el `.exe` |
-| M | `.claude/docs/{10,11,12}` | Esta sincronización |
+| `a3d4331` | 2026-08-16 | **La columna `provider_id`** — los 16 ficheros de `src/` de la fase 8, más el `README.md` y `APP_VERSION` a 0.2.0 |
+| `bec0fbc` | 2026-08-17 | **`LICENSE`** — texto GPL-3.0 íntegro, 674 líneas |
+| `e337d20` | 2026-08-18 | **La tanda de licencia y empaquetado**, 11 ficheros y +2 631/−88 — `README.md` (sección «Licencia» y reclamos falsos corregidos), `MiBibliotecaAnime.spec` (`datas` sin datos de usuario + copia de los legales tras `COLLECT`), `LEEME.txt`, `THIRD-PARTY-NOTICES.txt` y los 7 documentos de `.claude/` |
 
-Y `LICENSE` (texto GPL-3.0 íntegro, 674 líneas) ya está dentro, en **`bec0fbc`**.
+⚠️ **Los tags `v0.1.0` y `v0.2.0` apuntan a commits distintos en local y en GitHub**: el local va una
+commit por delante en los dos casos (`v0.2.0` → `bec0fbc` en local, `a3d4331` en el remoto). `git
+fetch` **no reescribe tags que ya existen**, así que la divergencia no da ningún aviso. `v0.2.1`
+coincide en ambos lados. Pendiente de decidir cuál manda — **lo lleva el usuario**.
 
-✅ `git status` sobre **`18311e3`** (rama `develop`), 2026-08-07. El árbol estaba limpio entonces. Las
-dos tareas que aquella revisión daba por pendientes de commitear ya están dentro:
+📜 **Historial.** `git status` sobre **`18311e3`** (rama `develop`), 2026-08-07: el árbol estaba
+limpio entonces, y las dos tareas que la revisión de aquel día daba por pendientes ya estaban dentro:
 
 | Commit | Fecha | Qué entró |
 |---|---|---|
@@ -46,8 +48,9 @@ dos tareas que aquella revisión daba por pendientes de commitear ya están dent
 | Ruta | Qué es |
 |---|---|
 | `resources/images/utils/{viendo,pendientes}_{light,dark}.png` | 4 iconos generados pero **aún sin usar**: su carga sigue comentada en `watchingAnimes.py:23-25` y `pendingAnimes.py:23-25` |
-| `.vscode/` | configuración local del editor |
+| `.vscode/` | configuración local del editor (`launch.json`, `tasks.json`, `settings.json`) |
 | `.claude/settings.local.json` | permisos locales de Claude Code |
+| `.claude/plans/` | planes del modo plan de Claude Code |
 
 > ⚠️ Los 4 PNG de «viendo» y «pendientes» llevan sin trackear desde antes del 2026-07-30 y **no los
 > referencia ningún código activo**. O se descomenta su uso, o se borran: hoy son solo ruido en
@@ -251,8 +254,22 @@ Auditado punto por punto. Donde el código contradice a `CLAUDE.md`, **gana el c
 | C7 | `info_frame` con `fg_color="white"` fijo, no respeta el tema | `anime_window.py:176` |
 | C8 | `-> (bool, list)` como anotación de tipo | `sqlite.py:122` |
 | C9 | Comentario «24 primeros» donde el código dice 25 | `anime_window.py:447` |
-| ~~C10~~ | ~~`README.md` describe funciones inexistentes~~ ✅ **Cerrado el 2026-08-17**: calificaciones, «dropeado» y «100 % offline» corregidos. Queda solo el árbol de directorios desactualizado | §3 |
+| ~~C10~~ | ~~`README.md` describe funciones inexistentes~~ ✅ **Cerrado del todo el 2026-08-18** (ver abajo) | §3 |
 | ~~C11~~ | ~~La BD del desarrollador se empaqueta en el `.exe`~~ ✅ **Cerrado el 2026-08-17** junto con A3 | `MiBibliotecaAnime.spec` |
+
+> **C10 — el árbol de directorios del `README.md`** ✅ **cerrado el 2026-08-18**. El 2026-08-17 se
+> corrigieron los reclamos falsos (calificaciones, «dropeado», «100 % offline») y quedó pendiente el
+> árbol. Resultó que **sí se había actualizado** en `a3d4331` —ya lista `APIs/common/`,
+> `APIs/animeav1/` y `APIs/jkanime/`— pero con **dos erratas de copiar-pegar** que sobrevivieron:
+>
+> | Decía | Es |
+> |---|---|
+> | `animeav1/ └── animeav.py` | **`animeav1.py`** |
+> | `finishedAnimes/ └── favouriteAnimes.py # Botón y vista: favoritos` | **`finishedAnimes.py`** · *finalizados* |
+>
+> Corregidas ambas, arreglado un `└──` duplicado al final del bloque y añadidos `LICENSE`,
+> `LEEME.txt` y `THIRD-PARTY-NOTICES.txt`, que desde `e337d20` forman parte de la distribución.
+> Contrastado contra `git ls-files src/`: **los 19 módulos reales coinciden ya uno a uno**.
 
 ### ✅ Resuelto
 
@@ -350,7 +367,7 @@ reescribirlo de golpe.
 
 ## 6. El roadmap traducido a impacto técnico
 
-Roadmap declarado en `.claude/CLAUDE.md` y `README.md:124-130`.
+Roadmap declarado en `.claude/CLAUDE.md` y `README.md:143-149`.
 
 | Punto del roadmap | Módulos a tocar | Requisitos previos | Docs a actualizar |
 |---|---|---|---|
