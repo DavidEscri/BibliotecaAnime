@@ -24,7 +24,7 @@
 | 2 | Nuevos lanzamientos | ✅ terminada | `ef9f4d4` | ✅ app ejecutada y **mirada** (4 arranques + recorrido de las 6 vistas) + 48 + 14 comprobaciones |
 | 3 | Viendo | ✅ terminada | `3198f12` | ✅ app ejecutada y **mirada** (3 arranques reales + recorrido de las 6 vistas + ficha abierta por las 3 vías) + 42 + 29 comprobaciones |
 | 4 | Pendientes | ✅ terminada | `3b06dd0` | ✅ app real ejecutada y **mirada** (3 arranques: portada, Pendientes y Pendientes con orden y hover + recorrido de las 6 vistas) + 61 comprobaciones sobre **copia** de la BD |
-| 5 | Favoritos | ✅ terminada | `PENDIENTE` | ✅ app real ejecutada y **mirada** (2 arranques: portada, Favoritos, calificar con el ratón, orden guardado y recorrido de las 6 vistas) + **59 comprobaciones sobre copia** de la BD + **15 sobre la real** + **56 con CTk real** |
+| 5 | Favoritos | ✅ terminada | `580333b` | ✅ app real ejecutada y **mirada** (2 arranques: portada, Favoritos, calificar con el ratón, orden guardado y recorrido de las 6 vistas) + **59 comprobaciones sobre copia** de la BD + **15 sobre la real** + **56 con CTk real** |
 | 6 | Finalizados | ⬜ no empezada | — | — |
 | 7 | Buscar | ⬜ no empezada | — | — |
 | 8 | Ficha del anime | ⬜ no empezada | — | — |
