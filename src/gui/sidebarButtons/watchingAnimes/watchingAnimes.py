@@ -22,7 +22,7 @@ class WatchingAnimeButton(utilsButtons.SidebarButton):
         # icon_path_light = os.path.join(icon_path, "viendo_light.png")
         # icon_path_dark = os.path.join(icon_path, "viendo_dark.png")
         icon_path_light = icon_path_dark = os.path.join(icon_path, "viendo.png")
-        super().__init__(main_window.sidebar_frame, "ANIMES VIENDO", row, column, self.show_watching_animes, icon_path_light, icon_path_dark)
+        super().__init__(main_window.sidebar_frame, "Viendo", row, column, self.show_watching_animes, icon_path_light, icon_path_dark)
 
         self.main_window = main_window
         self.anime_provider_mgr: AnimeProviderManager = AnimeProviderManagerSingleton()

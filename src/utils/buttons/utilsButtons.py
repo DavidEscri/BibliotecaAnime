@@ -11,7 +11,7 @@ from typing import List, Callable, Optional
 from APIs.common.animeProviderMgr import AnimeProviderManager
 from APIs.common.models import AnimeGenreFilter, AnimeOrderFilter, AnimeInfo
 from dataPersistence.animesPersistence import AnimeStatus, AnimesPersistenceSingleton, AnimesPersistence, AnimeRecord
-from utils.utils import load_image, refactor_genre_text
+from utils.utils import load_dual_image, refactor_genre_text
 import customtkinter as ctk
 
 #: Parecido mínimo para dar por buena una coincidencia que NO es subcadena. Solo
@@ -199,30 +199,49 @@ class ApplyFiltersButton(BaseButton):
         )
 
 
-class SidebarButton(BaseButton):
-    def __init__(self, parent_frame, text, row, column, command, icon_path_light, icon_path_dark):
-        self.icon_light = load_image(icon_path_light, image_size=(24, 24))
-        self.icon_dark = load_image(icon_path_dark, image_size=(24, 24))
-        current_icon = self.icon_dark if ctk.get_appearance_mode() == "Dark" else self.icon_light
-        super().__init__(
-            parent_frame,
-            text=" " + text,
-            font=ctk.CTkFont(size=14),
-            width=parent_frame.winfo_width(),
-            height=parent_frame.winfo_height() - 150,
-            fg_color=parent_frame.cget("fg_color"),
-            text_color="black",
-            image=current_icon,
-            compound="left",
-            corner_radius=0,
-            hover_color="white",
-            command=command,
-        )
-        self.grid(row=row, column=column, sticky="nsew")
+class SidebarButton:
+    """Descriptor de un destino de la barra lateral. **Ya no es un widget.**
 
-    def update_icon(self, mode):
-        new_icon = self.icon_dark if mode == "Dark" else self.icon_light
-        self.configure(image=new_icon)
+    Hasta el rediseño era un ``CTkButton`` que se pintaba a sí mismo dentro de
+    ``main_window.sidebar_frame``, y por eso arrastraba dos problemas:
+
+    - se construía con ``width=parent_frame.winfo_width()``, que vale **1** antes
+      de que Tk mapee el frame, así que la barra acababa midiendo lo que midiera
+      su contenido y no los 340 declarados;
+    - sus colores eran literales (``text_color="black"``, ``hover_color="white"``),
+      lo que obligaba a ``MainWindow.change_appearance_mode_event()`` a
+      recorrerlos y reconfigurarlos a mano en cada cambio de apariencia.
+
+    Ahora el que pinta es ``gui.components.sidebar.Sidebar``, y esta clase solo
+    guarda **qué** hay que pintar: etiqueta, iconos y a qué llamar al pulsar. La
+    firma del constructor no cambia para que las seis vistas sigan heredando de
+    ella sin tocar una línea; ``parent_frame``, ``row`` y ``column`` se conservan
+    por compatibilidad y ya no se usan.
+
+    El icono se construye como un único ``CTkImage`` con ``light_image`` y
+    ``dark_image``: así el cambio de apariencia lo resuelve CustomTkinter y
+    ``update_icon()`` deja de hacer falta.
+    """
+
+    def __init__(self, parent_frame, text, row, column, command, icon_path_light, icon_path_dark):
+        #: Etiqueta que la barra lateral muestra para este destino.
+        self.sidebar_text: str = text
+        #: Qué se ejecuta al pulsarlo.
+        self.sidebar_command: Callable = command
+        self.icon_path_light: str = icon_path_light
+        self.icon_path_dark: str = icon_path_dark
+        # Conservados solo por compatibilidad con la firma anterior.
+        self.parent_frame = parent_frame
+        self.row = row
+        self.column = column
+
+    def sidebar_icon(self, image_size: tuple) -> ctk.CTkImage:
+        """Construye el icono del destino al tamaño pedido.
+
+        No se cachea a propósito: la barra lateral pide dos tamaños distintos
+        (desplegada y plegada) y un mismo ``CTkImage`` solo tiene un ``size``.
+        """
+        return load_dual_image(self.icon_path_light, self.icon_path_dark, image_size)
 
     def show_frame(self):
         raise NotImplementedError("Subclasses must implement this method")

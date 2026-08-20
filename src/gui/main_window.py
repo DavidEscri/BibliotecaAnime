@@ -24,11 +24,10 @@ from gui.sidebarButtons.pendingAnimes.pendingAnimes import PendingAnimeButton
 from gui.sidebarButtons.recentAnimes.recentAnimes import RecentAnimeButton
 from gui.sidebarButtons.searchAnimes.searchAnimes import SearchButton, AnimeSearch
 from gui.sidebarButtons.watchingAnimes.watchingAnimes import WatchingAnimeButton
-from utils.buttons.utilsButtons import SidebarButton
+from gui.components.sidebar import Sidebar
+from gui.theme import Theme
 
 from utils.utils import get_resource_path, download_images_progress, download_animes_poster
-
-# TODO: Cambiar BibliotecaAnime y los botones de viendo, pendiente, finalizado... eliminar la palabra Anime
 
 
 class MainWindow(ctk.CTk):
@@ -64,10 +63,9 @@ class MainWindow(ctk.CTk):
         self.__registry_default_provider_id: AnimeProviderId | None = self.anime_provider_mgr.get_default_provider_id()
         self.__apply_saved_provider_preference()
 
-        self.__provider_optionmenu: ctk.CTkOptionMenu | None = None
-        self.__pin_provider_button: ctk.CTkButton | None = None
-        self.__pin_icon_pinned: ctk.CTkImage | None = None
-        self.__pin_icon_unpinned: ctk.CTkImage | None = None
+        # El desplegable de proveedor, el pin y sus iconos los construye y los
+        # mantiene la barra lateral (gui/components/sidebar.py). Este hub solo le
+        # dice cuándo repintar el pin.
         # Guarda para que dos cambios seguidos de proveedor no lancen dos hilos que
         # se pisen al escribir self.recent_animes.
         self.__reloading_recent_animes: bool = False
@@ -96,7 +94,7 @@ class MainWindow(ctk.CTk):
         self.show_loading_screen()
 
     def __config_main_window(self):
-        self.title("Mi Biblioteca de Anime")
+        self.title("Mi Biblioteca")
         pantalla_ancho = self.winfo_screenwidth()
         pantalla_largo = self.winfo_screenheight()
         x = int((pantalla_ancho / 2) - (self.MAIN_WINDOW_ANCHO / 2))
@@ -109,38 +107,23 @@ class MainWindow(ctk.CTk):
         self.grid_rowconfigure((0, 1, 2), weight=1)
 
     def __config_main_frames(self):
-        # Crear los frames
-        self.sidebar_frame: ctk.CTkFrame = self.create_sidebar_frame()
+        # La barra lateral se construye más tarde, en load_sidebar_buttons(): necesita
+        # el gestor de proveedores y las preferencias, que todavía no existen aquí. Las
+        # seis vistas se instancian antes que ella y leen este atributo, así que tiene
+        # que estar declarado ya (SidebarButton lo guarda sin usarlo).
+        self.sidebar_frame: Sidebar | None = None
         self.content_frame: ctk.CTkScrollableFrame = self.create_content_frame()
 
     def clear_frame(self):
         for widget in self.content_frame.winfo_children():
             widget.destroy()
 
-    def create_sidebar_frame(self) -> ctk.CTkFrame:
-        sidebar_frame = ctk.CTkFrame(
-            self,
-            width=340,
-            corner_radius=0,
-        )
-
-        sidebar_frame.grid(row=0, column=0, rowspan=8, sticky="nsew")
-        sidebar_frame.grid_rowconfigure(8, weight=1)
-
-        sidebar_title_label = ctk.CTkLabel(
-            sidebar_frame,
-            text="Biblioteca de Anime",
-            font=ctk.CTkFont(size=18, weight="bold")
-        )
-        sidebar_title_label.grid(row=1, column=0, padx=10, pady=20)
-
-        return sidebar_frame
-
     def create_content_frame(self) -> ctk.CTkScrollableFrame:
         # Crear una barra de desplazamiento
         main_frame = ctk.CTkScrollableFrame(
             self,
             corner_radius=0,
+            fg_color=Theme.BG
         )
         main_frame.grid(row=0, column=1, rowspan=8, sticky=ctk.NSEW)
 
@@ -150,87 +133,66 @@ class MainWindow(ctk.CTk):
         return main_frame
 
     def load_sidebar_buttons(self) -> None:
-        # Instanciar los botones
-        sidebar_button_row = 1
-        sidebar_button_column = 0
+        """Instancia las seis vistas y construye la barra lateral con ellas.
+
+        El orden de esta lista **es** el orden en que se ven en la barra
+        (`DISENO.md`); no coincide con el que había antes, donde finalizados iba
+        delante de viendo y pendientes.
+        """
         icon_path = get_resource_path("resources/images/utils")
-        self.__recent_animes_button: RecentAnimeButton = RecentAnimeButton(self, icon_path, sidebar_button_row + 1, sidebar_button_column)
-        self.__favourites_animes_button: FavouritesButton = FavouritesButton(self, icon_path, sidebar_button_row + 2, sidebar_button_column)
-        self.__finished_animes_button: FinishedAnimeButton = FinishedAnimeButton(self, icon_path, sidebar_button_row + 3, sidebar_button_column)
-        self.__watching_animes_button: WatchingAnimeButton = WatchingAnimeButton(self, icon_path, sidebar_button_row + 4, sidebar_button_column)
-        self.__pending_animes_button: PendingAnimeButton = PendingAnimeButton(self, icon_path, sidebar_button_row + 5, sidebar_button_column)
-        self.__search_animes_button: SearchButton = SearchButton(self, icon_path, sidebar_button_row + 6, sidebar_button_column)
+        # row y column ya no significan nada: SidebarButton dejó de pintarse a sí
+        # mismo y ahora solo describe el destino. Se conservan en la firma para no
+        # tocar las seis vistas.
+        self.__recent_animes_button: RecentAnimeButton = RecentAnimeButton(self, icon_path, 0, 0)
+        self.__favourites_animes_button: FavouritesButton = FavouritesButton(self, icon_path, 0, 0)
+        self.__watching_animes_button: WatchingAnimeButton = WatchingAnimeButton(self, icon_path, 0, 0)
+        self.__pending_animes_button: PendingAnimeButton = PendingAnimeButton(self, icon_path, 0, 0)
+        self.__finished_animes_button: FinishedAnimeButton = FinishedAnimeButton(self, icon_path, 0, 0)
+        self.__search_animes_button: SearchButton = SearchButton(self, icon_path, 0, 0)
 
-        provider_label = ctk.CTkLabel(
-            self.sidebar_frame,
-            text="Proveedor de anime:",
-            anchor="w"
-        )
-        # Ojo con las filas: create_sidebar_frame() da weight=1 a la fila 8, que es el
-        # espaciador que empuja estos controles al fondo. Con sidebar_button_row=1,
-        # el primer hueco utilizable por debajo del espaciador es row + 8 == 9.
-        provider_label.grid(row=sidebar_button_row + 8, column=sidebar_button_column, padx=20, pady=(10, 0))
+        destinations = [
+            self.__recent_animes_button,
+            self.__favourites_animes_button,
+            self.__watching_animes_button,
+            self.__pending_animes_button,
+            self.__finished_animes_button,
+            self.__search_animes_button,
+        ]
+        # Los contadores salen de las listas que ya cachea este hub, no de la BD:
+        # son len() sobre memoria y se pueden refrescar en cada guardado sin coste.
+        # Buscar no lleva contador, así que no figura aquí.
+        counter_providers = {
+            self.__recent_animes_button.sidebar_text:     lambda: len(self.recent_animes),
+            self.__favourites_animes_button.sidebar_text: lambda: len(self.favourite_animes),
+            self.__watching_animes_button.sidebar_text:   lambda: len(self.watching_animes),
+            self.__pending_animes_button.sidebar_text:    lambda: len(self.pending_animes),
+            self.__finished_animes_button.sidebar_text:   lambda: len(self.finished_animes),
+        }
 
-        # Desplegable y pin comparten fila dentro de un frame propio, para no
-        # desplazar las filas de abajo (apariencia) al añadir el segundo control.
-        provider_frame = ctk.CTkFrame(self.sidebar_frame, fg_color="transparent")
-        provider_frame.grid(row=sidebar_button_row + 9, column=sidebar_button_column, padx=20, pady=(5, 0))
-
-        # El contenido del desplegable sale SIEMPRE del manager: la GUI no mantiene
-        # su propia lista de proveedores. Cuando existan proveedores de manga, el
-        # filtrado por tipo de medio se hará en list_providers_info().
-        providers_info = self.anime_provider_mgr.list_providers_info()
-        self.__provider_optionmenu = ctk.CTkOptionMenu(
-            provider_frame,
-            values=[provider_info.name for provider_info in providers_info],
-            width=140,
-            command=self.change_anime_provider_event
-        )
-        self.__provider_optionmenu.grid(row=0, column=0)
-        current_provider_id = self.anime_provider_mgr.get_default_provider_id()
-        if current_provider_id is not None:
-            self.__provider_optionmenu.set(self.anime_provider_mgr.get_provider_name(current_provider_id))
-
-        # Los dos estados del pin se distinguen por color (azul fijado / gris sin
-        # fijar) y no por relleno frente a contorno: contorneada, la silueta se
-        # vuelve ilegible al bajar a los 20x20 a los que se pinta.
-        self.__pin_icon_pinned = ctk.CTkImage(
-            light_image=Image.open(get_resource_path("resources/images/utils/fijado_light.png")),
-            dark_image=Image.open(get_resource_path("resources/images/utils/fijado_dark.png")),
-            size=(20, 20)
-        )
-        self.__pin_icon_unpinned = ctk.CTkImage(
-            light_image=Image.open(get_resource_path("resources/images/utils/no_fijado_light.png")),
-            dark_image=Image.open(get_resource_path("resources/images/utils/no_fijado_dark.png")),
-            size=(20, 20)
-        )
-        self.__pin_provider_button = ctk.CTkButton(
-            provider_frame,
-            text="",
-            image=self.__pin_icon_unpinned,
-            width=32,
-            fg_color="transparent",
-            hover_color=("gray85", "gray25"),
-            command=self.toggle_pinned_provider_event
-        )
-        self.__pin_provider_button.grid(row=0, column=1, padx=(5, 0))
+        self.sidebar_frame = Sidebar(self, destinations, counter_providers)
+        self.sidebar_frame.grid(row=0, column=0, rowspan=8, sticky="nsew")
+        self.sidebar_frame.set_active(self.__recent_animes_button)
         self.__refresh_pin_provider_button()
-
-        appearance_mode_label = ctk.CTkLabel(
-            self.sidebar_frame,
-            text="Apariencia:",
-            anchor="w"
-        )
-        appearance_mode_label.grid(row=sidebar_button_row + 10, column=sidebar_button_column, padx=20, pady=(10, 0))
-
-        appearance_mode_optionemenu = ctk.CTkOptionMenu(
-            self.sidebar_frame,
-            values=["Light", "Dark", "System"],
-            command=self.change_appearance_mode_event
-        )
-        appearance_mode_optionemenu.grid(row=sidebar_button_row + 11, column=sidebar_button_column, padx=20, pady=(5, 20))
-        appearance_mode_optionemenu.set("System")
         ctk.set_appearance_mode("System")
+
+    def refresh_sidebar_counts(self) -> None:
+        """Repinta los contadores de la barra lateral.
+
+        Punto de entrada para las fases siguientes: se llama después de guardar o
+        de quitar un anime, cuando las listas cacheadas del hub ya se han
+        actualizado. Tolera que la barra aún no exista (arranque).
+        """
+        if self.sidebar_frame is not None:
+            self.sidebar_frame.refresh_counts()
+
+    def set_active_sidebar_destination(self, destination) -> None:
+        """Marca qué destino está activo cuando la navegación no viene de un clic.
+
+        El arranque y la recarga de proveedor llaman a ``show_frame()``
+        directamente, y sin esto la barra se quedaría señalando otra vista.
+        """
+        if self.sidebar_frame is not None:
+            self.sidebar_frame.set_active(destination)
 
     # ------------------------------------------------------------------
     # Proveedor de anime
@@ -309,15 +271,14 @@ class MainWindow(ctk.CTk):
         """Sincroniza el icono del pin con la selección actual.
 
         Marcado (azul) significa «lo que estás usando es tu predeterminado»; en
-        gris, que te has desviado solo para esta sesión.
+        gris, que te has desviado solo para esta sesión. El icono lo cambia la
+        barra lateral; aquí solo se decide **cuál** de los dos estados toca.
         """
-        if self.__pin_provider_button is None or not self.__pin_provider_button.winfo_exists():
+        if self.sidebar_frame is None:
             return
         is_pinned = (self.__pinned_provider_id is not None
                      and self.__pinned_provider_id == self.anime_provider_mgr.get_default_provider_id())
-        self.__pin_provider_button.configure(
-            image=self.__pin_icon_pinned if is_pinned else self.__pin_icon_unpinned
-        )
+        self.sidebar_frame.refresh_pin_button(is_pinned)
 
     def reference_provider_id(self) -> AnimeProviderId | None:
         """Proveedor «de referencia»: el pin, o el predeterminado del registro si no hay.
@@ -406,6 +367,8 @@ class MainWindow(ctk.CTk):
             )
             return
         self.recent_animes = recent_animes
+        self.refresh_sidebar_counts()
+        self.set_active_sidebar_destination(self.__recent_animes_button)
         self.__recent_animes_button.show_frame()
         threading.Thread(
             target=self.__preload_recent_animes_info,
@@ -414,16 +377,14 @@ class MainWindow(ctk.CTk):
         ).start()
 
     def change_appearance_mode_event(self, new_appearance_mode):
-        ctk.set_appearance_mode(new_appearance_mode)
+        """Cambia el tema. Una línea, y no un recorrido de widgets.
 
-        for widget in self.sidebar_frame.winfo_children():
-            if isinstance(widget, SidebarButton):
-                widget.configure(
-                    fg_color=self.sidebar_frame.cget("fg_color"),
-                    hover_color="gray25" if new_appearance_mode == "Dark" else "white",
-                    text_color="white" if new_appearance_mode == "Dark" else "black"
-                )
-                widget.update_icon(new_appearance_mode)
+        Antes había que recorrer los hijos de la barra reconfigurando fondo,
+        hover, color de texto e icono uno a uno, porque los botones se habían
+        construido con literales. Ahora todo el color sale de ``Theme`` en tuplas
+        ``(claro, oscuro)`` y del cambio se encarga CustomTkinter.
+        """
+        ctk.set_appearance_mode(new_appearance_mode)
 
     def show_loading_screen(self):
         self.sidebar_frame.grid_forget()
@@ -474,12 +435,15 @@ class MainWindow(ctk.CTk):
             messagebox.showwarning("Aviso!",
                                    "La conexión con los proveedores de anime es muy lenta, por lo que no se "
                                    "pudieron obtener los animes recientes.")
+            self.set_active_sidebar_destination(self.__recent_animes_button)
             self.__recent_animes_button.show_frame()
             return
         progress_bar.set(0.9)
         progress_label.configure(text="90 %")
         download_images_progress(self.images_path, self.recent_animes, progress_bar, progress_label)  # Descargar imágenes
         loading_frame.place_forget()
+        self.refresh_sidebar_counts()
+        self.set_active_sidebar_destination(self.__recent_animes_button)
         self.__recent_animes_button.show_frame()  # Mostrar animes recientes al finalizar la descarga
 
         # Precargar el detalle de cada anime reciente en segundo plano para que
@@ -532,3 +496,6 @@ class MainWindow(ctk.CTk):
         self.pending_animes = self.animes_persistence.get_pending_animes()
         progress_bar.set(0.4)
         progress_label.configure(text="40 %")
+        # Ya hay números que enseñar en la barra lateral, aunque siga oculta tras
+        # la pantalla de carga: cuando se revele, saldrá con los contadores puestos.
+        self.refresh_sidebar_counts()

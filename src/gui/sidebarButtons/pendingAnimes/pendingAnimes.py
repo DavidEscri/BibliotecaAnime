@@ -22,7 +22,7 @@ class PendingAnimeButton(utilsButtons.SidebarButton):
         # icon_path_light = os.path.join(icon_path, "pendientes_light.png")
         # icon_path_dark = os.path.join(icon_path, "pendientes_dark.png")
         icon_path_light = icon_path_dark = os.path.join(icon_path, "pendientes.png")
-        super().__init__(main_window.sidebar_frame, "ANIMES PENDIENTES", row, column, self.show_pending_animes, icon_path_light, icon_path_dark)
+        super().__init__(main_window.sidebar_frame, "Pendientes", row, column, self.show_pending_animes, icon_path_light, icon_path_dark)
 
         self.main_window = main_window
         self.anime_provider_mgr: AnimeProviderManager = AnimeProviderManagerSingleton()
