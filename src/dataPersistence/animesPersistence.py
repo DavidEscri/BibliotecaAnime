@@ -1,14 +1,14 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "DataPersistence"
 __module__ = "animesPersistence"
-__version__ = "2.3"
+__version__ = "2.4"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 import json
 import os
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, List, Optional, Set, Any
+from typing import ClassVar, Dict, List, Optional, Set, Any
 
 from APIs.common.models import AnimeInfo, AnimeGenreFilter, AnimeOrderFilter, AnimeProviderId, EpisodeInfo
 from utils.db.sqlite import ServiceDB, TableSchema
@@ -46,6 +46,7 @@ class AnimeField(Enum):
     IS_WATCHING          = ("is_watching",          "BOOLEAN")
     IS_FINISHED          = ("is_finished",          "BOOLEAN")
     IS_PENDING           = ("is_pending",           "BOOLEAN")
+    RATING               = ("rating",               "INTEGER")
 
     @property
     def column(self) -> str:
@@ -79,8 +80,16 @@ class AnimeRecord:
     is_watching:          bool           = False
     is_finished:          bool           = False
     is_pending:           bool           = False
+    #: Calificación personal, de 0 a 10 en medios puntos (10 = 5 estrellas).
+    #: ``None`` es «sin calificar», que **no** es lo mismo que 0.
+    rating:               Optional[int]  = None
     provider_id:          Optional[AnimeProviderId] = None
     id:                   Optional[int]  = None  # autoincrement → None en inserción
+
+    #: Tope de la escala de calificación. Es un entero y no un flotante para no
+    #: meter decimales ni en SQLite ni en la comparación del orden: cada estrella
+    #: son 2 puntos, así que el medio punto es representable sin coma.
+    RATING_MAX: ClassVar[int] = 10
 
     # ------------------------------------------------------------------
     # Serialización hacia la BD
@@ -104,6 +113,7 @@ class AnimeRecord:
             AnimeField.IS_WATCHING.column:          int(self.is_watching),
             AnimeField.IS_FINISHED.column:          int(self.is_finished),
             AnimeField.IS_PENDING.column:           int(self.is_pending),
+            AnimeField.RATING.column:               self.rating,
         }
 
     # ------------------------------------------------------------------
@@ -147,7 +157,30 @@ class AnimeRecord:
             is_watching          = bool(data.get(AnimeField.IS_WATCHING.column,  False)),
             is_finished          = bool(data.get(AnimeField.IS_FINISHED.column,  False)),
             is_pending           = bool(data.get(AnimeField.IS_PENDING.column,   False)),
+            rating               = cls._rating_from_db(data.get(AnimeField.RATING.column)),
         )
+
+    @classmethod
+    def _rating_from_db(cls, raw_value: Any) -> Optional[int]:
+        """Normaliza la columna ``rating`` al entero de la escala, o a ``None``.
+
+        Es la frontera de la calificación, y se comporta como la del proveedor:
+        **nunca lanza**. La columna llega a ``NULL`` en todas las filas anteriores
+        a la migración, y un valor fuera de escala (o que no sea un número) se
+        trata igual que si no hubiera calificación: mejor una estrella menos que
+        una biblioteca que no se puede leer.
+        """
+        if raw_value is None:
+            return None
+        try:
+            rating = int(raw_value)
+        except (TypeError, ValueError):
+            print(f"Calificación no numérica en BD: {raw_value!r}; se ignora")
+            return None
+        if not 0 <= rating <= cls.RATING_MAX:
+            print(f"Calificación fuera de escala en BD: {rating}; se ignora")
+            return None
+        return rating
 
     @staticmethod
     def _provider_id_from_db(raw_value: Optional[str]) -> Optional[AnimeProviderId]:
@@ -439,6 +472,32 @@ class AnimesPersistence(ServiceDB):
         )
         return self._db.update_sql(sql, (provider_id.value if provider_id else None, str(anime_id)))
 
+    def update_anime_rating(self, anime_id: str, rating: Optional[int]) -> bool:
+        """Guarda la calificación personal de un anime, o la borra con ``None``.
+
+        La escala es un entero de 0 a ``AnimeRecord.RATING_MAX`` (10), en el que
+        cada estrella vale 2 puntos: el medio punto se representa sin decimales,
+        que es lo que evita flotantes en SQLite y en la comparación del orden.
+
+        ``None`` es «sin calificar» y **no** es lo mismo que 0: el orden por
+        calificación manda las filas sin calificar al final, no al principio.
+
+        Devuelve ``False`` si el anime no está en BD —no se califica lo que no se
+        ha guardado— o si la calificación se sale de la escala. No inserta: para
+        eso está ``_set_status``.
+        """
+        if rating is not None and not 0 <= rating <= AnimeRecord.RATING_MAX:
+            print(f"Calificación fuera de escala para {anime_id}: {rating}")
+            return False
+        if self.get_anime_by_anime_id(anime_id) is None:
+            return False
+        sql = (
+            f"UPDATE {self.TABLE_NAME} "
+            f"SET {AnimeField.RATING.column} = ? "
+            f"WHERE {AnimeField.ANIME_ID.column} = ?"
+        )
+        return self._db.update_sql(sql, (rating, str(anime_id)))
+
     def migrate_anime_identity(self, current_anime_id: str, anime_info: AnimeInfo,
                                provider_id: Optional[AnimeProviderId] = None) -> bool:
         """Reapunta una fila ya guardada al anime de **otro proveedor**.
@@ -452,7 +511,8 @@ class AnimesPersistence(ServiceDB):
 
         **Lo que se conserva** es justamente lo que el usuario ha construido y no
         se puede recuperar de la red: ``watched_episodes``,
-        ``last_watched_episode`` y los cuatro estados. Se sobrescribe el resto
+        ``last_watched_episode``, los cuatro estados y la calificación personal
+        (la sentencia no toca esas columnas). Se sobrescribe el resto
         (título, póster, sinopsis, géneros y episodios), porque a partir de ahora
         la fila *es* la del proveedor nuevo y dejar datos del anterior la
         volvería incoherente consigo misma.
