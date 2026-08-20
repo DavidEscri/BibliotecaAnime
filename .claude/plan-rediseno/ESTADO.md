@@ -5,12 +5,12 @@
 
 | | |
 |---|---|
-| **Fase actual** | 1 — Cimientos |
-| **Situación** | 🟡 en curso |
-| **Último paso completado** | Paso 1.3 — caché de pósters a 248 × 372 |
-| **Siguiente paso** | Paso 1.4 — `components/sidebar.py` |
+| **Fase actual** | 2 — Nuevos lanzamientos |
+| **Situación** | ⬜ no empezada |
+| **Último paso completado** | Paso 1.5 — `ViewHeader` y cableado de `MainWindow` (**fase 1 cerrada**) |
+| **Siguiente paso** | Paso 2.1 — leer la ficha de la fase 2 y `recentAnimes.py` |
 | **Rama** | ✅ `feature/ui-redisign` (**no** `feature/rediseno-ui`: ya existía, ver Decisiones) |
-| **Base** | `6377b92` en `feature/ui-redisign` (**no** `4f9e429`: ese commit ya no es la punta) |
+| **Base** | `bd25742` en `feature/ui-redisign` (fase 1). El plan partió de `6377b92`, no de `4f9e429` |
 | **Commits** | automáticos (uno al cerrar cada fase) |
 | **Actualizado** | 2026-08-20 |
 
@@ -20,7 +20,7 @@
 
 | # | Fase | Situación | Commit | Verificada |
 |---|---|---|---|---|
-| 1 | Cimientos | 🟡 en curso | — | — |
+| 1 | Cimientos | ✅ terminada | `bd25742` | ✅ app ejecutada + 62 comprobaciones |
 | 2 | Nuevos lanzamientos | ⬜ no empezada | — | — |
 | 3 | Viendo | ⬜ no empezada | — | — |
 | 4 | Pendientes | ⬜ no empezada | — | — |
