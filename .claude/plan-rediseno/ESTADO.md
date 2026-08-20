@@ -5,14 +5,14 @@
 
 | | |
 |---|---|
-| **Fase actual** | 5 — Favoritos |
+| **Fase actual** | 6 — Finalizados |
 | **Situación** | ⬜ no empezada |
-| **Último paso completado** | Paso 4.4 — montar la vista (**fase 4 cerrada**) |
-| **Siguiente paso** | Paso 5.1 — leer la ficha de la fase 5. 🔴 **Es la única fase que escribe en `DB_Animes.db`**: copia previa, `RATING` **al final** de `AnimeField` (vía barata) y **29 filas antes y después** |
+| **Último paso completado** | Paso 5.4 — montar la vista (**fase 5 cerrada**) |
+| **Siguiente paso** | Paso 6.1 — leer la ficha de la fase 6. Reutiliza `PosterGrid` (6 columnas) y el **sello** que estrenó la 5: `StatusPill.text/colors` + `badge`/`badge_colors`, con «12 / 12» en vez del nombre del estado. 🔴 **La BD ya NO se toca**: la columna `rating` es lo único que la fase 5 añadió |
 | **Rama** | ✅ `feature/ui-redisign` (**no** `feature/rediseno-ui`: ya existía, ver Decisiones) |
-| **Base** | `bd25742` (fase 1) → fases 2, 3 y 4 encima, en `feature/ui-redisign`. El plan partió de `6377b92`, no de `4f9e429` |
+| **Base** | `bd25742` (fase 1) → fases 2, 3, 4 y 5 encima, en `feature/ui-redisign`. El plan partió de `6377b92`, no de `4f9e429` |
 | **Commits** | automáticos (uno al cerrar cada fase) |
-| **Actualizado** | 2026-08-20 |
+| **Actualizado** | 2026-08-21 |
 
 ---
 
@@ -24,7 +24,7 @@
 | 2 | Nuevos lanzamientos | ✅ terminada | `ef9f4d4` | ✅ app ejecutada y **mirada** (4 arranques + recorrido de las 6 vistas) + 48 + 14 comprobaciones |
 | 3 | Viendo | ✅ terminada | `3198f12` | ✅ app ejecutada y **mirada** (3 arranques reales + recorrido de las 6 vistas + ficha abierta por las 3 vías) + 42 + 29 comprobaciones |
 | 4 | Pendientes | ✅ terminada | `3b06dd0` | ✅ app real ejecutada y **mirada** (3 arranques: portada, Pendientes y Pendientes con orden y hover + recorrido de las 6 vistas) + 61 comprobaciones sobre **copia** de la BD |
-| 5 | Favoritos | ⬜ no empezada | — | — |
+| 5 | Favoritos | ✅ terminada | `PENDIENTE` | ✅ app real ejecutada y **mirada** (2 arranques: portada, Favoritos, calificar con el ratón, orden guardado y recorrido de las 6 vistas) + **59 comprobaciones sobre copia** de la BD + **15 sobre la real** + **56 con CTk real** |
 | 6 | Finalizados | ⬜ no empezada | — | — |
 | 7 | Buscar | ⬜ no empezada | — | — |
 | 8 | Ficha del anime | ⬜ no empezada | — | — |
@@ -46,6 +46,8 @@ Lo que no se ha podido ejecutar en cada fase, para que nadie lo dé por probado.
 | 4 | El **hover con un ratón de verdad** | Tercera fase seguida sin puntero. Se ejecutó el mecanismo entero (el resaltado y la píldora «Empezar» aparecen, y la fila no cambia de ancho) y **se ha mirado en la app real**: la captura del tercer arranque lleva la primera fila resaltada y su píldora encendida |
 | 4 | **«Empezar» sobre la biblioteca real** | La ficha de la fase mandaba probarlo en `DB_Animes.db` y deshacerlo después; la **regla 2 de `/fase`** dice que solo la fase 5 escribe ahí, y gana. El flujo se ejecutó **entero y de verdad** sobre una **copia** (`Given: Uragawa no Sonzai` movido de pendientes a viendo: 29 filas antes y después, flags correctos, ficha abierta, póster encolado). Sobre la real solo se ha **mirado** la vista: hash y mtime de `DB_Animes.db` **idénticos** al terminar |
 | 4 | El desplegable de orden **abierto con el ratón** | Los tres criterios se ejecutaron por su `command`, que es lo que el desplegable llama, y dos de ellos se han mirado en la app real. Desplegar la lista en sí no se ha hecho |
+| 5 | El desplegable de orden **abierto con el ratón** (otra vez) | Su lista es un *toplevel* aparte de la ventana principal, así que ni el clic sintético lo abre ni `PrintWindow` lo captura. Se ejercitó **todo lo demás**: el `command` con los dos criterios (56 comprobaciones con CTk real), y en la **app real** se comprobó el extremo que sí importa —que la preferencia **guardada** se aplica al entrar en la pestaña: con `favourites_order = title` escrito en `DB_user.db`, la pestaña sale con «Título (A-Z)» puesto y la rejilla alfabética |
+| 5 | El **hover** de las celdas | Cuarta fase seguida sin puntero que pasear. Las estrellas no tienen estado de hover —solo cursor de mano—, así que aquí no hay mecanismo que probar |
 
 ---
 
@@ -91,6 +93,14 @@ fase que la tomó. Empieza vacío a propósito: las decisiones de partida están
 | 4 | **Los 113 px de la fila de pendientes incluyen el separador** (112 de cuerpo + 1 de línea). La última fila de la lista, que va sin separador, mide 112. Vale igual para los 132 de la fila de «Viendo» |
 | 4 | **Verificar una fase que escribe en la biblioteca se hace sobre una copia.** La ficha de la fase 4 pedía probar «Empezar» en `DB_Animes.db` y deshacerlo; la regla 2 de `/fase` lo prohíbe fuera de la fase 5. Se apunta la persistencia a una copia (`persistence.path_db` + `SqlUtils`) y se comprueba al final que el hash de la real no ha cambiado. **Receta reutilizable para cualquier fase futura** |
 
+| 5 | **La escala de calificación es un entero de 0 a 10**, dos puntos por estrella, y **`NULL` no es 0**. Guardar los medios puntos como enteros evita flotantes en SQLite y en la comparación del orden; distinguir «sin calificar» de «cero estrellas» es lo que permite mandar las filas sin calificar **al final** del orden por calificación. `AnimeRecord.RATING_MAX` es el tope |
+| 5 | **La única forma de dejar sin calificar algo ya calificado es volver a pulsar la misma calificación.** No hay botón de borrar: el gesto de repetir es lo que uno prueba antes de buscarlo. Si una fase futura añade un menú contextual a la celda, ahí es donde iría el «Quitar calificación» explícito |
+| 5 | 🔴 **Calificar NO reordena la rejilla.** La celda se actualiza sola y el anime se queda donde estaba, aunque el orden sea por calificación: si la lista se recolocara bajo el cursor, la segunda estrella se pulsaría sobre otro anime. El orden se aplica al pintar la vista y al cambiar el criterio. Vale para cualquier control que edite el criterio por el que está ordenada su propia lista |
+| 5 | **El pie del proveedor se queda en la celda de favoritos**, aunque el diseño maquetado no lo pinte ahí: `DISENO.md` §6 pide el proveedor **siempre** en las vistas de biblioteca y es la especificación la que manda. La fase 6 se encuentra la misma disyuntiva en finalizados; que haga lo mismo |
+| 5 | **`StatusPill` en favoritos dice qué *más* es el anime**, nunca «Favorito». La ficha de la fase lo daba por estrenado aquí pero ningún paso lo colocaba: el sitio es el sello superpuesto al póster (`badge` + `badge_colors`, que `PosterGrid` ya sabía pintar desde la fase 2), y el dato es el estado excluyente de la fila. Repetir «Favorito» en las diez celdas sería el dato duplicado que prohíbe `DISENO.md` §6. **La fase 6 lo reutiliza** para el sello «Finalizado» |
+| 5 | **`PosterGrid` gana `extra_builder`, no una subclase.** La celda numera sus filas sobre la marcha: si una vista no pone fila libre, el pie sube y no queda hueco. El widget que devuelve el constructor **no hereda el clic de la celda** —los eventos de Tk no burbujean—, que es justo lo que hace que pulsar una estrella no abra la ficha |
+| 5 | **Las estrellas se dibujan con PIL en tiempo de ejecución**, no son PNG en `resources/`. Un polígono de 10 vértices a 8x reducido con LANCZOS, y el medio punto es un rectángulo recortado con la máscara de ese polígono. Es la misma salida que se eligió para el pin, y aquí además evita la deuda **B11**: estos iconos son nuestros. `CTkImage(light_image=…, dark_image=…)` resuelve el tema sin reconfigurar nada |
+
 ---
 
 ## Bitácora
@@ -105,6 +115,106 @@ Una entrada por paso completado, **la más reciente arriba**. Formato:
 ```
 
 <!-- nuevas entradas aquí arriba -->
+
+### Fase 5 · Paso 5.4 — Montar la vista «Favoritos»          (2026-08-21)
+- Ficheros: `src/gui/sidebarButtons/favouriteAnimes/favouriteAnimes.py` (reescrito)
+- `ViewHeader` («Favoritos» + «14 animes · N calificados» + orden + buscador) → `PosterGrid` de
+  **5 columnas** con póster **216 × 324** → `Pager` de **10**. Con 14 favoritos el paginador
+  **se ve de verdad** (2 páginas), que es la primera vez en el plan.
+- Cada celda: póster con **sello del otro estado**, título a 2 líneas, **estrellas** y pie con
+  el proveedor. El sello nunca dice «Favorito» (ver Decisiones).
+- 🔴 Fuera el acordeón «Abrir filtro de animes», como en las fases 3 y 4. Van **tres de las
+  cuatro** vistas de estado; queda finalizados.
+- ✅ Fuera el `time.sleep(0.1)` del hilo de UI. Van **cuatro de seis** vistas.
+- El buscador local (`SavedAnimeSearch`) se reutiliza tal cual y responde a **Enter**. Cambiar el
+  orden **no deshace el filtro**: se guarda la última lista sin ordenar y el orden se aplica al
+  pintar. Sin resultados aparece un mensaje que se esconde con `grid_remove()`, no se destruye.
+- Verificado: sí, y en la **app real con la biblioteca real**:
+  - **56 comprobaciones con CTk real** (ventana oculta, BD en sandbox): layout, 10 celdas,
+    estrellas en la fila 2, pie en la 3, los dos órdenes, `NULL` al final, el paginador, los
+    clics de media estrella, el sello y el buscador. 0 fallos.
+  - **App real, dos arranques**: calificar *Dandadan* con el ratón (**4,0** → **2,0** → **1,5**,
+    cada clic escrito en `DB_Animes.db`), **cerrar la app y reabrirla**: la calificación **seguía
+    ahí** y la media estrella se pinta bien. Después se **quitó** con el mismo gesto: la
+    biblioteca queda como estaba, **29 filas y 0 calificados**.
+  - Las **6 vistas** se abren; ninguna traza de error en el log de los dos arranques.
+- ⚠️ Tk **no atiende los clics publicados con `PostMessage`** ni al toplevel ni al HWND hijo:
+  para ejercitar la interfaz real hace falta entrada de ratón de verdad. El script del scratchpad
+  (`clic_real.py`) roba el foco un segundo y **devuelve el cursor** donde estaba. Y ojo: la
+  captura incluye la barra de título, así que **hay 30 px de desfase** entre la imagen y las
+  coordenadas de cliente.
+- Pendiente que deja: nada.
+
+### Fase 5 · Paso 5.3 — Estrellas, sello de estado y orden persistido          (2026-08-20)
+- Ficheros: `src/dataPersistence/userPersistence.py`,
+  `src/gui/components/rating_stars.py` (nuevo), `src/gui/components/status_pill.py` (nuevo).
+- `FAVOURITES_ORDER` es un miembro más de `UserSettingKey` (sin migración: `USER_SETTINGS` es
+  clave/valor) con su par tipado `get_favourites_order()` / `set_favourites_order()`. Valores
+  persistidos `"rating"` / `"title"`; **el texto del desplegable vive en la vista**, para que
+  renombrar una opción no invalide lo guardado. Por defecto, `"rating"`.
+- **`RatingStars`**: 5 estrellas + la cifra («4,5»), escala entera 0-10. Las estrellas se
+  **dibujan con PIL** (polígono de 10 vértices a 8x, reducido con LANCZOS) en vez de traer PNG
+  al repositorio o depender de un glifo del sistema; el medio punto es un rectángulo recortado
+  con la máscara del polígono. `CTkImage(light_image=…, dark_image=…)` resuelve el tema solo.
+- El **medio punto sale de dónde se pulsa** (mitad izquierda / derecha). Cada estrella ocupa
+  17 px aunque el dibujo mida 14: el aire entre estrellas es zona pulsable, o cada mitad
+  quedaría en 7 px. ⚠️ La mitad se mide con `event.widget.winfo_width()`, **no** con el ancho
+  pedido: `CTkLabel.bind()` ata a la etiqueta interna y al canvas, que no miden lo mismo
+  (Decisiones, fase 3).
+- **Pulsar la calificación que ya estaba la borra** (vuelve a `NULL`): es la única forma de
+  dejar sin calificar algo ya calificado.
+- **`StatusPill`**: los 4 pares de color de `DISENO.md` §1 en un sitio. Sirve como widget y
+  como par de colores (`text()` / `colors()`), que es como lo usa la rejilla a través de
+  `badge` + `badge_colors` de `PosterGrid`. `other_status()` responde «además de favorito,
+  ¿qué más es?».
+- **`PosterGrid` gana `extra_builder`** en vez de una subclase: construye la fila libre bajo el
+  título (fila 2, `pady=(7, 0)`) y **numera las filas sobre la marcha**, así que el pie del
+  proveedor baja a la 3 solo si hay fila libre. Como los eventos de Tk **no burbujean**, pulsar
+  una estrella no abre la ficha: la celda ni se entera.
+- Verificado: sí · con **raíz Tk oculta** (`withdraw()`): formato de la cifra, `set_value()`, el
+  par de colores y `other_status()`; y luego dentro de las **56 comprobaciones** del paso 5.4,
+  que incluyen los clics de media estrella emitidos sobre el `_label` interno.
+- Pendiente que deja: nada.
+
+### Fase 5 · Paso 5.2 — 🔴 Migrar `DB_Animes.db`, la biblioteca real          (2026-08-20)
+- Ficheros: ninguno. Dos scripts en el **scratchpad**, no en el repo:
+  `test_fase5_migracion.py` (sobre copia) y `migrar_bd_real.py` (sobre la real).
+- 🔴 **Filas: 29 antes y 29 después**, en la copia y en la real. Y las **14 columnas
+  anteriores × 29 filas = 406 valores idénticos**, comparados uno a uno **por nombre de
+  columna**, no por posición.
+- **La vía fue la barata**: `ALTER TABLE ADD COLUMN`, sin reconstruir la tabla. `diff_table()`
+  lo dijo **antes** de tocar nada (`missing: ['rating']`, `extra: []`, `retyped: []`,
+  `reordered: False`) — que es exactamente lo que se buscaba poniendo `RATING` al final.
+- **Copias de seguridad, tres**: la manual del scratchpad
+  (`backup/DB_Animes_pre_fase5_20260820_224547.db`, **fuera del repo**, `sha256`
+  `3754a94c01de7413…`), la que hizo `validate_db_integrity()` en
+  `resources/DB/backups/DB_Animes_20260820_224943.db`, y la de la copia del sandbox.
+- **59 comprobaciones sobre la copia** + **15 sobre la real**, 0 fallos. Cubren: recuento,
+  columnas, orden físico == `FIELDS`, idempotencia (segunda pasada sin copia nueva),
+  `watched_episodes` sigue leyéndose como rangos, `episodes` en el mismo orden, `provider_id`
+  intacto en las 29 filas, y que calificar **solo toca la columna `rating`**.
+- Ningún anime real quedó calificado: todas las filas siguen a `NULL`. Las calificaciones de
+  prueba se hicieron sobre la **copia** y sobre una fila `__test-fase5__` que se borró.
+- ⚠️ La consola de Windows es **cp1252** y reventó el script en un `print` con `→` — la trampa
+  que avisa `docs/09 §3c`, pero en la cabecera de sección, no en el detalle de un `check`. Se
+  arregla con `sys.stdout.reconfigure(encoding="utf-8", errors="replace")` al principio.
+- Verificado: sí · los dos scripts ejecutados de verdad, en ese orden.
+- Pendiente que deja: nada.
+
+### Fase 5 · Paso 5.1 — La columna `rating`          (2026-08-20)
+- Ficheros: `src/dataPersistence/animesPersistence.py`
+- `RATING = ("rating", "INTEGER")` **al final** de `AnimeField` (columna 15); `rating` en
+  `AnimeRecord` con `to_db_dict()` / `from_db_dict()` a mano —la migración es automática, la
+  serialización no— y `update_anime_rating(anime_id, rating)` nuevo.
+- **Escala: entero de 0 a 10**, dos puntos por estrella. `AnimeRecord.RATING_MAX = 10`.
+- 🔴 `RATING_MAX` es un **`ClassVar[int]`**. Dentro de un `@dataclass`, una anotación normal es
+  un **campo más**: `RATING_MAX: int = 10` habría metido un decimoquinto parámetro en el
+  `__init__` de `AnimeRecord`. Comprobado con `dataclasses.fields()`.
+- `_rating_from_db()` se comporta como `_provider_id_from_db()`: **nunca lanza**. `NULL`, texto
+  o un valor fuera de escala se degradan a `None` — una calificación rara no puede impedir leer
+  la biblioteca.
+- Verificado: sí · dentro de las 59 comprobaciones del paso 5.2.
+- Pendiente que deja: nada.
 
 ### Fase 4 · Paso 4.4 — Montar la vista «Pendientes»          (2026-08-20)
 - Ficheros: `src/gui/sidebarButtons/pendingAnimes/pendingAnimes.py` (reescrito)

@@ -1,7 +1,7 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "DataPersistence"
 __module__ = "userPersistence.py"
-__version__ = "0.2"
+__version__ = "0.3"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 import os
@@ -50,6 +50,9 @@ class UserSettingKey(Enum):
     #: Los últimos animes cuyos episodios se han marcado como vistos, separados
     #: por comas y el más reciente primero. Rediseño, fase 2.
     LAST_WATCHED_ANIME_IDS = "last_watched_anime_ids"
+    #: Criterio de orden de la pestaña «Favoritos»: "rating" o "title".
+    #: Rediseño, fase 5.
+    FAVOURITES_ORDER = "favourites_order"
     # Reservada para cuando se integren los mangas:
     # DEFAULT_MANGA_PROVIDER = "default_manga_provider"
 
@@ -87,6 +90,13 @@ class UserPersistence(ServiceDB):
     #: Cuántos animes recuerda la banda «Retomar donde lo dejaste». Son las tres
     #: tarjetas que caben en una fila de la portada (`DISENO.md` §3).
     MAX_LAST_WATCHED = 3
+
+    #: Valores admitidos para FAVOURITES_ORDER. Son los que se **persisten**; el
+    #: texto que se lee en el desplegable vive en la vista, porque es de la
+    #: interfaz y puede cambiar sin invalidar lo guardado.
+    FAVOURITES_ORDER_RATING = "rating"
+    FAVOURITES_ORDER_TITLE  = "title"
+    FAVOURITES_ORDERS = (FAVOURITES_ORDER_RATING, FAVOURITES_ORDER_TITLE)
 
     # Esquema declarado de la BD: **la fuente de verdad**. Toda tabla de
     # DB_user.db debe figurar aquí; validate_db_integrity() la creará o la
@@ -274,6 +284,29 @@ class UserPersistence(ServiceDB):
             UserSettingKey.LAST_WATCHED_ANIME_IDS,
             ",".join(updated[:self.MAX_LAST_WATCHED])
         )
+
+    def get_favourites_order(self) -> str:
+        """Devuelve el criterio de orden de «Favoritos»: ``"rating"`` o ``"title"``.
+
+        Por defecto ``"rating"``: la calificación es lo que la pestaña estrena y
+        lo que la hace distinta de las otras dos rejillas; abrirla ordenada
+        alfabéticamente escondería justo el dato nuevo.
+
+        Un valor guardado que no reconozca —de una versión anterior o escrito a
+        mano— se trata como si no hubiera preferencia, igual que hace
+        ``_provider_id_from_db()`` con un proveedor desconocido.
+        """
+        value = self.get_setting(UserSettingKey.FAVOURITES_ORDER, self.FAVOURITES_ORDER_RATING)
+        if value not in self.FAVOURITES_ORDERS:
+            return self.FAVOURITES_ORDER_RATING
+        return value
+
+    def set_favourites_order(self, order: str) -> bool:
+        """Guarda el criterio de orden de «Favoritos». Ignora valores desconocidos."""
+        if order not in self.FAVOURITES_ORDERS:
+            print(f"Criterio de orden de favoritos desconocido: {order!r}")
+            return False
+        return self.set_setting(UserSettingKey.FAVOURITES_ORDER, order)
 
     # ------------------------------------------------------------------
     # Métodos privados de apoyo

@@ -1,13 +1,14 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "gui.components"
 __module__ = "poster_grid.py"
-__version__ = "0.1"
+__version__ = "0.2"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 """Rejilla de pósters: el componente que comparten nuevos, favoritos, finalizados y buscar.
 
-Una celda son hasta cuatro piezas: el póster, un sello opcional superpuesto en la
-esquina, el título a dos líneas y un pie opcional (el proveedor, en las vistas de
+Una celda son hasta cinco piezas: el póster, un sello opcional superpuesto en la
+esquina, el título a dos líneas, una **fila libre** que construye la vista
+(las estrellas de «Favoritos») y un pie opcional (el proveedor, en las vistas de
 biblioteca). El número de columnas y el tamaño del póster son parámetros, así que
 la rejilla de 6 de `Nuevos lanzamientos` y la de 5 de `Favoritos` son **la misma
 clase con otros argumentos**: si una vista necesita una variante se añade un
@@ -49,6 +50,9 @@ class PosterItem:
         pares de ``Theme``. Sin él, el sello usa el acento.
     :param footer: línea de apoyo bajo el título (el proveedor). ``None`` la omite
         y la celda queda más baja.
+    :param data: lo que la vista necesite recuperar en ``extra_builder`` sin
+        volver a buscarlo por ``key`` (en «Favoritos», el ``AnimeRecord``). La
+        rejilla no lo mira: solo lo transporta.
     """
     key: Any
     title: str
@@ -56,6 +60,7 @@ class PosterItem:
     badge: Optional[str] = None
     badge_colors: Optional[Tuple[ColorToken, ColorToken]] = None
     footer: Optional[str] = None
+    data: Any = None
 
 
 class PosterGrid(ctk.CTkFrame):
@@ -80,7 +85,10 @@ class PosterGrid(ctk.CTkFrame):
 
     def __init__(self, parent, columns: int = 6,
                  poster_size: Tuple[int, int] = Metrics.GRID6_POSTER,
-                 on_click: Optional[Callable[[Any], None]] = None, **kwargs):
+                 on_click: Optional[Callable[[Any], None]] = None,
+                 extra_builder: Optional[Callable[[ctk.CTkFrame, PosterItem],
+                                                  Optional[ctk.CTkBaseClass]]] = None,
+                 **kwargs):
         """
         :param parent: normalmente ``main_window.content_frame``.
         :param columns: número de columnas. 6 en nuevos, finalizados y buscar; 5
@@ -88,12 +96,21 @@ class PosterGrid(ctk.CTkFrame):
         :param poster_size: tamaño **pintado** del póster. La caché en disco está
             a 248 x 372 y se reduce desde ahí.
         :param on_click: recibe el ``key`` del ítem pulsado.
+        :param extra_builder: construye la fila libre que va bajo el título.
+            Recibe la celda (que es su padre) y el ítem, y devuelve el widget ya
+            creado —la rejilla lo coloca— o ``None`` para no poner nada en esa
+            celda. Es lo que usa «Favoritos» para las estrellas.
+
+            ⚠️ Ese widget **no hereda el clic de la celda**: los eventos de Tk no
+            burbujean, así que un control pulsable ahí dentro (las estrellas) se
+            queda con su clic y no abre la ficha. Es justo lo que se busca.
         """
         super().__init__(parent, height=1, corner_radius=0, fg_color=Theme.TRANSPARENT, **kwargs)
 
         self.columns = columns
         self.poster_size = poster_size
         self.__on_click = on_click
+        self.__extra_builder = extra_builder
         #: Las imágenes hay que guardarlas: Tk no mantiene referencia a la imagen
         #: de un widget y el recolector se la llevaría, dejando la celda en blanco.
         self.__images: List[ctk.CTkImage] = []
@@ -156,6 +173,16 @@ class PosterGrid(ctk.CTkFrame):
         title_label.grid(row=1, column=0, sticky="ew", pady=(8, 0))
 
         clickable = [cell, poster_label, title_label]
+
+        # La fila libre y el pie se numeran sobre la marcha: si una vista no pone
+        # fila libre, el pie sube a la fila 2 y la celda no deja un hueco vacío.
+        next_row = 2
+        if self.__extra_builder is not None:
+            extra_widget = self.__extra_builder(cell, item)
+            if extra_widget is not None:
+                extra_widget.grid(row=next_row, column=0, pady=(7, 0))
+                next_row += 1
+
         if item.footer:
             footer_label = ctk.CTkLabel(
                 cell,
@@ -164,7 +191,7 @@ class PosterGrid(ctk.CTkFrame):
                 text_color=Theme.TXT_3,
                 anchor="n"
             )
-            footer_label.grid(row=2, column=0, sticky="ew")
+            footer_label.grid(row=next_row, column=0, sticky="ew", pady=(4, 0))
             clickable.append(footer_label)
 
         if self.__on_click is None:
