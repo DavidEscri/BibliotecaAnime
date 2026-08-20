@@ -1052,7 +1052,17 @@ class AnimeWindowViewer:
             # Al desmarcar: eliminar solo este episodio, el resto se preserva intacto
             merged = bd_watched - {episode_id}
 
-        self.main_window.animes_persistence.update_watched_episodes(self.persistence_anime_id, merged)
+        saved = self.main_window.animes_persistence.update_watched_episodes(self.persistence_anime_id, merged)
+
+        # «Retomar donde lo dejaste» de la portada sale de aquí. Se apunta solo al
+        # marcar (desmarcar no es «seguir viendo») y solo si el UPDATE encontró la
+        # fila: update_watched_episodes() devuelve False cuando el anime no está en
+        # la biblioteca, y guardar entonces su identificador dejaría en la banda una
+        # tarjeta sin fila que pintar.
+        # ⚠️ El identificador es persistence_anime_id, nunca anime_info.id: con el
+        # desplegable desviado son slugs distintos (trampa 21).
+        if saved and marking_as_watched:
+            self.main_window.user_persistence.push_last_watched_id(self.persistence_anime_id)
 
     def __toggle_servers_frame(self, episode_info: EpisodeInfo, servers_frames, current_row: int):
         if episode_info.id in servers_frames:
