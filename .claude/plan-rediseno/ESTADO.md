@@ -22,7 +22,7 @@
 |---|---|---|---|---|
 | 1 | Cimientos | ✅ terminada | `bd25742` | ✅ app ejecutada y **mirada** (desplegada y plegada) + 73 comprobaciones |
 | 2 | Nuevos lanzamientos | ✅ terminada | `ef9f4d4` | ✅ app ejecutada y **mirada** (4 arranques + recorrido de las 6 vistas) + 48 + 14 comprobaciones |
-| 3 | Viendo | ✅ terminada | `PENDIENTE` | ✅ app ejecutada y **mirada** (3 arranques reales + recorrido de las 6 vistas + ficha abierta por las 3 vías) + 42 + 29 comprobaciones |
+| 3 | Viendo | ✅ terminada | `3198f12` | ✅ app ejecutada y **mirada** (3 arranques reales + recorrido de las 6 vistas + ficha abierta por las 3 vías) + 42 + 29 comprobaciones |
 | 4 | Pendientes | ⬜ no empezada | — | — |
 | 5 | Favoritos | ⬜ no empezada | — | — |
 | 6 | Finalizados | ⬜ no empezada | — | — |
