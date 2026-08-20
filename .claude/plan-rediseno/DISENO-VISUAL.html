@@ -1,0 +1,1349 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Biblioteca en siete vistas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=JetBrains+Mono:wght@400;500&display=swap">
+
+<style>
+/* ============================================================
+   PÁGINA ANFITRIONA
+   ============================================================ */
+:root{
+  --ground:#EDEEF2; --surface:#FFFFFF; --surface-2:#E4E6EC;
+  --ink:#15171C; --ink-2:#3D434F; --muted:#666D7C;
+  --rule:#D3D7E0; --accent:#2F4E9E;
+  --shadow:0 1px 2px rgba(21,23,28,.06),0 8px 24px -12px rgba(21,23,28,.18);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#111318; --surface:#181B21; --surface-2:#20242C;
+    --ink:#E8EAEF; --ink-2:#B9BFCB; --muted:#8A92A1;
+    --rule:#2A2F39; --accent:#8AA6EE;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px -14px rgba(0,0,0,.7);
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#111318; --surface:#181B21; --surface-2:#20242C;
+  --ink:#E8EAEF; --ink-2:#B9BFCB; --muted:#8A92A1;
+  --rule:#2A2F39; --accent:#8AA6EE;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px -14px rgba(0,0,0,.7);
+}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--ground);color:var(--ink);
+  font-family:'Newsreader',Georgia,serif;font-size:17px;line-height:1.6;
+  -webkit-font-smoothing:antialiased;}
+a{color:var(--accent);text-decoration:none;}
+a:hover{text-decoration:underline;}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:3px;}
+h1,h2,h3,.ui-f{font-family:'Archivo','Segoe UI',system-ui,sans-serif;}
+.wrap{max-width:1180px;margin:0 auto;padding:0 28px;}
+
+.topbar{position:sticky;top:0;z-index:20;
+  background:color-mix(in srgb,var(--ground) 88%,transparent);
+  backdrop-filter:blur(10px);border-bottom:1px solid var(--rule);}
+.topbar .wrap{display:flex;align-items:center;gap:20px;height:54px;}
+.topbar b{font-family:'Archivo',sans-serif;font-weight:600;font-size:14px;letter-spacing:-.01em;}
+.topnav{margin-left:auto;display:flex;gap:2px;flex-wrap:wrap;}
+.topnav a{font-family:'Archivo',sans-serif;font-size:11.5px;font-weight:600;
+  letter-spacing:.05em;text-transform:uppercase;color:var(--muted);
+  padding:6px 9px;border-radius:6px;transition:background .15s,color .15s;}
+.topnav a:hover{color:var(--ink);background:var(--surface-2);text-decoration:none;}
+
+.lede{padding:76px 0 0;}
+.eyebrow{font-family:'Archivo',sans-serif;font-size:11px;font-weight:600;
+  letter-spacing:.16em;text-transform:uppercase;color:var(--muted);margin:0 0 18px;}
+h1{font-size:clamp(38px,5.4vw,58px);font-weight:700;letter-spacing:-.028em;
+  line-height:1.03;margin:0;text-wrap:balance;max-width:15ch;}
+.lede p{max-width:62ch;font-size:20px;color:var(--ink-2);margin:22px 0 0;}
+
+.decisions{margin:48px 0 0;border:1px solid var(--rule);border-radius:10px;
+  background:var(--surface);overflow:hidden;}
+.decisions h3{font-family:'Archivo',sans-serif;font-size:11px;font-weight:600;
+  letter-spacing:.12em;text-transform:uppercase;color:var(--muted);
+  margin:0;padding:18px 24px 12px;}
+.decisions ul{list-style:none;margin:0;padding:0 0 8px;}
+.decisions li{display:grid;grid-template-columns:104px 1fr;gap:18px;
+  padding:11px 24px;font-size:16px;color:var(--ink-2);line-height:1.5;}
+.decisions li + li{border-top:1px solid var(--rule);}
+.decisions .tag{font-family:'Archivo',sans-serif;font-size:10.5px;font-weight:600;
+  letter-spacing:.09em;text-transform:uppercase;padding-top:4px;}
+.decisions .out .tag{color:#A8563A;}
+.decisions .in .tag{color:#2E7D5B;}
+.decisions .new .tag{color:var(--accent);}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]) .decisions .out .tag{color:#E2946F;}
+  :root:not([data-theme="light"]) .decisions .in .tag{color:#6FC79A;}
+}
+:root[data-theme="dark"] .decisions .out .tag{color:#E2946F;}
+:root[data-theme="dark"] .decisions .in .tag{color:#6FC79A;}
+
+section{padding:74px 0 0;}
+.head{margin:0 0 24px;}
+.titleline{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;}
+.num{font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:500;
+  color:var(--muted);letter-spacing:.04em;}
+h2{font-size:31px;font-weight:600;letter-spacing:-.02em;margin:0;line-height:1.1;}
+.job{font-family:'Archivo',sans-serif;font-size:12px;font-weight:500;color:var(--muted);
+  letter-spacing:.02em;}
+.thesis{margin:12px 0 0;max-width:66ch;font-size:18px;color:var(--ink-2);}
+
+.shot{border:1px solid var(--rule);border-radius:12px;overflow:hidden;overflow-x:auto;
+  background:var(--surface-2);box-shadow:var(--shadow);}
+.shot--half{max-width:760px;}
+.stage{overflow:hidden;}
+.frame{width:1440px;height:910px;transform-origin:0 0;transform:scale(var(--s,1));
+  display:flex;flex-direction:column;overflow:hidden;
+  font-family:'Segoe UI','Archivo',system-ui,sans-serif;}
+
+.notes{display:grid;grid-template-columns:1fr 1fr;gap:34px;
+  margin:26px 0 0;padding:24px 0 0;border-top:1px solid var(--rule);}
+.notes h3{font-family:'Archivo',sans-serif;font-size:11px;font-weight:600;
+  letter-spacing:.11em;text-transform:uppercase;margin:0 0 9px;color:var(--muted);}
+.notes p{margin:0;font-size:16px;line-height:1.55;color:var(--ink-2);}
+.notes p + p{margin-top:10px;}
+code{font-family:'JetBrains Mono',ui-monospace,monospace;font-size:.82em;
+  background:var(--surface-2);padding:.12em .38em;border-radius:4px;color:var(--ink);}
+.flag{display:inline-block;font-family:'Archivo',sans-serif;font-size:10px;
+  font-weight:600;letter-spacing:.09em;text-transform:uppercase;
+  border:1px solid var(--rule);border-radius:4px;padding:1px 6px;color:var(--muted);
+  vertical-align:2px;margin-right:6px;}
+
+footer{margin:88px 0 0;border-top:1px solid var(--rule);
+  padding:26px 0 64px;color:var(--muted);font-size:15.5px;}
+footer p{margin:0;max-width:62ch;}
+
+@media (max-width:900px){ .notes{grid-template-columns:1fr;gap:24px;} .topnav{display:none;}
+  .decisions li{grid-template-columns:1fr;gap:4px;} }
+@media (prefers-reduced-motion: reduce){ *{transition:none !important;} }
+
+/* ============================================================
+   PIEZAS COMPARTIDAS DE LAS MAQUETAS
+   ============================================================ */
+.ic{width:20px;height:20px;flex:none;stroke:currentColor;fill:none;
+    stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;}
+.ic.s{width:16px;height:16px;}
+.ic.xs{width:13px;height:13px;}
+
+.tbar{height:32px;flex:none;display:flex;align-items:center;gap:9px;padding-left:12px;
+  font-size:12px;font-weight:500;}
+.tbar .dot{width:14px;height:14px;border-radius:4px;flex:none;background:#6D8AF0;}
+.tbar .ctl{margin-left:auto;display:flex;height:32px;}
+.tbar .ctl span{width:46px;display:grid;place-items:center;opacity:.85;}
+.tbar .ctl svg{width:11px;height:11px;fill:none;stroke:currentColor;
+  stroke-width:1.4;stroke-linecap:round;}
+
+.art{position:relative;overflow:hidden;background:var(--a);flex:none;}
+.art::before{content:"";position:absolute;inset:0;
+  background:linear-gradient(158deg,var(--a) 0%,var(--b) 100%);}
+.art::after{content:"";position:absolute;width:66%;aspect-ratio:1;border-radius:50%;
+  right:-16%;top:-12%;background:var(--c);opacity:.45;}
+.art.v2::after{border-radius:0;width:105%;height:62%;aspect-ratio:auto;
+  right:auto;top:auto;left:-24%;bottom:-22%;transform:rotate(-28deg);opacity:.38;}
+.art.v3::after{width:44%;border-radius:50%;left:-10%;bottom:-14%;top:auto;right:auto;opacity:.5;}
+.g1{--a:#16224E;--b:#3E62C4;--c:#9DBBFF;} .g2{--a:#4E1626;--b:#C4485A;--c:#FF9FB0;}
+.g3{--a:#0F2E26;--b:#2C7A5F;--c:#83DCB6;} .g4{--a:#311B4E;--b:#6E42BE;--c:#C4A6FF;}
+.g5{--a:#4E3110;--b:#C08529;--c:#FFD98F;} .g6{--a:#0E1216;--b:#39434F;--c:#93A2B2;}
+.g7{--a:#43100F;--b:#C33A2C;--c:#FFA184;} .g8{--a:#102B44;--b:#2B80C4;--c:#93D8FF;}
+.g9{--a:#3A2712;--b:#87682B;--c:#DCC48E;} .g10{--a:#25123A;--b:#5A2CC0;--c:#B29AFF;}
+.g11{--a:#12381C;--b:#2C9846;--c:#8FE7A6;} .g12{--a:#3A1233;--b:#992B84;--c:#FF97D6;}
+
+/* ============================================================
+   EL SISTEMA — una sola dirección, dos temas
+   ============================================================ */
+.ui{
+  --bg:#14161A; --panel:#0F1115; --card:#1B1E24; --cardh:#232730;
+  --line:#262A33; --line2:#1D212A;
+  --t1:#ECEEF2; --t2:#A6AEBA; --t3:#6F7885;
+  --ac:#6D8AF0; --acd:#222A44; --acink:#0C1020; --warn:#FBBF24; --ok:#5FC98A;
+  --fav:#D18ACB; --favb:#2C1A2E; --see:#5FC6DE; --seeb:#12303A;
+  --pen:#D6A852; --penb:#332714; --fin:#68C888; --finb:#14321F;
+  --chrome:#1B2027; --chromet:#FFFFFF;
+  background:var(--bg);color:var(--t1);
+}
+.ui.lt{
+  --bg:#F4F5F7; --panel:#E9EBEF; --card:#FFFFFF; --cardh:#EFF1F5;
+  --line:#DCDFE5; --line2:#E7EAEF;
+  --t1:#171A1F; --t2:#525A66; --t3:#7C8593;
+  --ac:#3A55C9; --acd:#E4E9FA; --acink:#FFFFFF; --warn:#B45309; --ok:#2E7D5B;
+  --fav:#8E3F86; --favb:#F6E9F5; --see:#1F6F85; --seeb:#E2F1F6;
+  --pen:#8A6420; --penb:#F7EEDC; --fin:#2E7D5B; --finb:#E3F3EA;
+  --chrome:#F3F3F3; --chromet:#1A1A1A;
+}
+.ui .tbar{background:var(--chrome);color:var(--chromet);}
+.ui .app{flex:1;display:flex;min-height:0;}
+
+/* --- barra lateral --- */
+.ui .side{width:224px;flex:none;background:var(--panel);border-right:1px solid var(--line);
+  display:flex;flex-direction:column;padding:16px 0 14px;}
+.ui .side .brand{display:flex;align-items:center;gap:9px;padding:0 14px 0 18px;margin-bottom:16px;}
+.ui .side .brand b{font-size:13.5px;font-weight:600;letter-spacing:.01em;}
+.ui .side .brand .fold{margin-left:auto;width:26px;height:26px;border-radius:6px;
+  display:grid;place-items:center;color:var(--t3);}
+.ui .side a{display:flex;align-items:center;gap:11px;height:38px;padding:0 18px;
+  color:var(--t2);font-size:13.5px;position:relative;}
+.ui .side a.on{color:var(--t1);background:var(--card);box-shadow:inset 2px 0 0 var(--ac);}
+.ui .side a b{margin-left:auto;font-weight:500;font-size:12px;color:var(--t3);
+  font-variant-numeric:tabular-nums;}
+.ui .side a.on b{color:var(--t2);}
+.ui .side .btm{margin-top:auto;padding:0 14px;}
+.ui .side .cap{font-size:10px;letter-spacing:.13em;text-transform:uppercase;
+  color:var(--t3);margin:0 0 5px 4px;}
+.ui .side .ctrl{display:flex;align-items:center;gap:8px;height:32px;padding:0 10px;
+  border:1px solid var(--line);border-radius:7px;font-size:12.5px;color:var(--t2);
+  margin-bottom:8px;background:var(--card);}
+.ui .side .ctrl .gap{margin-left:auto;display:flex;align-items:center;gap:6px;}
+.ui .side .ctrl .pin{color:var(--ac);}
+
+/* --- barra lateral plegada --- */
+.ui .side.mini{width:84px;align-items:center;padding-top:16px;}
+.ui .side.mini .brand{padding:0;margin-bottom:18px;}
+.ui .side.mini .brand b{display:none;}
+.ui .side.mini a{width:48px;height:48px;padding:0;justify-content:center;border-radius:11px;
+  margin-bottom:2px;}
+.ui .side.mini a.on{background:var(--card);box-shadow:none;}
+.ui .side.mini a.on::before{content:"";position:absolute;left:-16px;top:14px;
+  width:3px;height:20px;border-radius:2px;background:var(--ac);}
+.ui .side.mini a b{position:absolute;top:5px;right:5px;margin:0;font-size:9.5px;
+  min-width:15px;height:15px;border-radius:8px;background:var(--acd);color:var(--ac);
+  display:grid;place-items:center;padding:0 3px;font-weight:600;}
+.ui .side.mini .btm{padding:0;}
+.ui .side.mini .cap,.ui .side.mini .ctrl span{display:none;}
+.ui .side.mini .ctrl{width:44px;justify-content:center;padding:0;}
+
+/* --- zona de contenido --- */
+.ui .main{flex:1;min-width:0;display:flex;flex-direction:column;padding:0 28px;}
+.ui .vhead{height:80px;flex:none;display:flex;align-items:center;gap:14px;}
+.ui .vhead h5{margin:0;font-size:24px;font-weight:600;letter-spacing:-.018em;}
+.ui .vhead .sub{font-size:12.5px;color:var(--t3);margin:4px 0 0;}
+.ui .vhead .rt{margin-left:auto;display:flex;align-items:center;gap:9px;}
+.ui .find{display:flex;align-items:center;gap:9px;height:34px;padding:0 13px;
+  border-radius:17px;background:var(--card);border:1px solid var(--line);
+  color:var(--t3);font-size:13px;width:230px;}
+.ui .pick{display:flex;align-items:center;gap:7px;height:34px;padding:0 12px;
+  border:1px solid var(--line);border-radius:7px;font-size:12.5px;color:var(--t2);
+  background:var(--card);}
+.ui .pick b{font-weight:600;color:var(--t1);}
+.ui .lbl{font-size:11px;font-weight:600;letter-spacing:.13em;text-transform:uppercase;
+  color:var(--t3);margin:0 0 13px;}
+
+/* --- tarjetas de retomar --- */
+.ui .resume{display:flex;gap:18px;margin-bottom:28px;}
+.ui .rc{flex:1;display:flex;gap:15px;background:var(--card);border:1px solid var(--line);
+  border-radius:12px;padding:15px;}
+.ui .rc .art{width:84px;height:118px;border-radius:7px;}
+.ui .rc .tx{flex:1;min-width:0;display:flex;flex-direction:column;}
+.ui .rc h6{margin:1px 0 0;font-size:14.5px;font-weight:600;line-height:1.28;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+.ui .rc small{color:var(--t3);font-size:12px;margin-top:auto;}
+.ui .bar{height:4px;border-radius:2px;background:var(--line);margin-top:8px;overflow:hidden;}
+.ui .bar i{display:block;height:100%;background:var(--ac);border-radius:2px;}
+
+/* --- rejilla de pósters --- */
+.ui .grid{display:grid;gap:24px 20px;align-content:start;}
+.ui .grid.c6{grid-template-columns:repeat(6,1fr);}
+.ui .grid.c5{grid-template-columns:repeat(5,1fr);}
+.ui .tile{position:relative;min-width:0;}
+.ui .tile .art{width:100%;aspect-ratio:2/3;border-radius:9px;}
+.ui .tile p{margin:10px 0 0;font-size:12.5px;line-height:1.34;color:var(--t2);
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+.ui .tile .mark{position:absolute;top:9px;left:9px;display:flex;align-items:center;gap:5px;
+  height:21px;padding:0 8px;border-radius:11px;font-size:10.5px;font-weight:600;
+  background:rgba(10,12,16,.78);color:#fff;backdrop-filter:blur(3px);}
+.ui .tile .rate{display:flex;align-items:center;gap:3px;margin-top:7px;color:var(--ac);}
+.ui .tile .rate .off{color:var(--line);}
+.ui .tile .rate span{margin-left:5px;font-size:11.5px;color:var(--t3);
+  font-variant-numeric:tabular-nums;}
+
+/* --- listas en cascada --- */
+.ui .list{display:flex;flex-direction:column;}
+.ui .lrow{display:flex;gap:18px;align-items:center;padding:16px 12px;
+  border-bottom:1px solid var(--line2);border-radius:8px;}
+.ui .lrow.hov{background:var(--card);}
+.ui .lrow .art{border-radius:5px;}
+.ui .lrow .mid{flex:1;min-width:0;}
+.ui .lrow h6{margin:0;font-size:17px;font-weight:600;line-height:1.2;letter-spacing:-.005em;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.ui .gen{font-size:10.5px;font-weight:500;letter-spacing:.11em;text-transform:uppercase;
+  color:var(--t3);margin:7px 0 0;}
+.ui .prog{display:flex;align-items:center;gap:11px;margin:11px 0 0;max-width:340px;}
+.ui .prog .t{height:4px;flex:1;background:var(--line);border-radius:2px;overflow:hidden;}
+.ui .prog .t i{display:block;height:100%;background:var(--ac);border-radius:2px;}
+.ui .prog span{font-size:11.5px;color:var(--t3);font-variant-numeric:tabular-nums;}
+.ui .lrow .rt{flex:none;display:flex;align-items:center;gap:14px;}
+.ui .prov{font-size:11.5px;color:var(--t3);}
+.ui .go{display:flex;align-items:center;gap:7px;height:30px;padding:0 13px;border-radius:15px;
+  border:1px solid var(--ac);color:var(--ac);font-size:12px;font-weight:600;}
+
+/* --- píldoras de estado --- */
+.ui .st{display:inline-flex;align-items:center;gap:6px;height:22px;padding:0 9px;
+  border-radius:11px;font-size:11.5px;font-weight:600;}
+.ui .st.f{background:var(--favb);color:var(--fav);}
+.ui .st.w{background:var(--seeb);color:var(--see);}
+.ui .st.p{background:var(--penb);color:var(--pen);}
+.ui .st.d{background:var(--finb);color:var(--fin);}
+
+/* --- paginación --- */
+.ui .pager{flex:none;display:flex;align-items:center;gap:10px;padding:14px 12px 16px;
+  font-size:12.5px;color:var(--t3);}
+.ui .pager .pg{margin-left:auto;display:flex;gap:6px;}
+.ui .pager .pg span{min-width:28px;height:28px;display:grid;place-items:center;
+  border:1px solid var(--line);border-radius:6px;font-size:12px;color:var(--t2);padding:0 6px;}
+.ui .pager .pg span.on{background:var(--ac);border-color:var(--ac);color:var(--acink);font-weight:600;}
+.ui .scroll{flex:1;min-height:0;overflow:hidden;}
+
+/* --- buscador --- */
+.ui .qbox{display:flex;align-items:center;gap:11px;height:46px;padding:0 16px;
+  border:1px solid var(--ac);border-radius:10px;background:var(--card);
+  font-size:15px;color:var(--t1);width:100%;max-width:620px;}
+.ui .qbox .caret{width:1px;height:18px;background:var(--ac);margin-left:-6px;}
+.ui .chips{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:16px 0 0;}
+.ui .chip{display:flex;align-items:center;gap:6px;height:29px;padding:0 12px;
+  border:1px solid var(--line);border-radius:15px;font-size:12px;color:var(--t2);}
+.ui .chip.on{background:var(--acd);border-color:var(--ac);color:var(--ac);font-weight:600;}
+
+/* --- ficha --- */
+.ui .sheet{display:flex;gap:30px;padding:26px 0 0;flex:none;}
+.ui .sheet > .art{width:248px;height:372px;border-radius:11px;}
+.ui .info{flex:1;min-width:0;display:flex;flex-direction:column;}
+.ui .pv{display:flex;align-items:flex-start;gap:16px;margin-bottom:12px;}
+.ui .pv .who{font-size:12.5px;color:var(--t3);}
+.ui .pv .who b{color:var(--t1);font-weight:600;}
+.ui .pv .warn{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--warn);margin-top:5px;}
+.ui .pv .fix{margin-left:auto;flex:none;display:flex;align-items:center;gap:7px;height:30px;
+  padding:0 13px;border-radius:7px;background:var(--ac);color:var(--acink);
+  font-size:12px;font-weight:600;}
+.ui .info h5{margin:0;font-size:31px;font-weight:600;letter-spacing:-.024em;line-height:1.1;}
+.ui .syn{margin:14px 0 0;font-size:14.5px;line-height:1.6;color:var(--t2);max-width:74ch;}
+.ui .tags{display:flex;gap:7px;margin:16px 0 0;}
+.ui .tags span{height:26px;padding:0 11px;border-radius:13px;border:1px solid var(--line);
+  display:grid;place-items:center;font-size:11.5px;color:var(--t2);}
+.ui .seen{display:flex;align-items:center;gap:12px;margin:18px 0 0;max-width:420px;}
+.ui .acts{display:flex;gap:10px;margin-top:auto;}
+.ui .acts button{all:unset;display:flex;align-items:center;justify-content:center;gap:8px;
+  flex:1;height:40px;border-radius:9px;border:1px solid var(--line);
+  font-size:13px;font-weight:500;color:var(--t2);background:var(--card);}
+.ui .acts button.on{border-color:transparent;font-weight:600;}
+.ui .acts button.on.f{background:var(--favb);color:var(--fav);}
+.ui .acts button.on.w{background:var(--seeb);color:var(--see);}
+.ui .eps{flex:1;min-height:0;display:flex;flex-direction:column;padding-top:24px;}
+.ui .ephead{display:flex;align-items:center;gap:10px;margin-bottom:8px;}
+.ui .ephead h6{margin:0;font-size:16px;font-weight:600;}
+.ui .ep{display:flex;align-items:center;gap:16px;height:52px;padding:0 14px;
+  border-bottom:1px solid var(--line2);}
+.ui .ep .n{font-size:13.5px;font-weight:600;width:96px;flex:none;}
+.ui .ep .dur{font-size:12px;color:var(--t3);flex:1;}
+.ui .sw{width:36px;height:20px;border-radius:10px;background:var(--line);position:relative;flex:none;}
+.ui .sw i{position:absolute;top:3px;left:3px;width:14px;height:14px;border-radius:50%;
+  background:var(--t3);}
+.ui .sw.on{background:var(--ac);} .ui .sw.on i{left:19px;background:var(--acink);}
+.ui .ep .sl{font-size:12px;color:var(--t3);width:44px;}
+.ui .srv{display:flex;align-items:center;gap:10px;padding:14px 14px 16px;
+  border-bottom:1px solid var(--line2);}
+.ui .srv .s{height:30px;padding:0 15px;border-radius:7px;background:var(--card);
+  border:1px solid var(--line);display:grid;place-items:center;font-size:12.5px;color:var(--t2);}
+.ui .srv .s.on{background:var(--acd);border-color:var(--ac);color:var(--ac);font-weight:600;}
+
+/* figura de la barra lateral */
+.sidefig{display:flex;gap:24px;align-items:flex-start;}
+.sidefig .box{border:1px solid var(--rule);border-radius:12px;overflow:hidden;
+  background:var(--surface-2);box-shadow:var(--shadow);}
+.sidefig figcaption{font-family:'Archivo',sans-serif;font-size:11px;font-weight:600;
+  letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:12px 0 0;}
+.sidefig .col{display:flex;flex-direction:column;}
+.sidepane{height:560px;display:flex;font-family:'Segoe UI','Archivo',sans-serif;
+  background:var(--bg);}
+@media (max-width:700px){ .sidefig{flex-direction:column;} }
+</style>
+</head>
+<body>
+
+<svg style="display:none" aria-hidden="true">
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7.5V12l3 2"/></symbol>
+  <symbol id="i-heart" viewBox="0 0 24 24"><path d="M12 20s-7-4.4-7-9.3A3.9 3.9 0 0 1 12 8a3.9 3.9 0 0 1 7 2.7C19 15.6 12 20 12 20Z"/></symbol>
+  <symbol id="i-check2" viewBox="0 0 24 24"><path d="m3 12.5 4 4L14 9"/><path d="m11.5 15 1.5 1.5L21 8"/></symbol>
+  <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="2.6"/></symbol>
+  <symbol id="i-list" viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1.1"/><circle cx="4.5" cy="12" r="1.1"/><circle cx="4.5" cy="18" r="1.1"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></symbol>
+  <symbol id="i-pin" viewBox="0 0 24 24"><path d="M14.5 3.5 20.5 9.5M16 8l-6.5 2L6 13.5 10.5 18l3.5-3.5 2-6.5"/><path d="m8.5 15.5-4 4"/></symbol>
+  <symbol id="i-down" viewBox="0 0 24 24"><path d="m6 9.5 6 6 6-6"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.5v13l11-6.5-11-6.5Z" fill="currentColor" stroke-width="1"/></symbol>
+  <symbol id="i-fold" viewBox="0 0 24 24"><path d="m13.5 6-6 6 6 6"/><path d="M17.5 5v14"/></symbol>
+  <symbol id="i-unfold" viewBox="0 0 24 24"><path d="m10.5 6 6 6-6 6"/><path d="M6.5 5v14"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M4 12h15m-6-6 6 6-6 6"/></symbol>
+  <symbol id="i-star" viewBox="0 0 24 24"><path d="m12 3.8 2.5 5.4 5.5.7-4 3.9 1 5.7-5-2.8-5 2.8 1-5.7-4-3.9 5.5-.7L12 3.8Z" fill="currentColor" stroke-width="1.2"/></symbol>
+  <symbol id="i-sort" viewBox="0 0 24 24"><path d="M6 5v14m0 0-3-3m3 3 3-3"/><path d="M18 19V5m0 0-3 3m3-3 3 3"/></symbol>
+  <symbol id="i-warn" viewBox="0 0 24 24"><path d="M12 4.5 21 19.5H3L12 4.5Z"/><path d="M12 10v4"/><circle cx="12" cy="16.8" r=".9" fill="currentColor"/></symbol>
+  <symbol id="i-min" viewBox="0 0 12 12"><path d="M1 6h10"/></symbol>
+  <symbol id="i-max" viewBox="0 0 12 12"><rect x="1.2" y="1.2" width="9.6" height="9.6"/></symbol>
+  <symbol id="i-close" viewBox="0 0 12 12"><path d="m1.5 1.5 9 9m0-9-9 9"/></symbol>
+</svg>
+
+<div class="topbar">
+  <div class="wrap">
+    <b>Biblioteca en siete vistas</b>
+    <nav class="topnav">
+      <a href="#lateral">Lateral</a>
+      <a href="#nuevos">Nuevos</a>
+      <a href="#favoritos">Favoritos</a>
+      <a href="#viendo">Viendo</a>
+      <a href="#pendientes">Pendientes</a>
+      <a href="#finalizados">Finalizados</a>
+      <a href="#buscar">Buscar</a>
+      <a href="#ficha">Ficha</a>
+      <a href="#claro">Claro</a>
+    </nav>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <div class="lede">
+    <p class="eyebrow">Una sola dirección · Siete vistas · CustomTkinter</p>
+    <h1>Lo que te gustaba de A, B y C, en un solo sistema</h1>
+    <p>La barra lateral de C con sus contadores, plegable al raíl de A cuando quieras el ancho.
+      La rejilla de pósters grandes de A para descubrir. La lista en cascada de B para lo que
+      tienes a medias. Y la paginación de C donde de verdad hace falta.</p>
+  </div>
+
+  <div class="decisions">
+    <h3>De tu crítica a estas maquetas</h3>
+    <ul>
+      <li class="out"><span class="tag">Fuera</span>
+        <span>Las columnas <em>Estado</em> y <em>Último visto</em>: dentro de «Viendo» el estado ya
+          lo sabes y el capítulo lo dice el progreso. También la barra de composición de la
+          biblioteca — esos números viven en la lateral, donde los ves siempre.</span></li>
+      <li class="in"><span class="tag">Dentro</span>
+        <span>Contadores por sección. Pósters de 176 px en vez de 130. Título de sección visible.
+          La cascada de B con póster, título, géneros, progreso y proveedor. La tarjeta grande de
+          la derecha para retomar. Y el «Mostrando 1–10 de 24» con selector de página.</span></li>
+      <li class="new"><span class="tag">Nuevo</span>
+        <span>Lo que estabas viendo sobrevive a cerrar la aplicación: al reabrirla, «Retomar donde
+          lo dejaste» te lleva al episodio siguiente sin buscar nada.</span></li>
+    </ul>
+  </div>
+
+  <!-- ══════════════════ BARRA LATERAL ══════════════════ -->
+  <section id="lateral">
+    <div class="head">
+      <div class="titleline"><span class="num">00</span><h2>La barra lateral</h2>
+        <span class="job">Constante en las 7 vistas</span></div>
+      <p class="thesis">Etiquetas y contadores por defecto. El botón de la esquina la pliega a
+        84 px, con el contador en un globo sobre el icono. En CustomTkinter es reconfigurar el ancho
+        del frame y quitarles el <code>text</code> a los botones dejando el <code>image</code>; la
+        preferencia cabe en una fila más de <code>USER_SETTINGS</code>, sin migración.</p>
+    </div>
+
+    <div class="sidefig">
+      <figure class="col" style="margin:0">
+        <div class="box"><div class="sidepane ui">
+          <div class="side">
+            <div class="brand"><svg class="ic s" style="color:var(--ac)"><use href="#i-play"/></svg>
+              <b>Biblioteca</b>
+              <span class="fold"><svg class="ic s"><use href="#i-fold"/></svg></span></div>
+            <a><svg class="ic s"><use href="#i-clock"/></svg>Nuevos lanzamientos<b>24</b></a>
+            <a><svg class="ic s"><use href="#i-heart"/></svg>Favoritos<b>12</b></a>
+            <a class="on"><svg class="ic s"><use href="#i-eye"/></svg>Viendo<b>6</b></a>
+            <a><svg class="ic s"><use href="#i-list"/></svg>Pendientes<b>7</b></a>
+            <a><svg class="ic s"><use href="#i-check2"/></svg>Finalizados<b>9</b></a>
+            <a><svg class="ic s"><use href="#i-search"/></svg>Buscar</a>
+            <div class="btm">
+              <p class="cap">Proveedor</p>
+              <div class="ctrl">AnimeAV1<span class="gap"><svg class="ic xs pin"><use href="#i-pin"/></svg><svg class="ic xs"><use href="#i-down"/></svg></span></div>
+              <p class="cap">Apariencia</p>
+              <div class="ctrl">Dark<span class="gap"><svg class="ic xs"><use href="#i-down"/></svg></span></div>
+            </div>
+          </div>
+        </div></div>
+        <figcaption>Desplegada · 224 px</figcaption>
+      </figure>
+
+      <figure class="col" style="margin:0">
+        <div class="box"><div class="sidepane ui">
+          <div class="side mini">
+            <div class="brand"><svg class="ic" style="color:var(--ac)"><use href="#i-play"/></svg></div>
+            <a><svg class="ic"><use href="#i-clock"/></svg><b>24</b></a>
+            <a><svg class="ic"><use href="#i-heart"/></svg><b>12</b></a>
+            <a class="on"><svg class="ic"><use href="#i-eye"/></svg><b>6</b></a>
+            <a><svg class="ic"><use href="#i-list"/></svg><b>7</b></a>
+            <a><svg class="ic"><use href="#i-check2"/></svg><b>9</b></a>
+            <a><svg class="ic"><use href="#i-search"/></svg></a>
+            <div class="btm">
+              <div class="ctrl"><svg class="ic s"><use href="#i-unfold"/></svg></div>
+            </div>
+          </div>
+        </div></div>
+        <figcaption>Plegada · 84 px</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <!-- ══════════════════ 1 · NUEVOS ══════════════════ -->
+  <section id="nuevos">
+    <div class="head">
+      <div class="titleline"><span class="num">01</span><h2>Nuevos lanzamientos</h2>
+        <span class="job">Descubrir</span></div>
+      <p class="thesis">Lo que ya te parecía bien de A, con el ancho recortado por la lateral:
+        pósters de 176 px en vez de 130, el nombre de la sección visible y, encima de todo, los
+        tres que dejaste a medias.</p>
+    </div>
+
+    <div class="shot">
+      <div class="stage"><div class="frame ui">
+        <div class="tbar"><span class="dot"></span>Mi Biblioteca de Anime
+          <span class="ctl"><span><svg><use href="#i-min"/></svg></span><span><svg><use href="#i-max"/></svg></span><span><svg><use href="#i-close"/></svg></span></span></div>
+        <div class="app">
+          <div class="side">
+            <div class="brand"><svg class="ic s" style="color:var(--ac)"><use href="#i-play"/></svg><b>Biblioteca</b>
+              <span class="fold"><svg class="ic s"><use href="#i-fold"/></svg></span></div>
+            <a class="on"><svg class="ic s"><use href="#i-clock"/></svg>Nuevos lanzamientos<b>24</b></a>
+            <a><svg class="ic s"><use href="#i-heart"/></svg>Favoritos<b>12</b></a>
+            <a><svg class="ic s"><use href="#i-eye"/></svg>Viendo<b>6</b></a>
+            <a><svg class="ic s"><use href="#i-list"/></svg>Pendientes<b>7</b></a>
+            <a><svg class="ic s"><use href="#i-check2"/></svg>Finalizados<b>9</b></a>
+            <a><svg class="ic s"><use href="#i-search"/></svg>Buscar</a>
+            <div class="btm">
+              <p class="cap">Proveedor</p>
+              <div class="ctrl">AnimeAV1<span class="gap"><svg class="ic xs pin"><use href="#i-pin"/></svg><svg class="ic xs"><use href="#i-down"/></svg></span></div>
+              <p class="cap">Apariencia</p>
+              <div class="ctrl">Dark<span class="gap"><svg class="ic xs"><use href="#i-down"/></svg></span></div>
+            </div>
+          </div>
+
+          <div class="main">
+            <div class="vhead">
+              <div><h5>Nuevos lanzamientos</h5><p class="sub">24 estrenos · AnimeAV1</p></div>
+              <div class="rt"><div class="find"><svg class="ic s"><use href="#i-search"/></svg>Buscar anime…</div></div>
+            </div>
+
+            <div class="scroll">
+              <p class="lbl">Retomar donde lo dejaste</p>
+              <div class="resume">
+                <div class="rc"><div class="art g2 v3"></div><div class="tx">
+                  <h6>Ore dake Level Up na Ken</h6>
+                  <small>Siguiente: episodio 13 de 24</small>
+                  <div class="bar"><i style="width:50%"></i></div></div></div>
+                <div class="rc"><div class="art g11"></div><div class="tx">
+                  <h6>Dandadan 2nd Season</h6>
+                  <small>Siguiente: episodio 10 de 12</small>
+                  <div class="bar"><i style="width:75%"></i></div></div></div>
+                <div class="rc"><div class="art g7 v2"></div><div class="tx">
+                  <h6>Kimetsu no Yaiba Movie 1: Mugenjou-hen</h6>
+                  <small>Siguiente: episodio 4 de 26</small>
+                  <div class="bar"><i style="width:11%"></i></div></div></div>
+              </div>
+
+              <p class="lbl">Estrenos de esta semana</p>
+              <div class="grid c6">
+                <div class="tile"><div class="art g6"></div><p>Shiguang Dailiren III</p></div>
+                <div class="tile"><div class="art g2 v2"></div><p>The Ribbon Hero</p></div>
+                <div class="tile"><div class="art g5 v3"></div><p>Boku no Hero Academia: I Am a Hero Too</p></div>
+                <div class="tile"><div class="art g8"></div><p>Tensei shitara Slime Datta Ken Movie 2</p></div>
+                <div class="tile"><div class="art g1 v3"></div><p>Bleach: Sennen Kessen-hen - Kashin-tan</p></div>
+                <div class="tile"><div class="art g11 v2"></div><p>Ansatsu Kyoushitsu Movie: Minna no Jikan</p></div>
+                <div class="tile"><div class="art g3 v2"></div><p>Nige Jouzu no Wakagimi 2nd Season</p></div>
+                <div class="tile"><div class="art g10 v3"></div><p>Futsutsuka na Akujo dewa Gozaimasu ga</p></div>
+                <div class="tile"><div class="art g12"></div><p>Hanaori-san wa Tensei shitemo Kenka ga Shitai</p></div>
+                <div class="tile"><div class="art g9 v2"></div><p>Super no Ura de Yani Suu Futari</p></div>
+                <div class="tile"><div class="art g4"></div><p>Mebius Dust</p></div>
+                <div class="tile"><div class="art g8 v3"></div><p>Thunder 3</p></div>
+              </div>
+            </div>
+
+            <div class="pager">Mostrando 1–12 de 24
+              <span class="pg"><span>‹</span><span class="on">1</span><span>2</span><span>›</span></span></div>
+          </div>
+        </div>
+      </div></div>
+    </div>
+
+    <div class="notes">
+      <div>
+        <h3>Qué cambia</h3>
+        <p>El póster sube de 130×185 a 176×264 y pasa de 8 columnas a 6 — un 35 % más de área por
+          carátula, que es donde de verdad reconoces un anime. El título de la sección y el recuento
+          de estrenos aparecen arriba, cosa que hoy no existe en ninguna vista.</p>
+        <p>«Retomar donde lo dejaste» no depende de la sesión: son los tres últimos que tocaste,
+          guardados, con el episodio <em>siguiente</em> ya calculado.</p>
+      </div>
+      <div>
+        <h3>Lo que hay que construir</h3>
+        <p>La rejilla es la de hoy con otras cifras: <code>num_columns</code> fijo a 6 y
+          <code>image_size=(176,264)</code> en <code>get_anime_image()</code>. Las tarjetas de
+          retomar son un <code>CTkFrame</code> con <code>CTkProgressBar</code>.</p>
+        <p><span class="flag">Persistencia</span>Los tres últimos vistos son una fila de
+          <code>USER_SETTINGS</code> con los <code>anime_id</code> separados por comas. Sin
+          migración: <code>DB_user.db</code> es clave/valor.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════ 2 · FAVORITOS ══════════════════ -->
+  <section id="favoritos">
+    <div class="head">
+      <div class="titleline"><span class="num">02</span><h2>Favoritos</h2>
+        <span class="job">Volver a lo que quieres</span></div>
+      <p class="thesis">Rejilla, no lista: a favoritos se entra a mirar, y la carátula es media
+        razón por la que un anime está ahí. Pósters más grandes que en estrenos, cinco por fila,
+        y la calificación personal debajo.</p>
+    </div>
+
+    <div class="shot">
+      <div class="stage"><div class="frame ui">
+        <div class="tbar"><span class="dot"></span>Mi Biblioteca de Anime
+          <span class="ctl"><span><svg><use href="#i-min"/></svg></span><span><svg><use href="#i-max"/></svg></span><span><svg><use href="#i-close"/></svg></span></span></div>
+        <div class="app">
+          <div class="side">
+            <div class="brand"><svg class="ic s" style="color:var(--ac)"><use href="#i-play"/></svg><b>Biblioteca</b>
+              <span class="fold"><svg class="ic s"><use href="#i-fold"/></svg></span></div>
+            <a><svg class="ic s"><use href="#i-clock"/></svg>Nuevos lanzamientos<b>24</b></a>
+            <a class="on"><svg class="ic s"><use href="#i-heart"/></svg>Favoritos<b>12</b></a>
+            <a><svg class="ic s"><use href="#i-eye"/></svg>Viendo<b>6</b></a>
+            <a><svg class="ic s"><use href="#i-list"/></svg>Pendientes<b>7</b></a>
+            <a><svg class="ic s"><use href="#i-check2"/></svg>Finalizados<b>9</b></a>
+            <a><svg class="ic s"><use href="#i-search"/></svg>Buscar</a>
+            <div class="btm">
+              <p class="cap">Proveedor</p>
+              <div class="ctrl">AnimeAV1<span class="gap"><svg class="ic xs pin"><use href="#i-pin"/></svg><svg class="ic xs"><use href="#i-down"/></svg></span></div>
+              <p class="cap">Apariencia</p>
+              <div class="ctrl">Dark<span class="gap"><svg class="ic xs"><use href="#i-down"/></svg></span></div>
+            </div>
+          </div>
+
+          <div class="main">
+            <div class="vhead">
+              <div><h5>Favoritos</h5><p class="sub">12 animes</p></div>
+              <div class="rt">
+                <div class="pick"><svg class="ic xs"><use href="#i-sort"/></svg>Orden: <b>Mi calificación</b><svg class="ic xs"><use href="#i-down"/></svg></div>
+                <div class="find"><svg class="ic s"><use href="#i-search"/></svg>Buscar en favoritos…</div>
+              </div>
+            </div>
+
+            <div class="scroll">
+              <div class="grid c5">
+                <div class="tile"><div class="art g2 v3"></div><p>Ore dake Level Up na Ken</p>
+                  <div class="rate"><svg class="ic xs"><use href="#i-star"/></svg><svg class="ic xs"><use href="#i-star"/></svg><svg class="ic xs"><use href="#i-star"/></svg><svg class="ic xs"><use href="#i-star"/></svg><svg class="ic xs"><use href="#i-star"/></svg><span>5,0</span></div></div>
+                <div class="tile"><div class="art g12"></div><p>One Piece: Heroines</p>
+                  <div class="rate"><svg class="ic xs"><use href="#i-star"/></svg><svg class="ic xs"><use href="#i-star"/></svg><svg class="ic xs"><use href="#i-star"/></svg><svg class="ic xs"><use href="#i-star"/></svg><svg class="ic xs off"><use href="#i-star"/></svg><span>4,5</span></div></div>
+                <div class="tile"><div class="art g11"></div><p>Dandadan 2nd Season</p>
+                  <div class="rate"><svg class="ic xs"><use href="#i-star"/></svg><svg class="ic xs"><use href="#i-star"/></svg><svg class="ic xs"><use href="#i-star"/></svg><svg class="ic xs"><use href="#i-star"/></svg><svg class="ic xs off"><use href="#i-star"/></svg><span>4,5</span></div></div>
+                <div class="tile"><div class="art g7 v2"></div><p>Kimetsu no Yaiba Movie 1: Mugenjou-hen</p>
+                  <div class="rate"><svg class="ic xs"><use href="#i-star"/></svg><svg class="ic xs"><use href="#i-star"/></svg><svg class="ic xs"><use href="#i-star"/></svg><svg class="ic xs"><use href="#i-star"/></svg><svg class="ic xs off"><use href="#i-star"/></svg><span>4,0</span></div></div>
+                <div class="tile"><div class="art g9 v2"></div><p>Youjo Senki II</p>
+                  <div class="rate"><svg class="ic xs"><use href="#i-star"/></svg><svg class="ic xs"><use href="#i-star"/></svg><svg class="ic xs"><use href="#i-star"/></svg><svg class="ic xs"><use href="#i-star"/></svg><svg class="ic xs off"><use href="#i-star"/></svg><span>4,0</span></div></div>
+                <div class="tile"><div class="art g4"></div><p>Sakamoto Days Part 2</p>
+                  <div class="rate"><svg class="ic xs"><use href="#i-star"/></svg><svg class="ic xs"><use href="#i-star"/></svg><svg class="ic xs"><use href="#i-star"/></svg><svg class="ic xs off"><use href="#i-star"/></svg><svg class="ic xs off"><use href="#i-star"/></svg><span>3,5</span></div></div>
+                <div class="tile"><div class="art g1 v3"></div><p>Bleach: Sennen Kessen-hen - Kashin-tan</p>
+                  <div class="rate"><svg class="ic xs"><use href="#i-star"/></svg><svg class="ic xs"><use href="#i-star"/></svg><svg class="ic xs"><use href="#i-star"/></svg><svg class="ic xs off"><use href="#i-star"/></svg><svg class="ic xs off"><use href="#i-star"/></svg><span>3,5</span></div></div>
+                <div class="tile"><div class="art g8"></div><p>Tensei shitara Slime Datta Ken Movie 2</p>
+                  <div class="rate"><svg class="ic xs"><use href="#i-star"/></svg><svg class="ic xs"><use href="#i-star"/></svg><svg class="ic xs"><use href="#i-star"/></svg><svg class="ic xs off"><use href="#i-star"/></svg><svg class="ic xs off"><use href="#i-star"/></svg><span>3,0</span></div></div>
+                <div class="tile"><div class="art g3 v2"></div><p>Nige Jouzu no Wakagimi 2nd Season</p>
+                  <div class="rate"><svg class="ic xs"><use href="#i-star"/></svg><svg class="ic xs"><use href="#i-star"/></svg><svg class="ic xs"><use href="#i-star"/></svg><svg class="ic xs off"><use href="#i-star"/></svg><svg class="ic xs off"><use href="#i-star"/></svg><span>3,0</span></div></div>
+                <div class="tile"><div class="art g10 v3"></div><p>Futsutsuka na Akujo dewa Gozaimasu ga</p>
+                  <div class="rate"><svg class="ic xs"><use href="#i-star"/></svg><svg class="ic xs"><use href="#i-star"/></svg><svg class="ic xs off"><use href="#i-star"/></svg><svg class="ic xs off"><use href="#i-star"/></svg><svg class="ic xs off"><use href="#i-star"/></svg><span>2,5</span></div></div>
+              </div>
+            </div>
+
+            <div class="pager">Mostrando 1–10 de 12
+              <span class="pg"><span>‹</span><span class="on">1</span><span>2</span><span>›</span></span></div>
+          </div>
+        </div>
+      </div></div>
+    </div>
+
+    <div class="notes">
+      <div>
+        <h3>Qué cambia</h3>
+        <p>Cinco columnas en vez de seis: 216 px de póster, el más grande de las tres rejillas,
+          porque aquí sí importa la carátula concreta y son doce, no ciento.</p>
+        <p><span class="flag">De tu roadmap</span>La calificación personal y el orden por ella
+          salen de tu propia lista de pendientes, no me los he inventado. Si prefieres dejarlo para
+          más adelante, la rejilla funciona igual quitando la fila de estrellas.</p>
+      </div>
+      <div>
+        <h3>Lo que hay que construir</h3>
+        <p><span class="flag">Persistencia</span>La calificación es lo único de las 7 vistas que
+          toca <code>DB_Animes.db</code>: un miembro más en <code>AnimeField</code>
+          (<code>rating</code>, <code>INTEGER</code>) al final del enum, con lo que
+          <code>validate_db_integrity()</code> lo resuelve por la vía barata —
+          <code>ALTER TABLE ADD COLUMN</code>, sin mover datos— y hay que actualizar a mano
+          <code>to_db_dict()</code> y <code>from_db_dict()</code>.</p>
+        <p>Las estrellas son cinco <code>CTkButton</code> con dos iconos, o un
+          <code>CTkSegmentedButton</code> si te vale entero en vez de medios puntos.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════ 3 · VIENDO ══════════════════ -->
+  <section id="viendo">
+    <div class="head">
+      <div class="titleline"><span class="num">03</span><h2>Viendo</h2>
+        <span class="job">Seguir por donde ibas</span></div>
+      <p class="thesis">La cascada de B, tal cual la describiste: póster pequeño, título, géneros,
+        progreso de capítulos y el proveedor donde está guardado. A la derecha, en grande, el último
+        que estabas viendo — sobreviva o no la sesión.</p>
+    </div>
+
+    <div class="shot">
+      <div class="stage"><div class="frame ui">
+        <div class="tbar"><span class="dot"></span>Mi Biblioteca de Anime
+          <span class="ctl"><span><svg><use href="#i-min"/></svg></span><span><svg><use href="#i-max"/></svg></span><span><svg><use href="#i-close"/></svg></span></span></div>
+        <div class="app">
+          <div class="side">
+            <div class="brand"><svg class="ic s" style="color:var(--ac)"><use href="#i-play"/></svg><b>Biblioteca</b>
+              <span class="fold"><svg class="ic s"><use href="#i-fold"/></svg></span></div>
+            <a><svg class="ic s"><use href="#i-clock"/></svg>Nuevos lanzamientos<b>24</b></a>
+            <a><svg class="ic s"><use href="#i-heart"/></svg>Favoritos<b>12</b></a>
+            <a class="on"><svg class="ic s"><use href="#i-eye"/></svg>Viendo<b>6</b></a>
+            <a><svg class="ic s"><use href="#i-list"/></svg>Pendientes<b>7</b></a>
+            <a><svg class="ic s"><use href="#i-check2"/></svg>Finalizados<b>9</b></a>
+            <a><svg class="ic s"><use href="#i-search"/></svg>Buscar</a>
+            <div class="btm">
+              <p class="cap">Proveedor</p>
+              <div class="ctrl">AnimeAV1<span class="gap"><svg class="ic xs pin"><use href="#i-pin"/></svg><svg class="ic xs"><use href="#i-down"/></svg></span></div>
+              <p class="cap">Apariencia</p>
+              <div class="ctrl">Dark<span class="gap"><svg class="ic xs"><use href="#i-down"/></svg></span></div>
+            </div>
+          </div>
+
+          <div class="main">
+            <div class="vhead">
+              <div><h5>Viendo</h5><p class="sub">6 animes a medias · 47 episodios pendientes</p></div>
+              <div class="rt"><div class="find"><svg class="ic s"><use href="#i-search"/></svg>Buscar en viendo…</div></div>
+            </div>
+
+            <div class="scroll" style="display:flex;gap:32px">
+              <div class="list" style="flex:1;min-width:0">
+                <div class="lrow hov">
+                  <div class="art g2 v3" style="width:70px;height:100px"></div>
+                  <div class="mid"><h6>Ore dake Level Up na Ken</h6>
+                    <p class="gen">Acción · Aventura · Fantasía</p>
+                    <div class="prog"><span class="t"><i style="width:50%"></i></span><span>12 de 24 episodios</span></div></div>
+                  <div class="rt"><span class="prov">AnimeFLV</span>
+                    <span class="go">Episodio 13 <svg class="ic xs"><use href="#i-arrow"/></svg></span></div>
+                </div>
+                <div class="lrow">
+                  <div class="art g11" style="width:70px;height:100px"></div>
+                  <div class="mid"><h6>Dandadan 2nd Season</h6>
+                    <p class="gen">Acción · Comedia · Sobrenatural</p>
+                    <div class="prog"><span class="t"><i style="width:75%"></i></span><span>9 de 12 episodios</span></div></div>
+                  <div class="rt"><span class="prov">AnimeAV1</span></div>
+                </div>
+                <div class="lrow">
+                  <div class="art g7 v2" style="width:70px;height:100px"></div>
+                  <div class="mid"><h6>Kimetsu no Yaiba Movie 1: Mugenjou-hen</h6>
+                    <p class="gen">Acción · Histórico · Shounen</p>
+                    <div class="prog"><span class="t"><i style="width:11%"></i></span><span>3 de 26 episodios</span></div></div>
+                  <div class="rt"><span class="prov">AnimeAV1</span></div>
+                </div>
+                <div class="lrow">
+                  <div class="art g12" style="width:70px;height:100px"></div>
+                  <div class="mid"><h6>One Piece: Heroines</h6>
+                    <p class="gen">Aventura · Comedia · Shounen</p>
+                    <div class="prog"><span class="t"><i style="width:88%"></i></span><span>22 de 25 episodios</span></div></div>
+                  <div class="rt"><span class="prov">AnimeFLV</span></div>
+                </div>
+                <div class="lrow">
+                  <div class="art g9 v2" style="width:70px;height:100px"></div>
+                  <div class="mid"><h6>Youjo Senki II</h6>
+                    <p class="gen">Acción · Militar · Sobrenatural</p>
+                    <div class="prog"><span class="t"><i style="width:33%"></i></span><span>4 de 12 episodios</span></div></div>
+                  <div class="rt"><span class="prov">JKAnime</span></div>
+                </div>
+                <div class="lrow">
+                  <div class="art g4" style="width:70px;height:100px"></div>
+                  <div class="mid"><h6>Sakamoto Days Part 2</h6>
+                    <p class="gen">Acción · Comedia</p>
+                    <div class="prog"><span class="t"><i style="width:18%"></i></span><span>2 de 11 episodios</span></div></div>
+                  <div class="rt"><span class="prov">AnimeAV1</span></div>
+                </div>
+              </div>
+
+              <div style="width:290px;flex:none">
+                <p class="lbl">Lo último que veías</p>
+                <div style="background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px">
+                  <div class="art g2 v3" style="width:100%;aspect-ratio:2/3;border-radius:8px"></div>
+                  <h6 style="margin:15px 0 0;font-size:19px;font-weight:600;line-height:1.2">Ore dake Level Up na Ken</h6>
+                  <p style="margin:9px 0 0;font-size:12.5px;color:var(--t3)">Lo dejaste en el episodio 12 · AnimeFLV</p>
+                  <div class="prog" style="margin-top:12px"><span class="t"><i style="width:50%"></i></span><span>12 / 24</span></div>
+                  <div style="display:flex;align-items:center;justify-content:center;gap:8px;height:38px;border-radius:9px;background:var(--ac);color:#0C1020;font-size:13px;font-weight:600;margin-top:16px">
+                    <svg class="ic s"><use href="#i-play"/></svg>Seguir por el 13</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div></div>
+    </div>
+
+    <div class="notes">
+      <div>
+        <h3>Qué cambia</h3>
+        <p>Cada fila lleva exactamente lo que pediste y nada más. Fuera <em>Estado</em> — estás en
+          Viendo — y fuera <em>Último visto</em>, porque «12 de 24 episodios» ya lo dice.</p>
+        <p>Sin paginación: son seis y caben. El «Mostrando 1–10 de …» aparece solo donde la sección
+          no cabe de una vez, que es en estrenos, favoritos y la búsqueda.</p>
+        <p>El botón «Episodio 13» sale al pasar el ratón por la fila, para saltar sin abrir la ficha.</p>
+      </div>
+      <div>
+        <h3>Lo que hay que construir</h3>
+        <p>Es la vista que más se aleja de lo que hay: hoy las cuatro de estado son rejillas de tres
+          filas de <code>grid</code>. Aquí es un <code>CTkFrame</code> por fila con
+          <code>CTkProgressBar</code>. El buscador local (<code>SavedAnimeSearch</code>) sigue
+          valiendo tal cual.</p>
+        <p><span class="flag">Persistencia</span>La tarjeta de la derecha se alimenta de la misma
+          fila de <code>USER_SETTINGS</code> que «Retomar»: el último <code>anime_id</code> tocado.
+          El episodio siguiente ya lo sabes calcular con <code>get_watched_episodes()</code>.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════ 4 · PENDIENTES ══════════════════ -->
+  <section id="pendientes">
+    <div class="head">
+      <div class="titleline"><span class="num">04</span><h2>Pendientes</h2>
+        <span class="job">Decidir qué empezar</span></div>
+      <p class="thesis">La misma cascada que Viendo, pero sin barra de progreso: aquí no hay
+        progreso que enseñar. El hueco lo ocupa lo que sí decide — cuántos episodios te vas a
+        comer— y un botón para empezar sin pasar por la ficha.</p>
+    </div>
+
+    <div class="shot">
+      <div class="stage"><div class="frame ui">
+        <div class="tbar"><span class="dot"></span>Mi Biblioteca de Anime
+          <span class="ctl"><span><svg><use href="#i-min"/></svg></span><span><svg><use href="#i-max"/></svg></span><span><svg><use href="#i-close"/></svg></span></span></div>
+        <div class="app">
+          <div class="side">
+            <div class="brand"><svg class="ic s" style="color:var(--ac)"><use href="#i-play"/></svg><b>Biblioteca</b>
+              <span class="fold"><svg class="ic s"><use href="#i-fold"/></svg></span></div>
+            <a><svg class="ic s"><use href="#i-clock"/></svg>Nuevos lanzamientos<b>24</b></a>
+            <a><svg class="ic s"><use href="#i-heart"/></svg>Favoritos<b>12</b></a>
+            <a><svg class="ic s"><use href="#i-eye"/></svg>Viendo<b>6</b></a>
+            <a class="on"><svg class="ic s"><use href="#i-list"/></svg>Pendientes<b>7</b></a>
+            <a><svg class="ic s"><use href="#i-check2"/></svg>Finalizados<b>9</b></a>
+            <a><svg class="ic s"><use href="#i-search"/></svg>Buscar</a>
+            <div class="btm">
+              <p class="cap">Proveedor</p>
+              <div class="ctrl">AnimeAV1<span class="gap"><svg class="ic xs pin"><use href="#i-pin"/></svg><svg class="ic xs"><use href="#i-down"/></svg></span></div>
+              <p class="cap">Apariencia</p>
+              <div class="ctrl">Dark<span class="gap"><svg class="ic xs"><use href="#i-down"/></svg></span></div>
+            </div>
+          </div>
+
+          <div class="main">
+            <div class="vhead">
+              <div><h5>Pendientes</h5><p class="sub">7 animes en cola · 118 episodios</p></div>
+              <div class="rt">
+                <div class="pick"><svg class="ic xs"><use href="#i-sort"/></svg>Orden: <b>Más cortos primero</b><svg class="ic xs"><use href="#i-down"/></svg></div>
+                <div class="find"><svg class="ic s"><use href="#i-search"/></svg>Buscar en pendientes…</div>
+              </div>
+            </div>
+
+            <div class="scroll">
+              <div class="list">
+                <div class="lrow hov">
+                  <div class="art g8" style="width:56px;height:80px"></div>
+                  <div class="mid"><h6>Tensei shitara Slime Datta Ken Movie 2: Soukai no Namida-hen</h6>
+                    <p class="gen">Aventura · Fantasía · Isekai</p></div>
+                  <div class="rt"><span class="prov">1 episodio · JKAnime</span>
+                    <span class="go"><svg class="ic xs"><use href="#i-play"/></svg> Empezar</span></div>
+                </div>
+                <div class="lrow">
+                  <div class="art g6" style="width:56px;height:80px"></div>
+                  <div class="mid"><h6>Shiguang Dailiren III</h6>
+                    <p class="gen">Misterio · Sobrenatural · Drama</p></div>
+                  <div class="rt"><span class="prov">12 episodios · JKAnime</span></div>
+                </div>
+                <div class="lrow">
+                  <div class="art g5 v3" style="width:56px;height:80px"></div>
+                  <div class="mid"><h6>Boku no Hero Academia: I Am a Hero Too</h6>
+                    <p class="gen">Acción · Escolar · Shounen</p></div>
+                  <div class="rt"><span class="prov">13 episodios · AnimeAV1</span></div>
+                </div>
+                <div class="lrow">
+                  <div class="art g1 v3" style="width:56px;height:80px"></div>
+                  <div class="mid"><h6>Bleach: Sennen Kessen-hen - Kashin-tan</h6>
+                    <p class="gen">Acción · Aventura · Shounen</p></div>
+                  <div class="rt"><span class="prov">13 episodios · AnimeAV1</span></div>
+                </div>
+                <div class="lrow">
+                  <div class="art g12" style="width:56px;height:80px"></div>
+                  <div class="mid"><h6>Hanaori-san wa Tensei shitemo Kenka ga Shitai</h6>
+                    <p class="gen">Comedia · Romance · Escolar</p></div>
+                  <div class="rt"><span class="prov">12 episodios · AnimeAV1</span></div>
+                </div>
+                <div class="lrow">
+                  <div class="art g10 v3" style="width:56px;height:80px"></div>
+                  <div class="mid"><h6>Futsutsuka na Akujo dewa Gozaimasu ga</h6>
+                    <p class="gen">Fantasía · Romance · Histórico</p></div>
+                  <div class="rt"><span class="prov">12 episodios · AnimeAV1</span></div>
+                </div>
+                <div class="lrow">
+                  <div class="art g9" style="width:56px;height:80px"></div>
+                  <div class="mid"><h6>Super no Ura de Yani Suu Futari</h6>
+                    <p class="gen">Recuentos de la vida · Romance</p></div>
+                  <div class="rt"><span class="prov">55 episodios · JKAnime</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div></div>
+    </div>
+
+    <div class="notes">
+      <div>
+        <h3>Qué cambia</h3>
+        <p>Es la misma fila que Viendo con dos piezas menos y una más, así que se lee igual sin ser
+          redundante. El póster baja a 60×86 porque aquí lo que decides no es «cuál me gustaba» sino
+          «cuál me cabe hoy».</p>
+        <p>El orden por duración es lo único que hace útil una cola: siete animes de 12 episodios no
+          son lo mismo que uno de 55.</p>
+      </div>
+      <div>
+        <h3>Lo que hay que construir</h3>
+        <p>Nada nuevo respecto a Viendo: la misma fila sin el <code>CTkProgressBar</code>. El número
+          de episodios sale de <code>len(anime_record.episodes)</code>, que ya está en la fila.</p>
+        <p>«Empezar» encadena lo que ya tienes: <code>update_anime_to_watching()</code> y abrir la
+          ficha por el episodio 1.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════ 5 · FINALIZADOS ══════════════════ -->
+  <section id="finalizados">
+    <div class="head">
+      <div class="titleline"><span class="num">05</span><h2>Finalizados</h2>
+        <span class="job">El archivo</span></div>
+      <p class="thesis">Vuelve la rejilla, porque a lo terminado se entra a recordar y a rever, no a
+        gestionar. Seis por fila con el sello de completado sobre la carátula y el recuento debajo.</p>
+    </div>
+
+    <div class="shot">
+      <div class="stage"><div class="frame ui">
+        <div class="tbar"><span class="dot"></span>Mi Biblioteca de Anime
+          <span class="ctl"><span><svg><use href="#i-min"/></svg></span><span><svg><use href="#i-max"/></svg></span><span><svg><use href="#i-close"/></svg></span></span></div>
+        <div class="app">
+          <div class="side">
+            <div class="brand"><svg class="ic s" style="color:var(--ac)"><use href="#i-play"/></svg><b>Biblioteca</b>
+              <span class="fold"><svg class="ic s"><use href="#i-fold"/></svg></span></div>
+            <a><svg class="ic s"><use href="#i-clock"/></svg>Nuevos lanzamientos<b>24</b></a>
+            <a><svg class="ic s"><use href="#i-heart"/></svg>Favoritos<b>12</b></a>
+            <a><svg class="ic s"><use href="#i-eye"/></svg>Viendo<b>6</b></a>
+            <a><svg class="ic s"><use href="#i-list"/></svg>Pendientes<b>7</b></a>
+            <a class="on"><svg class="ic s"><use href="#i-check2"/></svg>Finalizados<b>9</b></a>
+            <a><svg class="ic s"><use href="#i-search"/></svg>Buscar</a>
+            <div class="btm">
+              <p class="cap">Proveedor</p>
+              <div class="ctrl">AnimeAV1<span class="gap"><svg class="ic xs pin"><use href="#i-pin"/></svg><svg class="ic xs"><use href="#i-down"/></svg></span></div>
+              <p class="cap">Apariencia</p>
+              <div class="ctrl">Dark<span class="gap"><svg class="ic xs"><use href="#i-down"/></svg></span></div>
+            </div>
+          </div>
+
+          <div class="main">
+            <div class="vhead">
+              <div><h5>Finalizados</h5><p class="sub">9 animes · 214 episodios vistos</p></div>
+              <div class="rt"><div class="find"><svg class="ic s"><use href="#i-search"/></svg>Buscar en finalizados…</div></div>
+            </div>
+
+            <div class="scroll">
+              <div class="grid c6">
+                <div class="tile"><div class="art g3 v2"></div>
+                  <span class="mark"><svg class="ic xs" style="color:var(--fin)"><use href="#i-check2"/></svg>12 / 12</span>
+                  <p>Nige Jouzu no Wakagimi 2nd Season</p></div>
+                <div class="tile"><div class="art g10 v3"></div>
+                  <span class="mark"><svg class="ic xs" style="color:var(--fin)"><use href="#i-check2"/></svg>12 / 12</span>
+                  <p>Futsutsuka na Akujo dewa Gozaimasu ga</p></div>
+                <div class="tile"><div class="art g5"></div>
+                  <span class="mark"><svg class="ic xs" style="color:var(--fin)"><use href="#i-check2"/></svg>24 / 24</span>
+                  <p>Otome Game Sekai wa Mob ni Kibishii Sekai desu 2</p></div>
+                <div class="tile"><div class="art g6 v2"></div>
+                  <span class="mark"><svg class="ic xs" style="color:var(--fin)"><use href="#i-check2"/></svg>13 / 13</span>
+                  <p>Katainaka no Ossan, Kensei ni Naru II</p></div>
+                <div class="tile"><div class="art g7"></div>
+                  <span class="mark"><svg class="ic xs" style="color:var(--fin)"><use href="#i-check2"/></svg>12 / 12</span>
+                  <p>Clevatess II: Majuu no Ou to Itsuwari no Yuusha</p></div>
+                <div class="tile"><div class="art g4 v2"></div>
+                  <span class="mark"><svg class="ic xs" style="color:var(--fin)"><use href="#i-check2"/></svg>11 / 11</span>
+                  <p>Mebius Dust</p></div>
+                <div class="tile"><div class="art g2"></div>
+                  <span class="mark"><svg class="ic xs" style="color:var(--fin)"><use href="#i-check2"/></svg>25 / 25</span>
+                  <p>The Ribbon Hero</p></div>
+                <div class="tile"><div class="art g8 v3"></div>
+                  <span class="mark"><svg class="ic xs" style="color:var(--fin)"><use href="#i-check2"/></svg>12 / 12</span>
+                  <p>Thunder 3</p></div>
+                <div class="tile"><div class="art g11 v3"></div>
+                  <span class="mark"><svg class="ic xs" style="color:var(--fin)"><use href="#i-check2"/></svg>24 / 24</span>
+                  <p>Ansatsu Kyoushitsu Movie: Minna no Jikan</p></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div></div>
+    </div>
+
+    <div class="notes">
+      <div>
+        <h3>Qué cambia</h3>
+        <p>Que sea rejilla y no lista es deliberado: es la única sección donde no hay ninguna
+          decisión que tomar, así que el diseño puede dedicarse entero a enseñar carátulas.</p>
+        <p>El sello «12 / 12» sobre el póster confirma de un vistazo que está completo de verdad, y
+          no solo marcado a mano.</p>
+      </div>
+      <div>
+        <h3>Lo que hay que construir</h3>
+        <p>Es la rejilla de estrenos con un <code>CTkLabel</code> superpuesto. En CustomTkinter el
+          sello va con <code>place()</code> sobre el <code>CTkLabel</code> del póster, no con
+          <code>grid()</code>.</p>
+        <p>Sin paginación mientras quepan en dos filas. Cuando pases de doce, entra la misma que en
+          favoritos.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════ 6 · BUSCAR ══════════════════ -->
+  <section id="buscar">
+    <div class="head">
+      <div class="titleline"><span class="num">06</span><h2>Buscar</h2>
+        <span class="job">Traer algo de fuera</span></div>
+      <p class="thesis">El acordeón de cuarenta géneros se convierte en una fila de fichas: las
+        elegidas se quedan a la vista, el resto se despliega. Y cada resultado dice si ya lo tienes
+        guardado, que es justo lo que evita acabar con el mismo anime dos veces.</p>
+    </div>
+
+    <div class="shot">
+      <div class="stage"><div class="frame ui">
+        <div class="tbar"><span class="dot"></span>Mi Biblioteca de Anime
+          <span class="ctl"><span><svg><use href="#i-min"/></svg></span><span><svg><use href="#i-max"/></svg></span><span><svg><use href="#i-close"/></svg></span></span></div>
+        <div class="app">
+          <div class="side">
+            <div class="brand"><svg class="ic s" style="color:var(--ac)"><use href="#i-play"/></svg><b>Biblioteca</b>
+              <span class="fold"><svg class="ic s"><use href="#i-fold"/></svg></span></div>
+            <a><svg class="ic s"><use href="#i-clock"/></svg>Nuevos lanzamientos<b>24</b></a>
+            <a><svg class="ic s"><use href="#i-heart"/></svg>Favoritos<b>12</b></a>
+            <a><svg class="ic s"><use href="#i-eye"/></svg>Viendo<b>6</b></a>
+            <a><svg class="ic s"><use href="#i-list"/></svg>Pendientes<b>7</b></a>
+            <a><svg class="ic s"><use href="#i-check2"/></svg>Finalizados<b>9</b></a>
+            <a class="on"><svg class="ic s"><use href="#i-search"/></svg>Buscar</a>
+            <div class="btm">
+              <p class="cap">Proveedor</p>
+              <div class="ctrl">AnimeAV1<span class="gap"><svg class="ic xs pin"><use href="#i-pin"/></svg><svg class="ic xs"><use href="#i-down"/></svg></span></div>
+              <p class="cap">Apariencia</p>
+              <div class="ctrl">Dark<span class="gap"><svg class="ic xs"><use href="#i-down"/></svg></span></div>
+            </div>
+          </div>
+
+          <div class="main">
+            <div style="padding:22px 0 0;flex:none">
+              <div class="qbox"><svg class="ic"><use href="#i-search"/></svg>level up<span class="caret"></span></div>
+              <div class="chips">
+                <span class="chip on">Acción <svg class="ic xs"><use href="#i-close"/></svg></span>
+                <span class="chip on">Fantasía <svg class="ic xs"><use href="#i-close"/></svg></span>
+                <span class="chip">Aventura</span>
+                <span class="chip">Comedia</span>
+                <span class="chip">Drama</span>
+                <span class="chip">Romance</span>
+                <span class="chip">Shounen</span>
+                <span class="chip">Más géneros <svg class="ic xs"><use href="#i-down"/></svg></span>
+                <span class="chip" style="margin-left:auto"><svg class="ic xs"><use href="#i-sort"/></svg> Orden: Más recientes <svg class="ic xs"><use href="#i-down"/></svg></span>
+              </div>
+              <p class="sub" style="margin:16px 0 14px;color:var(--t3);font-size:12.5px">
+                34 resultados en AnimeAV1 · 2 ya están en tu biblioteca</p>
+            </div>
+
+            <div class="scroll">
+              <div class="grid c6">
+                <div class="tile"><div class="art g2 v3"></div>
+                  <span class="mark"><svg class="ic xs" style="color:var(--see)"><use href="#i-eye"/></svg>Viendo</span>
+                  <p>Ore dake Level Up na Ken</p></div>
+                <div class="tile"><div class="art g1"></div><p>Ore dake Level Up na Ken: Season 2 - Arise from the Shadow</p></div>
+                <div class="tile"><div class="art g4"></div><p>Level Up Doushi</p></div>
+                <div class="tile"><div class="art g10"></div><p>Kenja no Deshi wo Nanoru Kenja</p></div>
+                <div class="tile"><div class="art g8 v2"></div><p>Tate no Yuusha no Nariagari Season 4</p></div>
+                <div class="tile"><div class="art g3"></div>
+                  <span class="mark"><svg class="ic xs" style="color:var(--pen)"><use href="#i-list"/></svg>Pendiente</span>
+                  <p>Shangri-La Frontier 2nd Season</p></div>
+                <div class="tile"><div class="art g5 v2"></div><p>Kaiko sareta Ankoku Heishi no Slow na Second Life</p></div>
+                <div class="tile"><div class="art g12 v3"></div><p>Hyakushou Kizoku</p></div>
+                <div class="tile"><div class="art g9"></div><p>Isekai Meikyuu de Harem wo</p></div>
+                <div class="tile"><div class="art g6 v3"></div><p>Saikyou no Shienshoku Wakigyaku no Onmyouji</p></div>
+                <div class="tile"><div class="art g11 v2"></div><p>Kami wa Game ni Ueteiru</p></div>
+                <div class="tile"><div class="art g7 v3"></div><p>Boukensha ni Naritai to Miyako ni Deteitta Musume</p></div>
+              </div>
+            </div>
+
+            <div class="pager">Mostrando 1–12 de 34
+              <span class="pg"><span>‹</span><span class="on">1</span><span>2</span><span>3</span><span>›</span></span></div>
+          </div>
+        </div>
+      </div></div>
+    </div>
+
+    <div class="notes">
+      <div>
+        <h3>Qué cambia</h3>
+        <p>Hoy el filtro es un acordeón con las cuarenta y pico opciones de
+          <code>AnimeGenreFilter</code> en cuatro filas de diez casillas, que hay que abrir y cerrar.
+          Con fichas ves siempre por qué estás filtrando sin abrir nada.</p>
+        <p>El sello «Viendo» o «Pendiente» sobre un resultado es la pieza que más trabajo te ahorra:
+          es el duplicado que hoy solo se detecta al pulsar guardar y comparar títulos al 0,9.</p>
+      </div>
+      <div>
+        <h3>Lo que hay que construir</h3>
+        <p>La paginación aquí es la única gratis: <code>search_animes_by_query()</code> ya devuelve
+          <code>(resultados, última_página)</code>, así que el selector solo tiene que pedir la
+          página siguiente.</p>
+        <p>El sello se resuelve en local con <code>get_all_animes()</code> y la normalización de
+          títulos que ya usa <code>find_saved_duplicate()</code>. Cero peticiones extra.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════ 7 · FICHA ══════════════════ -->
+  <section id="ficha">
+    <div class="head">
+      <div class="titleline"><span class="num">07</span><h2>Ficha del anime</h2>
+        <span class="job">Ver un episodio</span></div>
+      <p class="thesis">Aquí es donde la lateral plegada gana su sitio: 1356 px para la sinopsis y
+        la lista. El bloque de proveedor conserva las tres líneas que ya tienes —quién sirve, de
+        quién es tu fila y el aviso en ámbar cuando no coinciden— y los episodios dejan de repetir
+        el título del anime veinticinco veces.</p>
+    </div>
+
+    <div class="shot">
+      <div class="stage"><div class="frame ui">
+        <div class="tbar"><span class="dot"></span>Mi Biblioteca de Anime
+          <span class="ctl"><span><svg><use href="#i-min"/></svg></span><span><svg><use href="#i-max"/></svg></span><span><svg><use href="#i-close"/></svg></span></span></div>
+        <div class="app">
+          <div class="side mini">
+            <div class="brand"><svg class="ic" style="color:var(--ac)"><use href="#i-play"/></svg></div>
+            <a><svg class="ic"><use href="#i-clock"/></svg><b>24</b></a>
+            <a><svg class="ic"><use href="#i-heart"/></svg><b>12</b></a>
+            <a class="on"><svg class="ic"><use href="#i-eye"/></svg><b>6</b></a>
+            <a><svg class="ic"><use href="#i-list"/></svg><b>7</b></a>
+            <a><svg class="ic"><use href="#i-check2"/></svg><b>9</b></a>
+            <a><svg class="ic"><use href="#i-search"/></svg></a>
+            <div class="btm"><div class="ctrl"><svg class="ic s"><use href="#i-unfold"/></svg></div></div>
+          </div>
+
+          <div class="main">
+            <div class="sheet">
+              <div class="art g2 v3"></div>
+              <div class="info">
+                <div class="pv">
+                  <div>
+                    <p class="who" style="margin:0">Proveedor: <b>AnimeAV1</b></p>
+                    <p class="warn" style="margin:0"><svg class="ic xs"><use href="#i-warn"/></svg>En tu biblioteca: AnimeFLV</p>
+                  </div>
+                  <span class="fix">Actualizar a AnimeAV1</span>
+                </div>
+                <h5>Ore dake Level Up na Ken</h5>
+                <p class="syn">Lo que no te mata te hace más fuerte, pero en el caso de Sung Jinwoo,
+                  lo que lo mató lo hizo más fuerte. Después de ser brutalmente asesinado por
+                  monstruos en una mazmorra de alto rango, Jinwoo regresó con el Sistema, un programa
+                  que solo él puede ver y que eleva su nivel en todos los sentidos.</p>
+                <div class="tags"><span>Acción</span><span>Aventura</span><span>Fantasía</span></div>
+                <div class="seen">
+                  <span class="prog" style="margin:0;flex:1;max-width:none"><span class="t"><i style="width:50%"></i></span></span>
+                  <span style="font-size:12.5px;color:var(--t3);white-space:nowrap">12 de 24 vistos</span>
+                </div>
+                <div class="acts">
+                  <button class="on f"><svg class="ic s"><use href="#i-heart"/></svg>Favorito</button>
+                  <button class="on w"><svg class="ic s"><use href="#i-eye"/></svg>Viendo</button>
+                  <button><svg class="ic s"><use href="#i-list"/></svg>Pendiente</button>
+                  <button><svg class="ic s"><use href="#i-check2"/></svg>Finalizado</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="eps">
+              <div class="ephead">
+                <h6>Episodios</h6>
+                <div class="rt" style="margin-left:auto;display:flex;gap:9px">
+                  <div class="pick"><svg class="ic xs"><use href="#i-sort"/></svg>Mayor a menor<svg class="ic xs"><use href="#i-down"/></svg></div>
+                  <div class="find" style="width:160px"><svg class="ic s"><use href="#i-search"/></svg>Ir al episodio…</div>
+                </div>
+              </div>
+              <div class="ep"><span class="n">Episodio 14</span><span class="dur">Sin ver</span>
+                <span class="sw"><i></i></span><span class="sl">Visto</span></div>
+              <div class="ep"><span class="n">Episodio 13</span><span class="dur">Siguiente para ti</span>
+                <span class="sw"><i></i></span><span class="sl">Visto</span></div>
+              <div class="ep" style="background:var(--card);border-radius:8px 8px 0 0">
+                <span class="n" style="color:var(--ac)">Episodio 12</span>
+                <span class="dur">Servidores disponibles</span>
+                <span class="sw on"><i></i></span><span class="sl">Visto</span></div>
+              <div class="srv" style="background:var(--card);border-radius:0 0 8px 8px">
+                <span class="s on">Streamwish</span><span class="s">Voe</span>
+                <span class="s">Filemoon</span><span class="s">YourUpload</span></div>
+              <div class="ep"><span class="n">Episodio 11</span><span class="dur"></span>
+                <span class="sw on"><i></i></span><span class="sl">Visto</span></div>
+              <div class="ep"><span class="n">Episodio 10</span><span class="dur"></span>
+                <span class="sw on"><i></i></span><span class="sl">Visto</span></div>
+              <div class="ep"><span class="n">Episodio 9</span><span class="dur"></span>
+                <span class="sw on"><i></i></span><span class="sl">Visto</span></div>
+              <div class="ep"><span class="n">Episodio 8</span><span class="dur"></span>
+                <span class="sw on"><i></i></span><span class="sl">Visto</span></div>
+            </div>
+          </div>
+        </div>
+      </div></div>
+    </div>
+
+    <div class="notes">
+      <div>
+        <h3>Qué cambia</h3>
+        <p>Los cuatro botones de estado dejan de cambiar de texto («Añadir a» / «Eliminar de») y
+          pasan a estar encendidos o apagados. Menos lectura y el estado se ve entero de un golpe.</p>
+        <p>Cada fila de episodio dice «Episodio 12» y no «Ore dake Level Up na Ken - Episodio 12»
+          veinticinco veces. El título del anime ya está justo encima.</p>
+        <p>El ⚠ ámbar es exactamente el tuyo: los datos vienen de AnimeAV1 y tu fila es de AnimeFLV.</p>
+      </div>
+      <div>
+        <h3>Lo que hay que construir</h3>
+        <p>Lo estructural ya está hecho: identidad de persistencia congelada, aviso de identidad
+          partida y «Actualizar a X». Esto solo lo recoloca.</p>
+        <p>Los servidores siguen siendo un <code>CTkSegmentedButton</code> con
+          <code>strict=True</code> y el <code>provider_id</code> de la ficha, que es lo que impide
+          pedirle a un sitio el slug de otro.</p>
+        <p>El único añadido real es la barra de «12 de 24 vistos», que sale de
+          <code>get_watched_episodes()</code> sin tocar nada.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════ CLARO ══════════════════ -->
+  <section id="claro">
+    <div class="head">
+      <div class="titleline"><span class="num">08</span><h2>El mismo sistema en claro</h2>
+        <span class="job">Comprobación</span></div>
+      <p class="thesis">Los mismos componentes con la paleta clara. No es una inversión: los
+        acentos bajan de luminosidad para seguir contrastando sobre fondo claro, y el ámbar del
+        aviso pasa de <code>#FBBF24</code> a <code>#B45309</code>, que es la pareja que ya tienes
+        escrita en <code>anime_window.py</code>.</p>
+    </div>
+
+    <div class="shot">
+      <div class="stage"><div class="frame ui lt">
+        <div class="tbar"><span class="dot"></span>Mi Biblioteca de Anime
+          <span class="ctl"><span><svg><use href="#i-min"/></svg></span><span><svg><use href="#i-max"/></svg></span><span><svg><use href="#i-close"/></svg></span></span></div>
+        <div class="app">
+          <div class="side">
+            <div class="brand"><svg class="ic s" style="color:var(--ac)"><use href="#i-play"/></svg><b>Biblioteca</b>
+              <span class="fold"><svg class="ic s"><use href="#i-fold"/></svg></span></div>
+            <a><svg class="ic s"><use href="#i-clock"/></svg>Nuevos lanzamientos<b>24</b></a>
+            <a><svg class="ic s"><use href="#i-heart"/></svg>Favoritos<b>12</b></a>
+            <a class="on"><svg class="ic s"><use href="#i-eye"/></svg>Viendo<b>6</b></a>
+            <a><svg class="ic s"><use href="#i-list"/></svg>Pendientes<b>7</b></a>
+            <a><svg class="ic s"><use href="#i-check2"/></svg>Finalizados<b>9</b></a>
+            <a><svg class="ic s"><use href="#i-search"/></svg>Buscar</a>
+            <div class="btm">
+              <p class="cap">Proveedor</p>
+              <div class="ctrl">AnimeAV1<span class="gap"><svg class="ic xs pin"><use href="#i-pin"/></svg><svg class="ic xs"><use href="#i-down"/></svg></span></div>
+              <p class="cap">Apariencia</p>
+              <div class="ctrl">Light<span class="gap"><svg class="ic xs"><use href="#i-down"/></svg></span></div>
+            </div>
+          </div>
+
+          <div class="main">
+            <div class="vhead">
+              <div><h5>Viendo</h5><p class="sub">6 animes a medias · 47 episodios pendientes</p></div>
+              <div class="rt"><div class="find"><svg class="ic s"><use href="#i-search"/></svg>Buscar en viendo…</div></div>
+            </div>
+
+            <div class="scroll" style="display:flex;gap:32px">
+              <div class="list" style="flex:1;min-width:0">
+                <div class="lrow hov">
+                  <div class="art g2 v3" style="width:70px;height:100px"></div>
+                  <div class="mid"><h6>Ore dake Level Up na Ken</h6>
+                    <p class="gen">Acción · Aventura · Fantasía</p>
+                    <div class="prog"><span class="t"><i style="width:50%"></i></span><span>12 de 24 episodios</span></div></div>
+                  <div class="rt"><span class="prov">AnimeFLV</span>
+                    <span class="go">Episodio 13 <svg class="ic xs"><use href="#i-arrow"/></svg></span></div>
+                </div>
+                <div class="lrow">
+                  <div class="art g11" style="width:70px;height:100px"></div>
+                  <div class="mid"><h6>Dandadan 2nd Season</h6>
+                    <p class="gen">Acción · Comedia · Sobrenatural</p>
+                    <div class="prog"><span class="t"><i style="width:75%"></i></span><span>9 de 12 episodios</span></div></div>
+                  <div class="rt"><span class="prov">AnimeAV1</span></div>
+                </div>
+                <div class="lrow">
+                  <div class="art g7 v2" style="width:70px;height:100px"></div>
+                  <div class="mid"><h6>Kimetsu no Yaiba Movie 1: Mugenjou-hen</h6>
+                    <p class="gen">Acción · Histórico · Shounen</p>
+                    <div class="prog"><span class="t"><i style="width:11%"></i></span><span>3 de 26 episodios</span></div></div>
+                  <div class="rt"><span class="prov">AnimeAV1</span></div>
+                </div>
+                <div class="lrow">
+                  <div class="art g12" style="width:70px;height:100px"></div>
+                  <div class="mid"><h6>One Piece: Heroines</h6>
+                    <p class="gen">Aventura · Comedia · Shounen</p>
+                    <div class="prog"><span class="t"><i style="width:88%"></i></span><span>22 de 25 episodios</span></div></div>
+                  <div class="rt"><span class="prov">AnimeFLV</span></div>
+                </div>
+                <div class="lrow">
+                  <div class="art g9 v2" style="width:70px;height:100px"></div>
+                  <div class="mid"><h6>Youjo Senki II</h6>
+                    <p class="gen">Acción · Militar · Sobrenatural</p>
+                    <div class="prog"><span class="t"><i style="width:33%"></i></span><span>4 de 12 episodios</span></div></div>
+                  <div class="rt"><span class="prov">JKAnime</span></div>
+                </div>
+                <div class="lrow">
+                  <div class="art g4" style="width:70px;height:100px"></div>
+                  <div class="mid"><h6>Sakamoto Days Part 2</h6>
+                    <p class="gen">Acción · Comedia</p>
+                    <div class="prog"><span class="t"><i style="width:18%"></i></span><span>2 de 11 episodios</span></div></div>
+                  <div class="rt"><span class="prov">AnimeAV1</span></div>
+                </div>
+              </div>
+
+              <div style="width:290px;flex:none">
+                <p class="lbl">Lo último que veías</p>
+                <div style="background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px">
+                  <div class="art g2 v3" style="width:100%;aspect-ratio:2/3;border-radius:8px"></div>
+                  <h6 style="margin:15px 0 0;font-size:19px;font-weight:600;line-height:1.2">Ore dake Level Up na Ken</h6>
+                  <p style="margin:9px 0 0;font-size:12.5px;color:var(--t3)">Lo dejaste en el episodio 12 · AnimeFLV</p>
+                  <div class="prog" style="margin-top:12px"><span class="t"><i style="width:50%"></i></span><span>12 / 24</span></div>
+                  <div style="display:flex;align-items:center;justify-content:center;gap:8px;height:38px;border-radius:9px;background:var(--ac);color:#FFFFFF;font-size:13px;font-weight:600;margin-top:16px">
+                    <svg class="ic s"><use href="#i-play"/></svg>Seguir por el 13</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div></div>
+    </div>
+  </section>
+
+  <footer>
+    <p>Las ocho maquetas son la misma ventana de 1440 × 910 y el mismo sistema de componentes. Los
+      pósters siguen siendo marcadores de posición: no hay ninguna imagen real. Nada de esto está
+      implementado.</p>
+  </footer>
+
+</div>
+
+<script>
+(function () {
+  var shots = Array.prototype.slice.call(document.querySelectorAll('.shot'));
+  function fit() {
+    shots.forEach(function (shot) {
+      var stage = shot.querySelector('.stage');
+      var min = parseFloat(shot.getAttribute('data-min') || '0.46');
+      var s = Math.max(min, Math.min(1, shot.clientWidth / 1440));
+      shot.style.setProperty('--s', s);
+      stage.style.width = Math.round(1440 * s) + 'px';
+      stage.style.height = Math.round(910 * s) + 'px';
+    });
+  }
+  fit();
+  window.addEventListener('resize', fit);
+  if (document.fonts && document.fonts.ready) { document.fonts.ready.then(fit); }
+})();
+</script>
+</body>
+</html>
