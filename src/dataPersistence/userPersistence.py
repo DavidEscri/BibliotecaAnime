@@ -47,6 +47,9 @@ class UserSettingKey(Enum):
     DEFAULT_ANIME_PROVIDER = "default_anime_provider"
     #: Barra lateral plegada ("1") o desplegada ("0"). Rediseño, fase 1.
     SIDEBAR_COLLAPSED = "sidebar_collapsed"
+    #: Los últimos animes cuyos episodios se han marcado como vistos, separados
+    #: por comas y el más reciente primero. Rediseño, fase 2.
+    LAST_WATCHED_ANIME_IDS = "last_watched_anime_ids"
     # Reservada para cuando se integren los mangas:
     # DEFAULT_MANGA_PROVIDER = "default_manga_provider"
 
@@ -80,6 +83,10 @@ class UserPersistence(ServiceDB):
     FIELDS      = [f.column   for f in UserSettingField]
     FIELD_TYPES = [f.sql_type for f in UserSettingField]
     PRIMARY_KEY = UserSettingField.SETTING_KEY.column
+
+    #: Cuántos animes recuerda la banda «Retomar donde lo dejaste». Son las tres
+    #: tarjetas que caben en una fila de la portada (`DISENO.md` §3).
+    MAX_LAST_WATCHED = 3
 
     # Esquema declarado de la BD: **la fuente de verdad**. Toda tabla de
     # DB_user.db debe figurar aquí; validate_db_integrity() la creará o la
@@ -233,6 +240,40 @@ class UserPersistence(ServiceDB):
         cualquier sitio sin depender del ``repr`` de Python.
         """
         return self.set_setting(UserSettingKey.SIDEBAR_COLLAPSED, "1" if collapsed else "0")
+
+    def get_last_watched_ids(self) -> List[str]:
+        """Devuelve los últimos animes vistos, del más reciente al más antiguo.
+
+        Son ``anime_id`` de la tabla ``ANIMES``, es decir, el *slug* del proveedor
+        que guardó cada fila. Puede contener animes que ya no estén en la
+        biblioteca (el usuario los quitó después de verlos): quien los pinte debe
+        tolerar que ``get_anime_by_anime_id()`` devuelva ``None``.
+        """
+        raw = self.get_setting(UserSettingKey.LAST_WATCHED_ANIME_IDS, "")
+        if not raw:
+            return []
+        # Los slugs no llevan comas, así que la coma vale de separador sin
+        # necesidad de JSON. El filtro descarta cadenas vacías por si la
+        # preferencia quedó con comas de más.
+        return [anime_id for anime_id in (part.strip() for part in raw.split(",")) if anime_id]
+
+    def push_last_watched_id(self, anime_id: str) -> bool:
+        """Pone un anime el primero de la lista de «últimos vistos».
+
+        Si ya estaba, **sube** en vez de duplicarse; la lista se recorta a
+        ``MAX_LAST_WATCHED``. Se llama al marcar un episodio como visto, así que
+        pasa muchas veces con el mismo identificador: si el anime ya era el
+        primero no se escribe nada en la BD.
+        """
+        anime_id = str(anime_id)
+        current = self.get_last_watched_ids()
+        if current[:1] == [anime_id]:
+            return True
+        updated = [anime_id] + [saved for saved in current if saved != anime_id]
+        return self.set_setting(
+            UserSettingKey.LAST_WATCHED_ANIME_IDS,
+            ",".join(updated[:self.MAX_LAST_WATCHED])
+        )
 
     # ------------------------------------------------------------------
     # Métodos privados de apoyo

@@ -1,0 +1,191 @@
+__author__ = "Jose David Escribano Orts"
+__subsystem__ = "gui.components"
+__module__ = "resume_card.py"
+__version__ = "0.1"
+__info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
+
+"""Banda «Retomar donde lo dejaste» de la portada: hasta tres tarjetas en fila.
+
+Cada tarjeta responde a una sola pregunta —«¿por qué episodio iba?»— y por eso no
+repite ni géneros ni sinopsis ni proveedor: eso está a un clic, en la ficha.
+
+⚠️ **Los episodios de un ``AnimeRecord`` vienen invertidos.** ``to_db_dict()``
+guarda ``list(reversed(episodes))`` y ``from_db_dict()`` no los vuelve a girar, así
+que lo que sale de la BD está en orden descendente y el «siguiente» no es
+``episodes[0]`` ([trampa 2](../../../.claude/docs/10-invariantes-y-trampas.md)).
+``resume_progress()`` los ordena antes de mirar nada, y es el único sitio donde se
+calcula: si una fase futura necesita el mismo dato, que llame aquí.
+
+La banda **no se pinta si no hay nada que retomar** — ni etiqueta ni hueco. Un
+apartado vacío en la portada de quien acaba de instalar la aplicación es peor que
+no tener apartado.
+"""
+
+from typing import Callable, List, Optional, Tuple
+
+import customtkinter as ctk
+
+from dataPersistence.animesPersistence import AnimeRecord
+from gui.theme import Metrics, Theme
+from utils.utils import find_cached_poster_path, load_rounded_image
+
+
+def resume_progress(anime_record: AnimeRecord) -> Tuple[Optional[int], int, float]:
+    """Calcula por dónde iba el usuario en un anime guardado.
+
+    :return: ``(siguiente_episodio, total, fracción_vista)``. ``siguiente`` es
+        ``None`` cuando ya están todos vistos, y ``total`` vale 0 si la fila no
+        tiene episodios guardados (pasa con filas viejas o con animes que se
+        marcaron antes de abrir su ficha).
+    """
+    episodes = sorted(set(anime_record.episodes))
+    watched = set(anime_record.watched_episodes)
+
+    if not episodes:
+        # Sin lista de episodios lo único fiable es el último visto. Se ofrece el
+        # siguiente sin prometer un total que no se conoce.
+        next_episode = (anime_record.last_watched_episode or 0) + 1
+        return next_episode, 0, 0.0
+
+    watched_known = watched & set(episodes)
+    next_episode = next((episode for episode in episodes if episode not in watched_known), None)
+    return next_episode, len(episodes), len(watched_known) / len(episodes)
+
+
+def resume_caption(next_episode: Optional[int], total: int) -> str:
+    """Texto de apoyo de la tarjeta, a partir de lo que devuelve ``resume_progress()``."""
+    if next_episode is None:
+        return f"Lo has visto entero · {total} episodio{'' if total == 1 else 's'}"
+    if total:
+        return f"Siguiente: episodio {next_episode} de {total}"
+    return f"Siguiente: episodio {next_episode}"
+
+
+class ResumeCard(ctk.CTkFrame):
+    """Una tarjeta: póster, título a dos líneas, el episodio siguiente y el progreso."""
+
+    #: Alto reservado al título. Dos líneas de `T_CARD`, para que las tres
+    #: tarjetas de la fila queden alineadas aunque un título ocupe una sola.
+    TITLE_H: int = 52
+    #: Ancho de la columna de texto de la tarjeta. Es lo que se mide para recortar
+    #: el título; el `wraplength` del propio label queda de red de seguridad.
+    TEXT_W: int = 200
+
+    def __init__(self, parent, anime_record: AnimeRecord,
+                 on_click: Optional[Callable[[str], None]] = None, **kwargs):
+        super().__init__(
+            parent,
+            corner_radius=Metrics.RADIUS_CARD,
+            fg_color=Theme.CARD,
+            border_width=1,
+            border_color=Theme.LINE,
+            **kwargs
+        )
+        self.anime_record = anime_record
+        self.__on_click = on_click
+
+        self.grid_columnconfigure(1, weight=1)
+
+        poster_path = find_cached_poster_path(anime_record.anime_id) or ""
+        #: Referencia viva a la imagen: Tk no la mantiene y el recolector dejaría
+        #: la tarjeta en blanco.
+        self.__image = load_rounded_image(
+            poster_path, Metrics.RESUME_CARD_POSTER, Metrics.RADIUS_CONTROL
+        )
+        poster_label = ctk.CTkLabel(self, text="", image=self.__image)
+        poster_label.grid(row=0, column=0, rowspan=3, padx=(14, 12), pady=14, sticky="n")
+
+        title_font = Theme.font(*Theme.T_CARD)
+        title_label = ctk.CTkLabel(
+            self,
+            text=Theme.ellipsize(anime_record.title, title_font, self.TEXT_W, 2),
+            font=title_font,
+            text_color=Theme.TXT,
+            wraplength=self.TEXT_W,
+            height=self.TITLE_H,
+            justify="left",
+            anchor="nw"
+        )
+        title_label.grid(row=0, column=1, sticky="ew", padx=(0, 14), pady=(14, 0))
+
+        next_episode, total, fraction = resume_progress(anime_record)
+        caption_label = ctk.CTkLabel(
+            self,
+            text=resume_caption(next_episode, total),
+            font=Theme.font(*Theme.T_UI),
+            text_color=Theme.TXT_2,
+            anchor="w"
+        )
+        caption_label.grid(row=1, column=1, sticky="ew", padx=(0, 14))
+
+        progress_bar = ctk.CTkProgressBar(
+            self,
+            height=Metrics.PROGRESS_H,
+            corner_radius=Metrics.PROGRESS_RADIUS,
+            fg_color=Theme.LINE_SOFT,
+            progress_color=Theme.ACCENT
+        )
+        progress_bar.set(1.0 if next_episode is None else fraction)
+        progress_bar.grid(row=2, column=1, sticky="ew", padx=(0, 14), pady=(10, 16))
+
+        if self.__on_click is None:
+            return
+        # Los eventos de Tk no burbujean: hay que atar el clic a cada pieza.
+        for widget in (self, poster_label, title_label, caption_label, progress_bar):
+            widget.bind("<Button-1>", self.__handle_click)
+            widget.bind("<Enter>", self.__handle_enter)
+            widget.bind("<Leave>", self.__handle_leave)
+            widget.configure(cursor="hand2")
+
+    def __handle_click(self, _event=None) -> None:
+        self.__on_click(self.anime_record.anime_id)
+
+    def __handle_enter(self, _event=None) -> None:
+        self.configure(fg_color=Theme.CARD_HOVER, border_color=Theme.ACCENT)
+
+    def __handle_leave(self, _event=None) -> None:
+        self.configure(fg_color=Theme.CARD, border_color=Theme.LINE)
+
+
+class ResumeBand(ctk.CTkFrame):
+    """Etiqueta de sección más las tarjetas, en una fila de columnas iguales.
+
+    Uso típico::
+
+        band = ResumeBand(main_window.content_frame, records, on_click=self.__on_anime_click)
+        if band.has_content():
+            band.grid(row=1, column=0, sticky="ew", padx=Metrics.CONTENT_PAD_X)
+    """
+
+    def __init__(self, parent, anime_records: List[AnimeRecord],
+                 on_click: Optional[Callable[[str], None]] = None,
+                 title: str = "RETOMAR DONDE LO DEJASTE", **kwargs):
+        super().__init__(parent, height=1, corner_radius=0, fg_color=Theme.TRANSPARENT, **kwargs)
+
+        self.__records = list(anime_records)
+        if not self.__records:
+            # Sin tarjetas la banda se queda vacía a propósito: quien la coloca
+            # consulta has_content() y ni siquiera la mete en la rejilla.
+            return
+
+        label = ctk.CTkLabel(
+            self,
+            text=title,
+            font=Theme.font(*Theme.T_LABEL),
+            text_color=Theme.TXT_3,
+            anchor="w"
+        )
+        label.grid(row=0, column=0, columnspan=len(self.__records), sticky="w", pady=(0, 10))
+
+        for index, anime_record in enumerate(self.__records):
+            self.grid_columnconfigure(index, weight=1, uniform="resume")
+            card = ResumeCard(self, anime_record, on_click=on_click)
+            card.grid(
+                row=1, column=index, sticky="ew",
+                padx=(0 if index == 0 else Metrics.GRID_GAP_X // 2,
+                      0 if index == len(self.__records) - 1 else Metrics.GRID_GAP_X // 2)
+            )
+
+    def has_content(self) -> bool:
+        """``True`` si hay al menos una tarjeta que pintar."""
+        return bool(self.__records)

@@ -18,7 +18,7 @@ Las fuentes se crean con ``Theme.font()`` y no como constantes de módulo porque
 reventaría.
 """
 
-from typing import Dict, Tuple
+from typing import Dict, List, Tuple
 
 import customtkinter as ctk
 
@@ -143,6 +143,47 @@ class Theme:
     def clear_font_cache() -> None:
         """Vacía la caché de fuentes. Solo hace falta si se destruye la raíz de Tk."""
         Theme._font_cache.clear()
+
+    @staticmethod
+    def ellipsize(text: str, font: ctk.CTkFont, max_width: int, max_lines: int = 2) -> str:
+        """Recorta un texto para que quepa en ``max_lines`` líneas de ``max_width`` píxeles.
+
+        El diseño pide títulos «a dos líneas», y ``wraplength`` por sí solo no lo
+        cumple: envuelve todas las que hagan falta y estira la celda. Reservar
+        alto tampoco vale, porque un ``CTkLabel`` crece por encima de su
+        ``height`` en vez de recortarse.
+
+        Reproduce el mismo reparto por palabras que hace Tk y, si el texto no
+        cabe, corta la última línea y le pone puntos suspensivos.
+
+        Solo se puede llamar con Tk ya creado: mide con ``font.measure()``.
+        """
+        if not text:
+            return text
+
+        lines: List[str] = []
+        current = ""
+        for word in text.split():
+            candidate = f"{current} {word}".strip()
+            if not current or font.measure(candidate) <= max_width:
+                current = candidate
+                continue
+            lines.append(current)
+            current = word
+            if len(lines) == max_lines:
+                break
+        else:
+            if current:
+                lines.append(current)
+            return "\n".join(lines)
+
+        # Se ha salido por el break: sobra texto. La última línea admitida se
+        # recorta letra a letra hasta que quepa junto a los puntos suspensivos.
+        overflow = lines.pop()
+        while overflow and font.measure(overflow + "…") > max_width:
+            overflow = overflow[:-1]
+        lines.append(overflow.rstrip() + "…")
+        return "\n".join(lines)
 
 
 class Metrics:

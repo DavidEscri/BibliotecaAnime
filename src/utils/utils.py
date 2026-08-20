@@ -10,7 +10,7 @@ import threading
 import tkinter as tk
 import customtkinter as ctk
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from PIL import Image
+from PIL import Image, ImageDraw
 from io import BytesIO
 import requests
 
@@ -193,16 +193,35 @@ def download_images_progress(images_path, recent_animes, progress_bar: ctk.CTkPr
                 continue
 
 
-def get_anime_image(anime, image_size: tuple[int, int] = (195, 275)) -> ctk.CTkImage:
+#: Las seis carpetas donde puede estar cacheado el póster de un anime, en el
+#: orden en que se buscan. El mismo anime puede estar en varias (favorito y
+#: viendo a la vez); la primera que lo tenga vale, porque el JPG es el mismo.
+POSTER_FOLDERS = ["favourite", "watching", "finished", "pending", "recent_animes", "search"]
+
+
+def find_cached_poster_path(anime_id) -> str | None:
+    """Devuelve la ruta del póster cacheado de un anime, o ``None`` si no está.
+
+    **No sale a la red**, así que se puede llamar desde el hilo de Tkinter. Es lo
+    que necesitan las vistas que pintan filas de la biblioteca: saber si hay
+    imagen antes de decidir si pintan el placeholder.
+    """
     base_dir = get_resource_path("resources/images")
-    subfolders = ["favourite", "watching", "finished", "pending", "recent_animes", "search"]
-    for subfolder in subfolders:
+    for subfolder in POSTER_FOLDERS:
         folder_path = os.path.join(base_dir, subfolder)
         if not os.path.exists(folder_path) or not os.path.isdir(folder_path):
             continue
-        image_path = os.path.join(folder_path, f"{anime.id}.jpg")
+        image_path = os.path.join(folder_path, f"{anime_id}.jpg")
         if os.path.exists(image_path):
-            return load_image(image_path, image_size)
+            return image_path
+    return None
+
+
+def get_anime_image(anime, image_size: tuple[int, int] = (195, 275)) -> ctk.CTkImage:
+    image_path = find_cached_poster_path(anime.id)
+    if image_path is not None:
+        return load_image(image_path, image_size)
+    # ⚠️ El size= explícito no es opcional: sin él CTkImage pinta a 20x20 (trampa 17).
     response = requests.get(anime.poster, timeout=_REQUEST_TIMEOUT)
     return ctk.CTkImage(Image.open(BytesIO(response.content)), size=image_size)
 
@@ -210,6 +229,43 @@ def load_image(image_path: str, image_size: tuple[int, int] = (130, 185)):
     if os.path.exists(image_path):
         return ctk.CTkImage(Image.open(image_path), size=image_size)
     return ctk.CTkImage(Image.new('RGB', image_size, (200, 200, 200)), size=image_size)  # Placeholder
+
+
+def load_rounded_image(image_path: str, image_size: tuple[int, int],
+                       radius: int = 0) -> ctk.CTkImage:
+    """Carga un póster ya reducido al tamaño pedido y con las esquinas redondeadas.
+
+    Es la variante de ``load_image()`` que usa el rediseño. Dos diferencias, y las
+    dos importan:
+
+    - **Reduce con LANCZOS**, no con el remuestreo por defecto de ``resize()``. La
+      caché guarda los pósters a 248 x 372 justo para poder bajar de ahí con
+      calidad; hacerlo con el filtro por defecto desperdicia esa decisión.
+    - **Redondea las esquinas** con una máscara alfa (``DISENO.md`` §3: radio 9 en
+      las rejillas, 11 en la ficha). CustomTkinter no sabe redondear una imagen:
+      el ``corner_radius`` de un widget no recorta su ``image``, así que el
+      recorte hay que traerlo hecho desde PIL.
+
+    Si el fichero no existe devuelve un cuadro gris del tamaño pedido, el mismo
+    criterio que ``load_image()``: un póster que falta no debe impedir que la
+    vista se pinte.
+    """
+    if os.path.exists(image_path):
+        image = Image.open(image_path).convert("RGBA").resize(image_size, Image.LANCZOS)
+    else:
+        image = Image.new("RGBA", image_size, (200, 200, 200, 255))
+
+    if radius > 0:
+        # La máscara va en escala de grises y se pega como canal alfa: lo que
+        # queda fuera del rectángulo redondeado se vuelve transparente y deja ver
+        # el fondo del contenedor.
+        mask = Image.new("L", image_size, 0)
+        ImageDraw.Draw(mask).rounded_rectangle(
+            (0, 0, image_size[0] - 1, image_size[1] - 1), radius=radius, fill=255
+        )
+        image.putalpha(mask)
+
+    return ctk.CTkImage(light_image=image, dark_image=image, size=image_size)
 
 
 def load_dual_image(light_path: str, dark_path: str,

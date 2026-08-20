@@ -5,12 +5,12 @@
 
 | | |
 |---|---|
-| **Fase actual** | 2 — Nuevos lanzamientos |
+| **Fase actual** | 3 — Viendo |
 | **Situación** | ⬜ no empezada |
-| **Último paso completado** | Paso 1.5 — `ViewHeader` y cableado de `MainWindow` (**fase 1 cerrada**) |
-| **Siguiente paso** | Paso 2.1 — leer la ficha de la fase 2 y `recentAnimes.py` |
+| **Último paso completado** | Paso 2.4 — montar la vista (**fase 2 cerrada**) |
+| **Siguiente paso** | Paso 3.1 — leer la ficha de la fase 3 y `watchingAnimes.py`; estrena `AnimeRow` y `SidePanel` |
 | **Rama** | ✅ `feature/ui-redisign` (**no** `feature/rediseno-ui`: ya existía, ver Decisiones) |
-| **Base** | `bd25742` en `feature/ui-redisign` (fase 1). El plan partió de `6377b92`, no de `4f9e429` |
+| **Base** | `bd25742` (fase 1) → fase 2 encima, en `feature/ui-redisign`. El plan partió de `6377b92`, no de `4f9e429` |
 | **Commits** | automáticos (uno al cerrar cada fase) |
 | **Actualizado** | 2026-08-20 |
 
@@ -21,7 +21,7 @@
 | # | Fase | Situación | Commit | Verificada |
 |---|---|---|---|---|
 | 1 | Cimientos | ✅ terminada | `bd25742` | ✅ app ejecutada y **mirada** (desplegada y plegada) + 73 comprobaciones |
-| 2 | Nuevos lanzamientos | ⬜ no empezada | — | — |
+| 2 | Nuevos lanzamientos | ✅ terminada | `PENDIENTE` | ✅ app ejecutada y **mirada** (4 arranques + recorrido de las 6 vistas) + 48 + 14 comprobaciones |
 | 3 | Viendo | ⬜ no empezada | — | — |
 | 4 | Pendientes | ⬜ no empezada | — | — |
 | 5 | Favoritos | ⬜ no empezada | — | — |
@@ -31,6 +31,15 @@
 | 9 | Cohesión | ⬜ no empezada | — | — |
 
 **Situación**: ⬜ no empezada · 🟡 en curso · ✅ terminada · ⚠️ terminada sin verificar · ❌ revertida
+
+### Qué quedó sin verificar
+
+Lo que no se ha podido ejecutar en cada fase, para que nadie lo dé por probado.
+
+| Fase | Sin verificar | Por qué |
+|---|---|---|
+| 2 | **El gesto completo de «marcar el episodio 3 en la ficha, cerrar y reabrir»** | Hace falta un clic humano en la ficha. Se probaron **las dos mitades por separado**: `push_last_watched_id()` con 14 comprobaciones sobre una `DB_user.db` temporal (incluida la supervivencia al reinicio), y el pintado de la banda en la app real con la preferencia poblada con tres animes de la biblioteca. **La costura entre ambas —la llamada de `__toggle_episode_switch`— está leída, no ejecutada** |
+| 2 | El **hover** de las celdas y de las tarjetas | No hay puntero que pasar por encima |
 
 ---
 
@@ -52,6 +61,12 @@ fase que la tomó. Empieza vacío a propósito: las decisiones de partida están
 | 1 | **El ancho de la barra necesita `grid_propagate(False)` *y* `minsize` en la columna 0 del padre.** Solo con el primero, la rejilla de `MainWindow` le roba píxeles cuando el contenido pide más ancho del que cabe (medido: 219 en vez de 224). Lo pone `Sidebar.__apply_collapsed_layout()` en cada plegado |
 | 1 | **Las etiquetas de los destinos viven en cada vista**, en su `super().__init__` (`"Favoritos"`, `"Viendo"`…), no en la barra. La barra las lee de `sidebar_text`. Renombrar una pestaña es tocar su vista, no `Sidebar` |
 | 1 | **El orden de la barra cambió**: Nuevos · Favoritos · Viendo · Pendientes · Finalizados · Buscar. Antes finalizados iba delante de viendo y pendientes. Lo fija la lista `destinations` de `load_sidebar_buttons()` |
+| 2 | **Una celda de `PosterGrid` es un `CTkFrame` propio y ocupa UNA fila de la rejilla.** Las vistas de hoy pintan póster y título sueltos en `row*2` / `row*2+1`, y las de estado necesitaron una tercera fila para el proveedor (`row*3`…). Con la celda como marco, añadir o quitar una línea bajo el título no toca ningún índice — que es justo lo que la ficha de la fase 2 avisaba que costaría |
+| 2 | **`Pager` es dueño del corte de la lista** (`slice_bounds()`), no solo de los botones. Si cada vista calculara su propio `[inicio:fin]`, el texto «Mostrando A-B de N» y lo que se ve en pantalla podrían discrepar |
+| 2 | 🔴 **`wraplength` NO limita a dos líneas y un `CTkLabel` NO se recorta a su `height`**: envuelve todas las líneas que necesite y crece. Por eso existe `Theme.ellipsize(texto, fuente, ancho, líneas)`, que mide con `font.measure()` y corta con puntos suspensivos. **Todo título de ancho fijo tiene que pasar por ahí** — `AnimeRow` (fase 3), las rejillas de las fases 5-7 y la ficha (fase 8) |
+| 2 | **La portada ya no duerme.** El `time.sleep(0.1)` tras `clear_frame()` solo servía para que `winfo_width()` no valiera 1 al calcular columnas; con seis fijas sobra. Las otras cinco vistas lo conservan hasta que les toque su fase: quitarlo es parte de reescribir la vista, no un cambio suelto |
+| 2 | **La preferencia `last_watched_anime_ids` guarda identificadores, no filas.** Quien la pinte tiene que tolerar que el anime ya no esté en la biblioteca (`get_anime_by_anime_id()` → `None`) y descartarlo en silencio |
+| 2 | **Los pósters se cargan con `load_rounded_image()`, no con `load_image()`.** CustomTkinter no redondea la `image` de un widget por mucho `corner_radius` que tenga: el recorte hay que traerlo hecho desde PIL. De paso reduce con LANCZOS, que es para lo que la fase 1 subió la caché a 248 px |
 
 ---
 
@@ -67,6 +82,82 @@ Una entrada por paso completado, **la más reciente arriba**. Formato:
 ```
 
 <!-- nuevas entradas aquí arriba -->
+
+### Fase 2 · Paso 2.4 — Montar la vista          (2026-08-20)
+- Ficheros: `src/gui/sidebarButtons/recentAnimes/recentAnimes.py` (reescrito), `src/gui/theme.py`
+- La portada pasa a ser `ViewHeader` («Nuevos lanzamientos» + «N estrenos · Proveedor») → banda de
+  retomar → `PosterGrid` de 6 → `Pager` de 12. **`ViewHeader` se estrena aquí**: la fase 1 lo dejó
+  construido y sin usar.
+- ✅ **Fuera el `time.sleep(0.1)` del hilo de UI.** Solo existía para que `winfo_width()` devolviera
+  algo distinto de 1, porque de ahí salía el número de columnas (`// 150`). Con seis fijas no se
+  mide nada. **Es la única vista que ya no duerme**; las otras cinco lo conservan hasta su fase.
+- También fuera el bucle que ponía `weight=1` en las columnas 0..N de `content_frame`. Se comprobó
+  que no afectaba a las otras vistas: las cuatro de estado pintan dentro de su propio
+  `__episodes_frame`, cuyas columnas nunca llevaron peso.
+- 🔴 **`Theme.ellipsize()`** nuevo: `wraplength` **no** limita a dos líneas —envuelve las que hagan
+  falta— y un `CTkLabel` **crece por encima de su `height`** en vez de recortarse. Con títulos de
+  tres líneas la fila quedaba desnivelada y las tres tarjetas de retomar, descuadradas. Mide con
+  `font.measure()` y corta con puntos suspensivos. Lo usan `PosterGrid` y `ResumeCard`, y lo van a
+  necesitar `AnimeRow` (fase 3) y la ficha (fase 8).
+- Verificado: sí · **4 arranques reales con captura de la ventana** (la app se manda al fondo con
+  `SetWindowPos` y se captura con `PrintWindow`, sin robarle el foco a nadie) + **48
+  comprobaciones** de geometría + recorrido por código de **las 6 vistas**, todas se abren sin
+  excepción. Ver «Qué quedó sin verificar» más abajo.
+- Pendiente que deja: el buscador de la cabecera **se pospone a la fase 9** — esta vista no tenía
+  ninguno que conservar, así que no hay regresión.
+
+### Fase 2 · Paso 2.3 — `ResumeCard` y la banda «Retomar donde lo dejaste»          (2026-08-20)
+- Ficheros: `src/gui/components/resume_card.py` (nuevo), `src/utils/utils.py`
+- `ResumeCard` (póster 84×118, título, «Siguiente: episodio N de M» y barra de progreso) y
+  `ResumeBand` (etiqueta + hasta 3 tarjetas en columnas iguales). `has_content()` es lo que decide
+  si la banda entra en la rejilla: sin nada que retomar **no se pinta ni la etiqueta**.
+- `resume_progress()` es el **único** sitio donde se calcula por dónde iba el usuario. Ordena los
+  episodios antes de mirar nada porque salen invertidos de la BD ([trampa 2]) y devuelve
+  `(siguiente, total, fracción)`. Casos cubiertos: todo visto → «Lo has visto entero», fila sin
+  episodios → `last_watched_episode + 1` sin prometer total, y huecos → el primero sin ver, no el
+  siguiente al último.
+- `find_cached_poster_path()` nuevo en `utils/utils.py`, extraído de `get_anime_image()`: devuelve
+  la ruta del póster en las 6 carpetas **sin salir a la red**, así que se puede llamar desde el hilo
+  de Tkinter. `get_anime_image()` pasa a usarlo y conserva su `size=` explícito (trampa 17).
+- Verificado: sí · dentro de las 48 comprobaciones del paso 2.4, más la app real con la banda
+  poblada con tres animes de la biblioteca (One Piece → «Siguiente: episodio 1164 de 1174», que
+  cuadra con el `last_watched_episode = 1163` de la fila).
+- Pendiente que deja: nada.
+
+### Fase 2 · Paso 2.2 — La preferencia `LAST_WATCHED_ANIME_IDS`          (2026-08-20)
+- Ficheros: `src/dataPersistence/userPersistence.py`, `src/gui/anime_window.py`
+- Miembro nuevo en `UserSettingKey` (valor `last_watched_anime_ids`) más
+  `get_last_watched_ids()` / `push_last_watched_id()` y la constante `MAX_LAST_WATCHED = 3`.
+  Sin migración: la tabla es clave/valor. Se persiste como slugs separados por comas, el más
+  reciente primero; `push` sube el que ya estaba en vez de duplicarlo.
+- `anime_window.py`: **una** llamada en `__toggle_episode_switch`, con dos guardas — solo al
+  **marcar** (desmarcar no es «seguir viendo») y solo si `update_watched_episodes()` devolvió
+  `True`, que es `False` cuando el anime **no está en la biblioteca**. Sin esa segunda guarda,
+  ver un episodio de un anime no guardado dejaría en «Retomar» una tarjeta sin fila que pintar.
+  Usa `persistence_anime_id` (trampa 21).
+- Verificado: sí · **14 comprobaciones** en el scratchpad sobre una `DB_user.db` temporal (orden,
+  tope de 3, sin duplicados, supervivencia al reinicio, no-op al repetir el primero, y que el pin
+  y el plegado de la fase 1 siguen intactos).
+- Pendiente que deja: nada.
+
+### Fase 2 · Paso 2.1 — `PosterGrid` y `Pager`          (2026-08-20)
+- Ficheros: `src/gui/components/poster_grid.py`, `src/gui/components/pager.py` (nuevos),
+  `src/utils/utils.py`
+- `PosterGrid(parent, columns=6, poster_size=..., on_click=...)` + la dataclass `PosterItem`
+  (`key`, `title`, `poster_path`, `badge`, `badge_colors`, `footer`). Las fases 5, 6 y 7 lo
+  reutilizan cambiando parámetros: el sello de finalizados y el «ya lo tienes» de buscar entran
+  por `badge`, y el proveedor de las vistas de biblioteca por `footer`.
+- `Pager(parent, page_size, on_page)`: «Mostrando A-B de N» + flechas y números, con ventana y
+  puntos suspensivos por encima de 7 páginas. Se **esconde solo** con `grid_remove()` si
+  `total <= page_size`. Expone `slice_bounds()` para que el corte de la lista y el texto no
+  puedan discrepar.
+- `load_rounded_image()` nuevo en `utils/utils.py`: reduce con **LANCZOS** (que es para lo que se
+  guarda la caché a 248 px) y redondea las esquinas con una máscara alfa de PIL. Hacía falta:
+  el `corner_radius` de un widget de CustomTkinter **no** recorta su `image`.
+- Verificado: parcialmente · sintaxis e importación. El pintado real se comprueba en el paso 2.4,
+  que es el que los cuelga de una ventana.
+- Pendiente que deja: medir que las 6 columnas caben de verdad en el `content_frame`
+  (1216 px menos la barra de desplazamiento) sin recortar la sexta.
 
 ### Fase 1 · Paso 1.5 — `ViewHeader` y cableado de `MainWindow`          (2026-08-20)
 - Ficheros: `src/gui/components/view_header.py` (nuevo), `src/gui/main_window.py`
