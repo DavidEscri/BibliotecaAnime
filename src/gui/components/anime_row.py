@@ -1,7 +1,7 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "gui.components"
 __module__ = "anime_row.py"
-__version__ = "0.1"
+__version__ = "0.2"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 """Fila en cascada de una vista de biblioteca: la unidad de «Viendo» y «Pendientes».
@@ -59,8 +59,9 @@ class AnimeRow(ctk.CTkFrame):
                        on_click=self.__on_anime_click)
         row.grid(row=index, column=0, sticky="ew")
 
-    La fase 4 la reutiliza con ``poster_size=Metrics.ROW_PENDING_POSTER`` y
-    ``show_progress=False``: un anime pendiente no tiene progreso que enseñar.
+    «Pendientes» la reutiliza con ``poster_size=Metrics.ROW_PENDING_POSTER``,
+    ``show_progress=False`` —un anime pendiente no tiene progreso que enseñar— y
+    ``meta_text`` para poner «N episodios · Proveedor» donde iría el proveedor.
     """
 
     #: Ancho de la barra de progreso. El diseño deja el conjunto en 340 px
@@ -70,6 +71,11 @@ class AnimeRow(ctk.CTkFrame):
     #: fijos para que las dos columnas queden alineadas de una fila a otra: si no,
     #: «Episodio 9 →» y «Episodio 1164 →» corren el proveedor de sitio.
     PROVIDER_W: int = 90
+    #: Ancho de la columna derecha cuando lleva ``meta_text`` en vez del
+    #: proveedor a secas: «1163 episodios · AnimeAV1» no cabe en 90 px, y el
+    #: ancho tiene que ser el mismo en todas las filas o los textos dejan de
+    #: alinearse por la derecha.
+    META_W: int = 170
     ACTION_W: int = 130
     #: Ancho con el que se mide el título para recortarlo. Sale del reparto de la
     #: vista Viendo (1216 menos márgenes, panel lateral, póster y columna derecha);
@@ -85,6 +91,7 @@ class AnimeRow(ctk.CTkFrame):
                  action: Optional[RowAction] = None,
                  on_click: Optional[Callable[[Any], None]] = None,
                  provider_name: Optional[str] = None,
+                 meta_text: Optional[str] = None,
                  text_width: Optional[int] = None,
                  show_separator: bool = True,
                  **kwargs):
@@ -100,6 +107,11 @@ class AnimeRow(ctk.CTkFrame):
         :param provider_name: nombre legible del proveedor de la fila. ``None`` o
             cadena vacía no pinta nada: mejor un hueco que la palabra
             «desconocido» repetida seis veces.
+        :param meta_text: texto que **sustituye** al proveedor en la columna
+            derecha cuando la fila tiene algo más que contar. Pendientes lo usa
+            para «N episodios · Proveedor»: sin barra de progreso, el dato que
+            hace útil una cola es la duración, y el proveedor cabe en la misma
+            línea.
         :param text_width: ancho al que se recorta el título. Por defecto ``TEXT_W``.
         :param show_separator: línea ``LINE_SOFT`` bajo la fila. La última de la
             lista puede quitarla.
@@ -125,7 +137,7 @@ class AnimeRow(ctk.CTkFrame):
 
         self.__build_poster(poster_size)
         self.__build_middle(show_progress)
-        self.__build_right(provider_name)
+        self.__build_right(provider_name, meta_text)
 
         if show_separator:
             separator = ctk.CTkFrame(self, height=1, corner_radius=0, fg_color=Theme.LINE_SOFT)
@@ -204,15 +216,20 @@ class AnimeRow(ctk.CTkFrame):
         )
         caption_label.grid(row=0, column=1, padx=(11, 0))
 
-    def __build_right(self, provider_name: Optional[str]) -> None:
+    def __build_right(self, provider_name: Optional[str], meta_text: Optional[str]) -> None:
         right = ctk.CTkFrame(self.__body, height=1, fg_color=Theme.TRANSPARENT)
         right.grid(row=0, column=2, padx=(18, 12), sticky="e")
 
+        # `meta_text` manda si viene: ya incluye el proveedor, así que no se
+        # pintan los dos. El ancho es fijo en los dos casos para que la columna
+        # quede a plomo de una fila a otra, y se recorta antes que desbordarlo.
+        meta_font = Theme.font(*Theme.T_META)
+        meta_width = self.META_W if meta_text else self.PROVIDER_W
         provider_label = ctk.CTkLabel(
             right,
-            text=provider_name or "",
-            width=self.PROVIDER_W,
-            font=Theme.font(*Theme.T_META),
+            text=Theme.ellipsize(meta_text or provider_name or "", meta_font, meta_width, 1),
+            width=meta_width,
+            font=meta_font,
             text_color=Theme.TXT_3,
             anchor="e"
         )
