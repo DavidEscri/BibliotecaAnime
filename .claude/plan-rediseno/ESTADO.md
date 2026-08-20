@@ -5,12 +5,12 @@
 
 | | |
 |---|---|
-| **Fase actual** | 4 — Pendientes |
+| **Fase actual** | 5 — Favoritos |
 | **Situación** | ⬜ no empezada |
-| **Último paso completado** | Paso 3.3 — montar la vista (**fase 3 cerrada**) |
-| **Siguiente paso** | Paso 4.1 — leer la ficha de la fase 4 y `pendingAnimes.py`; reutiliza `AnimeRow` **sin tocarla** (`poster_size=Metrics.ROW_PENDING_POSTER`, `show_progress=False`, acción «Empezar») |
+| **Último paso completado** | Paso 4.4 — montar la vista (**fase 4 cerrada**) |
+| **Siguiente paso** | Paso 5.1 — leer la ficha de la fase 5. 🔴 **Es la única fase que escribe en `DB_Animes.db`**: copia previa, `RATING` **al final** de `AnimeField` (vía barata) y **29 filas antes y después** |
 | **Rama** | ✅ `feature/ui-redisign` (**no** `feature/rediseno-ui`: ya existía, ver Decisiones) |
-| **Base** | `bd25742` (fase 1) → fase 2 → fase 3 encima, en `feature/ui-redisign`. El plan partió de `6377b92`, no de `4f9e429` |
+| **Base** | `bd25742` (fase 1) → fases 2, 3 y 4 encima, en `feature/ui-redisign`. El plan partió de `6377b92`, no de `4f9e429` |
 | **Commits** | automáticos (uno al cerrar cada fase) |
 | **Actualizado** | 2026-08-20 |
 
@@ -23,7 +23,7 @@
 | 1 | Cimientos | ✅ terminada | `bd25742` | ✅ app ejecutada y **mirada** (desplegada y plegada) + 73 comprobaciones |
 | 2 | Nuevos lanzamientos | ✅ terminada | `ef9f4d4` | ✅ app ejecutada y **mirada** (4 arranques + recorrido de las 6 vistas) + 48 + 14 comprobaciones |
 | 3 | Viendo | ✅ terminada | `3198f12` | ✅ app ejecutada y **mirada** (3 arranques reales + recorrido de las 6 vistas + ficha abierta por las 3 vías) + 42 + 29 comprobaciones |
-| 4 | Pendientes | ⬜ no empezada | — | — |
+| 4 | Pendientes | ✅ terminada | `COMMIT_FASE_4` | ✅ app real ejecutada y **mirada** (3 arranques: portada, Pendientes y Pendientes con orden y hover + recorrido de las 6 vistas) + 61 comprobaciones sobre **copia** de la BD |
 | 5 | Favoritos | ⬜ no empezada | — | — |
 | 6 | Finalizados | ⬜ no empezada | — | — |
 | 7 | Buscar | ⬜ no empezada | — | — |
@@ -43,6 +43,9 @@ Lo que no se ha podido ejecutar en cada fase, para que nadie lo dé por probado.
 | 3 | El hover **con un ratón de verdad** | Sigue sin haber puntero que mover. Sí se ejecutó el mecanismo entero: se emiten `<Enter>`/`<Leave>` **sobre el canvas interno**, que es lo que toca el ratón, y se comprobó que la píldora aparece, que el fondo cambia a `CARD_HOVER`, que pasar del marco a un hijo **no** lo apaga y que la fila no se mueve |
 | 3 | El caso **literal** del checklist: «un anime guardado desde AnimeFLV abierto con AnimeAV1 seleccionado» | ⚠️ **`one-piece-tv` ya no existe en la BD**: la fila de One Piece es hoy `one-piece` con `provider_id = animeav1`, así que ese caso concreto no se puede reproducir. Se probó **la misma mecánica**: fila de AnimeAV1 abierta con **JKAnime** seleccionado en el desplegable → desviación → se re-localiza por título (`similitud 1.00`) → la ficha sale con el ⚠ y «En tu biblioteca: AnimeAV1» → **29 filas antes y 29 después, idénticas**. Se eligió JKAnime y no AnimeFLV porque AnimeFLV lleva tiempo sin servir datos |
 | 3 | La **suma de resultados de la búsqueda web** | Se probó con el proveedor devolviendo vacío —que es exactamente el caso «sin conexión»— y con las tres consultas llegando al proveedor. Que un resultado web **añada** un anime que el título guardado no encuentra sigue sin ejecutarse: haría falta un alias real («Solo Leveling») entre los animes que estás viendo, y hoy solo hay One Piece |
+| 4 | El **hover con un ratón de verdad** | Tercera fase seguida sin puntero. Se ejecutó el mecanismo entero (el resaltado y la píldora «Empezar» aparecen, y la fila no cambia de ancho) y **se ha mirado en la app real**: la captura del tercer arranque lleva la primera fila resaltada y su píldora encendida |
+| 4 | **«Empezar» sobre la biblioteca real** | La ficha de la fase mandaba probarlo en `DB_Animes.db` y deshacerlo después; la **regla 2 de `/fase`** dice que solo la fase 5 escribe ahí, y gana. El flujo se ejecutó **entero y de verdad** sobre una **copia** (`Given: Uragawa no Sonzai` movido de pendientes a viendo: 29 filas antes y después, flags correctos, ficha abierta, póster encolado). Sobre la real solo se ha **mirado** la vista: hash y mtime de `DB_Animes.db` **idénticos** al terminar |
+| 4 | El desplegable de orden **abierto con el ratón** | Los tres criterios se ejecutaron por su `command`, que es lo que el desplegable llama, y dos de ellos se han mirado en la app real. Desplegar la lista en sí no se ha hecho |
 
 ---
 
@@ -79,6 +82,14 @@ fase que la tomó. Empieza vacío a propósito: las decisiones de partida están
 | 3 | **La píldora «Episodio N →» abre la ficha, no el episodio.** Dejarla abierta por ese episodio es de la **fase 8**: es la que rehace la lista de episodios y la única que puede quitarle el tope de `[:25]`, sin el cual un «Episodio 1164» no tiene dónde caer |
 | 3 | **El panel lateral recorre los tres identificadores de `last_watched_anime_ids`**, no solo el primero. Si el más reciente ya no está en «Viendo» (lo marcaste como finalizado), el siguiente también es algo que estabas viendo. Si no cuadra ninguno, el primero de la lista |
 | 2 | **Los pósters se cargan con `load_rounded_image()`, no con `load_image()`.** CustomTkinter no redondea la `image` de un widget por mucho `corner_radius` que tenga: el recorte hay que traerlo hecho desde PIL. De paso reduce con LANCZOS, que es para lo que la fase 1 subió la caché a 248 px |
+| 4 | ✅ **`AnimeRow` NO se bifurcó**: la fase 4 costó **un** parámetro, `meta_text`, que **sustituye** al proveedor en la columna derecha. Pendientes lo usa para «N episodios · Proveedor». Las fases 5-7 tienen ahí un sitio donde poner lo suyo sin tocar el componente |
+| 4 | **Una fila sin lista de episodios no es «corta», es desconocida**: va **al final en los dos sentidos** de la duración. Encabezar «más cortos primero» con lo que no se sabe cuánto dura es lo contrario de lo que se ha pedido. Pasa con las filas guardadas sin llegar a abrir su ficha |
+| 4 | **El orden elegido NO se persiste.** Vive en memoria: no está entre las tres preferencias que `DISENO.md` §8 manda guardar, y añadir una fila a `USER_SETTINGS` por esto es ampliar la fase por mi cuenta. Si se quiere, es un miembro más de `UserSettingKey` |
+| 4 | 🔴 **Los contadores de la barra salen de las listas cacheadas del hub, y esas listas solo se llenan al arrancar.** «Empezar» relee `pending_animes` y `watching_animes` **antes** de `refresh_sidebar_counts()`; sin eso el número no se movía. ⚠️ **La ficha sigue sin hacerlo**: cambiar un estado desde `anime_window.py` no repinta los contadores hasta el siguiente arranque. Es de la **fase 8** |
+| 4 | **La descarga del póster de «Empezar» va en hilo daemon.** Es una petición HTTP y quien la lanza es el hilo de Tkinter. Nadie la espera: `find_cached_poster_path()` recorre las seis carpetas, así que hasta que caiga en `watching/` la imagen se sigue encontrando en `pending/` |
+| 4 | **«Empezar» abre la ficha, no el episodio 1.** Misma decisión que la píldora «Episodio N →» de la fase 3 y por el mismo motivo: abrir por un episodio concreto es de la **fase 8**, la que rehace la lista |
+| 4 | **Los 113 px de la fila de pendientes incluyen el separador** (112 de cuerpo + 1 de línea). La última fila de la lista, que va sin separador, mide 112. Vale igual para los 132 de la fila de «Viendo» |
+| 4 | **Verificar una fase que escribe en la biblioteca se hace sobre una copia.** La ficha de la fase 4 pedía probar «Empezar» en `DB_Animes.db` y deshacerlo; la regla 2 de `/fase` lo prohíbe fuera de la fase 5. Se apunta la persistencia a una copia (`persistence.path_db` + `SqlUtils`) y se comprueba al final que el hash de la real no ha cambiado. **Receta reutilizable para cualquier fase futura** |
 
 ---
 
@@ -94,6 +105,72 @@ Una entrada por paso completado, **la más reciente arriba**. Formato:
 ```
 
 <!-- nuevas entradas aquí arriba -->
+
+### Fase 4 · Paso 4.4 — Montar la vista «Pendientes»          (2026-08-20)
+- Ficheros: `src/gui/sidebarButtons/pendingAnimes/pendingAnimes.py` (reescrito)
+- `ViewHeader` («Pendientes» + «N animes en cola · M episodios» + **orden** + buscador) → cascada de
+  `AnimeRow` a ancho completo. **Sin paginador** y **sin panel lateral**: aquí no hay nada que
+  retomar. El título se recorta a **660 px** (`TITLE_W`) en vez de a los 420 de «Viendo», porque sin
+  panel sobra sitio.
+- El **buscador local (`SavedAnimeSearch`) se reutiliza tal cual**, igual que en la fase 3, y también
+  responde a **Enter**. Cambiar el orden **no deshace el filtro**: `__display_animes` guarda la
+  última lista sin ordenar y el orden se aplica al pintar.
+- 🔴 **Fuera el acordeón «Abrir filtro de animes»**, como en la fase 3 (ver Decisiones). Van dos de
+  las cuatro vistas de estado; quedan favoritos y finalizados.
+- ✅ Fuera el `time.sleep(0.1)` del hilo de UI. Van **tres de seis** vistas; las otras tres lo
+  conservan hasta su fase.
+- Estado vacío propio («No tienes ningún anime en la cola…»), pendiente de `EmptyState` en la fase 9.
+- Verificado: sí · dentro de las **61 comprobaciones** del paso 4.1 y **mirado en la app real**
+  (segundo arranque).
+- Pendiente que deja: nada.
+
+### Fase 4 · Paso 4.3 — «Empezar»          (2026-08-20)
+- Ficheros: `src/gui/sidebarButtons/pendingAnimes/pendingAnimes.py`
+- Píldora de acción en hover que encadena lo que ya existía: `update_anime_to_watching()` —que apaga
+  finalizado y pendiente él solo—, el póster a `watching/`, los contadores y la ficha.
+- ⚠️ El `AnimeInfo` se construye desde la **fila guardada** ([trampa 21]): su `anime_id` es el slug
+  del proveedor que la guardó. Comprobado que **no se crea ninguna fila nueva** (29 antes y 29
+  después en la copia) y que el anime conserva su `provider_id`.
+- 🔴 Dos cosas que la ficha de la fase no preveía, las dos en Decisiones: los **contadores** salen de
+  listas cacheadas que solo se llenan al arrancar —hay que releerlas antes de refrescar— y la
+  **descarga del póster es HTTP**, así que sale del hilo de Tkinter en un hilo daemon.
+- «Empezar» abre la **ficha**, no el episodio 1: eso es de la fase 8, igual que la píldora de Viendo.
+- Verificado: sí · flujo completo ejecutado sobre una **copia** de `DB_Animes.db`
+  (`Given: Uragawa no Sonzai`, 1 episodio): sale de pendientes, entra en viendo, `is_finished` sigue
+  a 0, sin episodios vistos heredados, contadores refrescados una vez, la ficha se abre con el
+  `anime_id` correcto y el póster se encola **fuera** del hilo de Tkinter. Al volver a Pendientes
+  quedan 4 filas y el subtítulo dice «4 animes en cola · 43 episodios».
+- Pendiente que deja: la ficha (`anime_window.py`) **sigue sin refrescar los contadores** al cambiar
+  un estado. Es de la fase 8.
+
+### Fase 4 · Paso 4.2 — Orden por duración          (2026-08-20)
+- Ficheros: `src/gui/sidebarButtons/pendingAnimes/pendingAnimes.py`
+- `CTkOptionMenu` en la zona de controles de la cabecera con los tres criterios: **Más cortos
+  primero** (por defecto) · Más largos primero · Título (A-Z). Se resuelve **en memoria**, sin
+  volver a la BD ni tocar `animesPersistence.py`.
+- 🔴 Las filas **sin lista de episodios** van al final en los dos sentidos de la duración (ver
+  Decisiones). Hoy no hay ninguna así entre los pendientes, pero las hay en cuanto se guarda un
+  anime sin abrir su ficha.
+- El orden **no se persiste** (ver Decisiones): `DISENO.md` §8 no lo pide.
+- Verificado: sí · los tres criterios, con la lista real y con una fila sin episodios inyectada;
+  y **mirado en la app real** con «Más largos primero» (12, 12, 11, 8, 1).
+- Pendiente que deja: nada.
+
+### Fase 4 · Paso 4.1 — `AnimeRow` sin progreso          (2026-08-20)
+- Ficheros: `src/gui/components/anime_row.py` (**un** parámetro nuevo), `pendingAnimes.py`
+- ✅ **`AnimeRow` sigue siendo un solo componente.** La fase costó `meta_text`, que sustituye al
+  proveedor en la columna derecha por «N episodios · Proveedor», más la constante `META_W = 170`
+  («1163 episodios · AnimeAV1» no cabe en los 90 px del proveedor a secas). El resto ya estaba:
+  `poster_size=ROW_PENDING_POSTER` y `show_progress=False`, que dejó preparados la fase 3.
+- Cada mitad del meta se cae sola si no se sabe, sin dejar el ` · ` colgando.
+- Medido: **113 px de fila** —los de `DISENO.md` §3— contando el separador; póster 56 × 80; ninguna
+  `CTkProgressBar` en la vista.
+- Verificado: sí · **61 comprobaciones** con Tk real sobre una **copia** de `DB_Animes.db`
+  (geometría, meta, separadores, los tres órdenes, fila sin episodios, hover, «Empezar» de punta a
+  punta, vuelta a la vista, buscador, tres repintados seguidos, cola vacía) y **hash de la
+  biblioteca real idéntico** al terminar. Más 3 arranques de la app real con captura y el recorrido
+  de las **6 vistas**, que se abren todas.
+- Pendiente que deja: nada.
 
 ### Fase 3 · Paso 3.3 — Montar la vista «Viendo»          (2026-08-20)
 - Ficheros: `src/gui/sidebarButtons/watchingAnimes/watchingAnimes.py` (reescrito)
