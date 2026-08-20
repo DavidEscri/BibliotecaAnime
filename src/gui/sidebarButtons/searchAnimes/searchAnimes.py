@@ -33,7 +33,7 @@ class AnimeSearch:
 class SearchButton(utilsButtons.SidebarButton):
     def __init__(self, main_window, icon_path, row, column):
         icon_path_light = icon_path_dark = os.path.join(icon_path, "buscar.png")
-        super().__init__(main_window.sidebar_frame, "BUSCADOR DE ANIMES", row, column, self.__show_buscador, icon_path_light, icon_path_dark)
+        super().__init__(main_window.sidebar_frame, "Buscar", row, column, self.__show_buscador, icon_path_light, icon_path_dark)
 
         self.main_window = main_window
         self.anime_provider_mgr: AnimeProviderManager = AnimeProviderManagerSingleton()

@@ -21,6 +21,17 @@ _MAX_DOWNLOAD_WORKERS = 8
 # Timeout en segundos para cada petición de imagen.
 _REQUEST_TIMEOUT = 10
 
+# Tamaño al que se GUARDAN los pósters en disco. Es el mayor que pide cualquier
+# vista del rediseño (el de la ficha de detalle): reducir un JPG grande se ve
+# bien, ampliar uno pequeño no. Cada vista sigue pasando su propio `size=` al
+# construir el CTkImage, que es lo que se pinta.
+#
+# Duplica a propósito el valor de `gui.theme.Metrics.POSTER_CACHE_SIZE`, que es
+# la fuente de verdad del diseño: `utils/utils.py` tiene prohibido importar de
+# `gui/**` (docs/01 §2), así que el valor se repite aquí en vez de invertir la
+# dependencia. Si cambia uno, cambia el otro.
+POSTER_CACHE_SIZE = (248, 372)
+
 def removeprefix(text: str, prefix_text: str) -> str:
     """
     Remove the prefix of a given string if it contains that
@@ -56,7 +67,7 @@ def download_anime_poster_by_status(status, anime):
         os.makedirs(anime_status_dir)
     image_name = f"{anime.id}.jpg"
     response = requests.get(anime.poster, timeout=_REQUEST_TIMEOUT)
-    img_data = Image.open(BytesIO(response.content)).resize((130, 185))
+    img_data = Image.open(BytesIO(response.content)).resize(POSTER_CACHE_SIZE)
     img_data.save(os.path.join(anime_status_dir, image_name))
 
 def move_anime_poster_by_status(status, old_anime_id, new_anime_id) -> bool:
@@ -103,7 +114,7 @@ def download_animes_poster(images_path, animes):
         image_name = f"{anime.id}.jpg"
         try:
             response = requests.get(anime.poster, timeout=_REQUEST_TIMEOUT)
-            img_data = Image.open(BytesIO(response.content)).resize((130, 185))
+            img_data = Image.open(BytesIO(response.content)).resize(POSTER_CACHE_SIZE)
             img_data.save(os.path.join(images_path, image_name))
         except Exception as e:
             print(f"Error al descargar el poster de {anime.id}: {e}")
@@ -153,7 +164,7 @@ def download_images_progress(images_path, recent_animes, progress_bar: ctk.CTkPr
         image_name = f"{anime.id}.jpg"
         try:
             response = requests.get(anime.poster, timeout=_REQUEST_TIMEOUT)
-            img_data = Image.open(BytesIO(response.content)).resize((130, 185))
+            img_data = Image.open(BytesIO(response.content)).resize(POSTER_CACHE_SIZE)
             img_data.save(os.path.join(images_path, image_name))
         except Exception as e:
             print(f"Error al descargar el poster de {anime.id}: {e}")
@@ -199,6 +210,26 @@ def load_image(image_path: str, image_size: tuple[int, int] = (130, 185)):
     if os.path.exists(image_path):
         return ctk.CTkImage(Image.open(image_path), size=image_size)
     return ctk.CTkImage(Image.new('RGB', image_size, (200, 200, 200)), size=image_size)  # Placeholder
+
+
+def load_dual_image(light_path: str, dark_path: str,
+                    image_size: tuple[int, int] = (24, 24)) -> ctk.CTkImage:
+    """Carga un icono con sus dos variantes en un solo ``CTkImage``.
+
+    Pasando ``light_image`` y ``dark_image`` a la vez, el cambio de apariencia lo
+    resuelve CustomTkinter: no hay que recorrer los widgets reconfigurando el
+    icono a mano, que es lo que hacía la barra lateral antes del rediseño.
+
+    Si un icono no existe se sustituye por un cuadro gris del tamaño pedido, el
+    mismo criterio que ``load_image()``: un icono que falta no debe impedir que
+    la barra se pinte.
+    """
+    def _open(path: str) -> Image.Image:
+        if os.path.exists(path):
+            return Image.open(path)
+        return Image.new('RGB', image_size, (200, 200, 200))
+
+    return ctk.CTkImage(light_image=_open(light_path), dark_image=_open(dark_path), size=image_size)
 
 
 def get_resource_path(relative_path):

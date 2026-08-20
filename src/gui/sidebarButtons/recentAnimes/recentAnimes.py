@@ -20,7 +20,7 @@ from utils.utils import load_image
 class RecentAnimeButton(utilsButtons.SidebarButton):
     def __init__(self, main_window, icon_path: str, row: int, column: int):
         icon_path_light = icon_path_dark = os.path.join(icon_path, "recientes.png")
-        super().__init__(main_window.sidebar_frame, "ANIMES RECIENTES", row, column, self.__show_animes_recientes, icon_path_light, icon_path_dark)
+        super().__init__(main_window.sidebar_frame, "Nuevos lanzamientos", row, column, self.__show_animes_recientes, icon_path_light, icon_path_dark)
 
         self.main_window = main_window
         self.anime_provider_mgr: AnimeProviderManager = AnimeProviderManagerSingleton()

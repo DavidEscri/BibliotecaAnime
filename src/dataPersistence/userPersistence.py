@@ -45,6 +45,8 @@ class UserSettingKey(Enum):
     """
     #: PROVIDER_ID del proveedor de anime predeterminado ("animeav1", "animeflv"...).
     DEFAULT_ANIME_PROVIDER = "default_anime_provider"
+    #: Barra lateral plegada ("1") o desplegada ("0"). Rediseño, fase 1.
+    SIDEBAR_COLLAPSED = "sidebar_collapsed"
     # Reservada para cuando se integren los mangas:
     # DEFAULT_MANGA_PROVIDER = "default_manga_provider"
 
@@ -213,6 +215,24 @@ class UserPersistence(ServiceDB):
         GUI interpreta como «usar el predeterminado del registro».
         """
         return self.set_setting(UserSettingKey.DEFAULT_ANIME_PROVIDER, provider_id)
+
+    def get_sidebar_collapsed(self) -> bool:
+        """Devuelve si la barra lateral quedó plegada la última vez.
+
+        Sin preferencia guardada —o con la BD no disponible— devuelve ``False``:
+        desplegada es el estado que enseña qué hace cada icono, así que es el
+        que menos sorprende a quien abre la aplicación por primera vez.
+        """
+        return self.get_setting(UserSettingKey.SIDEBAR_COLLAPSED, "0") == "1"
+
+    def set_sidebar_collapsed(self, collapsed: bool) -> bool:
+        """Guarda si la barra lateral queda plegada.
+
+        Se persiste como ``"1"`` / ``"0"`` y no como ``"True"`` / ``"False"``:
+        la columna es TEXT y conviene que el valor sobreviva a leerlo desde
+        cualquier sitio sin depender del ``repr`` de Python.
+        """
+        return self.set_setting(UserSettingKey.SIDEBAR_COLLAPSED, "1" if collapsed else "0")
 
     # ------------------------------------------------------------------
     # Métodos privados de apoyo

@@ -20,7 +20,7 @@ from utils.utils import load_image, get_resource_path
 class FinishedAnimeButton(utilsButtons.SidebarButton):
     def __init__(self, main_window, icon_path, row, column):
         icon_path_light = icon_path_dark = os.path.join(icon_path, "finalizados.png")
-        super().__init__(main_window.sidebar_frame, "ANIMES FINALIZADOS", row, column, self.show_finished_animes, icon_path_light, icon_path_dark)
+        super().__init__(main_window.sidebar_frame, "Finalizados", row, column, self.show_finished_animes, icon_path_light, icon_path_dark)
 
         self.main_window = main_window
         self.anime_provider_mgr: AnimeProviderManager = AnimeProviderManagerSingleton()
