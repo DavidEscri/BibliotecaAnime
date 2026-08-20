@@ -20,7 +20,7 @@
 
 | # | Fase | Situación | Commit | Verificada |
 |---|---|---|---|---|
-| 1 | Cimientos | ✅ terminada | `bd25742` | ✅ app ejecutada + 62 comprobaciones |
+| 1 | Cimientos | ✅ terminada | `bd25742` | ✅ app ejecutada y **mirada** (desplegada y plegada) + 73 comprobaciones |
 | 2 | Nuevos lanzamientos | ⬜ no empezada | — | — |
 | 3 | Viendo | ⬜ no empezada | — | — |
 | 4 | Pendientes | ⬜ no empezada | — | — |
@@ -83,7 +83,10 @@ Una entrada por paso completado, **la más reciente arriba**. Formato:
 - ✅ El `# TODO:` de `main_window.py:32` **está cerrado**: la ventana se titula «Mi Biblioteca» y
   ninguna pestaña lleva ya la palabra «Anime». Quedan **4** `TODO` en `src/` (2 en `jkanime.py`,
   2 en `anime_window.py`).
-- Verificado: sí · app real + las dos baterías del scratchpad.
+- Verificado: sí · app real + las tres baterías del scratchpad. Las **11** comprobaciones de
+  `smoke_provider.py` cubren el punto del checklist que faltaba: pin fijar/desfijar (icono **y** fila
+  en BD), cambio de proveedor que **no** escribe en BD y pone el pin en gris, y el fondo `CARD` del
+  ítem activo aguantando el salto claro↔oscuro sin reconfigurar nada.
 - Pendiente que deja: nada.
 
 ### Fase 1 · Paso 1.4 — `Sidebar`          (2026-08-20)
