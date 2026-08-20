@@ -5,12 +5,12 @@
 
 | | |
 |---|---|
-| **Fase actual** | 3 — Viendo |
+| **Fase actual** | 4 — Pendientes |
 | **Situación** | ⬜ no empezada |
-| **Último paso completado** | Paso 2.4 — montar la vista (**fase 2 cerrada**) |
-| **Siguiente paso** | Paso 3.1 — leer la ficha de la fase 3 y `watchingAnimes.py`; estrena `AnimeRow` y `SidePanel` |
+| **Último paso completado** | Paso 3.3 — montar la vista (**fase 3 cerrada**) |
+| **Siguiente paso** | Paso 4.1 — leer la ficha de la fase 4 y `pendingAnimes.py`; reutiliza `AnimeRow` **sin tocarla** (`poster_size=Metrics.ROW_PENDING_POSTER`, `show_progress=False`, acción «Empezar») |
 | **Rama** | ✅ `feature/ui-redisign` (**no** `feature/rediseno-ui`: ya existía, ver Decisiones) |
-| **Base** | `bd25742` (fase 1) → fase 2 encima, en `feature/ui-redisign`. El plan partió de `6377b92`, no de `4f9e429` |
+| **Base** | `bd25742` (fase 1) → fase 2 → fase 3 encima, en `feature/ui-redisign`. El plan partió de `6377b92`, no de `4f9e429` |
 | **Commits** | automáticos (uno al cerrar cada fase) |
 | **Actualizado** | 2026-08-20 |
 
@@ -22,7 +22,7 @@
 |---|---|---|---|---|
 | 1 | Cimientos | ✅ terminada | `bd25742` | ✅ app ejecutada y **mirada** (desplegada y plegada) + 73 comprobaciones |
 | 2 | Nuevos lanzamientos | ✅ terminada | `ef9f4d4` | ✅ app ejecutada y **mirada** (4 arranques + recorrido de las 6 vistas) + 48 + 14 comprobaciones |
-| 3 | Viendo | ⬜ no empezada | — | — |
+| 3 | Viendo | ✅ terminada | `PENDIENTE` | ✅ app ejecutada y **mirada** (3 arranques reales + recorrido de las 6 vistas + ficha abierta por las 3 vías) + 42 + 29 comprobaciones |
 | 4 | Pendientes | ⬜ no empezada | — | — |
 | 5 | Favoritos | ⬜ no empezada | — | — |
 | 6 | Finalizados | ⬜ no empezada | — | — |
@@ -40,6 +40,8 @@ Lo que no se ha podido ejecutar en cada fase, para que nadie lo dé por probado.
 |---|---|---|
 | 2 | **El gesto completo de «marcar el episodio 3 en la ficha, cerrar y reabrir»** | Hace falta un clic humano en la ficha. Se probaron **las dos mitades por separado**: `push_last_watched_id()` con 14 comprobaciones sobre una `DB_user.db` temporal (incluida la supervivencia al reinicio), y el pintado de la banda en la app real con la preferencia poblada con tres animes de la biblioteca. **La costura entre ambas —la llamada de `__toggle_episode_switch`— está leída, no ejecutada** |
 | 2 | El **hover** de las celdas y de las tarjetas | No hay puntero que pasar por encima |
+| 3 | El hover **con un ratón de verdad** | Sigue sin haber puntero que mover. Sí se ejecutó el mecanismo entero: se emiten `<Enter>`/`<Leave>` **sobre el canvas interno**, que es lo que toca el ratón, y se comprobó que la píldora aparece, que el fondo cambia a `CARD_HOVER`, que pasar del marco a un hijo **no** lo apaga y que la fila no se mueve |
+| 3 | La **suma de resultados de la búsqueda web** | Se probó con el proveedor devolviendo vacío —que es exactamente el caso «sin conexión»— y con las tres consultas llegando al proveedor. Que un resultado web **añada** un anime que el título guardado no encuentra sigue sin ejecutarse: haría falta un alias real («Solo Leveling») entre los animes que estás viendo, y hoy solo hay One Piece |
 
 ---
 
@@ -66,6 +68,15 @@ fase que la tomó. Empieza vacío a propósito: las decisiones de partida están
 | 2 | 🔴 **`wraplength` NO limita a dos líneas y un `CTkLabel` NO se recorta a su `height`**: envuelve todas las líneas que necesite y crece. Por eso existe `Theme.ellipsize(texto, fuente, ancho, líneas)`, que mide con `font.measure()` y corta con puntos suspensivos. **Todo título de ancho fijo tiene que pasar por ahí** — `AnimeRow` (fase 3), las rejillas de las fases 5-7 y la ficha (fase 8) |
 | 2 | **La portada ya no duerme.** El `time.sleep(0.1)` tras `clear_frame()` solo servía para que `winfo_width()` no valiera 1 al calcular columnas; con seis fijas sobra. Las otras cinco vistas lo conservan hasta que les toque su fase: quitarlo es parte de reescribir la vista, no un cambio suelto |
 | 2 | **La preferencia `last_watched_anime_ids` guarda identificadores, no filas.** Quien la pinte tiene que tolerar que el anime ya no esté en la biblioteca (`get_anime_by_anime_id()` → `None`) y descartarlo en silencio |
+| 3 | 🔴 **El acordeón «Abrir filtro de animes» desaparece de las vistas de estado.** No está en el diseño —la cabecera de `#viendo` solo lleva buscador— y filtrar por género seis animes que ya son tuyos no aporta. **Aplica también a las fases 4, 5 y 6**: las cuatro vistas lo tenían igual. Si el filtrado por género vuelve, el sitio es `GenreChips` (fase 7), no un acordeón por pestaña |
+| 3 | **`AnimeRow` se parametriza, no se bifurca.** `poster_size`, `show_progress`, `action`, `on_click`, `provider_name`, `text_width` y `show_separator`. La fase 4 la usa **sin tocar el fichero**: `Metrics.ROW_PENDING_POSTER`, `show_progress=False` y un `RowAction("Empezar", …)` |
+| 3 | 🔴 **CustomTkinter no ata `bind()` al widget que crees.** `CTkFrame.bind()` va a su `_canvas`; `CTkLabel.bind()`, al `_label` **y** al canvas; `CTkEntry.bind()`, al `_entry`; `CTkButton.bind()`, al canvas y a sus etiquetas. Con el ratón real da igual —lo que se toca es el canvas—, pero **`widget.event_generate()` sobre el objeto CTk no dispara nada**: cualquier prueba futura de hover o de clic tiene que emitir sobre el hijo interno |
+| 3 | 🔴 **Un `<Leave>` no significa que el ratón se haya ido.** Tk lo manda también al pasar del marco a uno de sus hijos, así que apagar el hover ahí hace parpadear la fila y la píldora se escapa justo al ir a pulsarla. `AnimeRow.__pointer_inside()` compara `winfo_pointerxy()` con el rectángulo real de la fila antes de apagar nada. Lo mismo va a hacer falta en cualquier fila o tarjeta con acción en hover |
+| 3 | **El hueco de la acción se reserva siempre**, con un marco de tamaño fijo y `grid_propagate(False)`; la píldora solo se muestra y se esconde. Si se creara al entrar el ratón, la fila cambiaría de ancho debajo del cursor |
+| 3 | **Los 290 px del panel lateral son 248 + 21 × 2**, no un número redondo: 248 es el ancho al que se guarda el póster en disco, así que se pinta a tamaño natural. **Toda línea de la tarjeta tiene que medirse contra 248**; el pie «Lo dejaste en el episodio 1163 · AnimeAV1» mide 249 y, sin controlarlo, era él quien decidía el ancho de la tarjeta |
+| 3 | **Cuando un texto no cabe, primero se dice más corto y solo después se recorta.** El pie del panel pasa a «Episodio 1163 · AnimeAV1» (y a «Sin empezar · X» si no has visto nada): los puntos suspensivos se comían justo el nombre del proveedor, que es la mitad del dato |
+| 3 | **La píldora «Episodio N →» abre la ficha, no el episodio.** Dejarla abierta por ese episodio es de la **fase 8**: es la que rehace la lista de episodios y la única que puede quitarle el tope de `[:25]`, sin el cual un «Episodio 1164» no tiene dónde caer |
+| 3 | **El panel lateral recorre los tres identificadores de `last_watched_anime_ids`**, no solo el primero. Si el más reciente ya no está en «Viendo» (lo marcaste como finalizado), el siguiente también es algo que estabas viendo. Si no cuadra ninguno, el primero de la lista |
 | 2 | **Los pósters se cargan con `load_rounded_image()`, no con `load_image()`.** CustomTkinter no redondea la `image` de un widget por mucho `corner_radius` que tenga: el recorte hay que traerlo hecho desde PIL. De paso reduce con LANCZOS, que es para lo que la fase 1 subió la caché a 248 px |
 
 ---
@@ -82,6 +93,56 @@ Una entrada por paso completado, **la más reciente arriba**. Formato:
 ```
 
 <!-- nuevas entradas aquí arriba -->
+
+### Fase 3 · Paso 3.3 — Montar la vista «Viendo»          (2026-08-20)
+- Ficheros: `src/gui/sidebarButtons/watchingAnimes/watchingAnimes.py` (reescrito)
+- `ViewHeader` («Viendo» + «N animes a medias · M episodios pendientes» + buscador) → cuerpo en dos
+  columnas: cascada de `AnimeRow` (flexible) y `SidePanel` (290 fijos). **Sin paginador.**
+- El **buscador local (`SavedAnimeSearch`) se reutiliza tal cual**, como mandaba la ficha; solo
+  cambia el aspecto del control y ahora responde también a **Enter**. El panel lateral **no** se
+  repinta al buscar: enseña lo último que veías, no el filtro.
+- 🔴 **Fuera el acordeón «Abrir filtro de animes»** (ver Decisiones). Es lo único que esta vista
+  pierde, y el diseño no lo tiene.
+- ✅ Fuera el `time.sleep(0.1)` del hilo de UI: esta vista ya no mide `winfo_width()`. Van dos de
+  seis; las cuatro restantes lo conservan hasta su fase.
+- Estado vacío propio («Todavía no estás viendo ningún anime…»), pendiente de sustituirse por
+  `EmptyState` en la fase 9.
+- Verificado: sí · **29 comprobaciones** sobre la vista montada en una ventana Tk real (cabecera,
+  6 filas, sin paginador, panel único de 290, alturas y anchos iguales, el panel intacto durante la
+  búsqueda, biblioteca vacía y tres repintados seguidos sin duplicar widgets).
+- Pendiente que deja: nada.
+
+### Fase 3 · Paso 3.2 — `SidePanel`          (2026-08-20)
+- Ficheros: `src/gui/components/side_panel.py` (nuevo)
+- Panel de 290 px con póster a ancho completo (248 × 372, ratio 2:3), título, «Lo dejaste en el
+  episodio N · Proveedor», barra de progreso con «vistos / total» en monoespaciada y botón `ACCENT`
+  «Seguir por el N».
+- Se alimenta de la **misma** preferencia que la banda de la portada y del **mismo**
+  `resume_progress()`. Con todo visto el botón pasa a «Abrir la ficha»; sin nada visto, a «Seguir
+  por el 1» y el pie dice que no has empezado —nunca «Episodio 0»—.
+- 🔴 Dos ajustes de ancho que costaron las dos únicas medidas que no cuadraban: una
+  `CTkProgressBar` **pide 200 px por defecto** (con el contador al lado, la tarjeta reclamaba 330) y
+  el pie **mide 249 px** con un episodio de cuatro cifras. Ver Decisiones.
+- Verificado: sí · dentro de las 42 comprobaciones del paso 3.1, con la fila real de One Piece
+  (1163/1174) y con un anime sin empezar.
+- Pendiente que deja: nada.
+
+### Fase 3 · Paso 3.1 — `AnimeRow`          (2026-08-20)
+- Ficheros: `src/gui/components/anime_row.py` (nuevo)
+- Póster 70 × 100 · título a **una** línea · géneros en MAYÚSCULAS separados por ` · ` · barra de
+  progreso con «N de M episodios» · proveedor a la derecha · separador `LINE_SOFT` · fondo
+  `CARD_HOVER` al pasar el ratón · píldora de acción que aparece en hover. Alto medido: **132 px**,
+  el del diseño.
+- El progreso sale de `resume_progress()` sobre la fila guardada: **la vista funciona sin conexión**.
+- 🔴 Tres trampas nuevas por el camino, todas en Decisiones: `bind()` de CustomTkinter no va al
+  widget que crees, un `<Leave>` no significa que el ratón se haya ido, y el hueco de la acción hay
+  que reservarlo o la fila se mueve sola.
+- Verificado: sí · **42 comprobaciones** con Tk real: geometría, textos, hover completo (aparecer,
+  resaltar, pasar a un hijo, salir), clic desde el título, clic en la píldora, y **5 casos límite**
+  (sin episodios, sin nada visto, todo visto, título kilométrico, con huecos → el siguiente es el
+  primero sin ver, no el posterior al último).
+- Pendiente que deja: la fase 4 tiene que poder usarla **sin tocar el fichero**. Los parámetros que
+  necesita ya están (`poster_size`, `show_progress=False`, `action`).
 
 ### Fase 2 · Paso 2.4 — Montar la vista          (2026-08-20)
 - Ficheros: `src/gui/sidebarButtons/recentAnimes/recentAnimes.py` (reescrito), `src/gui/theme.py`
