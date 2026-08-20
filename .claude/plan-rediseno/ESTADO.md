@@ -5,12 +5,12 @@
 
 | | |
 |---|---|
-| **Fase actual** | 6 — Finalizados |
+| **Fase actual** | 7 — Buscar |
 | **Situación** | ⬜ no empezada |
-| **Último paso completado** | Paso 5.4 — montar la vista (**fase 5 cerrada**) |
-| **Siguiente paso** | Paso 6.1 — leer la ficha de la fase 6. Reutiliza `PosterGrid` (6 columnas) y el **sello** que estrenó la 5: `StatusPill.text/colors` + `badge`/`badge_colors`, con «12 / 12» en vez del nombre del estado. 🔴 **La BD ya NO se toca**: la columna `rating` es lo único que la fase 5 añadió |
+| **Último paso completado** | Paso 6.2 — montar la vista (**fase 6 cerrada**) |
+| **Siguiente paso** | Paso 7.1 — leer la ficha de la fase 7. Estrena `GenreChips` y la paginación del proveedor, y **reutiliza el sello de la 6 tal cual**: `badge=StatusPill.text(status)` + `badge_icon=StatusPill.icon(status)`, sin pasar `badge_colors` (el fondo oscuro por defecto es el del diseño). 🔴 **La BD no se toca** |
 | **Rama** | ✅ `feature/ui-redisign` (**no** `feature/rediseno-ui`: ya existía, ver Decisiones) |
-| **Base** | `bd25742` (fase 1) → fases 2, 3, 4 y 5 encima, en `feature/ui-redisign`. El plan partió de `6377b92`, no de `4f9e429` |
+| **Base** | `bd25742` (fase 1) → fases 2, 3, 4, 5 y 6 encima, en `feature/ui-redisign`. El plan partió de `6377b92`, no de `4f9e429` |
 | **Commits** | automáticos (uno al cerrar cada fase) |
 | **Actualizado** | 2026-08-21 |
 
@@ -25,7 +25,7 @@
 | 3 | Viendo | ✅ terminada | `3198f12` | ✅ app ejecutada y **mirada** (3 arranques reales + recorrido de las 6 vistas + ficha abierta por las 3 vías) + 42 + 29 comprobaciones |
 | 4 | Pendientes | ✅ terminada | `3b06dd0` | ✅ app real ejecutada y **mirada** (3 arranques: portada, Pendientes y Pendientes con orden y hover + recorrido de las 6 vistas) + 61 comprobaciones sobre **copia** de la BD |
 | 5 | Favoritos | ✅ terminada | `580333b` | ✅ app real ejecutada y **mirada** (2 arranques: portada, Favoritos, calificar con el ratón, orden guardado y recorrido de las 6 vistas) + **59 comprobaciones sobre copia** de la BD + **15 sobre la real** + **56 con CTk real** |
-| 6 | Finalizados | ⬜ no empezada | — | — |
+| 6 | Finalizados | ✅ terminada | `PENDIENTE` | ✅ app real ejecutada y **mirada** (4 arranques: Finalizados en oscuro y en claro, Favoritos, ficha abierta con clic sintético + recorrido de las 6 vistas) + **22 comprobaciones** sobre la app en marcha + **10** de casos límite del sello + **3** de los glifos, **mirados ampliados x10** |
 | 7 | Buscar | ⬜ no empezada | — | — |
 | 8 | Ficha del anime | ⬜ no empezada | — | — |
 | 9 | Cohesión | ⬜ no empezada | — | — |
@@ -48,6 +48,10 @@ Lo que no se ha podido ejecutar en cada fase, para que nadie lo dé por probado.
 | 4 | El desplegable de orden **abierto con el ratón** | Los tres criterios se ejecutaron por su `command`, que es lo que el desplegable llama, y dos de ellos se han mirado en la app real. Desplegar la lista en sí no se ha hecho |
 | 5 | El desplegable de orden **abierto con el ratón** (otra vez) | Su lista es un *toplevel* aparte de la ventana principal, así que ni el clic sintético lo abre ni `PrintWindow` lo captura. Se ejercitó **todo lo demás**: el `command` con los dos criterios (56 comprobaciones con CTk real), y en la **app real** se comprobó el extremo que sí importa —que la preferencia **guardada** se aplica al entrar en la pestaña: con `favourites_order = title` escrito en `DB_user.db`, la pestaña sale con «Título (A-Z)» puesto y la rejilla alfabética |
 | 5 | El **hover** de las celdas | Cuarta fase seguida sin puntero que pasear. Las estrellas no tienen estado de hover —solo cursor de mano—, así que aquí no hay mecanismo que probar |
+| 6 | Los **botones del paginador pulsados con el ratón** | Se ejecutó su `command` (`__go(2)`), que es lo que el botón llama, y la página 2 se comprobó entera: 6 celdas y «Mostrando 13-18 de 18». Pulsar el botón en sí, no |
+| 6 | El **hover** de las celdas | Quinta fase seguida sin puntero. La rejilla **no tiene** estado de hover —solo cursor de mano, comprobado: `hand2`—, así que aquí no hay mecanismo que probar |
+| 6 | El sello sobre un finalizado **sin lista de episodios** en la biblioteca real | No existe esa fila hoy: los 18 finalizados tienen lista. La rama se probó con `AnimeRecord` sintéticos (6 casos, incluidos «más vistos que episodios» y «sin lista pero con vistos»), no sobre la BD |
+| 6 | El **añadido de la búsqueda web** en esta pestaña | Igual que en las fases 3 y 5: el proveedor no devolvió nada para las consultas probadas, que es el caso «sin conexión». Que un resultado web **sume** un anime que el título guardado no encuentra sigue sin ejecutarse en ninguna vista |
 
 ---
 
@@ -100,6 +104,12 @@ fase que la tomó. Empieza vacío a propósito: las decisiones de partida están
 | 5 | **`StatusPill` en favoritos dice qué *más* es el anime**, nunca «Favorito». La ficha de la fase lo daba por estrenado aquí pero ningún paso lo colocaba: el sitio es el sello superpuesto al póster (`badge` + `badge_colors`, que `PosterGrid` ya sabía pintar desde la fase 2), y el dato es el estado excluyente de la fila. Repetir «Favorito» en las diez celdas sería el dato duplicado que prohíbe `DISENO.md` §6. **La fase 6 lo reutiliza** para el sello «Finalizado» |
 | 5 | **`PosterGrid` gana `extra_builder`, no una subclase.** La celda numera sus filas sobre la marcha: si una vista no pone fila libre, el pie sube y no queda hueco. El widget que devuelve el constructor **no hereda el clic de la celda** —los eventos de Tk no burbujean—, que es justo lo que hace que pulsar una estrella no abra la ficha |
 | 5 | **Las estrellas se dibujan con PIL en tiempo de ejecución**, no son PNG en `resources/`. Un polígono de 10 vértices a 8x reducido con LANCZOS, y el medio punto es un rectángulo recortado con la máscara de ese polígono. Es la misma salida que se eligió para el pin, y aquí además evita la deuda **B11**: estos iconos son nuestros. `CTkImage(light_image=…, dark_image=…)` resuelve el tema sin reconfigurar nada |
+| 6 | 🔴 **El sello va arriba a la IZQUIERDA y con fondo oscuro, no con el color pastel del estado.** Es lo que dice el diseño (`.mark`: `top:9px;left:9px`, `rgba(10,12,16,.78)`, texto blanco y el color del estado **solo en el glifo**) y es lo único que se lee sobre una carátula clara: la verificación de la fase pide justo comprobar la legibilidad en tema claro, y un `FIN_BG` (`#E3F3EA`) sobre un póster blanco no la pasa. Tokens nuevos `Theme.BADGE_BG` / `BADGE_INK`, opacos porque **Tk no sabe pintar un fondo con alfa** |
+| 6 | **`badge_colors` conserva su firma**, así que «Favoritos» sigue con su píldora pastel de la fase 5 sin tocar el fichero: la fase 6 tiene «las otras vistas» en su *No toca*. Solo hereda el cambio de esquina. ⚠️ **Queda una incoherencia visible**: en Favoritos el sello pastel sobre pósters claros se lee mal, y ahora está en la esquina más brillante. **Es trabajo de la fase 9** (repaso claro/oscuro): pasar `favouriteAnimes.py` al sello por defecto es borrar su `badge_colors=` y añadir `badge_icon=StatusPill.icon(status)` |
+| 6 | **El glifo del sello lo sirve `StatusPill.icon()`**, dibujado con PIL como las estrellas y el pin. Están los **tres estados excluyentes** (ojo, ✓, lista) y no solo el ✓ que usa esta fase: son exactamente los que `other_status()` puede devolver y los que la fase 7 va a pedir, así que dejar dos sin dibujar obligaría a reabrir el módulo. «Favorito» devuelve `None` a propósito |
+| 6 | ⚠️ **El glifo se tiñe con la variante OSCURA del color del estado en los dos temas.** El sello es una superficie oscura siempre —va sobre la carátula, no sobre el fondo de la app—, así que `FIN_TXT[0]` (un verde oscuro) desaparecería justo en tema claro. Vale para cualquier cosa que se pinte sobre `BADGE_BG` |
+| 6 | **El hueco entre el glifo y el texto va dentro del propio dibujo** (`_ICON_GAP`). Tk pega imagen y texto cuando una etiqueta lleva las dos (`compound="left"`) y `CTkLabel` no expone su padding interno; sin ese margen transparente el ✓ toca la cifra |
+| 6 | **Un sello sin lista de episodios dice «Finalizado», no «0 / 0».** Pasa con las filas guardadas sin llegar a abrir su ficha: ahí no hay «totales» que enseñar y el cero doble parecería un fallo de la vista. Con lista, los números son **los reales y sin corregir**, aunque falten episodios por marcar |
 
 ---
 
@@ -115,6 +125,36 @@ Una entrada por paso completado, **la más reciente arriba**. Formato:
 ```
 
 <!-- nuevas entradas aquí arriba -->
+
+### Fase 6 · Paso 6.2 — Montar la vista «Finalizados»          (2026-08-21)
+- Ficheros: `src/gui/sidebarButtons/finishedAnimes/finishedAnimes.py` (reescrito, 140 → 245 líneas)
+- Verificado: sí · **app real ejecutada y mirada** en los dos temas (2 capturas) + **22
+  comprobaciones** sobre la app en marcha (paginación, buscador, recorrido de las 6 vistas) + **10**
+  sobre los casos límite del sello + la ficha de un finalizado abierta con un clic real
+- `ViewHeader` («Finalizados» · «18 animes · 7 episodios vistos») + `PosterGrid(6)` a 176 × 264 +
+  `Pager(12)` + `SavedAnimeSearch`. Fuera el acordeón de géneros (decisión de la fase 3); se queda
+  el pie del proveedor (decisión de la fase 5, `DISENO.md` §6)
+- 🔴 **Tu biblioteca tiene 18 finalizados, no 9**: el paginador **sí** aparece (dos páginas), al
+  contrario de lo que preveía la ficha. Y **16 de los 18 están marcados como terminados sin ningún
+  episodio marcado**, así que la rejilla se llena de «0 / N». Es el dato real y el sello lo enseña
+  sin corregirlo
+- La biblioteca real **no se ha tocado**: `sha256 e5b4f2e0…` y `mtime` idénticos antes y después de
+  tres arranques y de abrir una ficha
+- Pendiente que deja: nada de la fase. Para la 9, unificar el sello de «Favoritos» con este
+
+### Fase 6 · Paso 6.1 — El sello superpuesto de `PosterGrid`          (2026-08-21)
+- Ficheros: `src/gui/theme.py`, `src/gui/components/status_pill.py`, `src/gui/components/poster_grid.py`
+- Verificado: sí · los tres glifos dibujados a 12 px y **mirados** ampliados x10 sobre el
+  fondo real del sello; `StatusPill.icon()` devuelve `(17, 12)` para los tres estados
+  excluyentes y `None` para «Favorito»; `PosterItem(badge=…, badge_icon=…)` construido con
+  CTk real
+- El sello se mueve a **arriba a la izquierda** (`DISENO-VISUAL` `.mark`: `top:9px;left:9px`) y
+  cambia de aspecto por defecto: superficie oscura `BADGE_BG` + texto blanco `BADGE_INK`, con el
+  color del estado en el **glifo**. Es lo que lo hace legible sobre una carátula clara con el
+  tema en claro, que es justo lo que manda comprobar la verificación de la fase
+- `badge_colors` **sigue existiendo con la misma firma**, así que «Favoritos» conserva su
+  píldora pastel sin tocar el fichero. Solo hereda el cambio de esquina
+- Pendiente que deja: montar la vista (paso 6.2)
 
 ### Fase 5 · Paso 5.4 — Montar la vista «Favoritos»          (2026-08-21)
 - Ficheros: `src/gui/sidebarButtons/favouriteAnimes/favouriteAnimes.py` (reescrito)

@@ -1,7 +1,7 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "gui.components"
 __module__ = "poster_grid.py"
-__version__ = "0.2"
+__version__ = "0.3"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 """Rejilla de pósters: el componente que comparten nuevos, favoritos, finalizados y buscar.
@@ -13,6 +13,12 @@ biblioteca). El número de columnas y el tamaño del póster son parámetros, as
 la rejilla de 6 de `Nuevos lanzamientos` y la de 5 de `Favoritos` son **la misma
 clase con otros argumentos**: si una vista necesita una variante se añade un
 parámetro, nunca una copia (`DISENO.md` §5).
+
+El **sello** es de la rejilla, no de ninguna vista: llega desde fuera con su
+texto, su glifo y —si hace falta— sus colores, así que el «12 / 12» de
+finalizados y el «Viendo» de los resultados de búsqueda son el mismo widget con
+otros argumentos. Por defecto se pinta con la superficie oscura de ``BADGE_BG``,
+que es lo que lo hace legible sobre cualquier carátula en los dos temas.
 
 Dos decisiones de construcción que conviene no deshacer:
 
@@ -44,10 +50,14 @@ class PosterItem:
     :param title: título del anime, a dos líneas.
     :param poster_path: ruta del JPG cacheado. Si no existe, se pinta el
         placeholder gris de ``load_rounded_image()``.
-    :param badge: texto del sello superpuesto (el «Finalizado» de la fase 6, el
-        «Ya lo tienes» de la 7). ``None`` no pinta nada.
+    :param badge: texto del sello superpuesto (el «12 / 12» de finalizados, el
+        «Ya lo tienes» de la fase 7). ``None`` no pinta nada.
+    :param badge_icon: glifo que va delante de ese texto, normalmente el de
+        ``StatusPill.icon()``. El hueco que lo separa del texto viene dentro del
+        propio dibujo. ``None`` deja el sello con texto solo.
     :param badge_colors: ``(color_de_texto, color_de_fondo)`` del sello, con los
-        pares de ``Theme``. Sin él, el sello usa el acento.
+        pares de ``Theme``. Sin él se usa el sello del diseño: superficie oscura
+        y texto blanco, que se lee sobre cualquier póster y en los dos temas.
     :param footer: línea de apoyo bajo el título (el proveedor). ``None`` la omite
         y la celda queda más baja.
     :param data: lo que la vista necesite recuperar en ``extra_builder`` sin
@@ -58,6 +68,7 @@ class PosterItem:
     title: str
     poster_path: Optional[str] = None
     badge: Optional[str] = None
+    badge_icon: Optional[ctk.CTkImage] = None
     badge_colors: Optional[Tuple[ColorToken, ColorToken]] = None
     footer: Optional[str] = None
     data: Any = None
@@ -77,6 +88,14 @@ class PosterGrid(ctk.CTkFrame):
     #: borde del primer póster caiga en los 28 px de margen del diseño. La celda
     #: ya aporta media separación por lado, así que hay que descontarla.
     OUTER_PAD_X: int = Metrics.CONTENT_PAD_X - Metrics.GRID_GAP_X // 2
+
+    #: Alto del sello superpuesto. El radio es la mitad (píldora = alto / 2).
+    BADGE_H: int = 20
+
+    #: Separación del sello a las dos esquinas del póster. Arriba a la
+    #: **izquierda**, que es donde lo pone el diseño: es la esquina por la que se
+    #: empieza a leer y la que menos tapa de una carátula.
+    BADGE_INSET: int = 8
 
     #: Alto reservado para el título. Dos líneas de `T_UI` más el interlineado:
     #: fijarlo es lo que mantiene alineadas las celdas de una misma fila cuando
@@ -142,19 +161,28 @@ class PosterGrid(ctk.CTkFrame):
         poster_label.grid(row=0, column=0)
 
         if item.badge:
-            text_color, fg_color = item.badge_colors or (Theme.ACCENT_INK, Theme.ACCENT)
-            badge_h = 20
+            text_color, fg_color = item.badge_colors or (Theme.BADGE_INK, Theme.BADGE_BG)
             badge_label = ctk.CTkLabel(
                 poster_label,
                 text=item.badge,
-                height=badge_h,
-                corner_radius=Metrics.pill_radius(badge_h),
+                image=item.badge_icon,
+                # Con imagen y texto a la vez hay que decir dónde va cada uno:
+                # por defecto CTkLabel los superpone (compound="center") y el
+                # glifo saldría debajo de la cifra.
+                compound="left",
+                height=self.BADGE_H,
+                corner_radius=Metrics.pill_radius(self.BADGE_H),
                 font=Theme.font(*Theme.T_META),
                 fg_color=fg_color,
                 text_color=text_color
             )
+            if item.badge_icon is not None:
+                self.__images.append(item.badge_icon)
             # place() y no grid: el sello se superpone al póster, no ocupa sitio.
-            badge_label.place(relx=1.0, rely=0.0, x=-8, y=8, anchor="ne")
+            # Mezclar los dos gestores en el mismo contenedor es lo que produce
+            # widgets que no aparecen o que se comen a sus hermanos.
+            badge_label.place(relx=0.0, rely=0.0, x=self.BADGE_INSET, y=self.BADGE_INSET,
+                              anchor="nw")
 
         # ellipsize() y no solo wraplength: wraplength envuelve todas las líneas
         # que haga falta y el CTkLabel crece por encima de su `height`, así que un

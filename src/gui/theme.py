@@ -81,6 +81,16 @@ class Theme:
     FIN_TXT: ColorToken = ("#2E7D5B", "#68C888")
     FIN_BG: ColorToken = ("#E3F3EA", "#14321F")
 
+    #: Sello superpuesto a un póster (el «12 / 12» de finalizados, el «Viendo» de
+    #: buscar). El diseño lo pide con fondo translúcido oscuro; Tk no sabe pintar
+    #: un fondo con alfa, así que se usa el color opaco equivalente. Va **sobre
+    #: la carátula**, no sobre el fondo de la aplicación, de modo que es el mismo
+    #: en claro y en oscuro: un póster claro puede aparecer con cualquier tema y
+    #: solo un sello oscuro se lee siempre sobre los dos.
+    BADGE_BG: ColorToken = ("#0F1218", "#0F1218")
+    #: Texto **sobre** BADGE_BG.
+    BADGE_INK: ColorToken = ("#FFFFFF", "#FFFFFF")
+
     # ------------------------------------------------------------------
     # Tipografía
     # ------------------------------------------------------------------
