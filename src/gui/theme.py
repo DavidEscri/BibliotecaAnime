@@ -247,6 +247,9 @@ class Metrics:
     #: Ficha del anime.
     SHEET_POSTER: Tuple[int, int] = (248, 372)
     STATUS_BUTTON_H: int = 40
+    STATUS_BUTTON_RADIUS: int = 9
+    #: Hueco entre los cuatro botones de estado.
+    STATUS_BUTTON_GAP: int = 10
     EPISODE_ROW_H: int = 52
 
     #: Barra de progreso.
