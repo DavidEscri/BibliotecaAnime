@@ -26,7 +26,7 @@
 | 4 | Pendientes | ✅ terminada | `3b06dd0` | ✅ app real ejecutada y **mirada** (3 arranques: portada, Pendientes y Pendientes con orden y hover + recorrido de las 6 vistas) + 61 comprobaciones sobre **copia** de la BD |
 | 5 | Favoritos | ✅ terminada | `580333b` | ✅ app real ejecutada y **mirada** (2 arranques: portada, Favoritos, calificar con el ratón, orden guardado y recorrido de las 6 vistas) + **59 comprobaciones sobre copia** de la BD + **15 sobre la real** + **56 con CTk real** |
 | 6 | Finalizados | ✅ terminada | `bfbad7d` | ✅ app real ejecutada y **mirada** (4 arranques: Finalizados en oscuro y en claro, Favoritos, ficha abierta con clic sintético + recorrido de las 6 vistas) + **22 comprobaciones** sobre la app en marcha + **10** de casos límite del sello + **3** de los glifos, **mirados ampliados x10** |
-| 7 | Buscar | ✅ terminada | `COMMIT7` | ✅ app real ejecutada y **mirada** (2 arranques, **11 capturas**: buscar por texto, dos géneros, «Más géneros» desplegado, paginador con 50 páginas, página 2, fallback a JKAnime, tema claro y cambio de vista en vuelo) + **51 comprobaciones** de la vista con CTk real + **28** de `GenreChips` |
+| 7 | Buscar | ✅ terminada | `b68b5b4` | ✅ app real ejecutada y **mirada** (2 arranques, **11 capturas**: buscar por texto, dos géneros, «Más géneros» desplegado, paginador con 50 páginas, página 2, fallback a JKAnime, tema claro y cambio de vista en vuelo) + **51 comprobaciones** de la vista con CTk real + **28** de `GenreChips` |
 | 8 | Ficha del anime | ⬜ no empezada | — | — |
 | 9 | Cohesión | ⬜ no empezada | — | — |
 
