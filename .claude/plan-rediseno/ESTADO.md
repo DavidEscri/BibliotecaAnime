@@ -5,12 +5,12 @@
 
 | | |
 |---|---|
-| **Fase actual** | 8 — Ficha del anime |
-| **Situación** | ⬜ no empezada |
-| **Último paso completado** | Paso 7.4 — montar la vista (**fase 7 cerrada**) |
-| **Siguiente paso** | Paso 8.1 — leer la ficha de la fase 8. Es la más grande del plan (`anime_window.py`, 1 155 líneas) y la única que puede quitar el tope de `[:25]` episodios. Se le han quedado **dos deudas explícitas**: los contadores de la barra no se repintan al cambiar un estado desde la ficha (fase 4) y abrir «por un episodio concreto» (fases 3 y 4) |
+| **Fase actual** | 9 — Cohesión |
+| **Situación** | ⬜ no empezada. La fase 8 quedó cerrada y verificada |
+| **Último paso completado** | Pasos 8.1, 8.2 y 8.3 — la ficha entera, con la app real arrancada y mirada |
+| **Siguiente paso** | Paso 9.1 — `EmptyState`. Antes, lo que manda su ficha: leer este fichero **entero**, bitácora y Decisiones incluidas, porque la fase 9 es la que paga las deudas anotadas por las ocho anteriores |
 | **Rama** | ✅ `feature/ui-redisign` (**no** `feature/rediseno-ui`: ya existía, ver Decisiones) |
-| **Base** | `bd25742` (fase 1) → fases 2, 3, 4, 5 y 6 encima, en `feature/ui-redisign`. El plan partió de `6377b92`, no de `4f9e429` |
+| **Base** | `bd25742` (fase 1) → fases 2 a 8 encima, en `feature/ui-redisign`. El plan partió de `6377b92`, no de `4f9e429` |
 | **Commits** | automáticos (uno al cerrar cada fase) |
 | **Actualizado** | 2026-08-21 |
 
@@ -27,7 +27,7 @@
 | 5 | Favoritos | ✅ terminada | `580333b` | ✅ app real ejecutada y **mirada** (2 arranques: portada, Favoritos, calificar con el ratón, orden guardado y recorrido de las 6 vistas) + **59 comprobaciones sobre copia** de la BD + **15 sobre la real** + **56 con CTk real** |
 | 6 | Finalizados | ✅ terminada | `bfbad7d` | ✅ app real ejecutada y **mirada** (4 arranques: Finalizados en oscuro y en claro, Favoritos, ficha abierta con clic sintético + recorrido de las 6 vistas) + **22 comprobaciones** sobre la app en marcha + **10** de casos límite del sello + **3** de los glifos, **mirados ampliados x10** |
 | 7 | Buscar | ✅ terminada | `b68b5b4` | ✅ app real ejecutada y **mirada** (2 arranques, **11 capturas**: buscar por texto, dos géneros, «Más géneros» desplegado, paginador con 50 páginas, página 2, fallback a JKAnime, tema claro y cambio de vista en vuelo) + **51 comprobaciones** de la vista con CTk real + **28** de `GenreChips` |
-| 8 | Ficha del anime | ⬜ no empezada | — | — |
+| 8 | Ficha del anime | ✅ terminada | `PENDIENTE` | ✅ app real ejecutada y **mirada** (3 arranques, **8 capturas**: portada, Viendo, ficha de One Piece, servidores desplegados, barra plegada, tema claro, pendiente de AnimeFLV e identidad partida forzada con JKAnime) + **93 comprobaciones** con CTk real sobre **copia** de la BD, con red de verdad en servidores y migración |
 | 9 | Cohesión | ⬜ no empezada | — | — |
 
 **Situación**: ⬜ no empezada · 🟡 en curso · ✅ terminada · ⚠️ terminada sin verificar · ❌ revertida
@@ -56,6 +56,10 @@ Lo que no se ha podido ejecutar en cada fase, para que nadie lo dé por probado.
 | 7 | Un resultado sellado **abierto con el ratón**, comprobando que la ficha sale como guardada | Se ejecutó `__on_anime_click()` con el `AnimeWindowViewer` sustituido y se comprobó que **recibe el `AnimeRecord` correcto** (`ore-dake-level-up-na-ken`, la fila de AnimeFLV, desde un resultado de AnimeAV1). Abrirlo de verdad y mirar la ficha, no: es la vista que rehace la **fase 8** |
 | 7 | La **búsqueda por texto paginada** | AnimeAV1 devuelve las búsquedas por texto **en una sola página** (`last_page = 1`, 14 resultados) y JKAnime igual (22). El paginador se probó con la búsqueda por géneros, que sí pagina: **50 páginas de 20** |
 | 6 | El **añadido de la búsqueda web** en esta pestaña | Igual que en las fases 3 y 5: el proveedor no devolvió nada para las consultas probadas, que es el caso «sin conexión». Que un resultado web **sume** un anime que el título guardado no encuentra sigue sin ejecutarse en ninguna vista |
+| 8 | **Todo lo que escribe, sobre la biblioteca real** | Séptima vez que se aplica la receta de la fase 4, y aquí la ficha de la fase pedía lo contrario («cambiar los 4 estados y devolverlos a como estaban» en `DB_Animes.db`); manda la **regla 2 de `/fase`**. Los cuatro estados, el marcado de episodios y la migración se ejecutaron **enteros y de verdad** sobre una copia (30 filas antes y después). Sobre la real solo se ha **mirado**: `sha256 24288986ac92…` **idéntico** tras los tres arranques y las ocho capturas |
+| 8 | El **hover** de las filas de episodio con un ratón de verdad | Séptima fase seguida sin puntero. El mecanismo es el mismo de `AnimeRow` —incluido `__pointer_inside()`, que evita el parpadeo al pasar del marco a un hijo— y se ha visto funcionando el **resaltado permanente** de la fila desplegada, que usa la misma vía (`set_expanded`) |
+| 8 | El botón «Actualizar a …» **pulsado con el ratón** | La migración se ejecutó entera por su método (`__confirm_and_migrate`, con los diálogos sustituidos por «sí»): la fila se reapunta, conserva los 5 episodios vistos y las cuatro categorías, anota el proveedor nuevo y **no duplica**. Pulsar el botón en sí, no; sí se ha **mirado** en la captura 08, con el ⚠ ámbar al lado |
+| 8 | Marcar un episodio **desde la ficha, cerrar la app y reabrirla** | Es lo que quedó suelto de la fase 2 y sigue suelto. Las dos mitades están ejecutadas —`push_last_watched_id()` recibe el `persistence_anime_id` correcto y la preferencia queda escrita en la `DB_user.db` de copia— pero la costura con el arranque siguiente no se ha recorrido de una vez |
 
 ---
 
@@ -125,6 +129,21 @@ fase que la tomó. Empieza vacío a propósito: las decisiones de partida están
 | 7 | **El texto de las fichas sale de `refactor_genre_text(genre.name)`, no de `.value`.** Los `value` del enum son *slugs* sin tildes (`ciencia-ficcion`) y la interfaz va en español con tildes. El acordeón usaba `.value` y pintaba «Accion» |
 | 7 | **Las fichas se colocan con `place()`, no con `grid()`.** Las columnas de una rejilla son **comunes a todas las filas**: envolver texto con `grid` hace que la tercera ficha de cada fila comparta ancho —el de la más larga— y la fila se abra en huecos. Con `place()` el marco no pide alto, así que `show()` se lo fija. Vale para cualquier fila que envuelva por ancho |
 | 7 | **Mientras se busca no hay GIF, hay una línea de texto.** La vista vieja pintaba el GIF de carga a 300 × 300; el diseño no lo contempla y ese GIF es de la deuda **B11** (origen desconocido). Ahora la línea de resultados dice «Buscando animes…» y la rejilla se vacía |
+| 8 | 🔴 **La ficha devuelve a cero los pesos de filas y columnas del `content_frame`.** Ese marco lo comparten las siete vistas y su configuración de rejilla **sobrevive al `clear_frame()`**: la ficha vieja repartía peso entre cuatro columnas y cuatro filas, y una columna con peso **y sin widgets también recibe el espacio sobrante**, así que la vista siguiente pintaba en una columna 0 estrecha. Cualquier vista que reparta peso tiene que deshacerlo |
+| 8 | 🔴 **Un `CTkFrame` con `fg_color="transparent"` no pinta su borde.** No dibuja su rectángulo, y con él se va también el `border_width`: las fichas de género salían como texto suelto. Y aunque se le dé color, **una etiqueta transparente encima lo tapa** —hermana y del mismo tamaño lo borra entero; hija con el alto por defecto (28 > 26) le come los tramos rectos y deja solo las esquinas—. La receta que funciona: marco con `fg_color=BG` + borde, y la etiqueta **dentro**, más baja que él |
+| 8 | 🔴 **CustomTkinter rechaza `width=` y `height=` dentro de `place()`** con un `ValueError`, al revés que Tk pelado: el tamaño se le da al construir el widget. Lo tropezó el separador de 1 px de `EpisodeRow` |
+| 8 | **El `wraplength` de la sinopsis se resuelve recalculando en `<Configure>`**, no cambiando de contenedor (la ficha de la fase dejaba las dos puertas abiertas). La columna de información se ata a un `<Configure>` con umbral de 8 px y de ahí salen el envuelto del título, el de la sinopsis y el reenvuelto de los géneros. Es lo que cierra la [trampa 22](../docs/10-invariantes-y-trampas.md): ya no hay ningún número calculado a mano sobre el ancho del `content_frame` |
+| 8 | **La sinopsis se corta a 74 caracteres de ancho, no al ancho disponible.** Es lo que pide el diseño (`.syn`: `max-width:74ch`) y por eso plegar la barra lateral **no** la ensancha: con 1 356 px la línea sería incómoda de leer. Un «ch» se mide con `font.measure("0")` |
+| 8 | **Los cuatro botones de estado tienen un solo `command`, `__toggle_status()`**, que mira cómo está la fila y llama al `add_to_*` o al `remove_from_*` de siempre. Los seis métodos públicos no cambian; lo que desaparece es el botón que cambiaba de texto para decir cuál de los dos tocaba |
+| 8 | **Los cuatro booleanos sueltos (`__anime_is_favourite`…) pasan a ser un diccionario `__status_state`.** Los botones se pintan recorriéndolo, así que encender uno de los tres excluyentes y apagar los otros dos es una vuelta de bucle (`__set_exclusive_status`) en vez de tres asignaciones repetidas en cada método |
+| 8 | ✅ **La ficha ya refresca los contadores de la barra lateral**, que era la deuda que dejó la fase 4. Relee las cuatro listas cacheadas del hub y llama a `refresh_sidebar_counts()` después de cada cambio de estado: sin releerlas, la barra seguía diciendo lo de antes hasta el siguiente arranque |
+| 8 | **Las filas de episodio van en las posiciones PARES de la rejilla y los servidores en la impar de debajo.** Desplegarlos no empuja nada ni obliga a repintar la lista, y la fila impar mide cero mientras está vacía. La lista vieja los metía en `current_row + 1`, que era la fila del episodio siguiente |
+| 8 | **El botón de orden dice el orden que llega del proveedor**, en vez de decir siempre «Mayor a menor». No es el mismo en todos —AnimeAV1 sirve ascendente y AnimeFLV descendente—, así que el control mentía en la mitad de las fichas. **La lista no se reordena al abrir**: el corte de 25 sigue siendo exactamente el que era ([trampa 8](../docs/10-invariantes-y-trampas.md)) |
+| 8 | **Cuando hay más de 25 episodios, la lista lo dice** («Se muestran 25 de 1 174 episodios · usa "Ir al episodio…" para llegar a los demás»). El corte es viejo y sigue en pie; enseñarlo es lo que convierte el buscador de al lado en la salida evidente en vez de en un control que nadie sabe para qué está |
+| 8 | ⚠️ **La petición de servidores sigue en el hilo de Tkinter.** Es lo que hacía la ficha vieja y la fase solo recoloca, así que no se ha movido; lo único que se ha añadido es el cursor de espera, porque si no la ventana se queda quieta un par de segundos sin explicar por qué. **Es el último sitio de la GUI que sale a la red desde el hilo de la interfaz** — candidato claro para la fase 9 |
+| 8 | **`EpisodeRow` sustituye a `utilsButtons.EpisodeButton`**, que era un botón de ancho completo con «\<título del anime\> - Episodio N» repetido veinticinco veces. Con `SearchButton`, `ApplyFiltersButton` y `AccordionFilterButton`, **son cuatro clases huérfanas** en `utilsButtons.py` para la fase 9 |
+| 8 | **El póster de la ficha se carga con `load_rounded_image()` desde la caché**, como las seis vistas, y solo cae en `get_anime_image()` —que sale a la red— si el anime todavía no tiene fichero en disco. Es la misma decisión de la fase 2 aplicada al último sitio que quedaba con esquinas cuadradas |
+| 8 | ✅ **Ya no queda ni un color literal en `src/` fuera de `theme.py`.** El `WARN` del aviso de identidad partida era el último (`("#B45309", "#FBBF24")` a mano en `anime_window.py`); ahora es `Theme.WARN`. `git grep -nE "#[0-9A-Fa-f]{6}" -- src/` devuelve **vacío** fuera del módulo de tokens, así que ese punto del paso 9.2 ya está cerrado |
 
 ---
 
@@ -140,6 +159,72 @@ Una entrada por paso completado, **la más reciente arriba**. Formato:
 ```
 
 <!-- nuevas entradas aquí arriba -->
+
+### Fase 8 · Pasos 8.1, 8.2 y 8.3 — la ficha del anime entera          (2026-08-21)
+- Ficheros: `src/gui/anime_window.py` (reescrito, 1 114 → 1 733 líneas, 0.6 → 0.7)
+- Verificado: sí · **app real arrancada tres veces y mirada, con 8 capturas** + **93
+  comprobaciones** con CTk real sobre **copia** de las dos BD, con red de verdad en los servidores
+  y en la migración + `python src/app.py` a pelo 35 s sin un solo `Traceback` ni un
+  `invalid command name`
+- **Recuento de filas**: 30 antes y 30 después, en la copia. En la **real**, `sha256
+  24288986ac92…` **idéntico** antes y después de los tres arranques y las ocho capturas: la
+  biblioteca del usuario no se ha tocado
+- **El `wraplength` de la sinopsis se resolvió recalculando en `<Configure>`**, no cambiando de
+  contenedor. La columna de información lleva su propio manejador con umbral de 8 px y de ahí salen
+  el envuelto del título, el de la sinopsis y el reenvuelto de los géneros. Medido: con la barra
+  desplegada la columna mide 866 y con la ventana estrecha 426, y el envuelto la sigue; plegar la
+  barra la lleva a 1 006 y la sinopsis **se queda en 592**, que es su tope de 74ch
+- **Qué animes se tocaron y cómo se dejaron**: en la **copia**, *One Piece* (`one-piece`) — se le
+  cambiaron los cuatro estados, se le marcó del episodio 1 al 5, se le desmarcó el 3 y se migró su
+  fila a `one-piece-en-jkanime`. En la **real**, ninguno: solo se abrieron fichas (*One Piece*, *Ao
+  no Hako*) y se desplegaron servidores, que no escriben
+- **Lo que se ha visto en la app real**, con la biblioteca real:
+  - **One Piece desde Viendo**: póster 248 × 372 con esquinas redondeadas, «Proveedor: AnimeAV1» y
+    «En tu biblioteca: AnimeAV1» en gris, título a 30, sinopsis a 74ch, las cuatro fichas de género
+    con su contorno, **«1163 de 1174 vistos»** con su barra al 99 %, y los cuatro botones con
+    **Favorito y Viendo encendidos** (fucsia y turquesa) y Pendiente y Finalizado apagados
+  - **Servidores**: la fila del episodio se resalta con `CARD`, el número pasa a `ACCENT`, la línea
+    de estado dice «Servidores disponibles» y debajo sale el `CTkSegmentedButton` con **HLS ·
+    TeraBox · MP4Upload · Mega**. Volver a pulsar los repliega
+  - **Barra plegada**: la ficha se ensancha a 1 356 px y **la sinopsis no se recorta** — se queda en
+    su tope de lectura, que es justo lo que pide el último punto del checklist
+  - **Tema claro**: los dos botones encendidos salen en pastel sobre blanco y los apagados con borde
+    `LINE`; el ⚠ ámbar y las fichas de género se leen bien
+  - **Identidad partida forzada**: con **JKAnime** en el desplegable, *One Piece* —cuya fila es de
+    AnimeAV1— se re-localiza por título (`similitud 1.00`), la ficha sale con «Proveedor: JKAnime»,
+    **«⚠ En tu biblioteca: AnimeAV1»** en ámbar y el botón **«Actualizar a JKAnime»** arriba a la
+    derecha. La identidad de persistencia siguió siendo `one-piece`
+- **Dos defectos vistos en las capturas y arreglados en el sitio**: las fichas de género salían
+  **sin borde** (un `CTkFrame` transparente no lo pinta, y la etiqueta encima tapaba lo que quedaba)
+  y el botón de orden **decía «Mayor a menor» sobre una lista ascendente**. Los dos están en la
+  tabla de Decisiones
+- **Lo que NO se ha tocado**, que es la mitad del trabajo de esta fase: la identidad congelada, el
+  aviso de identidad partida, `__confirm_save()`, el marcado acumulativo y el `strict=True` de los
+  servidores. Se recolocaron y se comprobaron uno a uno
+- Pendiente que deja: para la **fase 9**, la petición de servidores en el hilo de Tkinter, las
+  **cuatro** clases huérfanas de `utilsButtons.py` y los géneros sin tildes que sirve el proveedor
+  («Accion», «Fantasia»)
+
+### Fase 8 · Paso 8.0 — Preparar los glifos y las medidas que faltaban          (2026-08-21)
+- Ficheros: `src/gui/components/status_pill.py` (0.2 → 0.3), `src/gui/theme.py`
+- Verificado: sí · los cuatro glifos **dibujados y mirados ampliados x10** (el corazón nuevo sale
+  simétrico, con hendidura y punta limpias a 14 px); el módulo importa sin errores
+- `StatusPill.icon()` gana un parámetro **`color`** con un par `(claro, oscuro)`. Sin él se comporta
+  **exactamente como antes** —la variante oscura del estado en los dos temas, que es lo que necesita
+  un sello sobre la carátula—, así que las dos vistas que ya lo usan (Finalizados y Buscar) no
+  cambian de comportamiento. Con él, el glifo se dibuja **dos veces**, una por tema, que es lo que
+  hacen falta en los botones de estado de la ficha: van sobre el fondo de la aplicación, no sobre un
+  póster
+- 🔴 **«Favorito» ya tiene glifo.** Hasta ahora `_GLYPHS` solo traía los tres excluyentes y
+  `icon(FAVOURITE)` devolvía `None` (decisión de la fase 6). El botón «Favorito» de la ficha necesita
+  su corazón, así que se ha añadido. Que la pestaña de favoritos no se selle a sí misma lo sigue
+  garantizando `other_status()`, que nunca devuelve FAVOURITE. **Efecto colateral visible y buscado**:
+  el sello «Favorito» de **Buscar** —el único sitio que lo pinta, cuando un resultado está guardado
+  solo como favorito— pasa a llevar corazón como los otros tres llevan el suyo
+- `Metrics` gana `STATUS_BUTTON_RADIUS = 9` y `STATUS_BUTTON_GAP = 10`, que estaban en `DISENO.md` §3
+  («Botón de estado de la ficha | alto 40 · radio 9 · 4 en fila con hueco 10») y no en `theme.py`
+- **`src/gui/anime_window.py` sigue intacto**: la app arranca exactamente igual que en `a41c699`
+- Pendiente que deja: los pasos 8.1, 8.2 y 8.3 enteros
 
 ### Fase 7 · Pasos 7.2, 7.3 y 7.4 — sello «ya lo tienes», paginación real y la vista          (2026-08-21)
 - Ficheros: `src/gui/sidebarButtons/searchAnimes/searchAnimes.py` (reescrito, 372 → 455 líneas),

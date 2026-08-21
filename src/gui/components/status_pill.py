@@ -1,7 +1,7 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "gui.components"
 __module__ = "status_pill.py"
-__version__ = "0.2"
+__version__ = "0.3"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 """Píldora de estado: «Viendo», «Pendiente», «Finalizado» o «Favorito».
@@ -93,20 +93,38 @@ def _list_glyph(draw: ImageDraw.ImageDraw, size: float, color: str) -> None:
         draw.ellipse([center_x - bullet, y - bullet, center_x + bullet, y + bullet], fill=color)
 
 
-#: Cómo se dibuja el glifo de cada estado. Solo están los **tres excluyentes**:
-#: son exactamente los que puede devolver ``other_status()`` y los únicos que el
-#: sello llega a enseñar. «Favorito» no tiene glifo a propósito — la pestaña de
-#: favoritos no se sella a sí misma (`DISENO.md` §6: ningún dato repetido).
+def _heart_glyph(draw: ImageDraw.ImageDraw, size: float, color: str) -> None:
+    """Un corazón: los dos lóbulos como círculos y la punta como triángulo."""
+    # El triángulo arranca en el centro vertical de los lóbulos, no debajo: si
+    # empieza más abajo queda un escalón visible entre el círculo y el pico.
+    lobe = size * 0.27
+    top = size * 0.32
+    draw.ellipse([size * 0.02, top - lobe, size * 0.02 + 2 * lobe, top + lobe], fill=color)
+    draw.ellipse([size * 0.98 - 2 * lobe, top - lobe, size * 0.98, top + lobe], fill=color)
+    draw.polygon([(size * 0.02, top), (size * 0.98, top), (size * 0.5, size * 0.94)], fill=color)
+
+
+#: Cómo se dibuja el glifo de cada estado. Están **los cuatro**: los tres
+#: excluyentes, que son los que puede devolver ``other_status()``, y «Favorito»,
+#: que hace falta desde la fase 8 en los botones de estado de la ficha.
+#:
+#: ⚠️ Hasta entonces «Favorito» devolvía ``None`` a propósito, porque la pestaña
+#: de favoritos no se sella a sí misma (`DISENO.md` §6: ningún dato repetido).
+#: Eso lo sigue garantizando ``other_status()``, que nunca lo devuelve; lo que
+#: cambia es que el sello «Favorito» de **Buscar** —el único sitio que sí lo
+#: pinta, cuando un resultado está guardado solo como favorito— pasa a llevar su
+#: corazón como los otros tres llevan el suyo.
 _GLYPHS: Dict[AnimeStatus, Callable[[ImageDraw.ImageDraw, float, str], None]] = {
-    AnimeStatus.WATCHING: _eye_glyph,
-    AnimeStatus.FINISHED: _check_glyph,
-    AnimeStatus.PENDING:  _list_glyph,
+    AnimeStatus.FAVOURITE: _heart_glyph,
+    AnimeStatus.WATCHING:  _eye_glyph,
+    AnimeStatus.FINISHED:  _check_glyph,
+    AnimeStatus.PENDING:   _list_glyph,
 }
 
 #: Glifos ya construidos, indexados por (estado, tamaño). Un ``CTkImage`` se
 #: puede compartir entre widgets: con doce celdas por página, dibujarlo una vez
 #: ahorra once dibujos por repintado.
-_ICON_CACHE: Dict[Tuple[AnimeStatus, int], ctk.CTkImage] = {}
+_ICON_CACHE: Dict[Tuple[AnimeStatus, int, Optional[ColorToken]], ctk.CTkImage] = {}
 
 
 class StatusPill(ctk.CTkLabel):
@@ -154,45 +172,63 @@ class StatusPill(ctk.CTkLabel):
         return text_color, fg_color
 
     @staticmethod
-    def icon(status: AnimeStatus, size: int = ICON_SIZE) -> Optional[ctk.CTkImage]:
-        """Glifo del estado, listo para ponerlo delante del texto de un **sello**.
+    def icon(status: AnimeStatus, size: int = ICON_SIZE,
+             color: Optional[ColorToken] = None) -> Optional[ctk.CTkImage]:
+        """Glifo del estado, listo para ponerlo delante de un texto.
 
-        Devuelve ``None`` para los estados sin glifo —hoy solo «Favorito»—, así
-        que quien lo pinte tiene que tolerarlo: una etiqueta sin ``image`` sale
-        con el texto solo, que es exactamente lo que se quiere.
+        Devuelve ``None`` para los estados sin glifo. Hoy los tiene los cuatro,
+        pero quien lo pinte tiene que seguir tolerándolo: una etiqueta sin
+        ``image`` sale con el texto solo, que es exactamente lo que se quiere.
 
-        ⚠️ **Se tiñe con la variante oscura del color del estado, en los dos
-        temas.** El sello va sobre ``Theme.BADGE_BG``, que es una superficie
-        oscura tanto en claro como en oscuro porque se superpone a la carátula y
-        no al fondo de la aplicación; usar ahí la variante clara (``FIN_TXT[0]``
-        es un verde oscuro) dejaría el glifo casi invisible justo en el tema en
-        el que el diseño pide comprobar la legibilidad.
+        ⚠️ **Sin ``color``, se tiñe con la variante oscura del color del estado
+        en los dos temas.** Es lo que necesita un **sello**, que va sobre
+        ``Theme.BADGE_BG``: una superficie oscura tanto en claro como en oscuro,
+        porque se superpone a la carátula y no al fondo de la aplicación. Usar
+        ahí la variante clara (``FIN_TXT[0]`` es un verde oscuro) dejaría el
+        glifo casi invisible justo en el tema en el que el diseño pide comprobar
+        la legibilidad.
+
+        Con ``color``, el glifo se dibuja **dos veces**, una por tema, y el
+        cambio de apariencia lo resuelve CustomTkinter. Es lo que hace falta
+        cuando el glifo va sobre el fondo de la aplicación y no sobre una
+        carátula: los botones de estado de la ficha, que lo pintan del color del
+        estado cuando están encendidos y de ``TXT_2`` cuando no.
 
         :param status: estado del que se quiere el glifo.
         :param size: lado del dibujo. El ancho de la imagen es ``size`` más el
             hueco que la separa del texto.
+        :param color: par ``(claro, oscuro)`` con el que teñirlo.
         """
         draw_glyph = _GLYPHS.get(status)
         if draw_glyph is None:
             return None
 
-        key = (status, size)
+        key = (status, size, color)
         cached = _ICON_CACHE.get(key)
         if cached is not None:
             return cached
 
-        color = StatusPill.colors(status)[0][1]
+        if color is None:
+            dark_variant = StatusPill.colors(status)[0][1]
+            tones = (dark_variant, dark_variant)
+        else:
+            tones = color
+        light_glyph, dark_glyph = (StatusPill.__draw(draw_glyph, size, tone) for tone in tones)
+
+        image = ctk.CTkImage(light_image=light_glyph, dark_image=dark_glyph,
+                             size=(size + _ICON_GAP, size))
+        _ICON_CACHE[key] = image
+        return image
+
+    @staticmethod
+    def __draw(draw_glyph: Callable[[ImageDraw.ImageDraw, float, str], None],
+               size: int, color: str) -> Image.Image:
+        """Dibuja un glifo supermuestreado y lo reduce al tamaño pedido."""
         big = size * _SUPERSAMPLE
         gap = _ICON_GAP * _SUPERSAMPLE
         glyph = Image.new("RGBA", (big + gap, big), (0, 0, 0, 0))
         draw_glyph(ImageDraw.Draw(glyph), big, color)
-        glyph = glyph.resize((size + _ICON_GAP, size), Image.LANCZOS)
-
-        # La misma imagen en los dos temas: el fondo del sello no cambia con la
-        # apariencia, así que el glifo tampoco tiene por qué.
-        image = ctk.CTkImage(light_image=glyph, dark_image=glyph, size=(size + _ICON_GAP, size))
-        _ICON_CACHE[key] = image
-        return image
+        return glyph.resize((size + _ICON_GAP, size), Image.LANCZOS)
 
     @staticmethod
     def other_status(anime_record: AnimeRecord,
