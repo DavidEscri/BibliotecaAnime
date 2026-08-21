@@ -1,7 +1,7 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "sidebarButtons"
 __module__ = "watchingAnimes.py"
-__version__ = "0.3"
+__version__ = "0.4"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 import os
@@ -10,11 +10,14 @@ import customtkinter as ctk
 from typing import List, Optional, Union
 
 from APIs.common.animeProviderMgr import AnimeProviderManager, AnimeProviderManagerSingleton
-from dataPersistence.animesPersistence import AnimesPersistence, AnimesPersistenceSingleton, AnimeRecord
+from dataPersistence.animesPersistence import (AnimesPersistence, AnimesPersistenceSingleton, AnimeRecord,
+                                               AnimeStatus)
 from gui.anime_window import open_saved_anime
 from gui.components.anime_row import AnimeRow, RowAction
+from gui.components.empty_state import EmptyState, ICON_SIZE as EMPTY_ICON_SIZE
 from gui.components.resume_card import resume_progress
 from gui.components.side_panel import SidePanel
+from gui.components.status_pill import StatusPill
 from gui.components.view_header import ViewHeader
 from gui.theme import Metrics, Theme
 from utils.buttons import utilsButtons
@@ -33,8 +36,12 @@ class WatchingAnimeButton(utilsButtons.SidebarButton):
     """
 
     def __init__(self, main_window, icon_path, row, column):
-        # icon_path_light = os.path.join(icon_path, "viendo_light.png")
-        # icon_path_dark = os.path.join(icon_path, "viendo_dark.png")
+        # ⚠️ `viendo_light.png` y `viendo_dark.png` existen en resources/ y su uso
+        # llevaba comentado desde antes del rediseño. El paso 9.4 lo retiró en vez
+        # de activarlo: **los dos dibujos son de tinta negra sobre transparente**,
+        # así que como par (claro, oscuro) el del tema oscuro sería invisible. El
+        # icono único sí vale porque es bicolor —silueta negra y relleno blanco— y
+        # se lee sobre los dos fondos.
         icon_path_light = icon_path_dark = os.path.join(icon_path, "viendo.png")
         super().__init__(main_window.sidebar_frame, "Viendo", row, column, self.show_watching_animes, icon_path_light, icon_path_dark)
 
@@ -76,15 +83,15 @@ class WatchingAnimeButton(utilsButtons.SidebarButton):
         self.__build_search_controls(header)
 
         if not watching_animes:
-            empty_label = ctk.CTkLabel(
+            empty_state = EmptyState(
                 content,
-                text="Todavía no estás viendo ningún anime.\n"
-                     "Marca uno como «Viendo» desde su ficha y aparecerá aquí.",
-                font=Theme.font(*Theme.T_ROW),
-                text_color=Theme.TXT_2,
-                justify="center"
+                "No tienes nada a medias",
+                icon=StatusPill.icon(AnimeStatus.WATCHING, EMPTY_ICON_SIZE, Theme.TXT_3, gap=0),
+                hint="Marca un anime como «Viendo» desde su ficha y aparecerá aquí.",
+                action_text="Ir a Pendientes",
+                on_action=lambda: self.main_window.navigate_to("Pendientes")
             )
-            empty_label.grid(row=1, column=0, pady=(40, 0))
+            empty_state.grid(row=1, column=0, pady=(60, 0))
             return
 
         body = ctk.CTkFrame(content, height=1, corner_radius=0, fg_color=Theme.TRANSPARENT)

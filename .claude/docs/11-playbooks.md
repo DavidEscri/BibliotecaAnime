@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-08-17 · **Commit** `e337d20` (rama `main`, tag `v0.2.1`) · árbol **limpio** |
+| **Fecha** | 2026-08-21 · rama `feature/ui-redisign` · árbol **con la fase 9 del rediseño sin commitear** |
 | **Última revisión** | 2026-08-17: **§6 reescrito** — 8 pasos en vez de 6, con la verificación compilando, la regla de no volver a meter datos de usuario en `datas`, la copia de los ficheros legales tras `COLLECT` y la regeneración de `THIRD-PARTY-NOTICES.txt`. Antes, 2026-08-16: §2 reescrito con el **caso real ya ejecutado** (`provider_id` en medio del enum, con reconstrucción de tabla) y §3 con el paso 0 nuevo — añadir un proveedor empieza por `AnimeProviderId` |
 | **Cubre** | recetas operativas sobre los 19 módulos de `src/` + `MiBibliotecaAnime.spec` |
 
@@ -70,6 +70,41 @@ Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ si
 - [ ] Cambiar a otra vista y volver **no** deja widgets huérfanos.
 - [ ] La carpeta de pósters está en `.gitignore` si se genera en runtime.
 - [ ] `hiddenimports` actualizado.
+
+---
+
+## §1b — Añadir un componente compartido *(nuevo, 2026-08-21)*
+
+Antes de escribir un widget en una vista, pregúntate si lo va a necesitar otra. Si sí, va en
+`src/gui/components/`.
+
+1. **Fichero nuevo** en `src/gui/components/<nombre>.py`, con la cabecera obligatoria
+   ([08](08-convenciones-y-estilo.md)) y un docstring que diga **qué problema resuelve**, no qué
+   pinta.
+2. **Importa de `gui.theme`, nunca colores ni medidas literales.** Si necesitas un color que no está
+   en `Theme`, se añade el token **primero**.
+3. **No conozcas a `MainWindow`.** Un componente recibe datos y callbacks; el hub lo compone la
+   vista. (`Sidebar` es la excepción y está documentada como tal: necesita el hub para el proveedor
+   y las preferencias.)
+4. **Declara `height=` explícito** en todo marco decorativo o que vaya a nacer vacío
+   ([trampa 29](10-invariantes-y-trampas.md)).
+5. **Añádelo a `hiddenimports`** en `MiBibliotecaAnime.spec`. Sin esto compila, pero el `.exe`
+   revienta al arrancar.
+6. **Documéntalo** en [02](02-mapa-de-modulos.md) (tabla de componentes) y en
+   [06 §6](06-gui-y-vistas.md).
+
+🔴 **Si una vista necesita una variante, se añade un parámetro, no una copia del fichero.** Es la
+regla que mantuvo `AnimeRow` en un solo módulo para «Viendo» y «Pendientes» —dos parámetros de
+diferencia— y `PosterGrid` sirviendo a tres rejillas distintas. En cuanto se bifurca, un arreglo se
+aplica en un sitio y se olvida en el otro.
+
+**Checklist**
+
+- [ ] Cabecera de módulo completa.
+- [ ] Ni un color ni una medida literal.
+- [ ] `height=` en los marcos vacíos.
+- [ ] Declarado en `hiddenimports` **y** el `.exe` compilado y arrancado.
+- [ ] Fichas en [02](02-mapa-de-modulos.md) y [06](06-gui-y-vistas.md).
 
 ---
 
@@ -380,34 +415,48 @@ la sesión, y un **pin** al lado escribe en `DB_user.db`.
 
 ---
 
-## §5 — Activar los iconos claro/oscuro
+## §5 — Iconos claro/oscuro: **hay que redibujarlos, no activarlos** ⚠️
 
-Los PNG **ya existen** en `resources/images/utils/` (`viendo_light/dark.png`,
-`pendientes_light/dark.png`) pero están **sin trackear en git** y su uso está **comentado**.
+> 🔴 **Este playbook decía lo contrario hasta el 2026-08-21.** Mandaba descomentar dos líneas en
+> `watchingAnimes.py` y `pendingAnimes.py` para usar `viendo_light/dark.png` y
+> `pendientes_light/dark.png`. **No funciona**, y el paso 9.4 del rediseño retiró ese código
+> comentado en vez de activarlo.
 
-**Ficheros a tocar**: `src/gui/sidebarButtons/watchingAnimes/watchingAnimes.py:23-25` y
-`src/gui/sidebarButtons/pendingAnimes/pendingAnimes.py:23-25`.
+**Por qué no funciona**: ✅ comprobado abriendo los cuatro PNG, **los dos dibujos de cada par son de
+tinta negra sobre transparente**. El nombre miente: no son una variante clara y otra oscura, son dos
+dibujos alternativos del mismo icono. Usados como par `(claro, oscuro)`, el del tema oscuro sería
+**invisible sobre el fondo `PANEL`**, que es casi negro.
+
+El icono único que se usa hoy funciona porque es **bicolor** —silueta negra y relleno blanco—, así
+que se lee sobre los dos fondos.
+
+**Qué hacer si se quieren pares de verdad**: **redibujarlos**, que es además la salida de la deuda
+**B11** ([12 §4](12-deuda-tecnica-y-roadmap.md)) — los iconos actuales son de origen desconocido y
+probablemente incompatibles con la GPL del proyecto. El rediseño ya dibujó con PIL, en tiempo de
+ejecución, el pin del proveedor, las estrellas de la calificación, los cuatro glifos de estado y los
+dos iconos de estado vacío. La receta está en `gui/components/status_pill.py` y
+`gui/components/empty_state.py`:
 
 ```python
-# Descomentar estas dos:
-icon_path_light = os.path.join(icon_path, "viendo_light.png")
-icon_path_dark  = os.path.join(icon_path, "viendo_dark.png")
-# y borrar esta:
-# icon_path_light = icon_path_dark = os.path.join(icon_path, "viendo.png")
+_SUPERSAMPLE = 8                       # dibujar a 8x y reducir con LANCZOS: sin esto sale dentado
+big = size * _SUPERSAMPLE
+canvas = Image.new("RGBA", (big, big), (0, 0, 0, 0))
+draw_glyph(ImageDraw.Draw(canvas), big, color)
+small = canvas.resize((size, size), Image.LANCZOS)
+# Una imagen por tema, y del cambio de apariencia se encarga CustomTkinter:
+ctk.CTkImage(light_image=claro, dark_image=oscuro, size=(size, size))
 ```
 
-⚠️ **Los 4 PNG están sin trackear** (`?? resources/images/utils/…`). Hay que **añadirlos a git**
-antes o el `.exe` y cualquier clon se quedarán sin ellos. (Yo no ejecuto comandos de git — te toca.)
-
-Para el resto de vistas hay que **crear** las variantes primero; hoy las 6 pasan el mismo fichero
-para claro y oscuro, así que `update_icon()` (`utilsButtons.py:78-80`) no cambia nada visible.
+Dos detalles que se pagan si no se saben: **PIL no tiene extremos de línea redondeados** (se rematan
+con un círculo del ancho del trazo), y **pintar con alfa 0 borra**, que es como se abre el canal de
+la barra diagonal del icono «sin conexión».
 
 **Checklist**
 
-- [ ] Los PNG están trackeados en git.
-- [ ] Light → Dark → System cambia el icono de «viendo» y «pendientes».
-- [ ] El icono se ve bien sobre ambos fondos.
-- [ ] `resources/images/utils` sigue en `datas` del `.spec` (`:19`) — ya lo está.
+- [ ] El icono nuevo se dibuja con PIL y se cachea; **no** entra un PNG más en `resources/`.
+- [ ] Mirado **ampliado x10** sobre los dos fondos reales antes de darlo por bueno.
+- [ ] Light → Dark → System cambia el icono sin reconfigurar nada.
+- [ ] Los cuatro PNG viejos siguen sin trackear y sin usar; **no los añadas a git**.
 
 ---
 
@@ -415,7 +464,7 @@ para claro y oscuro, así que `update_icon()` (`utilsButtons.py:78-80`) no cambi
 
 **Pasos**
 
-1. **Revisa `hiddenimports`.** ✅ **Ya no hay nada pendiente aquí.** Entre el 2026-08-06 y el
+1. **Revisa `hiddenimports`.** ✅ **Al día el 2026-08-21**: **30** nombres, auditados en las dos direcciones con AST —todos resuelven a un fichero real de `src/` y ningún módulo de `src/` queda sin declarar, salvo `app.py`, que es el script de entrada. El rediseño añadió `gui.theme` y los **11** `gui.components.*`. 🔴 **Todo módulo nuevo bajo `src/` hay que declararlo aquí**, o el `.exe` compila y revienta al arrancar. Antes, Entre el 2026-08-06 y el
    2026-08-07 se añadieron `APIs.animeav1.animeav1`, `APIs.jkanime.jkanime`,
    `APIs.common.animeProviderMgr`, `APIs.common.models` y `dataPersistence.userPersistence`; se
    corrigió `gui.anime_windows` → `gui.anime_window` (`d99a2ee`) y se retiró el fantasma

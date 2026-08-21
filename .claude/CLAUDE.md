@@ -18,7 +18,7 @@ internamente lo pedido usando [`.claude/COMO-PEDIR-TAREAS.md`](COMO-PEDIR-TAREAS
    primero que hay que aclarar, y lo que más cambia el tamaño del trabajo.
 3. **Ficheros exactos y frontera de alcance.** Las 4 vistas de estado son casi idénticas línea por
    línea: decide si la tarea afecta a una o a las cuatro.
-4. **¿Es una trampa conocida?** Coteja con `docs/10-invariantes-y-trampas.md` (**28** trampas con su
+4. **¿Es una trampa conocida?** Coteja con `docs/10-invariantes-y-trampas.md` (**35** trampas con su
    síntoma) **antes** de investigar desde cero.
 5. **Nivel de verificación** — ejecutar la GUI · script en el scratchpad · solo lectura. No hay
    tests: si no se ejecuta, se entrega marcado como no verificado.
@@ -218,10 +218,29 @@ Para añadir una columna o una tabla → `docs/11 §2` y `§2b`. **La migración
 
 ### 3. GUI (`src/gui/`)
 
-`MainWindow` (CTk) es el **hub compartido**: mantiene `content_frame` (un `CTkScrollableFrame` único que todas las
-vistas reutilizan), `sidebar_frame`, las listas cacheadas (`recent_animes`, `favourite_animes`, …),
-`animes_persistence`, `user_persistence`, `anime_provider_mgr` y `last_search_instance`. Cada vista recibe
-`main_window` y muta ese estado directamente; no hay router ni gestor de vistas.
+**Rediseñada por completo entre el 2026-08-20 y el 2026-08-21** (plan de 9 fases en
+[`.claude/plan-rediseno/`](plan-rediseno/README.md)). La GUI pasó de 1 800 a **6 800** líneas y ganó
+dos piezas que antes no existían:
+
+- **`gui/theme.py`** — `Theme` (20 tokens de color en tuplas `(claro, oscuro)` + tipografía) y
+  `Metrics` (medidas). 🔴 **Ningún color literal fuera de este módulo**; si hace falta uno que no
+  está, se añade el token primero. Comprobable: `git grep -nE "#[0-9A-Fa-f]{6}" -- src/` solo debe
+  devolver `theme.py`.
+- **`gui/components/`** — **11** piezas compartidas: `Sidebar`, `ViewHeader`, `PosterGrid`, `Pager`,
+  `AnimeRow`, `SidePanel`, `ResumeBand`, `RatingStars`, `StatusPill`, `GenreChips` y `EmptyState`.
+
+🔴 **Una vista compone, no dibuja.** Si necesita una variante de un componente, **se le añade un
+parámetro; no se bifurca el fichero**. Es lo que mantiene `AnimeRow` en un solo módulo para «Viendo»
+y «Pendientes», y `PosterGrid` sirviendo a las tres rejillas.
+
+`MainWindow` (CTk) sigue siendo el **hub compartido**: mantiene `content_frame` (un
+`CTkScrollableFrame` único que todas las vistas reutilizan), `sidebar_frame`, las listas cacheadas
+(`recent_animes`, `favourite_animes`, …), `animes_persistence`, `user_persistence`,
+`anime_provider_mgr` y `last_search_instance`. Cada vista recibe `main_window` y muta ese estado
+directamente; no hay router ni gestor de vistas.
+
+Añade `navigate_to(etiqueta)` —abrir otra vista por su etiqueta de barra lateral, que es lo que usan
+los botones de los estados vacíos— y `retry_recent_animes()`.
 
 Arranque:
 0. `__init__` registra los proveedores y arranca `UserPersistence` **de forma síncrona** para aplicar el proveedor
@@ -232,31 +251,75 @@ Arranque:
 3. Tras mostrar la portada, un segundo hilo (`__preload_recent_animes_info`) rellena sinopsis/géneros/episodios de cada
    anime reciente para que el clic sea instantáneo, escribiendo en `self.recent_animes[index]`.
 
-**Botones de la sidebar** (`gui/sidebarButtons/<vista>/`): heredan de `utilsButtons.SidebarButton`, se instancian en
-`MainWindow.load_sidebar_buttons()` y siguen todos el mismo patrón — `show_frame()` → `clear_frame()` →
-construir widgets en `main_window.content_frame` → `__on_anime_click()` → la ficha.
-Para una vista nueva: heredar de `SidebarButton`, implementar `show_frame()` y registrarla en `load_sidebar_buttons()`.
+🔴 **La pantalla de carga se `destroy()` —no se esconde— y se retira también cuando no hay estrenos.**
+Hasta el 2026-08-21 solo se retiraba en la rama de éxito, así que **un arranque sin red dejaba el GIF
+tapando la portada para siempre**; y como el widget seguía vivo, su animación se reprogramaba cada
+100 ms toda la sesión ([trampa 33](docs/10-invariantes-y-trampas.md)).
 
-**Las 4 vistas de estado ya no son iguales que las otras dos** (2026-08-16): trabajan con la
-biblioteca, no con el catálogo.
+**La barra lateral** la construye y la mantiene `gui/components/sidebar.py`. Se **pliega** (224 → 84 px)
+y recuerda su estado en `DB_user.db`. Los seis destinos van en este orden: Nuevos lanzamientos ·
+Favoritos · Viendo · Pendientes · Finalizados · Buscar — **ninguno lleva ya la palabra «Anime»**.
+
+🔴 **`SidebarButton` ya no es un widget** (`utils/buttons/utilsButtons.py`): es una clase llana que
+solo describe el destino (`sidebar_text`, `sidebar_command`, `sidebar_icon(size)`). La firma del
+constructor no cambió, así que las seis vistas heredan igual. Quien pinta es `Sidebar`; si necesitas
+el destino como widget, **no existe**.
+
+**Vistas** (`gui/sidebarButtons/<vista>/`): heredan de `utilsButtons.SidebarButton`, se instancian en
+`MainWindow.load_sidebar_buttons()` y siguen todas el mismo patrón — `show_frame()` → `clear_frame()`
+→ componer en `main_window.content_frame` → `__on_anime_click()` → la ficha.
+Para una vista nueva: heredar de `SidebarButton`, implementar `show_frame()`, registrarla en
+`load_sidebar_buttons()` **y declararla en `hiddenimports` del `.spec`**
+([`docs/11 §1`](docs/11-playbooks.md)).
+
+⚠️ **`clear_frame()` destruye los hijos, no la configuración de rejilla del `content_frame`.** Los
+pesos de filas y columnas **sobreviven**, y una columna con peso y sin widgets también recibe el
+espacio sobrante: toda vista que reparta peso tiene que deshacerlo al salir
+([trampa 32](docs/10-invariantes-y-trampas.md)).
+
+**Las 4 vistas de biblioteca no son iguales que las otras dos**: trabajan con lo guardado, no con el
+catálogo.
 
 - Su clic delega en **`open_saved_anime()`** (`anime_window.py`), que elige el proveedor y saca la
   petición del hilo de Tkinter. Las otras dos abren la ficha con el proveedor que ya conocen.
 - Su buscador es **local** (`SavedAnimeSearch`): compara títulos guardados, funciona sin conexión y no
-  depende del proveedor seleccionado; la búsqueda web se **suma** encima y nunca quita resultados.
-  Antes cruzaba por slug y perdía animes según el proveedor puesto —One Piece está guardado como
-  `one-piece-tv`— ([trampa 26](docs/10-invariantes-y-trampas.md)).
-- Su rejilla usa **3 filas de grid** por fila visual (póster / título / proveedor), no 2.
+  depende del proveedor seleccionado; la búsqueda web se **suma** encima y nunca quita resultados
+  ([trampa 26](docs/10-invariantes-y-trampas.md)).
+- **Enseñan siempre el proveedor de la fila**, porque puede no ser el seleccionado.
+- El acordeón «Abrir filtro de animes» **desapareció de las cuatro**: no está en el diseño y filtrar
+  por género lo que ya es tuyo no aporta. Si el filtrado vuelve, el sitio es `GenreChips`.
+
+**Cómo se ve cada vista** — rejilla donde se mira, cascada donde se decide:
+
+| Vista | Disposición | Paginador |
+|---|---|---|
+| Nuevos lanzamientos | banda «Retomar» + rejilla de **6** (176 × 264) | 12 |
+| Favoritos | rejilla de **5** (216 × 324) + calificación en estrellas | 10 |
+| Viendo | cascada de `AnimeRow` + panel lateral de 290 px | — |
+| Pendientes | cascada de `AnimeRow`, orden por duración, «Empezar» en hover | — |
+| Finalizados | rejilla de **6** con el sello «vistos / totales» | 12 |
+| Buscar | campo de 620 px + `GenreChips` + rejilla de **6** | del proveedor |
+
+⚠️ **Los contadores de la barra salen de las listas cacheadas del hub, y esas listas solo se llenan al
+arrancar.** Quien cambie un estado tiene que **releerlas** antes de llamar a
+`refresh_sidebar_counts()` ([trampa 31](docs/10-invariantes-y-trampas.md)).
 
 ⚠️ **Todo lo que abra una ficha va en hilo daemon y repinta con `after(0, …)`.** Hacerlo desde el hilo
 secundario revienta con `invalid command name ...!ctkcanvas` al destruir una vista que tenía un
 `<Configure>` encolado.
 
-**`AnimeWindowViewer`** (`gui/anime_window.py`) no es una ventana: reemplaza el contenido de `content_frame`. Muestra
-el bloque de proveedor + póster + sinopsis + géneros, los 4 botones de estado y la lista de episodios
-(**los 25 primeros**, `[:25]`).
+**`AnimeWindowViewer`** (`gui/anime_window.py`, 1 734 líneas) no es una ventana: reemplaza el contenido
+de `content_frame`. Muestra el bloque de proveedor + póster de 248 × 372 + sinopsis + géneros, los 4
+botones de estado y la lista de episodios (**los 25 primeros**, `[:25]`).
 Marcar un episodio como visto es **acumulativo**: marca todos los anteriores hasta ése; desmarcar afecta solo a ese
 episodio. Conserva en BD los episodios posteriores ya vistos.
+
+Lo que cambió con el rediseño: **los 4 botones se encienden y se apagan** en vez de cambiar de texto,
+y comparten un único `command`; **`EpisodeRow` sustituye al botón de ancho completo** que repetía el
+título del anime veinticinco veces; las filas van en las posiciones **pares** de la rejilla y los
+servidores en la impar de debajo, así que desplegarlos no empuja nada; el corte de 25 **se anuncia en
+pantalla**; y el botón de orden dice **el orden que llega del proveedor**, que no es el mismo en
+todos. La ficha además **refresca los contadores** de la barra al cambiar un estado.
 
 **El bloque de proveedor** son hasta tres líneas: `Proveedor: X` (de dónde vienen los datos que ves),
 `En tu biblioteca: Y` (de quién es tu fila) y el botón «Actualizar a Z». **El ⚠ ámbar compara las dos
@@ -278,7 +341,10 @@ normalizado** (umbral 0.9) y avisa nombrando la sección concreta, porque un mis
 distinto en cada sitio y la comprobación por `anime_id` no lo detecta.
 
 **Imágenes** (`utils/utils.py`): los pósters se guardan como `{anime_id}.jpg` en `resources/images/<categoría>/`,
-redimensionados a `(130, 185)`; la ficha de detalle los pide a `(195, 275)`. `get_anime_image()` busca en las **6**
+redimensionados a **`(248, 372)`** desde el rediseño —el mayor tamaño que pide cualquier vista— y cada
+vista reduce con su propio `size=` al construir el `CTkImage`. ⚠️ Ese valor está **duplicado a mano**
+en `utils/utils.py:24-33` y en `Metrics.POSTER_CACHE_SIZE`, porque `utils/` no puede importar de
+`gui/`: si cambia uno, cambia el otro. La ficha de detalle los pide a `(195, 275)`. `get_anime_image()` busca en las **6**
 categorías (`favourite`, `watching`, `finished`, `pending`, `recent_animes` y `search`) antes de bajarlo de la
 red, y en esa rama pasa `size=` explícito — sin él `CTkImage` pinta a 20×20. Las descargas van en un
 `ThreadPoolExecutor` de 8 workers y borran del disco lo que ya no está en la lista actual.
@@ -287,8 +353,9 @@ red, y en esa rama pasa `size=` explícito — sin él `CTkImage` pinta a 20×20
 
 - Toda petición HTTP va en un hilo daemon; nunca en el hilo de Tkinter.
 - Para reprogramar trabajo en el hilo de UI, usar `self.after(delay, callback)`.
-- Las vistas existentes llaman a `time.sleep(0.1)` justo después de `clear_frame()` en el hilo principal (patrón
-  heredado para dejar que Tk procese el destroy). No añadas más `sleep` en el hilo de UI en código nuevo.
+- ⚠️ **El `time.sleep(0.1)` tras `clear_frame()` desapareció de las seis vistas.** Solo estaba para que
+  `winfo_width()` no valiera 1 al calcular columnas; con rejillas de número fijo no se mide nada. **No
+  lo reintroduzcas**, ni añadas ningún `sleep` en el hilo de UI.
 - Antes de tocar un widget desde un callback diferido, comprobar `widget.winfo_exists()` — el frame puede haberse
   destruido (ver `__show_loading_frame` en `searchAnimes.py`).
 
@@ -311,21 +378,25 @@ red, y en esa rama pasa `size=` explícito — sin él `CTkImage` pinta a 20×20
 
 ## Notas de mantenimiento
 
-- **`MiBibliotecaAnime.spec`**: `hiddenimports` quedó **completo y sin fantasmas el 2026-08-07**. ✅ Comprobado uno a
-  uno: los **18** nombres declarados resuelven a ficheros reales de `src/`, y el único módulo que no figura es
-  `app.py`, que es el script de entrada. ✅ **Verificado compilando el 2026-08-17**: `pyinstaller` termina sin
-  errores y el `.exe` resultante arranca. Revísalo al añadir módulos o carpetas de `resources/` (sección `datas`).
+- **`MiBibliotecaAnime.spec`**: `hiddenimports` quedó **completo y sin fantasmas el 2026-08-21**, con **30**
+  nombres. ✅ Auditado con AST en las dos direcciones: los 30 resuelven a ficheros reales de `src/`, y
+  **ningún módulo de `src/` queda sin declarar** salvo `app.py`, que es el script de entrada. El
+  rediseño añadió `gui.theme` y los **11** `gui.components.*`. ✅ **Verificado compilando el
+  2026-08-21**: `pyinstaller` termina sin errores y el `.exe` **abre su ventana y sigue vivo a los
+  40 s**. 🔴 **Todo módulo nuevo bajo `src/` hay que declararlo aquí**, o el `.exe` compila y revienta
+  al arrancar.
 - La versión de la app vive en `APP_VERSION` dentro del `.spec`.
 - `resources/DB/` y las carpetas de pósters están en `.gitignore`: se generan en tiempo de ejecución.
-- Hay **5** `# TODO:` en el código, en tres ficheros: `main_window.py:32` (quitar la palabra «Anime» de los
-  botones y el título), `anime_window.py:44-45,47` (recomendaciones por género; alternar anime/manga) y
-  `jkanime.py:191,264` (buscar en el directorio con texto vacío; acotar `get_recent_animes`). El del
-  selector de proveedor se cerró el 2026-07-30.
-  ⚠️ **Este apartado se ha equivocado dos veces y en direcciones opuestas**: hasta el 2026-08-07 citaba
-  dos TODOs inventados en `recentAnimes.py` y `utilsButtons.py`; desde entonces y hasta el 2026-08-16 se
-  dejó fuera los **dos reales de `jkanime.py`**, que entraron el 2026-08-06. Inventaríalos con
-  `git grep -n "TODO" -- src/` **después de cada cambio en `src/`**, no de memoria (detalle en
-  [`docs/12 §2`](docs/12-deuda-tecnica-y-roadmap.md)).
+- Hay **4** `# TODO:` en el código, en dos ficheros: `anime_window.py:134,137` (recomendaciones por
+  género; alternar anime/manga) y `jkanime.py:191,264` (buscar en el directorio con texto vacío;
+  acotar `get_recent_animes`). El del selector de proveedor se cerró el 2026-07-30 y el de
+  `main_window.py:32` —quitar «Anime» de los botones y el título— el 2026-08-20, con la fase 1 del
+  rediseño.
+  ⚠️ **Este apartado se ha equivocado tres veces**: hasta el 2026-08-07 citaba dos TODOs inventados;
+  hasta el 2026-08-16 se dejó fuera los dos reales de `jkanime.py`; y el 2026-08-21 el propio grep
+  devolvía 5 por un comentario que hablaba de uno ya cerrado. Inventaríalos con
+  `git grep -n "TODO" -- src/` **después de cada cambio en `src/`**, no de memoria, y **mira lo que
+  devuelve** (detalle en [`docs/12 §2`](docs/12-deuda-tecnica-y-roadmap.md)).
 - ✅ **`datas` del `.spec` ya no lleva datos de usuario** (2026-08-17). Hasta entonces empaquetaba `resources/DB` y
   las 6 carpetas de pósters, así que el `.exe` distribuía la biblioteca **y las preferencias** del desarrollador.
   Hoy contiene **solo `resources/images/utils`**: la app crea el resto en el primer arranque. **No las vuelvas a
@@ -338,13 +409,20 @@ red, y en esa rama pasa `size=` explícito — sin él `CTkImage` pinta a 20×20
   la §6 de la GPL y los avisos MIT/BSD/Apache/MPL de las dependencias. ⚠️ **`THIRD-PARTY-NOTICES.txt` caduca al tocar
   `requirements.txt`**; regenéralo ([`docs/11 §6`](docs/11-playbooks.md)). Estado completo en
   [`docs/12 §7`](docs/12-deuda-tecnica-y-roadmap.md).
-- En `resources/images/utils/` ya existen los iconos `viendo_light/dark.png` y `pendientes_light/dark.png`, pero su uso
-  está comentado en `watchingAnimes.py` y `pendingAnimes.py` (siguen con el icono único).
-- Los iconos del pin (`fijado_light/dark.png`, `no_fijado_light/dark.png`) se **generaron con PIL**; el
-  script está en el scratchpad de la sesión, no en el repo. Si hay que retocarlos, se redibujan: son
-  cuatro polígonos. ⚠️ Se distinguen por **color** (azul/gris), no por relleno vs. contorno — la
-  silueta contorneada es ilegible a los 20×20 a los que se pintan.
-- ⚠️ **El resto de iconos de la sidebar y los dos GIF de carga son de origen desconocido** y
+- ⚠️ **Los iconos `viendo_light/dark.png` y `pendientes_light/dark.png` existen en
+  `resources/images/utils/` pero NO se usan, y activarlos no funcionaría**: ✅ comprobado, **los dos
+  dibujos de cada par son de tinta negra**, así que como par (claro, oscuro) el del tema oscuro sería
+  invisible. El icono único vale porque es bicolor. El código comentado que los invocaba se retiró el
+  2026-08-21; si se quieren pares de verdad, hay que **redibujarlos**
+  ([`docs/11 §5`](docs/11-playbooks.md)). Los cuatro PNG siguen **sin trackear**.
+- **Todo lo gráfico que ha dibujado el proyecto se hace con PIL en tiempo de ejecución**, no como PNG
+  en `resources/`: el pin del proveedor (2026-08-06), las estrellas de la calificación, los cuatro
+  glifos de estado (`StatusPill.icon()`) y los dos iconos de estado vacío (`empty_state.glyph()`).
+  Todos se supermuestrean a 8x y se reducen con LANCZOS —sin eso un trazo diagonal sale dentado— y se
+  cachean como `CTkImage` con variante clara y oscura. Receta en
+  [`docs/11 §5`](docs/11-playbooks.md). ⚠️ El pin se distingue por **color** (azul/gris), no por
+  relleno vs. contorno: la silueta contorneada es ilegible a los 20×20 a los que se pinta.
+- ⚠️ **Los ~7 iconos de la sidebar y los dos GIF de carga son de origen desconocido** y
   probablemente incompatibles con la GPL del proyecto. Sus metadatos (512×512, `Software:
   www.inkscape.org`, DPI distintos entre sí) apuntan a descargas de **Flaticon**, cuya licencia
   gratuita **no permite sublicenciar**; los GIF no tienen metadatos y uno lleva un recorte `320×319`.
@@ -370,21 +448,32 @@ cerrados —el pin y la integración de un proveedor nuevo el 2026-08-06, y la c
    estado pasó a ser **local**. 351/351 comprobaciones.
    ✅ **Commiteado** en `a3d4331` («Actualización v0.2.0 del proyecto»), rama `main`.
 
-Después, sin orden fijado:
+3. ✅ ~~**Rediseño completo de la interfaz**~~ — **hecho entre el 2026-08-20 y el 2026-08-21**, en
+   **9 fases**, una por sesión ([`.claude/plan-rediseno/`](plan-rediseno/README.md)). No estaba en la
+   lista original: se cruzó por delante y cerró de paso **cinco puntos** que sí estaban.
 
-- Renombrar «animes recientes» a **nuevos lanzamientos**.
-- **Convivencia anime + manga**:
+Después, sin orden fijado. **El rediseño se llevó por delante buena parte de lo que había aquí**:
+
+- ✅ ~~Renombrar «animes recientes» a **nuevos lanzamientos**~~ — fase 1.
+- **Convivencia anime + manga** *(lo único que queda del bloque, y ya con la mitad hecha)*:
   - Desplegable en la esquina inferior izquierda para elegir *animes / mangas / ambos*, accesible desde todas las
     pestañas salvo la ficha de detalle, con opción de fijar la elección por defecto. La preferencia ya tiene dónde
     guardarse: una fila más en `USER_SETTINGS`, sin migración ([`docs/11 §2c`](docs/11-playbooks.md)).
-  - Nuevos lanzamientos a dos columnas (animes / mangas) si se eligen ambos, en cascada y con pósters más grandes,
-    3 por fila; si no, listado único como ahora.
-  - Quitar «Anime» del nombre de las pestañas favoritos / viendo / pendientes / finalizados y paginarlas de 10 en 10,
-    con filtro tipo *radio button* Animes / Mangas / Ambos.
-  - En «viendo», resultados en cascada de uno por fila indicando el último capítulo visto.
-  - En «favoritos», calificación personal guardada y ordenación por ella.
+  - Nuevos lanzamientos a dos columnas (animes / mangas) si se eligen ambos; si no, como ahora.
+  - ✅ ~~Quitar «Anime» del nombre de las pestañas~~ (fase 1) y ✅ ~~paginarlas~~ (fases 2, 5 y 6:
+    favoritos de 10 en 10, las rejillas de 6 de 12 en 12). **Falta** el filtro Animes / Mangas / Ambos.
+  - ✅ ~~En «viendo», resultados en cascada de uno por fila indicando el último capítulo visto~~ — fase 3.
+  - ✅ ~~En «favoritos», calificación personal guardada y ordenación por ella~~ — fase 5, columna
+    `rating` ([`docs/04 §3b`](docs/04-modelo-de-datos.md)).
 - Bloque «Si te ha gustado *X*, te puede interesar…» al final de la lista de episodios, con 4 animes del mismo género.
 - Integrar más proveedores (MonosChinos2, TioAnime) y proveedores de manga.
+- **Deuda que deja el rediseño**, por orden de lo que más molesta:
+  1. ⚠️ **La petición de servidores de la ficha sigue en el hilo de Tkinter** — el **último** sitio de
+     la GUI que sale a la red desde el hilo de la interfaz. Congela la ventana un par de segundos.
+  2. **B11**: los ~7 iconos de la barra lateral y los 2 GIF de carga siguen siendo de origen
+     desconocido ([`docs/12 §4`](docs/12-deuda-tecnica-y-roadmap.md)). El rediseño **no la hizo
+     crecer**: sus diez glifos se dibujan con PIL.
+  3. El orden de «Pendientes» **no se persiste**, a diferencia del de «Favoritos».
 
 ---
 
@@ -397,7 +486,7 @@ Guía de colaboración (cómo plantear una tarea en este repo, qué asumo por de
 cambian mi comportamiento): [`.claude/COMO-PEDIR-TAREAS.md`](COMO-PEDIR-TAREAS.md).
 
 **Antes de tocar cualquier cosa, lee [`docs/10-invariantes-y-trampas.md`](docs/10-invariantes-y-trampas.md)**
-— **28** trampas con su síntoma observable.
+— **35** trampas con su síntoma observable.
 
 | Documento | Qué responde |
 |---|---|
@@ -411,7 +500,7 @@ cambian mi comportamiento): [`.claude/COMO-PEDIR-TAREAS.md`](COMO-PEDIR-TAREAS.m
 | [docs/07-concurrencia-e-hilos.md](docs/07-concurrencia-e-hilos.md) | Qué corre en qué hilo, reglas y carreras conocidas |
 | [docs/08-convenciones-y-estilo.md](docs/08-convenciones-y-estilo.md) | Cabecera obligatoria, singletons, **plantillas copiables** |
 | [docs/09-verificacion-y-pruebas.md](docs/09-verificacion-y-pruebas.md) | Cómo probar cada capa sin GUI; scripts listos; checklist manual |
-| [docs/10-invariantes-y-trampas.md](docs/10-invariantes-y-trampas.md) | **Empieza por aquí.** **28** trampas con síntoma observable |
+| [docs/10-invariantes-y-trampas.md](docs/10-invariantes-y-trampas.md) | **Empieza por aquí.** **35** trampas con síntoma observable |
 | [docs/11-playbooks.md](docs/11-playbooks.md) | Recetas: añadir vista, columna, proveedor, campo; empaquetar |
 | [docs/12-deuda-tecnica-y-roadmap.md](docs/12-deuda-tecnica-y-roadmap.md) | TODOs con `fichero:línea`, discrepancias, riesgos, roadmap técnico **y licencia/cumplimiento de la distribución (§7)** |
 | [docs/13-selector-de-proveedor.md](docs/13-selector-de-proveedor.md) | Selector de proveedor, `DB_user.db` **y la columna `provider_id`** (§14). **Léelo antes de tocar `animeProviderMgr.py`, `main_window.py` o `anime_window.py`** |

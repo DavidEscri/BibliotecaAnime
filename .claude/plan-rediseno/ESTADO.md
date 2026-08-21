@@ -6,9 +6,9 @@
 | | |
 |---|---|
 | **Fase actual** | 9 — Cohesión |
-| **Situación** | ⬜ no empezada. La fase 8 quedó cerrada y verificada |
-| **Último paso completado** | Pasos 8.1, 8.2 y 8.3 — la ficha entera, con la app real arrancada y mirada |
-| **Siguiente paso** | Paso 9.1 — `EmptyState`. Antes, lo que manda su ficha: leer este fichero **entero**, bitácora y Decisiones incluidas, porque la fase 9 es la que paga las deudas anotadas por las ocho anteriores |
+| **Situación** | 🟡 en curso |
+| **Último paso completado** | Paso 9.5 — documentación. **Los 5 pasos de la fase 9 están hechos** |
+| **Siguiente paso** | Cerrar la fase: checklist punto por punto y commit |
 | **Rama** | ✅ `feature/ui-redisign` (**no** `feature/rediseno-ui`: ya existía, ver Decisiones) |
 | **Base** | `bd25742` (fase 1) → fases 2 a 8 encima, en `feature/ui-redisign`. El plan partió de `6377b92`, no de `4f9e429` |
 | **Commits** | automáticos (uno al cerrar cada fase) |
@@ -28,7 +28,7 @@
 | 6 | Finalizados | ✅ terminada | `bfbad7d` | ✅ app real ejecutada y **mirada** (4 arranques: Finalizados en oscuro y en claro, Favoritos, ficha abierta con clic sintético + recorrido de las 6 vistas) + **22 comprobaciones** sobre la app en marcha + **10** de casos límite del sello + **3** de los glifos, **mirados ampliados x10** |
 | 7 | Buscar | ✅ terminada | `b68b5b4` | ✅ app real ejecutada y **mirada** (2 arranques, **11 capturas**: buscar por texto, dos géneros, «Más géneros» desplegado, paginador con 50 páginas, página 2, fallback a JKAnime, tema claro y cambio de vista en vuelo) + **51 comprobaciones** de la vista con CTk real + **28** de `GenreChips` |
 | 8 | Ficha del anime | ✅ terminada | `5bf0b3f` | ✅ app real ejecutada y **mirada** (3 arranques, **8 capturas**: portada, Viendo, ficha de One Piece, servidores desplegados, barra plegada, tema claro, pendiente de AnimeFLV e identidad partida forzada con JKAnime) + **93 comprobaciones** con CTk real sobre **copia** de la BD, con red de verdad en servidores y migración |
-| 9 | Cohesión | ⬜ no empezada | — | — |
+| 9 | Cohesión | 🟡 en curso | — | — |
 
 **Situación**: ⬜ no empezada · 🟡 en curso · ✅ terminada · ⚠️ terminada sin verificar · ❌ revertida
 
@@ -144,6 +144,14 @@ fase que la tomó. Empieza vacío a propósito: las decisiones de partida están
 | 8 | **`EpisodeRow` sustituye a `utilsButtons.EpisodeButton`**, que era un botón de ancho completo con «\<título del anime\> - Episodio N» repetido veinticinco veces. Con `SearchButton`, `ApplyFiltersButton` y `AccordionFilterButton`, **son cuatro clases huérfanas** en `utilsButtons.py` para la fase 9 |
 | 8 | **El póster de la ficha se carga con `load_rounded_image()` desde la caché**, como las seis vistas, y solo cae en `get_anime_image()` —que sale a la red— si el anime todavía no tiene fichero en disco. Es la misma decisión de la fase 2 aplicada al último sitio que quedaba con esquinas cuadradas |
 | 8 | ✅ **Ya no queda ni un color literal en `src/` fuera de `theme.py`.** El `WARN` del aviso de identidad partida era el último (`("#B45309", "#FBBF24")` a mano en `anime_window.py`); ahora es `Theme.WARN`. `git grep -nE "#[0-9A-Fa-f]{6}" -- src/` devuelve **vacío** fuera del módulo de tokens, así que ese punto del paso 9.2 ya está cerrado |
+| 9 | 🔴 **«Probar con otro proveedor» no se puede ofrecer, y la ficha de la fase lo pedía.** `call_with_fallback()` recorre **todo** el registro cuando el elegido devuelve vacío, así que una rejilla de «Buscar» sin resultados significa que **ya se han probado los tres**. El botón sería repetir lo que la aplicación acaba de hacer sola. En su lugar se ofrece lo único que cambia el resultado —«Borrar la búsqueda» o «Quitar los filtros»— y la pista dice la verdad: «Han respondido los 3 proveedores y ninguno lo tiene» |
+| 9 | **Un `EmptyState` son cuatro piezas, no tres**: icono, frase, **pista** y acción. La pista es lo que llevaban los `CTkLabel` viejos en su segunda línea («Marca uno con el corazón desde su ficha»), y perderla al pasar al componente habría sido cambiar una explicación por un botón en vez de sumarlos |
+| 9 | **`EmptyState` recibe el icono ya construido**, no un nombre. Así los cuatro estados de biblioteca reutilizan `StatusPill.icon()` —el mismo glifo que llevan sus sellos— y el módulo solo dibuja los dos que no existían. `StatusPill.icon()` gana `gap=0` para que el glifo salga **cuadrado** cuando va solo y centrado |
+| 9 | **La línea de estado de «Buscar» se queda en blanco cuando no hay resultados.** Lo dice el estado vacío, con su icono y su salida; repetirlo arriba sería el dato duplicado que prohíbe `DISENO.md` §6 |
+| 9 | **Los cuatro PNG «light/dark» de viendo y pendientes se quedan sin usar, y el código comentado se retira.** No son un par claro/oscuro: **los dos dibujos de cada par son de tinta negra**, así que en tema oscuro el suyo sería invisible. El icono único funciona porque es bicolor —silueta negra y relleno blanco— y se lee sobre los dos fondos. Si alguna vez se quieren pares de verdad, hay que **redibujarlos**, que es justo la salida de la deuda B11 |
+| 9 | **`utilsButtons.py` se queda con el nombre pero ya no tiene ni un botón.** Contiene el cruce por título, `SavedAnimeSearch` y el descriptor `SidebarButton`. Renombrarlo se deja fuera del plan a propósito: el rediseño es solo interfaz y esto vive en `utils/` |
+| 9 | 🔴 **`badge_colors` desaparece de `PosterItem`.** «Favoritos» era el único que lo usaba —con el par pastel de la píldora, ilegible sobre una carátula clara y encima en la esquina más brillante desde la fase 6— y pasa al sello por defecto, como Finalizados y Buscar. El sello del diseño es **siempre** superficie oscura opaca con el color del estado solo en el glifo: no hay nada que elegir, y dejar el parámetro invitaba a repetir el error |
+| 9 | **La navegación desde el contenido pasa por `MainWindow.navigate_to(etiqueta)`**, que delega en `Sidebar.navigate_to()`. Busca por la **etiqueta** del destino —la misma clave que ya usa `counter_providers`— y deja la barra marcando el destino, como si se hubiera pulsado allí. Devuelve `False` en vez de lanzar: un estado vacío no puede tumbar la aplicación por una cadena mal escrita |
 
 ---
 
@@ -159,6 +167,123 @@ Una entrada por paso completado, **la más reciente arriba**. Formato:
 ```
 
 <!-- nuevas entradas aquí arriba -->
+
+### Fase 9 · Paso 9.5 — Documentación          (2026-08-21)
+- Ficheros: **11 documentos** de `.claude/` — `docs/06` (**reescrito entero**), `docs/09` (§7
+  reescrita entera), `docs/10` (+7 trampas), `docs/02`, `04`, `11`, `12`, `13`, `docs/README.md`,
+  `CLAUDE.md`, y la fecha de cabecera sincronizada en los 14
+- Verificado: **enlaces internos comprobados con un barrido: 0 rotos** de los ~450 que hay en
+  `.claude/`. Los nombres de API citados (`get_sidebar_collapsed`, `push_last_watched_id`,
+  `get_favourites_order`…) **cotejados uno a uno contra `userPersistence.py`**, no de memoria
+- **`docs/06-gui-y-vistas.md` reescrito de cero** (516 → 297 líneas, y dice mucho más): mapa del
+  árbol `gui/`, `theme.py`, las 11 fichas de componente, las 6 vistas en tabla, la ficha, y los
+  apartados de tema y de concurrencia
+- **`docs/09 §7` reescrita**: checklist de **7 vistas × 2 temas × 2 estados de barra**, con un
+  apartado propio para los estados vacíos y cómo provocarlos sin tocar la biblioteca. Lo que decía
+  de «Abrir filtro de animes», de los botones que cambian de texto y del GIF de búsqueda ya no
+  existía
+- **7 trampas nuevas en `docs/10`** (29-35), todas de CustomTkinter y de layout, en su apartado: el
+  `CTkFrame` de 200 × 200, `wraplength`, los contadores cacheados, la rejilla que sobrevive a
+  `clear_frame()`, **la pantalla de carga** (nace ya resuelta), el `<Leave>` mentiroso y
+  `bind()` vs `event_generate()`. La **22** queda cerrada
+- 🔴 **`docs/11 §5` decía lo contrario de lo que hay que hacer**: mandaba descomentar dos líneas
+  para activar los iconos claro/oscuro. Reescrita: hay que **redibujarlos**, con la receta de PIL
+  que ya usan diez glifos del proyecto. Y **§1b nueva**: añadir un componente compartido
+- **`CLAUDE.md`**: sección de GUI rehecha, roadmap con **cinco puntos tachados** por el rediseño,
+  el recuento de TODO corregido a **4**, `hiddenimports` a **30**, la caché de pósters a 248 × 372,
+  y la nota de los iconos claro/oscuro invertida
+- ✅ **Prueba de humo final**: `python src/app.py` desde la raíz — ventana en **1 s**, viva a los
+  **41 s**, **sin un solo `Traceback` ni `invalid command name`** en la salida sin bufferizar, y
+  `sha256 af3c89ec0665…` **idéntico** antes y después
+- Pendiente que deja: nada. La fase está lista para cerrarse
+
+### Fase 9 · Paso 9.4 — Limpieza, `.spec` y `.exe`          (2026-08-21)
+- Ficheros: `src/utils/buttons/utilsButtons.py` (0.2 → 0.3, **361 → 205 líneas**),
+  `MiBibliotecaAnime.spec`, `watchingAnimes.py`, `pendingAnimes.py`,
+  `src/gui/components/sidebar.py`, `src/gui/anime_window.py` (una referencia caduca)
+- Verificado: sí · **`pyinstaller MiBibliotecaAnime.spec` termina sin errores** y el `.exe`
+  resultante **se lanza, abre su ventana en 1 s y sigue vivo a los 40 s**, con la carga terminada
+- 🔴 **Cinco clases retiradas** de `utilsButtons.py`: `BaseButton`, `EpisodeButton`,
+  `SearchButton`, `ApplyFiltersButton` y `AccordionFilterButton`. Ninguna la usaba nadie desde que
+  las fases 3-8 estrenaron sus componentes. El módulo se queda con **tres piezas** —el cruce por
+  título, `SavedAnimeSearch` y `SidebarButton`— y con un docstring que explica que el nombre del
+  fichero es lo único que queda de lo que fue
+- ✅ **`hiddenimports` completo y sin fantasmas**: **30** nombres. Auditado en las dos direcciones
+  con AST — los 30 resuelven a un fichero real de `src/`, y **ningún módulo de `src/` queda sin
+  declarar** salvo `app.py`, que es el script de entrada. Se añadieron `gui.theme` y los **11**
+  `gui.components.*`
+- ✅ **`datas` sigue llevando solo `resources/images/utils`**: el `.exe` creó **su propia**
+  `DB_Animes.db` y `DB_user.db` dentro de `_internal/resources/DB/`, así que no distribuye la
+  biblioteca del desarrollador ([trampas 18d y 18e](../docs/10-invariantes-y-trampas.md))
+- **Los iconos `viendo_light/dark.png` y `pendientes_light/dark.png` NO se activan**: los dos
+  dibujos de cada par son de **tinta negra sobre transparente**, así que como par (claro, oscuro)
+  el del tema oscuro sería invisible. El icono único sí vale porque es bicolor. Se retiró el
+  código comentado y se dejó el porqué en su sitio. **Los cuatro PNG siguen sin trackear en
+  `resources/images/utils/`; no se han borrado** (son del usuario y son deuda **B11**)
+- ✅ **Inventario de tareas pendientes: 4**, no 5 — `jkanime.py:191,264` y
+  `anime_window.py:134,137`. El quinto que contaba el grep era un comentario de `sidebar.py` que
+  hablaba de una ya cerrada; reescrito para que no falsee la cuenta. **`CLAUDE.md` dice 5 y hay
+  que corregirlo en el paso 9.5**
+- ⚠️ **La biblioteca real cambió durante la pausa de esta sesión, y no fue por los scripts**: 32
+  filas frente a las 29 de `backups/DB_Animes_20260820_224943.db`, **3 añadidas y 0 borradas**, y
+  de las 29 compartidas solo cambió *One Piece Film Red*, migrado de AnimeFLV a AnimeAV1. Es uso
+  normal de la aplicación. La nueva referencia es `sha256 af3c89ec0665…`
+- Pendiente que deja: nada del paso. Queda el 9.5 y el cierre
+
+### Fase 9 · Pasos 9.2 y 9.3 — repaso claro/oscuro y barra plegada          (2026-08-21)
+- Ficheros: `src/gui/sidebarButtons/favouriteAnimes/favouriteAnimes.py` (sello unificado),
+  `src/gui/components/poster_grid.py` (0.2 → 0.3, `badge_colors` **retirado**),
+  `src/gui/sidebarButtons/recentAnimes/recentAnimes.py` (dos imports muertos)
+- Verificado: sí · **app real arrancada 2 veces —oscuro y claro— sobre una copia de la
+  biblioteca real (15 favoritos · 2 viendo · 4 pendientes · 18 finalizados · 20 estrenos), con
+  28 capturas miradas**: las 7 vistas × 2 temas × 2 estados de barra
+- 🔴 **La biblioteca real no se toca**: `sha256 5e29fbc6a81e…` **idéntico** antes y después de
+  los dos recorridos, y de los dos de la biblioteca vacía del paso 9.1
+- ✅ **Ningún color literal fuera de `theme.py`**: `git grep -nE "#[0-9A-Fa-f]{6}" -- src/`
+  devuelve **solo** `src/gui/theme.py` (los 20 tokens). Lo dejó cerrado la fase 8 y se ha vuelto
+  a comprobar
+- ✅ **Texto sobre `ACCENT`**: los **8** sitios que pintan `fg_color=Theme.ACCENT` usan
+  `ACCENT_INK`, y los **4** que usan `ACCENT_SOFT` usan `ACCENT`. Auditado con AST, no a ojo
+- 🔴 **El sello de «Favoritos» pasa al sello por defecto**, que era la deuda que dejó anotada la
+  fase 6: fondo oscuro opaco y color del estado solo en el glifo. Mirado sobre las dos carátulas
+  claras de la biblioteca (*Dragon Ball Daima* y *One Piece Fan Letter*): el pastel `FAV_BG` no
+  se leía y ahora sí, en los dos temas. De paso **`badge_colors` desaparece de `PosterItem`**:
+  ya no lo usaba nadie y dejarlo invitaba a repetir el error
+- ✅ **Barra plegada en las 7**: medido el ancho real del contenido contra el disponible en cada
+  vista. Desplegada, **1 200 / 1 200**; plegada, **1 340 / 1 340** (Buscar y la ficha se quedan
+  28 px por debajo, que es su margen). **Nada se sale ni se recorta**
+- ✅ **Sin imports muertos** en `src/`: barrido con AST sobre los 49 módulos. Solo aparecieron
+  dos, en `recentAnimes.py` (`ctk` y `Theme`), que dejó de usar el paso 9.1
+- Pendiente que deja: nada de los pasos. Para el 9.4, las cinco clases huérfanas y el `.spec`
+
+### Fase 9 · Paso 9.1 — `EmptyState` en las 7 vistas          (2026-08-21)
+- Ficheros: `src/gui/components/empty_state.py` (nuevo, 224 líneas),
+  `src/gui/components/status_pill.py` (0.3 → 0.4, parámetro `gap`),
+  `src/gui/components/sidebar.py` (0.1 → 0.2, `navigate_to()`),
+  `src/gui/main_window.py` (0.4 → 0.5, `navigate_to()`, `retry_recent_animes()` y **el arreglo
+  de la pantalla de carga**), y las **6** vistas (todas 0.3 → 0.4)
+- Verificado: sí · **app real arrancada 2 veces —oscuro y claro— contra una biblioteca vacía, con
+  26 capturas miradas** + **116 comprobaciones** con CTk real (ventana oculta) + los dos glifos
+  nuevos **mirados ampliados x10** sobre los dos fondos
+- 🔴 **La biblioteca real no se toca**: las dos persistencias se repuntan a `DB_Animes.db` y
+  `DB_user.db` **nuevas y vacías** en el scratchpad antes de construir `MainWindow` (receta de la
+  fase 4, octava vez). `sha256 5e29fbc6a81e…` **idéntico** antes y después de los dos arranques
+- 🔴 **Fallo real encontrado y arreglado**: `download_images_and_show_animes()` solo retiraba la
+  pantalla de carga en la rama de éxito, así que **un arranque sin red dejaba el GIF tapando la
+  portada para siempre** — el estado vacío de «Nuevos lanzamientos» no llegaba a verse nunca. Se
+  ve en la primera captura del día. De paso, la pantalla ahora se **destruye** en vez de
+  `place_forget()`: mientras seguía viva, su animación se reprogramaba cada 100 ms durante toda la
+  sesión repintando un GIF de 400 × 400
+- **Los seis textos**, uno por vista: «No se han podido cargar los estrenos» (Reintentar) ·
+  «Todavía no has marcado ningún favorito» (Ir a Nuevos lanzamientos) · «No tienes nada a medias»
+  (Ir a Pendientes) · «No tienes nada en la cola» (Buscar un anime) · «Aún no has terminado
+  ninguno» (Ir a Viendo) · «Sin resultados para «X»» (Borrar la búsqueda / Quitar los filtros)
+- **Iconos**: los cuatro de biblioteca reutilizan el glifo de su propio estado
+  (`StatusPill.icon(..., gap=0)`, teñido de `TXT_3`); los dos que faltaban —nube tachada y lupa—
+  se dibujan con PIL en `empty_state.py`, como el pin y las estrellas. **Cero PNG nuevos**, así
+  que la deuda B11 no crece
+- Pendiente que deja: nada del paso. Para el 9.4, las **cinco** clases huérfanas de
+  `utilsButtons.py` (`BaseButton` incluida) y el `.spec`
 
 ### Fase 8 · Pasos 8.1, 8.2 y 8.3 — la ficha del anime entera          (2026-08-21)
 - Ficheros: `src/gui/anime_window.py` (reescrito, 1 114 → 1 733 líneas, 0.6 → 0.7)

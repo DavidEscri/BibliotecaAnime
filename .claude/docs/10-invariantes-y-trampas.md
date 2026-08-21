@@ -2,9 +2,9 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-08-17 · **Commit** `e337d20` (rama `main`, tag `v0.2.1`) · árbol **limpio** |
-| **Cubre** | los 19 módulos con contenido de `src/` + `MiBibliotecaAnime.spec` + `requirements.txt` |
-| **Última revisión** | 2026-08-17 (**licencia y empaquetado**): la trampa **18** se subdivide en **a-e** — **18d cerrada** (`datas` ya no lleva datos de usuario; PyInstaller **ignora en silencio las carpetas vacías**) y **18e nueva** (los destinos de `datas` caen dentro de `_internal/`, no junto al `.exe`). Antes, 2026-08-16 (**columna `provider_id`**): **3 trampas nuevas** (26, 27, 28), trampa **21 reescrita** —ahora se puede provocar a voluntad y la ficha la señala en pantalla—, trampas **4** y **13** ampliadas, y anclas de `anime_window.py` (647→1156) y `animesPersistence.py` reubicadas |
+| **Fecha** | 2026-08-21 · rama `feature/ui-redisign` · árbol **con la fase 9 del rediseño sin commitear** |
+| **Cubre** | los **31** módulos con contenido de `src/` + `MiBibliotecaAnime.spec` + `requirements.txt` |
+| **Última revisión** | 2026-08-21 (**rediseño de interfaz**): **7 trampas nuevas** (29-35), todas de CustomTkinter y de layout, en un apartado propio; la **33** nace ya resuelta. La trampa **22** queda cerrada: la ficha ya no calcula anchos a mano. Antes, 2026-08-17 (**licencia y empaquetado**): la trampa **18** se subdivide en **a-e** — **18d cerrada** (`datas` ya no lleva datos de usuario; PyInstaller **ignora en silencio las carpetas vacías**) y **18e nueva** (los destinos de `datas` caen dentro de `_internal/`, no junto al `.exe`). Antes, 2026-08-16 (**columna `provider_id`**): **3 trampas nuevas** (26, 27, 28), trampa **21 reescrita** —ahora se puede provocar a voluntad y la ficha la señala en pantalla—, trampas **4** y **13** ampliadas, y anclas de `anime_window.py` (647→1156) y `animesPersistence.py` reubicadas |
 
 Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ sin verificar.
 
@@ -720,6 +720,145 @@ llame haya mirado. La primera existe porque un `False` a secas no le dice nada a
 
 **Invariante**: cualquier escritura que cambie `anime_id` de una fila existente comprueba primero que
 el destino esté libre. La BD no lo va a hacer por ti.
+
+---
+
+---
+
+## Rediseño de interfaz *(añadidas 2026-08-21, fases 1-9)*
+
+Siete trampas de **CustomTkinter y de layout**. Ninguna da error: todas se manifiestan como algo que
+sale mal colocado, invisible o parpadeando, y todas costaron al menos una tarde.
+
+### 29. Un `CTkFrame` sin hijos conserva 200 × 200 como tamaño pedido 🔴 ✅
+
+Un marco vacío —o que solo tiene widgets colocados con `place()`, que no piden sitio— **no mide
+cero**: conserva el tamaño por defecto de `CTkFrame` y **estira la fila o la columna que lo
+contenga**.
+
+**Síntoma observable**: la barra lateral salió **con los seis destinos en blanco y sin ningún
+error**. La barrita de acento de 2 px inflaba la fila del ítem a 200 px; el marco se quedaba en 38 px
+por fuera, pero su rejilla interna centraba icono y etiqueta en `y=86`, **fuera de la parte visible**.
+
+**Invariante**: todo `CTkFrame` decorativo, todavía vacío, o cuyos hijos van con `place()`, necesita
+`height=` explícito. `ViewHeader.controls_frame` nace con `height=1` por esto, y `GenreChips.show()`
+se fija el alto a mano.
+
+**Hermana de la anterior**: el alto de una fila se fija con **`grid_rowconfigure(..., minsize=)`**, no
+con `height=` + `grid_propagate(False)`. Medido: esa combinación deja el marco al alto pedido por
+fuera, pero su rejilla interna sigue centrando los hijos como si midiera 200.
+
+**Y el ancho fijo necesita dos cosas**: `grid_propagate(False)` **y** `minsize` en la columna del
+padre. Solo con el primero, la rejilla de `MainWindow` le roba píxeles a la barra cuando el contenido
+pide más ancho del que cabe — medido, 219 px en vez de 224.
+
+---
+
+### 30. `wraplength` no limita a dos líneas, y un `CTkLabel` no se recorta a su `height` 🔴 ✅
+
+`wraplength` envuelve **todas** las líneas que necesite el texto, y el `CTkLabel` **crece** por
+encima de su `height` en vez de recortarse. Reservar alto no sirve de nada.
+
+**Síntoma observable**: un título de anime de tres líneas desnivelaba la fila entera de la rejilla, y
+las celdas de debajo bailaban.
+
+**Invariante**: **todo título de ancho fijo pasa por `Theme.ellipsize(texto, fuente, ancho,
+líneas)`**, que reproduce el reparto por palabras de Tk midiendo con `font.measure()` y corta la
+última línea con puntos suspensivos. Aplica a `AnimeRow`, a las tres rejillas y a la ficha.
+
+---
+
+### 31. Los contadores de la barra salen de listas que solo se llenan al arrancar 🔴 ✅
+
+`MainWindow.recent_animes`, `favourite_animes`, `watching_animes`, `pending_animes` y
+`finished_animes` son **cachés en memoria** que se pueblan en `load_animes()`.
+`refresh_sidebar_counts()` hace `len()` sobre ellas: **no consulta la BD**.
+
+**Síntoma observable**: cambiar un estado movía la fila en la BD y en la vista, pero el número de la
+barra lateral seguía diciendo lo de antes hasta el siguiente arranque.
+
+**Invariante**: quien cambie un estado **relee las listas afectadas del hub y solo después** llama a
+`refresh_sidebar_counts()`. Lo hacen «Empezar» (`pendingAnimes.py`) y la ficha (`anime_window.py`,
+desde la fase 8).
+
+---
+
+### 32. La configuración de rejilla del `content_frame` sobrevive a `clear_frame()` 🔴 ✅
+
+`clear_frame()` destruye los **hijos**, no la configuración de filas y columnas del contenedor. Y una
+columna **con peso y sin widgets también recibe el espacio sobrante**.
+
+**Síntoma observable**: después de visitar la ficha —que repartía peso entre cuatro columnas y cuatro
+filas—, la vista siguiente pintaba todo apretado en una columna 0 estrecha, con la mitad derecha de
+la pantalla en blanco.
+
+**Invariante**: toda vista que reparta peso entre varias columnas o filas **tiene que devolverlo a
+cero al salir**. Hoy solo la ficha reparte; si otra lo hace, hereda la obligación.
+
+---
+
+### 33. La pantalla de carga solo se retiraba si había estrenos 🔴 ✅ *(resuelta 2026-08-21)*
+
+`download_images_and_show_animes()` llamaba a `loading_frame.place_forget()` **únicamente en la rama
+de éxito**. Con la lista de estrenos vacía, la función avisaba, pintaba la portada por debajo y
+volvía **sin retirar la pantalla de carga**.
+
+**Síntoma observable**: un arranque sin conexión —o con los tres proveedores caídos— dejaba el GIF de
+carga tapando la portada **para siempre**, y el estado vacío de «Nuevos lanzamientos» no llegaba a
+verse nunca. Solo aparece si se prueba el arranque **sin red**, que es justo lo que nadie prueba.
+
+**Y una segunda mitad**: `place_forget()` **no destruye**. El widget seguía vivo, así que
+`update_gif()` se reprogramaba con `after(100, …)` durante toda la sesión, repintando un GIF de
+400 × 400 cada décima de segundo por detrás de la aplicación.
+
+**Invariante**: la pantalla de carga se **`destroy()`** —no se esconde— y se retira en **todas** las
+salidas de la función. La animación comprueba `winfo_exists()` antes de repintarse; sin esa guarda,
+destruir el marco produce `invalid command name`.
+
+---
+
+### 34. Un `<Leave>` no significa que el ratón se haya ido 🔴 ✅
+
+Tk manda `<Leave>` al marco **también cuando el puntero pasa a uno de sus propios hijos**.
+
+**Síntoma observable**: la fila parpadeaba al mover el ratón por encima, y la píldora de acción
+(«Empezar», «Episodio N →») **se apagaba justo al ir a pulsarla**, porque el puntero entraba en ella
+saliendo del marco.
+
+**Invariante**: antes de apagar un estado de hover, comprobar dónde está el puntero de verdad.
+`AnimeRow.__pointer_inside()` compara `winfo_pointerxy()` con el rectángulo real de la fila. Vale
+para cualquier fila o tarjeta con acción en hover.
+
+**Hermana**: el hueco de la acción **se reserva siempre**, con tamaño fijo y `grid_propagate(False)`;
+la píldora solo se muestra y se esconde. Si se creara al entrar el ratón, la fila cambiaría de ancho
+bajo el cursor.
+
+---
+
+### 35. `bind()` y `event_generate()` no hablan del mismo widget en CustomTkinter 🔴 ✅
+
+Un widget de CustomTkinter es un marco de Tk con hijos dentro, y `bind()` **reenvía** el atajo a esos
+hijos: `CTkFrame.bind()` va a su `_canvas`; `CTkLabel.bind()`, al `_label` **y** al canvas;
+`CTkEntry.bind()`, al `_entry`; `CTkButton.bind()`, al canvas y a sus etiquetas.
+
+Con el ratón real da igual —lo que se toca es el canvas—, pero **`widget.event_generate()` sobre el
+objeto CTk no dispara nada**.
+
+**Síntoma observable**: una prueba automática que emite `<Return>` sobre un `CTkEntry`, o `<Enter>`
+sobre una fila, «pasa» sin que ocurra nada, y se da por verificado algo que no se ha ejecutado.
+
+**Invariante**: para ejercitar un gesto sin ratón, emitir sobre el **hijo interno**
+(`entry._entry.event_generate(...)`) o —mejor— invocar directamente el `command` o el manejador.
+
+**Tres más de CustomTkinter**, de la misma familia:
+
+- Un `CTkFrame` con `fg_color="transparent"` **no pinta su borde**: no dibuja su rectángulo, y con él
+  se va el `border_width`. Y aunque se le dé color, **una etiqueta transparente encima lo tapa**. La
+  receta que funciona: marco con `fg_color=BG` + borde, y la etiqueta **dentro**, más baja que él.
+- CustomTkinter **rechaza `width=` y `height=` dentro de `place()`** con un `ValueError`, al revés
+  que Tk pelado: el tamaño se le da al construir el widget.
+- CustomTkinter **no redondea la `image` de un widget** por mucho `corner_radius` que tenga. El
+  recorte hay que traerlo hecho desde PIL (`load_rounded_image()`).
 
 ---
 

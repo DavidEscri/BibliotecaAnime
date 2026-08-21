@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-08-16 · **Commit** `a3d4331` (2026-08-17, rama `main`) · árbol **limpio** |
+| **Fecha** | 2026-08-21 · rama `feature/ui-redisign` · árbol **con la fase 9 del rediseño sin commitear** |
 | **Cubre** | los 19 módulos con contenido de `src/` |
 | **Última revisión** | 2026-08-16: plantilla de proveedor actualizada (`PROVIDER_ID` es un enum, §7.3) y convención de log `[{PROVIDER_ID.value}]` (§6) |
 

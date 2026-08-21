@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-08-16 · **Commit** `a3d4331` (2026-08-17, rama `main`) · árbol **limpio** |
+| **Fecha** | 2026-08-21 · rama `feature/ui-redisign` · árbol **con la fase 9 del rediseño sin commitear** |
 | **Última revisión** | 2026-08-16 — **`provider_id` implementada**: columna nueva en `ANIMES` (§2, §3), `AnimeProviderId` y `ProviderInfo` en `models.py` (§1b), `migrate_anime_identity()` y `get_all_animes()` (§8). La migración automática se ha ejecutado **sobre la BD real** por primera vez (§3) |
 | **Cubre** | `src/APIs/common/models.py`, `src/dataPersistence/animesPersistence.py`, `src/dataPersistence/userPersistence.py`, `src/utils/db/sqlite.py` |
 
@@ -229,13 +229,34 @@ CREATE TABLE "ANIMES" (
   id INTEGER, provider_id VARCHAR(50), anime_id VARCHAR(100), title VARCHAR(100),
   poster_url VARCHAR(200), synopsis TEXT, genres JSON, episodes JSON, watched_episodes JSON,
   last_watched_episode INTEGER, is_favourite BOOLEAN, is_watching BOOLEAN,
-  is_finished BOOLEAN, is_pending BOOLEAN,
+  is_finished BOOLEAN, is_pending BOOLEAN, rating INTEGER,
   PRIMARY KEY (id AUTOINCREMENT)
 )
 ```
 
 Coincide **exactamente** con `AnimeField`, en orden y en tipos declarados. Las comillas de `"ANIMES"`
 son la firma de una tabla reconstruida por `validate_db_integrity()`.
+
+### 3b. `rating` — la calificación personal 🆕 *(2026-08-20, rediseño fase 5)*
+
+`RATING = ("rating", "INTEGER")` es el **decimoquinto** miembro de `AnimeField` y va **al final** a
+propósito: así `validate_db_integrity()` lo resuelve por la vía barata —`ALTER TABLE ADD COLUMN`, sin
+reconstruir la tabla ni mover datos— en vez de por la cara, que es lo que tocó con `provider_id`.
+
+| | |
+|---|---|
+| **Escala** | entero **0-10**, dos puntos por estrella. `AnimeRecord.RATING_MAX = 10` es el tope |
+| **`NULL` no es 0** | «sin calificar» y «cero estrellas» son cosas distintas. Es lo que permite mandar lo no calificado **al final** del orden por calificación en vez de al principio |
+| **Por qué entero** | evita flotantes en SQLite y en la comparación del orden. Media estrella es 1, no 0.5 |
+| **Quién escribe** | `update_anime_rating(anime_id, rating)`. La única vista que lo toca es «Favoritos» |
+| **Cómo se borra** | volviendo a pulsar la misma calificación. No hay botón de quitar |
+
+✅ **Migración ejecutada de verdad sobre la biblioteca real el 2026-08-20**: **29 filas antes y 29
+después**, y las **14 columnas anteriores × 29 filas = 406 valores idénticos**, comparados uno a uno
+**por nombre de columna**. La copia previa quedó en `resources/DB/backups/DB_Animes_20260820_224943.db`.
+
+⚠️ Como con cualquier campo nuevo: **la migración es automática, la serialización no**. `rating` hubo
+que añadirlo a mano a `to_db_dict()` y a `from_db_dict()` ([11 §2](11-playbooks.md)).
 
 ### La migración automática, ejecutada de verdad ✅
 

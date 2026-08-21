@@ -1,7 +1,7 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "gui"
 __module__ = "main_window.py"
-__version__ = "0.4"
+__version__ = "0.5"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 import threading
@@ -184,6 +184,28 @@ class MainWindow(ctk.CTk):
         """
         if self.sidebar_frame is not None:
             self.sidebar_frame.refresh_counts()
+
+    def navigate_to(self, sidebar_text: str) -> bool:
+        """Abre otra vista por su etiqueta de barra lateral.
+
+        Es lo que usan los botones de los estados vacíos («Ir a Pendientes»,
+        «Buscar un anime»): navegar desde el contenido tiene que dejar la barra
+        marcando el destino igual que si se hubiera pulsado allí.
+
+        :return: ``False`` si no hay barra todavía o la etiqueta no existe.
+        """
+        if self.sidebar_frame is None:
+            return False
+        return self.sidebar_frame.navigate_to(sidebar_text)
+
+    def retry_recent_animes(self) -> None:
+        """Vuelve a pedir los estrenos al proveedor. Lo llama «Reintentar».
+
+        Es el mismo camino que recorre el cambio de proveedor —hilo daemon,
+        descarga de pósters y repintado de la portada—, porque el problema es el
+        mismo: la lista está vacía y hay que ir a buscarla otra vez.
+        """
+        self.__reload_recent_animes()
 
     def set_active_sidebar_destination(self, destination) -> None:
         """Marca qué destino está activo cuando la navegación no viene de un clic.
@@ -418,6 +440,12 @@ class MainWindow(ctk.CTk):
         progress_label.pack(pady=5)
 
         def update_gif(frame=0):
+            # La animación se reprogramaba sola para siempre: al retirar la
+            # pantalla de carga con `place_forget()` el widget seguía vivo, así
+            # que el GIF de 400x400 se seguía repintando cada 100 ms durante toda
+            # la sesión. Ahora la pantalla se destruye y esta guarda corta el ciclo.
+            if not loading_image_label.winfo_exists():
+                return
             loading_image_label.configure(image=gif_frames[frame])
             frame = (frame + 1) % len(gif_frames)  # Continuar en bucle
             self.after(100, update_gif, frame)  # Controla la velocidad de cambio de frame (100 ms)
@@ -432,16 +460,24 @@ class MainWindow(ctk.CTk):
         self.load_animes(progress_bar, progress_label)
         self.recent_animes = self.anime_provider_mgr.get_recent_animes()
         if len(self.recent_animes) == 0:
+            # 🔴 La pantalla de carga se retira **también aquí**. Hasta la fase 9
+            # solo se quitaba en la rama de éxito, así que un arranque sin red
+            # dejaba el GIF tapando la portada para siempre y el estado vacío de
+            # «Nuevos lanzamientos» no llegaba a verse nunca.
+            loading_frame.destroy()
             messagebox.showwarning("Aviso!",
                                    "La conexión con los proveedores de anime es muy lenta, por lo que no se "
                                    "pudieron obtener los animes recientes.")
+            self.refresh_sidebar_counts()
             self.set_active_sidebar_destination(self.__recent_animes_button)
             self.__recent_animes_button.show_frame()
             return
         progress_bar.set(0.9)
         progress_label.configure(text="90 %")
         download_images_progress(self.images_path, self.recent_animes, progress_bar, progress_label)  # Descargar imágenes
-        loading_frame.place_forget()
+        # `destroy()` y no `place_forget()`: la pantalla de carga no se vuelve a
+        # usar, y mientras siga viva su animación se sigue reprogramando.
+        loading_frame.destroy()
         self.refresh_sidebar_counts()
         self.set_active_sidebar_destination(self.__recent_animes_button)
         self.__recent_animes_button.show_frame()  # Mostrar animes recientes al finalizar la descarga

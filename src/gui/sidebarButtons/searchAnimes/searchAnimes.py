@@ -1,7 +1,7 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "sidebarButtons"
 __module__ = "searchAnimes.py"
-__version__ = "0.3"
+__version__ = "0.4"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 """«Buscar»: la única pestaña que trae cosas de fuera, y la única que puede duplicarte la biblioteca.
@@ -40,6 +40,7 @@ from APIs.common.models import AnimeGenreFilter, AnimeOrderFilter, AnimeInfo, An
 from dataPersistence.animesPersistence import (AnimeRecord, AnimeStatus, AnimesPersistence,
                                                AnimesPersistenceSingleton)
 from gui.anime_window import AnimeWindowViewer, find_saved_duplicate, show_anime_info_error
+from gui.components.empty_state import EmptyState, glyph as empty_glyph
 from gui.components.genre_chips import GenreChips
 from gui.components.pager import Pager
 from gui.components.poster_grid import PosterGrid, PosterItem
@@ -115,6 +116,9 @@ class SearchButton(utilsButtons.SidebarButton):
         self.__results_label: Optional[ctk.CTkLabel] = None
         self.__poster_grid: Optional[PosterGrid] = None
         self.__pager: Optional[Pager] = None
+        #: Estado vacío de «sin resultados». Se construye y se destruye en cada
+        #: búsqueda porque su frase nombra la consulta, que cambia.
+        self.__empty_state: Optional[EmptyState] = None
 
     # ------------------------------------------------------------------
     # Construcción de la vista
@@ -147,8 +151,10 @@ class SearchButton(utilsButtons.SidebarButton):
                                         on_click=self.__on_anime_click)
         self.__poster_grid.grid(row=3, column=0, sticky="w", padx=(PosterGrid.OUTER_PAD_X, 0))
 
+        # La fila 4 la ocupa el estado vacío cuando hace falta; el paginador baja
+        # a la 5 para que no tengan que compartir celda.
         self.__pager = Pager(content, page_size=self.PAGE_SIZE, on_page=self.__on_page_changed)
-        self.__pager.grid(row=4, column=0, sticky="ew",
+        self.__pager.grid(row=5, column=0, sticky="ew",
                           padx=Metrics.CONTENT_PAD_X, pady=(4, 24))
         # Nace escondido: un paginador recién colocado no se ha repintado todavía
         # y se quedaría ocupando su fila, vacío, hasta la primera búsqueda.
@@ -328,6 +334,9 @@ class SearchButton(utilsButtons.SidebarButton):
         self.__poster_grid.clear()
         self.__displayed.clear()
         self.__pager.set_pages(1, 1)
+        # Si no, el «Sin resultados» de la búsqueda anterior se queda debajo del
+        # «Buscando animes…» de la nueva.
+        self.__clear_empty_state()
 
         def _search():
             if query:
@@ -368,6 +377,7 @@ class SearchButton(utilsButtons.SidebarButton):
         self.__poster_grid.show(items)
         self.__pager.set_pages(last_page, page)
         self.__set_status(self.__results_text(animes, items))
+        self.__refresh_empty_state(animes)
 
     def __save_anime_search(self, animes: List[AnimeInfo], last_page: int, page: int) -> None:
         self.main_window.last_search_instance = AnimeSearch(
@@ -386,11 +396,13 @@ class SearchButton(utilsButtons.SidebarButton):
         manager estampa en cada ``AnimeInfo`` quién respondió, así que cuando
         entra el fallback la línea dice el sitio de verdad y no el que se pidió.
         """
-        provider_name = self.__serving_provider_name(animes)
         if not animes:
-            if self.__query:
-                return f"Sin resultados para «{self.__query}» en {provider_name}"
-            return f"Sin resultados en {provider_name}"
+            # Sin resultados quien habla es el estado vacío, que lo dice con su
+            # icono, su frase y su salida. Repetirlo aquí arriba sería el dato
+            # duplicado que prohíbe `DISENO.md` §6.
+            return ""
+
+        provider_name = self.__serving_provider_name(animes)
 
         total = len(animes)
         results = "1 resultado" if total == 1 else f"{total} resultados"
@@ -414,6 +426,75 @@ class SearchButton(utilsButtons.SidebarButton):
     def __set_status(self, text: str) -> None:
         if self.__results_label is not None and self.__results_label.winfo_exists():
             self.__results_label.configure(text=text)
+
+    # ------------------------------------------------------------------
+    # Estado vacío
+    # ------------------------------------------------------------------
+    def __refresh_empty_state(self, animes: List[AnimeInfo]) -> None:
+        """Pone o quita el estado vacío según haya resultados o no.
+
+        Se reconstruye en vez de reconfigurarse porque la frase nombra la
+        consulta y la acción depende de si lo que estrecha la búsqueda es el
+        texto o los géneros.
+        """
+        self.__clear_empty_state()
+        if animes:
+            return
+
+        # ⚠️ El paso 9.1 pedía ofrecer aquí «probar con otro proveedor», y sería
+        # mentira: `call_with_fallback()` recorre el registro entero cuando el
+        # elegido devuelve vacío, así que llegar aquí significa que **ya se han
+        # probado todos**. Lo que sí puede cambiar el resultado es soltar lo que
+        # estrecha la consulta, y eso es lo que ofrece el botón.
+        if self.__query:
+            message = f"Sin resultados para «{self.__query}»"
+            action_text = "Borrar la búsqueda"
+        elif self.__genres:
+            genres = ", ".join(refactor_genre_text(genre.name) for genre in self.__genres)
+            message = f"Sin resultados para {genres}"
+            action_text = "Quitar los filtros"
+        else:
+            message = "Sin resultados"
+            action_text = None
+
+        providers = len(self.anime_provider_mgr.list_providers_info())
+        empty_state = EmptyState(
+            self.main_window.content_frame,
+            message,
+            icon=empty_glyph("search"),
+            hint=(f"Han respondido los {providers} proveedores y ninguno lo tiene."
+                  if providers > 1 else "El proveedor no tiene nada que encaje."),
+            action_text=action_text,
+            on_action=self.__clear_search
+        )
+        empty_state.grid(row=4, column=0, pady=(28, 0))
+        self.__empty_state = empty_state
+
+    def __clear_empty_state(self) -> None:
+        """Quita el estado vacío, si lo hay."""
+        if self.__empty_state is not None and self.__empty_state.winfo_exists():
+            self.__empty_state.destroy()
+        self.__empty_state = None
+
+    def __clear_search(self) -> None:
+        """Deja la pestaña como recién abierta: sin texto, sin géneros y sin rejilla."""
+        self.__query = ""
+        self.__genres = []
+        if self.__query_entry is not None and self.__query_entry.winfo_exists():
+            self.__query_entry.delete(0, "end")
+        self.__chips.set_selected([])
+        # Se incrementa la generación para que una respuesta en vuelo no repinte
+        # la rejilla que se acaba de vaciar.
+        self.__generation += 1
+        self.__poster_grid.clear()
+        self.__displayed.clear()
+        self.__pager.set_pages(1, 1)
+        self.main_window.last_search_instance = None
+        # Sin estado vacío: la pestaña recién abierta no es «no hay resultados»,
+        # es «todavía no has pedido nada». Lo que invita a pedirlo es el campo de
+        # arriba, y la línea de estado ya lo dice.
+        self.__clear_empty_state()
+        self.__set_status("Busca por título, o elige un género para explorar el catálogo")
 
     # ------------------------------------------------------------------
     # El sello «ya lo tienes»

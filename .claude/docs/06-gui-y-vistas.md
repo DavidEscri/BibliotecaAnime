@@ -2,515 +2,443 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-08-16 · **Commit** `a3d4331` (2026-08-17, rama `main`) · árbol **limpio** |
-| **Última revisión** | 2026-08-16 (**columna `provider_id`**): las 4 vistas de estado pasan a **3 filas de grid** por fila visual y a buscador **local**; la ficha gana el bloque de proveedor de hasta 3 líneas (§4) y `open_saved_anime()` unifica el clic (§3). `anime_window.py` crece de 647 a 1156 líneas |
-| **Cubre** | `src/gui/main_window.py`, `src/gui/anime_window.py`, `src/gui/sidebarButtons/**`, `src/utils/buttons/utilsButtons.py` |
+| **Fecha** | 2026-08-21 · rama `feature/ui-redisign` · árbol **con la fase 9 del rediseño sin commitear** |
+| **Última revisión** | 2026-08-21 (**rediseño de interfaz, fases 1-9**): documento **reescrito entero**. Nacen `gui/theme.py` y los **11** componentes de `gui/components/`; la barra lateral pasa de seis botones sueltos a un `Sidebar` plegable; `SidebarButton` deja de ser un widget; las 6 vistas se rehacen y la ficha crece de 1 156 a 1 734 líneas |
+| **Cubre** | `src/gui/theme.py`, `src/gui/components/**`, `src/gui/main_window.py`, `src/gui/anime_window.py`, `src/gui/sidebarButtons/**`, `src/utils/buttons/utilsButtons.py` |
 
 Procedencia: ✅ verificado en ejecución (arranque real de la GUI) · 📖 leído en código · ⚠️ sin verificar.
 
+> La **especificación** visual —tokens, medidas, reglas de composición— vive en
+> [`.claude/plan-rediseno/DISENO.md`](../plan-rediseno/DISENO.md), y el histórico de por qué cada
+> cosa es como es, en [`ESTADO.md`](../plan-rediseno/ESTADO.md). Este documento describe **el código
+> que resultó**, no el diseño.
+
 ---
 
-## 1. `MainWindow` como hub
+## 0. El mapa, de un vistazo
 
-📖 `main_window.py:35-93`. `MainWindow(ctk.CTk)` es la ventana raíz **y** el contenedor de todo el
-estado compartido. **No hay router ni gestor de vistas**: cada vista recibe `main_window` y muta ese
-estado directamente.
-
-```mermaid
-graph LR
-    MW["<b>MainWindow</b><br/>1440 × 910 :36-37"]
-    SB["<b>sidebar_frame</b><br/>CTkFrame, width=340<br/>grid col=0 :116-133"]
-    CF["<b>content_frame</b><br/><b>CTkScrollableFrame</b><br/>grid col=1 :135-146"]
-    MW --> SB
-    MW --> CF
-    SB --> B1["6 × SidebarButton<br/>filas 2..7 :153-158"]
-    SB --> B2["desplegable de proveedor + pin<br/>:160-214"]
-    SB --> B3["CTkOptionMenu apariencia<br/>:216-229"]
-    CF --> V["<i>la vista activa —<br/>lo repuebla quien manda</i>"]
+```
+gui/
+├── theme.py                 Theme (colores + tipografía) y Metrics (medidas). NADIE define un color fuera
+├── components/              piezas compartidas; una vista no dibuja nada que ya esté aquí
+│   ├── sidebar.py           Sidebar + _NavItem — la barra entera, plegable
+│   ├── view_header.py       ViewHeader — título + subtítulo + zona de controles, alto fijo 80
+│   ├── poster_grid.py       PosterGrid + PosterItem — rejilla de N columnas, con sello superpuesto
+│   ├── pager.py             Pager — dos modos: trocear una lista, o paginar al proveedor
+│   ├── anime_row.py         AnimeRow + RowAction — fila en cascada, con acción en hover
+│   ├── side_panel.py        SidePanel — los 290 px de la derecha en «Viendo»
+│   ├── resume_card.py       ResumeBand + resume_progress() — «Retomar donde lo dejaste»
+│   ├── rating_stars.py      RatingStars — las cinco estrellas con medios puntos
+│   ├── status_pill.py       StatusPill — texto, colores y glifo de cada estado
+│   ├── genre_chips.py       GenreChips — fichas de género seleccionables
+│   └── empty_state.py       EmptyState — icono, frase y acción cuando no hay nada que enseñar
+├── main_window.py           el hub
+├── anime_window.py          AnimeWindowViewer + EpisodeRow + open_saved_anime()
+└── sidebarButtons/<vista>/  las 6 vistas: solo deciden qué datos van en cada componente
 ```
 
-**`content_frame` es UNO SOLO.** Todas las vistas lo vacían con `clear_frame()` (`:118-120`) y lo
-repueblan. No se crean frames por vista a nivel de ventana.
+**La regla que sostiene todo lo demás**: una vista **compone**, no dibuja. Si necesita una variante
+de un componente, se le añade un parámetro; **no se bifurca el fichero**. Se ha cumplido: `AnimeRow`
+la comparten «Viendo» y «Pendientes» con dos parámetros de diferencia, y `PosterGrid` sirve a las
+tres rejillas.
 
-### Estado compartido: quién lo lee y quién lo muta
+---
 
-📖 `main_window.py:44-93`.
+## 1. `gui/theme.py` — la única fuente de color y medida
 
-| Atributo | Tipo | Lo escribe | Lo lee |
-|---|---|---|---|
-| `animes_persistence` | `AnimesPersistence` | `__init__:44` | todas las vistas, `anime_window` |
-| `anime_provider_mgr` | `AnimeProviderManager` | `__init__:45-49` | todas las vistas, `anime_window` |
-| `recent_animes` | `List[AnimeRecord\|AnimeInfo]` | `download_images_and_show_animes:484` 🧵, `__preload_recent_animes_info:502-528` 🧵, `__on_recent_animes_reloaded:423` 🖥️ | `recentAnimes.py:45,55,83` |
-| `favourite_animes` | `List[AnimeRecord]` | `load_animes:532` 🧵 | ⚠️ **nadie**: `favouriteAnimes.py:75` reconsulta la BD |
-| `finished_animes` | `List[AnimeRecord]` | `load_animes:535` 🧵 | ⚠️ ídem (`finishedAnimes.py:75`) |
-| `watching_animes` | `List[AnimeRecord]` | `load_animes:538` 🧵 | ⚠️ ídem (`watchingAnimes.py:77`) |
-| `pending_animes` | `List[AnimeRecord]` | `load_animes:541` 🧵 | ⚠️ ídem (`pendingAnimes.py:77`) |
-| `last_search_instance` | `AnimeSearch \| None` | `searchAnimes.py:55` | `searchAnimes.py:148-156` |
-| `images_path` | `str` | `__init__:93` | `recentAnimes.py:61` |
-| `sidebar_frame` / `content_frame` | widgets | `__config_main_frames:113-116` | todo el mundo |
+Dos clases sin estado:
 
-> ⚠️ **Las cuatro listas cacheadas de estado están muertas.** ✅ Se rellenan en el arranque
-> (`load_animes:530-543`) pero **ninguna vista las consume**: cada una vuelve a consultar la BD al
-> pintarse. Es coste de arranque sin beneficio, y una fuente de confusión. Ver
-> [12](12-deuda-tecnica-y-roadmap.md).
+- **`Theme`** — 20 tokens de color, cada uno una tupla `(claro, oscuro)`, más los roles
+  tipográficos. Pasar la tupla a CustomTkinter es lo que hace que **el cambio de tema no requiera
+  recorrer widgets**: lo resuelve la librería.
+- **`Metrics`** — las medidas de `DISENO.md` §3: anchos de barra, tamaños de póster, altos de fila,
+  radios.
 
-### Composition root
+Tres cosas que no son obvias:
 
-📖 `:47-49` es el **único** sitio de `gui/` donde se nombra un proveedor concreto. **El orden de
-registro es el orden del fallback**:
+| | |
+|---|---|
+| `Theme.font(size, bold, mono)` | Las fuentes **no** son constantes de módulo: un `CTkFont` necesita que ya exista la raíz de Tk, así que a nivel de módulo el import reventaría. Se cachean por `(tamaño, negrita, mono)` |
+| `Theme.ellipsize(texto, fuente, ancho, líneas)` | 🔴 `wraplength` **no** limita a dos líneas, y un `CTkLabel` **no** se recorta a su `height`: envuelve todo lo que haga falta y crece. Todo título de ancho fijo pasa por aquí ([trampa 30](10-invariantes-y-trampas.md)) |
+| `Metrics.POSTER_CACHE_SIZE` | Está **duplicado a mano** en `utils/utils.py:24-33`, con un comentario que nombra a su pareja. `utils/` no puede importar de `gui/` ([01 §2](01-arquitectura.md)) |
+
+✅ Verificado el 2026-08-21: `git grep -nE "#[0-9A-Fa-f]{6}" -- src/` devuelve **solo**
+`src/gui/theme.py`. Ni un color literal en el resto del árbol.
+
+---
+
+## 2. `MainWindow` como hub
+
+Sigue sin haber router ni gestor de vistas: `MainWindow` (CTk) es un objeto compartido que cada
+vista muta directamente.
+
+**Qué mantiene**:
+
+| Atributo | Qué es |
+|---|---|
+| `content_frame` | Un **único** `CTkScrollableFrame` que las 7 vistas reutilizan. `clear_frame()` destruye sus hijos |
+| `sidebar_frame` | La instancia de `Sidebar`. `None` hasta `load_sidebar_buttons()` |
+| `recent_animes`, `favourite_animes`, `watching_animes`, `pending_animes`, `finished_animes` | Listas cacheadas. **Solo se llenan al arrancar**; quien cambie un estado tiene que releerlas antes de `refresh_sidebar_counts()` ([trampa 31](10-invariantes-y-trampas.md)) |
+| `animes_persistence`, `user_persistence`, `anime_provider_mgr` | Los tres singletons |
+| `last_search_instance` | La última búsqueda, para que volver a «Buscar» la encuentre igual |
+
+**API pública que usan las vistas** (además de la que ya había):
+
+| Método | Para qué |
+|---|---|
+| `navigate_to(etiqueta)` 🆕 | Abre otra vista **por su etiqueta de barra lateral** y deja la barra marcándola. Es lo que usan los botones de los estados vacíos. Devuelve `False` si la etiqueta no existe: **no lanza** |
+| `retry_recent_animes()` 🆕 | Vuelve a pedir los estrenos. Lo llama el botón «Reintentar» de la portada |
+| `refresh_sidebar_counts()` | Repinta los contadores desde las listas cacheadas |
+| `set_active_sidebar_destination(destino)` | Marca el activo cuando la navegación no viene de un clic |
+| `provider_for_saved_anime(provider_id)` | El orden de prioridad de [13 §8](13-selector-de-proveedor.md) |
+
+### Arranque
+
+0. `__init__` registra los tres proveedores y arranca `UserPersistence` **de forma síncrona** — el
+   desplegable tiene que nacer con el valor guardado y el pin aplicado antes de la primera petición.
+1. `show_loading_screen()` pinta el GIF y lanza un hilo daemon.
+2. Ese hilo: `load_animes()` (BD, 0→40 %) → `get_recent_animes()` → `download_images_progress()`
+   (90→100 %) → **destruye la pantalla de carga** → `RecentAnimeButton.show_frame()`.
+3. Un segundo hilo (`__preload_recent_animes_info`) rellena sinopsis/géneros/episodios de cada
+   estreno para que el clic sea instantáneo.
+
+🔴 **La pantalla de carga se `destroy()`, no se `place_forget()`, y se retira también cuando no hay
+estrenos.** Hasta la fase 9 solo se retiraba en la rama de éxito, así que **un arranque sin red
+dejaba el GIF tapando la portada para siempre**; y como el widget seguía vivo, su animación se
+reprogramaba cada 100 ms durante toda la sesión repintando un GIF de 400 × 400. Es la
+[trampa 33](10-invariantes-y-trampas.md). ✅ Visto y arreglado el 2026-08-21.
+
+---
+
+## 3. `Sidebar` — la barra lateral
+
+Sustituye a los seis `CTkButton` que se pintaban solos. Contiene cabecera con el botón de plegado,
+los seis destinos, el bloque de proveedor (desplegable + pin) y el de apariencia.
+
+**Dos anchos**: 224 px desplegada, 84 px plegada (`Metrics.SIDEBAR_W` /
+`SIDEBAR_COLLAPSED_W`). El estado se **persiste** en `DB_user.db` (`sidebar_collapsed`, ver
+[13 §4](13-selector-de-proveedor.md)).
+
+Cada destino es un `_NavItem`, que **no hereda de ningún widget**: agrupa cuatro piezas (barra de
+acento de 2 px, icono, etiqueta y contador) que tienen que reaccionar juntas al hover y al clic,
+porque en Tk `<Enter>` y `<Button-1>` **no burbujean** desde los hijos. Cada ítem construye sus dos
+representaciones —desplegada y plegada— y enseña la que toque.
+
+🔴 **Tres trampas de layout que costaron caro** y valen para cualquier componente nuevo:
+
+1. **Un `CTkFrame` sin hijos conserva 200 × 200 como tamaño pedido** y estira su fila. La barrita de
+   acento inflaba la fila a 200 y el icono caía en `y=86`, fuera de lo visible: la barra salía **con
+   los seis destinos en blanco y sin ningún error**. Todo marco decorativo o todavía vacío necesita
+   `height=` explícito ([trampa 29](10-invariantes-y-trampas.md)).
+2. **El alto de fila se fija con `minsize` en la fila, no con `height=` + `grid_propagate(False)`**:
+   esa combinación deja el marco al alto pedido por fuera, pero su rejilla interna sigue centrando
+   los hijos como si midiera 200.
+3. **El ancho fijo necesita `grid_propagate(False)` *y* `minsize` en la columna 0 del padre.** Solo
+   con el primero, la rejilla de `MainWindow` le roba píxeles cuando el contenido pide más ancho del
+   que cabe (medido: 219 en vez de 224).
+
+**El orden de los destinos es el de la lista `destinations` de `load_sidebar_buttons()`**: Nuevos ·
+Favoritos · Viendo · Pendientes · Finalizados · Buscar. **Las etiquetas viven en cada vista**, en su
+`super().__init__`; renombrar una pestaña es tocar su vista, no la barra.
+
+---
+
+## 4. `SidebarButton` ya no es un widget
+
+📖 `utils/buttons/utilsButtons.py:159`. Desde la fase 1 es una **clase llana** que solo describe un
+destino:
 
 ```python
-self.anime_provider_mgr.register(AnimeAV1Singleton(), default=True)
-self.anime_provider_mgr.register(JKAnimeSingleton())     # 2026-08-06
-self.anime_provider_mgr.register(AnimeFLVSingleton())
+class SidebarButton:
+    self.sidebar_text: str        # etiqueta que enseña la barra
+    self.sidebar_command: Callable # qué se ejecuta al pulsarlo
+    def sidebar_icon(size) -> CTkImage
+    def show_frame()               # lo implementa cada vista
 ```
 
-> ⚠️ **Corrección (2026-08-07)**: este bloque omitía `JKAnimeSingleton`, registrado el 2026-08-06.
-> Son **tres** proveedores, y JKAnime va en medio a propósito ([01 §2](01-arquitectura.md)).
+La firma del constructor **no cambió** (`parent_frame`, `text`, `row`, `column`, `command`,
+`icon_path_light`, `icon_path_dark`), así que las seis vistas siguen heredando igual; `parent_frame`,
+`row` y `column` se conservan por compatibilidad y **ya no se usan**.
+
+⚠️ **Si necesitas el destino como widget, no existe.** Lo que hay es el `_NavItem` de la barra.
+
+### Qué queda en `utilsButtons.py`
+
+Tres piezas, y ninguna es un botón pese al nombre del fichero: `filter_animes_by_title()`,
+`match_animes_from_search()` y `SavedAnimeSearch` (el buscador **local** de las cuatro vistas de
+estado), más `SidebarButton`.
+
+El paso 9.4 retiró **cinco clases huérfanas** —`BaseButton`, `EpisodeButton`, `SearchButton`,
+`ApplyFiltersButton` y `AccordionFilterButton`—, todas `CTkButton` con colores y tamaños literales,
+sustituidas por los componentes del rediseño. El módulo pasó de 361 a 205 líneas. Renombrarlo se
+dejó fuera del plan: el rediseño es solo interfaz y esto vive en `utils/`.
 
 ---
 
-## 2. Ciclo de vida de una vista
+## 5. Ciclo de vida de una vista
 
-```mermaid
-sequenceDiagram
-    participant U as Usuario
-    participant SBTN as SidebarButton
-    participant MW as MainWindow
-    participant CF as content_frame
+Sigue siendo el mismo patrón, con dos cambios:
 
-    U->>SBTN: clic
-    SBTN->>SBTN: command → __show_<vista>()
-    SBTN->>MW: clear_frame()  → destroy() de todos los hijos
-    Note over SBTN: time.sleep(0.1)  ⚠️ patrón heredado
-    SBTN->>CF: grid_columnconfigure(...)
-    SBTN->>CF: crear widgets nuevos
-    U->>CF: clic en un póster
-    CF->>SBTN: __on_anime_click(anime_id)
-    SBTN->>MW: open_saved_anime(mw, anime_id)  🧵 petición en hilo
-    MW-->>MW: after(0, …) → AnimeWindowViewer(...).display_anime_info()
+```
+sidebar → _NavItem.__handle_click → Sidebar.__on_item_click
+   → set_active(destino) → destino.sidebar_command()
+        → main_window.clear_frame()          # destruye los hijos de content_frame
+        → construir ViewHeader + componentes en content_frame
 ```
 
-> 🆕 **Desde el 2026-08-16 el último paso NO ocurre en el hilo de Tkinter por accidente.** La petición
-> va en un hilo daemon y el repintado vuelve con `after(0, …)`. No es formalidad:
-> `display_anime_info()` empieza destruyendo los widgets de la vista anterior y, hecho desde otro
-> hilo, revienta con `invalid command name ...!searchbutton.!ctkcanvas` en cuanto la vista destruida
-> tenía un `<Configure>` encolado — la barra de búsqueda de las cuatro vistas de estado. Ver
-> [07](07-concurrencia-e-hilos.md).
-
-**No hay `destroy()` de la vista anterior más allá de sus widgets.** El objeto `SidebarButton` vive
-toda la sesión (se instancia una vez en `load_sidebar_buttons`), así que **su estado interno
-persiste** entre visitas: `__episodes_frame`, `genre_vars`, `selected_order`, `__loading_frame`…
-De ahí los `winfo_exists()` defensivos (`favouriteAnimes.py:93` y homólogos).
+1. 🔴 **`clear_frame()` no deshace la configuración de rejilla del `content_frame`.** Los pesos de
+   filas y columnas **sobreviven**, y una columna con peso y sin widgets también recibe el espacio
+   sobrante: la ficha repartía peso entre cuatro columnas y la vista siguiente pintaba en una columna
+   0 estrecha. **Toda vista que reparta peso tiene que deshacerlo**; la ficha lo hace en su salida
+   ([trampa 32](10-invariantes-y-trampas.md)).
+2. **El `time.sleep(0.1)` tras `clear_frame()` desapareció.** Solo estaba para que `winfo_width()` no
+   valiera 1 al calcular columnas; con rejillas de número fijo no se mide nada. **No lo reintroduzcas.**
 
 ---
 
-## 3. El patrón `SidebarButton`
+## 6. Los componentes, uno a uno
 
-📖 `utilsButtons.py:211-237`.
+### `ViewHeader`
+Título (`T_VIEW`) + subtítulo (`T_SUB`, `TXT_3`) a la izquierda; `controls_frame` a la derecha, donde
+cada vista mete lo suyo. Alto fijo 80 con `minsize`. `controls_frame` nace con `height=1` por la
+trampa 29.
+**No repite contadores**: viven en la barra lateral (`DISENO.md` §6).
+**«Buscar» es la única vista sin `ViewHeader`**: su campo de 620 px *es* la cabecera.
 
-```python
-class SidebarButton(BaseButton):
-    def __init__(self, parent_frame, text, row, column, command,
-                 icon_path_light, icon_path_dark):
-        self.icon_light = load_image(icon_path_light, image_size=(24, 24))
-        self.icon_dark  = load_image(icon_path_dark,  image_size=(24, 24))
-        current_icon = self.icon_dark if ctk.get_appearance_mode() == "Dark" else self.icon_light
-        super().__init__(parent_frame, text=" " + text, ...,
-                         text_color="black", hover_color="white", corner_radius=0)
-        self.grid(row=row, column=column, sticky="nsew")
+### `PosterGrid` / `PosterItem`
+Rejilla de N columnas. Una celda es un **`CTkFrame` propio que ocupa UNA fila** de la rejilla, con el
+póster, el título (a dos líneas, vía `ellipsize`), un pie opcional y un hueco libre opcional
+(`extra_builder`). Así añadir o quitar una línea no toca ningún índice.
 
-    def update_icon(self, mode): ...     # :232-234
-    def show_frame(self):                 # :236-237
-        raise NotImplementedError("Subclasses must implement this method")
-```
+- **Sello superpuesto** (`badge` + `badge_icon`), colocado con `place()` arriba a la izquierda. Es
+  **siempre** el del diseño: `BADGE_BG` opaco y `BADGE_INK`, con el color del estado solo en el
+  glifo. No se puede elegir otro par — va sobre la carátula, no sobre el fondo de la app, y los pares
+  pastel de `StatusPill` no se leen sobre un póster claro.
+- El widget que devuelve `extra_builder` **no hereda el clic de la celda** (los eventos de Tk no
+  burbujean), que es justo lo que hace que pulsar una estrella no abra la ficha.
+- Los pósters se cargan con `load_rounded_image()`: **CustomTkinter no redondea la `image` de un
+  widget** por mucho `corner_radius` que tenga; el recorte hay que traerlo hecho desde PIL.
 
-### Contrato de una vista
+### `Pager`
+Dos modos, sin subclase:
 
-Una vista concreta debe:
+| Modo | Cuándo | Qué dice |
+|---|---|---|
+| `set_total(n, page)` | La lista está entera en memoria | «Mostrando 13-24 de 58». **Es dueño del corte** (`slice_bounds()`), para que el texto y lo que se ve no discrepen |
+| `set_pages(última, actual)` | Quien trocea es el sitio web | «Página 2 de 50». El total **no se sabe**: el contrato devuelve la última página, no cuántos hay |
 
-1. Heredar de `utilsButtons.SidebarButton`.
-2. En `__init__`: resolver los iconos, llamar a `super().__init__(main_window.sidebar_frame, TEXTO,
-   row, column, self.__show_<vista>, icon_light, icon_dark)` y guardar `self.main_window`.
-3. Implementar **`show_frame()`** — lo llama `MainWindow` en el arranque; es el punto de entrada
-   programático.
-4. Implementar `__show_<vista>()` — es el `command` del botón.
-5. Registrarse en `MainWindow.load_sidebar_buttons()` (`main_window.py:154-238`).
+Se esconde solo si no hay nada que paginar.
 
-Plantilla copiable → [08 §7](08-convenciones-y-estilo.md). Receta completa → [11 §1](11-playbooks.md).
+### `AnimeRow` / `RowAction`
+Fila en cascada: póster + título + géneros + (opcional) progreso + columna derecha. Parámetros:
+`poster_size`, `show_progress`, `action`, `on_click`, `provider_name`, `meta_text`, `text_width`,
+`show_separator`. «Pendientes» la usa **sin tocar el fichero**.
 
-### Las 6 vistas registradas
+🔴 **Un `<Leave>` no significa que el ratón se haya ido**: Tk lo manda también al pasar del marco a
+un hijo, así que apagar el hover ahí hace parpadear la fila y la píldora se escapa justo al ir a
+pulsarla. `__pointer_inside()` compara `winfo_pointerxy()` con el rectángulo real antes de apagar
+nada ([trampa 34](10-invariantes-y-trampas.md)).
+**El hueco de la acción se reserva siempre**, con tamaño fijo y `grid_propagate(False)`: si la
+píldora se creara al entrar el ratón, la fila cambiaría de ancho bajo el cursor.
 
-📖 `main_window.py:159-164`. Se instancian en filas 2 a 7, columna 0.
+### `SidePanel` y `ResumeBand`
+Los 290 px de la derecha en «Viendo» y la banda «Retomar donde lo dejaste» de la portada.
+Los 290 son **248 + 21 × 2**: 248 es el ancho al que se guarda el póster, así que se pinta a tamaño
+natural, y **toda línea de la tarjeta se mide contra 248**.
+`resume_progress(record)` es el **único** sitio donde se calcula por dónde ibas; ordena los episodios
+antes de mirar nada, porque `AnimeRecord.episodes` **viene invertido** de la BD ([trampa 2](10-invariantes-y-trampas.md)).
+La banda **no se pinta si no hay nada que retomar**: ni etiqueta ni hueco.
 
-| Fila | Clase | Texto | Icono | `show_frame()` llama a |
+### `RatingStars`
+Cinco estrellas con medios puntos, **dibujadas con PIL** en tiempo de ejecución. Escala entera 0-10
+(dos puntos por estrella); `NULL` **no es 0**. Volver a pulsar la misma calificación la quita.
+🔴 **Calificar no reordena la rejilla**: si la lista se recolocara bajo el cursor, la segunda
+estrella se pulsaría sobre otro anime.
+
+### `StatusPill`
+Texto, colores y **glifo** de los cuatro estados, en un solo sitio. Se usa como widget o sin él
+(`text()`, `colors()`, `icon()`).
+`other_status(record, besides=…)` responde «además de estar donde está, **¿qué más es** este anime?».
+`icon(status, size, color, gap)`:
+- **sin `color`**, se tiñe con la variante **oscura** del estado en los dos temas — es lo que necesita
+  un sello, que va sobre `BADGE_BG`;
+- **con `color`**, se dibuja dos veces, una por tema;
+- **`gap=0`** lo deja cuadrado, para cuando va solo y centrado (los estados vacíos). Por defecto
+  reserva 5 px transparentes a su derecha, porque Tk pega imagen y texto con `compound="left"` y
+  `CTkLabel` no expone su padding interno.
+
+### `GenreChips`
+Fichas de género seleccionables; las activas van primeras, con `ACCENT_SOFT` + borde `ACCENT` + ✕.
+Siete visibles y «Más géneros (33)» para el resto.
+🔴 **Se colocan con `place()`, no con `grid()`**: las columnas de una rejilla son comunes a todas las
+filas, así que envolver texto con `grid` hace que la tercera ficha de cada fila comparta el ancho de
+la más larga y la fila se abra en huecos. Con `place()` el marco no pide alto, así que `show()` se lo
+fija.
+El texto sale de `refactor_genre_text(genre.name)`, **no de `.value`**: los `value` son slugs sin
+tildes (`ciencia-ficcion`).
+
+### `EmptyState` 🆕
+Icono, frase, pista opcional y un botón de acción. Sustituye al `CTkLabel` suelto de cada vista.
+
+🔴 **Un estado vacío no puede mentir sobre su causa ni prometer una salida que no existe.** Dos
+reglas que salieron de aquí:
+
+- La portada vacía **no** es «no tienes nada»: el catálogo no es del usuario. Si sale vacía es que
+  ningún proveedor respondió, así que el texto habla de la red y la acción es **reintentar**.
+- En «Buscar» **no se puede ofrecer «prueba con otro proveedor»**: `call_with_fallback()` ya los ha
+  probado todos cuando el elegido devuelve vacío. Se ofrece borrar la búsqueda o quitar los filtros,
+  que es lo único que cambia el resultado.
+
+Recibe el icono **ya construido**: las cuatro vistas de biblioteca pasan el glifo de su propio estado
+(`StatusPill.icon(..., gap=0)`), y el módulo solo dibuja los dos que no existían —nube tachada y
+lupa— con PIL. **Cero PNG nuevos**, así que la deuda **B11** no crece.
+
+---
+
+## 7. Las 6 vistas
+
+Todas heredan de `SidebarButton`, se instancian en `load_sidebar_buttons()` y componen. Lo que las
+distingue:
+
+| Vista | Disposición | Paginador | Buscador | Estrena |
 |---|---|---|---|---|
-| 2 | `RecentAnimeButton` | `ANIMES RECIENTES` | `recientes.png` | `__show_animes_recientes` |
-| 3 | `FavouritesButton` | `ANIMES FAVORITOS` | `favoritos.png` | `__show_favorites` |
-| 4 | `FinishedAnimeButton` | `ANIMES FINALIZADOS` | `finalizados.png` | `show_finished_animes` |
-| 5 | `WatchingAnimeButton` | `ANIMES VIENDO` | `viendo.png` | `show_watching_animes` |
-| 6 | `PendingAnimeButton` | `ANIMES PENDIENTES` | `pendientes.png` | `show_pending_animes` |
-| 7 | `SearchButton` | `BUSCADOR DE ANIMES` | `buscar.png` | `__show_buscador` |
+| **Nuevos lanzamientos** | `ResumeBand` + rejilla de **6** (176 × 264) | sí, **12** | — | la banda «Retomar» |
+| **Favoritos** | rejilla de **5** (216 × 324) + estrellas | sí, **10** | local | la calificación y su orden persistido |
+| **Viendo** | cascada de `AnimeRow` (póster 70 × 100) + `SidePanel` | no | local | el panel de retomar |
+| **Pendientes** | cascada de `AnimeRow` (póster 56 × 80) | no | local | orden por duración + «Empezar» |
+| **Finalizados** | rejilla de **6** | sí, **12** | local | el sello «vistos / totales» |
+| **Buscar** | campo de 620 px + `GenreChips` + rejilla de **6** | sí, **del proveedor** | — | el sello «ya lo tienes» |
 
-⚠️ Inconsistencia de nomenclatura: tres vistas usan método **privado** (`__show_*`) y tres
-**público** (`show_*`). No hay razón funcional.
+**Rejilla donde se mira, cascada donde se decide** (`DISENO.md` §6). El tamaño de página es 10, salvo
+en las rejillas de 6 columnas, que usan 12 para no dejar filas cojas.
 
-### Las 4 vistas «de estado» son casi idénticas
+Tres cosas comunes a las **cuatro vistas de biblioteca**:
 
-📖 `favouriteAnimes.py`, `finishedAnimes.py`, `watchingAnimes.py`, `pendingAnimes.py` comparten
-estructura línea por línea. Diferencias reales:
+- Su clic delega en **`open_saved_anime()`**, que elige el proveedor y saca la petición del hilo de
+  Tkinter.
+- Su buscador es **local** (`SavedAnimeSearch`): compara títulos guardados, funciona sin conexión, y
+  la búsqueda web se **suma** encima sin quitar resultados nunca ([trampa 26](10-invariantes-y-trampas.md)).
+- **Enseñan siempre el proveedor de la fila**, porque puede no ser el seleccionado.
 
-| | `AnimeStatus` | Carpeta de pósters | Placeholder del buscador |
-|---|---|---|---|
-| favoritos | `FAVOURITE` | `favourite` | «Buscar mi anime favorito...» |
-| finalizados | `FINISHED` | `finished` | «Buscar entre mis animes terminados...» |
-| viendo | `WATCHING` | `watching` | «Buscar entre los animes que estoy viendo...» |
-| pendientes | `PENDING` | `pending` | «Buscar entre mis animes pendientes...» |
+⚠️ **El acordeón «Abrir filtro de animes» desapareció de las cuatro.** No está en el diseño y filtrar
+por género seis animes que ya son tuyos no aporta. Si el filtrado vuelve, el sitio es `GenreChips`.
 
-Cada una: `__show_browser()` monta buscador + `AccordionFilterButton` + `__display_animes(...)`;
-`__search_anime()` delega en un `SavedAnimeSearch`; `__display_animes()` pinta la rejilla;
-`__on_anime_click()` delega en `open_saved_anime()`.
-
-**🆕 `__on_anime_click` es hoy una sola línea en las cuatro** (2026-08-16). Antes cada vista repetía la
-petición, la guarda del `None` y la construcción del viewer; ahora todo eso vive en
-`open_saved_anime()`, que además elige el proveedor y saca la petición del hilo de Tkinter:
-
-```python
-def __on_anime_click(self, anime_id: Union[str, int]):
-    # Es un anime de la biblioteca: el proveedor sale de su fila y la petición
-    # va en un hilo aparte. Ambas cosas viven en open_saved_anime() porque las
-    # cuatro vistas de estado hacen exactamente esto mismo.
-    open_saved_anime(self.main_window, anime_id)
-```
-
-⚠️ **`searchAnimes.py` NO usa `open_saved_anime()`**, y es correcto: un resultado de búsqueda no tiene
-por qué estar en la biblioteca, y ahí el proveedor no se decide —ya se sabe, es el que sirvió la
-búsqueda—. Lo que sí copió es sacar la petición del hilo de Tkinter (`searchAnimes.py:344-382`).
-
-La carpeta de pósters de la columna 3 debe estar además en `get_anime_image` (`utils.py:185-196`); a
-`watching` se le olvidó durante meses ([11 §1](11-playbooks.md)).
-
-### 🆕 La rejilla pasa a **3 filas de grid** por fila visual *(2026-08-16)*
-
-Cada anime de las 4 vistas de estado muestra ahora **de qué sitio salió**, debajo del título:
-
-```python
-img_label.grid(row=row * 3,       column=column, ...)   # póster
-title_label.grid(row=(row*3) + 1, column=column, ...)   # título
-provider_label.grid(row=(row*3)+2, column=column, ...)  # proveedor, gris, 11 px
-```
-
-Sirve para ver de un vistazo cuáles **no** vienen del proveedor habitual: son los que pueden tardar
-más en abrirse, o dejar de funcionar si ese sitio cae. Si la fila no tiene proveedor anotado, la
-etiqueta va **vacía** en vez de decir «desconocido»: llenar la rejilla de ruido para informar de una
-ausencia no compensa.
-
-⚠️ Las otras dos vistas (recientes y buscador) siguen con **2 filas** por fila visual, porque sus
-animes no son filas de la biblioteca. Al copiar código de una a otra, el multiplicador se escapa
-fácil.
-
-> 🆕 **El buscador de estas cuatro vistas se reescribió entero**. Antes hacía
-> `search_animes_by_query` **contra el proveedor** y descartaba lo que no estuviera en BD con ese
-> flag, cruzando **por slug** — así que sin conexión no encontraba nada, y con conexión perdía animes
-> según qué proveedor tuvieras puesto. Es la [trampa 26](10-invariantes-y-trampas.md). Hoy la
-> búsqueda local es la primaria y la web solo **suma**: ver `SavedAnimeSearch` en §7.
+⚠️ **En «Buscar», texto y géneros son dos búsquedas distintas y no se combinan: manda el último
+gesto.** `search_animes_by_query()` y `search_animes_by_genres_and_order()` son métodos distintos del
+contrato y ninguno acepta lo del otro, así que buscar por texto **vacía las fichas** y tocar una
+ficha **vacía el texto**. Las peticiones no se solapan porque cada una lleva su número de generación
+y **solo pinta la última**.
 
 ---
 
-## 4. Jerarquía de widgets y convenciones de layout
+## 8. `AnimeWindowViewer` — sigue sin ser una ventana
 
-### Rejilla de pósters (las 6 vistas)
+📖 `gui/anime_window.py` (1 734 líneas). Reemplaza el contenido de `content_frame`.
 
-📖 Idéntico en `recentAnimes.py:39,55-80`, `favouriteAnimes.py:100-136`, `searchAnimes.py:239-263`…
+**Disposición**: bloque de proveedor + póster de 248 × 372 (redondeado) + título `T_SHEET` + sinopsis
++ fichas de género a la izquierda; los **4 botones de estado** en fila; y la lista de episodios.
 
-```python
-num_columns = max(1, self.main_window.content_frame.winfo_width() // 150)
-row    = index // num_columns
-column = index %  num_columns
-img_label.grid(row=row * 2,       column=column, padx=10, pady=(20, 0), sticky=NSEW)
-title_label.grid(row=(row*2) + 1, column=column, padx=10, pady=(5, 10),  sticky=N)
-```
+**Los botones de estado se encienden y se apagan** (fase 8), en vez de cambiar de texto para decir
+cuál de las dos acciones tocaba. Los cuatro comparten un único `command`, `__toggle_status()`, que
+mira cómo está la fila; los cuatro booleanos sueltos son ahora un diccionario `__status_state`, así
+que encender uno de los tres excluyentes y apagar los otros dos es una vuelta de bucle.
 
-- **Dos filas de grid por fila visual**: par = póster, impar = título.
-- `wraplength=120` en el título; póster a `(130, 185)`.
-- ⚠️ `winfo_width()` devuelve **1** si el widget aún no se ha dibujado, así que `num_columns` puede
-  colapsar a 1 columna en el primer pintado. Es la razón del `time.sleep(0.1)` heredado
-  ([07 §5](07-concurrencia-e-hilos.md)).
+**`EpisodeRow`** sustituye al viejo botón de ancho completo que repetía «<título> - Episodio N»
+veinticinco veces. Ahora dice solo «Episodio N» y reparte el resto entre una línea de estado y el
+interruptor «Visto».
+**Las filas van en las posiciones PARES de la rejilla y los servidores en la impar de debajo**:
+desplegarlos no empuja nada, y la fila impar mide cero mientras está vacía.
 
-### Filas reservadas en `content_frame`
+**El corte de 25 episodios sigue en pie**, pero ahora **la lista lo dice** («Se muestran 25 de
+1 174 episodios · usa "Ir al episodio…"»), que es lo que convierte el buscador de al lado en la
+salida evidente. **La lista no se reordena al abrir** ([trampa 8](10-invariantes-y-trampas.md)), y el
+botón de orden dice **el orden que llega del proveedor**: no es el mismo en todos.
 
-📖 Convención implícita, no documentada en el código:
+### El bloque de proveedor
+Hasta tres líneas: `Proveedor: X` (quién sirvió lo que ves), `En tu biblioteca: Y` (de quién es tu
+fila) y el botón «Actualizar a Z». **El ⚠ ámbar compara las dos primeras**: iguales → gris
+informativo; distintas → identidad partida. Detalle en [13 §8 y §14](13-selector-de-proveedor.md).
 
-| Fila | Contenido en las vistas de lista | Contenido en la ficha de detalle |
-|---|---|---|
-| 0 | buscador | **bloque de proveedor** (1-3 líneas) + póster (`rowspan=4`) |
-| 1-2 | filtros de género | título · sinopsis |
-| 3 | — | géneros |
-| 4 | — | frame de estados (los 4 botones) |
-| 5 | rejilla de resultados | lista de episodios |
-| 6 | paginación / frame de carga | — |
+### Las dos identidades
+🔴 Sigue siendo la [trampa 21](10-invariantes-y-trampas.md), intacta tras el rediseño:
+`anime_info` / `provider_id` son del proveedor que sirvió la ficha;
+`persistence_anime_id` / `persistence_poster_url` / `persistence_provider_id` salen de la **fila
+guardada** y **no cambian mientras la ficha está en pantalla**. Toda operación de BD y de póster usa
+las segundas, vía `__persistence_anime_info()`.
 
-Si añades una vista, **respeta estas filas** o el layout se solapará con el de otras vistas que
-compartan `content_frame`.
+🔴 **Quien abra una ficha de algo que puede estar en la biblioteca tiene que pasar `anime_record=`.**
+Omitirlo hace que un solo clic en un estado cree una fila duplicada.
 
-> ⚠️ Las filas de la ficha **se desplazaron una posición el 2026-07-30** al introducir el selector de
-> proveedor: estados 3 → 4, episodios 4 → 5. Si encuentras una cita `anime_window.py:<línea>` que
-> hable de la fila 3 o 4, es anterior a ese cambio.
+### Ancho y envuelto
+El `wraplength` de la sinopsis se resuelve **recalculando en `<Configure>`**, con umbral de 8 px: de
+ahí salen el envuelto del título, el de la sinopsis y el reenvuelto de los géneros. Ya no hay ningún
+número calculado a mano sobre el ancho del `content_frame` — eso cerró la
+[trampa 22](10-invariantes-y-trampas.md).
+La sinopsis se corta a **74 caracteres de ancho**, no al ancho disponible: por eso plegar la barra
+**no** la ensancha. Un «ch» se mide con `font.measure("0")`.
 
-### La ficha de detalle
-
-📖 Columnas con pesos `1 / 4 / 1 / 1`; la sinopsis y los géneros usan
-`wraplength = content_frame.winfo_width() - 275`.
-
-⚠️ **Ese `wraplength` calculado a mano es una trampa de layout**: cualquier widget nuevo que reserve
-ancho en las columnas 1-3 recorta el texto de la sinopsis por la derecha, porque el `wraplength` se
-fija sobre el ancho del `content_frame` entero y no sobre el de la celda. Por eso el bloque de
-proveedor ocupa **su propia fila** (`row=0, column=1, columnspan=3, sticky=E`) en vez de compartir la
-fila del título: al abarcar las tres columnas no obliga a ninguna a reservar ancho. Ver
-[trampa 22](10-invariantes-y-trampas.md) y [13 §6](13-selector-de-proveedor.md).
-
-> ✅ **Sigue aguantando tras crecer** (2026-08-16). Ese bloque pasó de una etiqueta a **hasta tres
-> líneas** —proveedor, «En tu biblioteca» y el botón de actualizar— y la sinopsis no se recortó,
-> porque todo lo nuevo va **dentro del mismo `provider_frame`**, apilado en sus filas 1 y 2. Lo que
-> dispara la trampa no es el alto ni el ancho del widget, sino **en qué columnas del `content_frame`
-> se declara**. Verificado por `test_fase6_gui.py`, que comprueba que el bloque sigue en
-> `[row=0, column=1, columnspan=3]` y que el `wraplength` no cambia.
-
-⚠️ `info_frame` fuerza `fg_color="white"` — **no se adapta al tema oscuro**.
-
-### Elegir proveedor: el desplegable, el pin y la etiqueta
-
-📖 Introducido el 2026-07-30 y **reformado el 2026-08-06** ([13](13-selector-de-proveedor.md)). Desde
-esa reforma **solo hay un control**, el de la sidebar; la ficha se limita a informar.
-
-| | Desplegable de la sidebar | **Pin**, a su lado | Etiqueta de la ficha |
-|---|---|---|---|
-| Qué hace | Cambia el proveedor **solo para esta sesión** | Fija (o desfija) el seleccionado como predeterminado | Nada: es informativa |
-| ¿Persiste? | **No** | Sí, en `DB_user.db` | — |
-| Fallback | **Activo** — si no, los animes guardados con el slug de otro proveedor dejarían de abrirse | — | — |
-| Al pulsar | Recarga la lista de recientes y navega a esa vista | Solo cambia lo guardado; **no** cambia el proveedor en uso ni recarga nada | — |
-| Qué muestra | El proveedor en uso | Azul = es tu predeterminado · gris = desviación temporal | **Quién sirvió realmente esta ficha** (hace visible el fallback) |
-
-El desplegable se puebla **solo** desde `AnimeProviderManager.list_provider_infos()`: la GUI no
-mantiene su propia lista de proveedores.
-
-> 🗑️ **La ficha ya no permite cambiar de proveedor.** Tenía un desplegable propio con `strict=True`
-> que re-resolvía el anime por título; se retiró porque, con la selección de la sidebar valiendo solo
-> para la sesión, hacía lo mismo con más código. Lo que **sí** sigue: los servidores de vídeo se piden
-> con `provider_id=self.provider_id, strict=True`, para que sean los del proveedor que sirvió **esa**
-> ficha y no los de un fallback silencioso.
-
-### 🆕 El bloque de proveedor de la ficha *(2026-08-16)*
-
-📖 `__show_provider_label()` (`anime_window.py:434-511`). Un `CTkFrame` transparente en `row=0`, con
-hasta **tres** líneas apiladas y alineadas a la derecha:
-
-| Fila | Qué dice | Cuándo aparece |
-|---|---|---|
-| 0 | `Proveedor: <X>` | **siempre** — quién sirvió **estos datos** |
-| 1 | `En tu biblioteca: <Y>` | si el anime está guardado — de quién es **tu fila** |
-| 2 | botón `Actualizar a <Z>` | si hay algo que migrar (ver abajo) |
-
-**La regla del ⚠, que es lo que más confunde**: el símbolo compara las **dos primeras líneas**.
-
-| `Proveedor` vs `En tu biblioteca` | Aspecto |
-|---|---|
-| **Iguales** | gris `("gray45", "gray60")`, sin símbolo. Informativa: solo explica de dónde salió |
-| **Distintos** | ⚠ + ámbar `("#B45309", "#FBBF24")` |
-
-El ámbar señala una **identidad partida** ([trampa 21](10-invariantes-y-trampas.md)): lo que ves no lo
-sirve el proveedor de tu fila, así que los botones de estado y el póster escriben en algo distinto de
-lo que tienes delante. Pasa al desviarte en la sidebar, y también **sin tocar nada**, cuando entra el
-fallback porque el dueño original ya no sirve ese anime — que es el único momento en que el fallback
-se hace visible.
-
-> ⚠️ **La línea 1 se muestra siempre que el anime esté guardado**, aunque no haya discrepancia.
-> Mostrarla solo al detectar una hacía que el bloque contara **dos historias distintas**: con el
-> proveedor de referencia seleccionado no hay desviación, la ficha la sirve el proveedor de la propia
-> fila, no había discrepancia… y el botón de actualizar aparecía **sin nada que lo explicara**. Lo
-> reportó el usuario. No lo vuelvas a condicionar.
-
-**Cuándo se ofrece «Actualizar a …»** — 📖 `__repair_target_provider_id()` (`:528-554`):
-
-| Situación | Destino | Coste |
-|---|---|---|
-| Identidad partida | **quien sirve la ficha** | 0 peticiones: ya está en pantalla |
-| Sin partir, pero el proveedor **seleccionado** ≠ el de la fila | el seleccionado | 2 peticiones para localizar el anime allí → hilo + cursor `watch` |
-| Sin partir y coincidiendo | — | no aparece |
-
-> 🔴 **El segundo caso es el corriente y estuvo roto.** Atar el botón solo a la identidad partida lo
-> dejaba fuera de alcance justo cuando más falta hace: al abrir un anime guardado sin desviar el
-> desplegable lo sirve **el proveedor de su propia fila**, así que nunca había nada partido. El
-> usuario solo consiguió verlo en un anime donde el fallback entraba por accidente.
-
-Qué hace al confirmar: [04 §8](04-modelo-de-datos.md) (la escritura) y
-[13 §14](13-selector-de-proveedor.md) (el porqué). El diálogo enumera lo que cambia y **cuántos
-episodios vistos se conservan**, que es el dato por el que se decide.
-
-> ⚠️ El pin **no es un `SidebarButton`**, así que `change_appearance_mode_event()` no lo recorre. Se
-> adapta al tema porque usa `CTkImage(light_image=…, dark_image=…)`, que conmuta solo.
+⚠️ **La petición de servidores sigue en el hilo de Tkinter.** Es lo que hacía la ficha vieja y el
+rediseño solo recolocó; lo único que se añadió es el cursor de espera. **Es el último sitio de la GUI
+que sale a la red desde el hilo de la interfaz** ([12](12-deuda-tecnica-y-roadmap.md)).
 
 ---
 
-## 5. Temas claro/oscuro e iconos
+## 9. Temas claro/oscuro
 
-📖 `main_window.py:156-157` fija `"System"` al arrancar. El cambio se gestiona en
-`change_appearance_mode_event` (`:428-438`):
+`change_appearance_mode_event()` es **una línea**: `ctk.set_appearance_mode(...)`. Antes había que
+recorrer los hijos de la barra reconfigurando fondo, hover, color de texto e icono uno a uno, porque
+los botones se habían construido con literales.
 
-```python
-ctk.set_appearance_mode(new_appearance_mode)
-for widget in self.sidebar_frame.winfo_children():
-    if isinstance(widget, SidebarButton):
-        widget.configure(fg_color=..., hover_color=..., text_color=...)
-        widget.update_icon(new_appearance_mode)
-```
+Reglas que hay que respetar para que siga siendo una línea:
 
-**Estado real de los iconos** ✅ (contenido de `resources/images/utils/`):
+1. **Ningún color literal fuera de `theme.py`.** Si hace falta uno que no está, se añade el token.
+2. **Texto sobre `ACCENT` va con `ACCENT_INK`** (blanco en claro, casi negro en oscuro); texto sobre
+   `ACCENT_SOFT`, con `ACCENT`. ✅ Auditado el 2026-08-21: los **8** sitios con `fg_color=ACCENT` y
+   los **4** con `ACCENT_SOFT` lo cumplen.
+3. **Lo que se pinta sobre `BADGE_BG` se tiñe con la variante oscura del color en los dos temas.** El
+   sello es una superficie oscura siempre —va sobre la carátula—, así que `FIN_TXT[0]`, que es un
+   verde oscuro, desaparecería justo en tema claro.
+4. Un `CTkImage` con `light_image` y `dark_image` distintos resuelve el tema solo. `load_dual_image()`
+   lo construye.
 
-| Icono | Variante clara | Variante oscura | ¿Se usa? |
-|---|---|---|---|
-| `recientes.png` | — | — | mismo para ambos |
-| `favoritos.png` / `no_favoritos.png` | — | — | mismo para ambos |
-| `finalizados.png` | — | — | mismo para ambos |
-| `viendo.png` | **`viendo_light.png`** | **`viendo_dark.png`** | ❌ **comentado** en `watchingAnimes.py:23-24` |
-| `pendientes.png` | **`pendientes_light.png`** | **`pendientes_dark.png`** | ❌ **comentado** en `pendingAnimes.py:23-24` |
-| `buscar.png` | — | — | mismo para ambos |
+⚠️ **Los iconos de la barra lateral y los dos GIF de carga son de origen desconocido** y
+probablemente incompatibles con la GPL: es la deuda **B11** ([12 §4](12-deuda-tecnica-y-roadmap.md)).
+Todo lo dibujado por el rediseño —el pin, las estrellas, los glifos de estado, los dos iconos de
+estado vacío— **es nuestro**, hecho con PIL en tiempo de ejecución.
 
-Los 4 PNG claro/oscuro **siguen en disco y sin trackear en git** (`?? resources/images/utils/…`),
-comprobado el 2026-08-07. Activarlos es descomentar dos líneas por vista → [11 §5](11-playbooks.md).
-
-> Contrasta con los 4 iconos del **pin** de proveedor (`{fijado,no_fijado}_{light,dark}.png`), que sí
-> se commitearon en `ab5e75b` porque `main_window.py:200-209` los carga de verdad.
-
-⚠️ **Deuda observada** 📖 (`utilsButtons.py:223`): el `text_color="black"` del constructor de
-`SidebarButton` no se adapta al tema oscuro hasta que el usuario cambia manualmente la apariencia —
-al arrancar en modo oscuro del sistema, el texto de la sidebar nace **negro sobre fondo oscuro**.
-Solo lo corrige `MainWindow.change_appearance_mode_event` (`main_window.py:428-438`), que únicamente
-se ejecuta al tocar el desplegable.
-
-> ⚠️ **Corrección (2026-08-07)**: hasta hoy esto figuraba aquí y en [12 §2](12-deuda-tecnica-y-roadmap.md)
-> como un «**TODO** abierto en `utilsButtons.py:56`». **No hay ningún `TODO` en ese fichero** — no lo
-> tiene desde `d0fb393`. El defecto es real y sigue vivo; lo falso era atribuirlo a una nota del autor
-> en una línea concreta.
+⚠️ **`viendo_light/dark.png` y `pendientes_light/dark.png` existen en `resources/images/utils/` y NO
+se usan.** No son un par claro/oscuro: **los dos dibujos de cada par son de tinta negra**, así que en
+tema oscuro el suyo sería invisible. El icono único funciona porque es bicolor. El paso 9.4 retiró el
+código comentado que los invocaba; si se quieren pares de verdad, hay que **redibujarlos**.
 
 ---
 
-## 6. `AnimeWindowViewer` — no es una ventana
+## 10. Concurrencia — lo que no ha cambiado
 
-📖 `anime_window.py:196-321`. Reemplaza el contenido de `content_frame`; **no crea un `Toplevel`**.
-Por eso **no hay botón «volver»**: se vuelve pulsando otra vez en la sidebar.
+⚠️ **Todo lo que abra una ficha va en hilo daemon y repinta con `after(0, …)`.** Hacerlo desde el
+hilo secundario revienta con `invalid command name ...!ctkcanvas` al destruir una vista que tenía un
+`<Configure>` encolado.
 
-Composición vertical:
+Antes de tocar un widget desde un callback diferido, comprobar `widget.winfo_exists()`.
 
-1. **Bloque de proveedor** (`:434-511`) + póster `(195, 275)` + título + sinopsis + géneros
-   (`:358-429`).
-2. Frame de estados con los **4 botones** (`:711-770`), que se **redibuja entero** en cada cambio
-   (`__display_anime_status:719-720` destruye y reconstruye).
-3. Lista de episodios (`:905-981`): etiqueta, botón de orden, campo de búsqueda, y **los 25
-   primeros** (`:916`).
+🔴 **CustomTkinter no ata `bind()` al widget que crees**: `CTkFrame.bind()` va a su `_canvas`;
+`CTkLabel.bind()`, al `_label` **y** al canvas; `CTkEntry.bind()`, al `_entry`. Con el ratón real da
+igual, pero **`widget.event_generate()` sobre el objeto CTk no dispara nada**: cualquier prueba de
+hover o de clic tiene que emitir sobre el hijo interno, o invocar el `command`
+([trampa 35](10-invariantes-y-trampas.md)).
 
-**Detalles con consecuencias**:
-
-- 📖 `[:25]` (`:916`) — el comentario dice «los 24 primeros» (`:955`); el código dice 25.
-  ✅ Con AnimeAV1 (episodios **ascendentes**) verás los episodios **1-25**; con AnimeFLV
-  (**descendentes**) los **25 más recientes**. Trampa 8.
-- 📖 `__toggle_sort_order` (`:1004-1014`) ordena `self.anime_info.episodes` **in place**, mutando el
-  objeto que también está en `main_window.recent_animes`.
-- 📖 Cada estado se pinta con su icono; `pendientes.png` se carga en una variable llamada
-  `watching_button_img` (`:758`) — copy-paste, funciona pero despista.
-- ✅ `anime_info.episodes` ya **puede** llegar a `None`: `__with_episodes()` (`:297-307`) lo
-  normaliza a `[]` **sobre una copia**. No se muta el original porque puede ser el objeto cacheado en
-  `main_window.recent_animes`, donde ese `None` es justo lo que marca que le falta la precarga.
-
-### 🆕 El constructor y las dos identidades
-
-📖 `:232-295`. Cuatro parámetros, y el cuarto es el que evita duplicar filas:
-
-```python
-AnimeWindowViewer(main_window, anime_info, provider_id=None, anime_record=None)
-```
-
-| Parámetro | Si se omite |
-|---|---|
-| `provider_id` | cae a `anime_info.provider_id` (lo estampa el manager) y, en último caso, al predeterminado |
-| `anime_record` | **se asume que `anime_info` es también lo guardado** |
-
-Esa asunción es cierta al abrir desde recientes o desde una búsqueda, y **falsa** al abrir un anime de
-la biblioteca con el desplegable desviado. Omitirlo ahí reintrodujo la trampa 21 durante la fase 4:
-la ficha mostraba el anime como no guardado y un solo clic en un estado creaba una fila duplicada.
-
-**Regla**: quien abra una ficha de algo que puede estar en la biblioteca pasa `anime_record=`.
-Hoy solo lo hace `open_saved_anime()` (`:164-165`), y es el único que lo necesita.
-
-### 🆕 `__confirm_save()` — el aviso de duplicado
-
-📖 `:779-828`. Se ejecuta antes de los cuatro `add_to_*`. Consulta la BD en vez de mirar el estado
-cacheado al pintar: si el usuario ya ha pulsado otro estado en esta misma pantalla, la fila existe
-desde entonces y no hay nada que avisar.
-
-Compara por **título normalizado** contra toda la biblioteca (`find_saved_duplicate`, `:69-105`), con
-umbral **0.9** — muy por encima del 0.75-0.8 de las búsquedas, a propósito: aquí un falso positivo
-interrumpe con un diálogo por dos animes distintos de la misma saga, mientras que un falso negativo
-solo deja pasar el duplicado que ya se colaba antes.
-
-El diálogo nombra **la sección concreta** («tu Biblioteca de Favoritos», `STATUS_SECTION_NAMES`) y
-dice en cuáles está el duplicado, sacándolo de **sus propios flags** y no de la que se acaba de
-pulsar: decir «ya está en Favoritos» cuando está en Pendientes sería mentir justo en el dato por el
-que el usuario decide.
+Detalle completo en [07-concurrencia-e-hilos.md](07-concurrencia-e-hilos.md).
 
 ---
 
-## 7. Widgets reutilizables
+## 11. Añadir una vista nueva
 
-📖 `utilsButtons.py`.
+1. Crear `gui/sidebarButtons/<vista>/<vista>.py` con la cabecera obligatoria.
+2. Heredar de `utilsButtons.SidebarButton`, pasando la etiqueta y los dos iconos.
+3. Implementar `show_frame()`: `main_window.clear_frame()` → `ViewHeader` → los componentes que
+   necesite. **No dibujes nada que ya esté en `gui/components/`.**
+4. Registrarla en `MainWindow.load_sidebar_buttons()`, en la lista `destinations` y —si lleva
+   contador— en `counter_providers`.
+5. **Declararla en `hiddenimports` del `.spec`**, o el `.exe` no arrancará.
 
-| Clase / función | Línea | Uso |
-|---|---|---|
-| 🆕 `filter_animes_by_title()` | `:23-56` | búsqueda **local** en la biblioteca, sin red |
-| 🆕 `match_animes_from_search()` | `:59-94` | traduce resultados web → filas guardadas |
-| 🆕 `SavedAnimeSearch` | `:97-166` | el buscador de las 4 vistas de estado |
-| `BaseButton` | `:168-176` | base de todos |
-| `EpisodeButton` | `:178-189` | `anime_window.py:957` |
-| `SearchButton` | `:191-199` | las 4 vistas de estado ⚠️ **homónimo** del `SearchButton` de la sidebar (`searchAnimes.py:35`) |
-| `ApplyFiltersButton` | `:201-209` | `searchAnimes.py:142` |
-| `SidebarButton` | `:211-237` | las 6 vistas |
-| `AccordionFilterButton` | `:239-351` | las 4 vistas de estado |
-
-### 🆕 `SavedAnimeSearch` — dos búsquedas que se suman
-
-📖 `:97-166`. Las cuatro vistas de estado instancian una en su `__init__` y su `__search_anime()` se
-limita a delegar. Resuelve dos cosas distintas, y por eso **se suman** en vez de elegir una:
-
-| | Qué aporta | Coste |
-|---|---|---|
-| **Local** (`filter_animes_by_title`) | Compara con los títulos ya guardados, normalizados. **No depende del proveedor** y funciona sin conexión | 0 |
-| **Web** (`search_animes_by_query`, `strict=True`) | Encuentra lo que un título guardado no puede saber: que «Solo Leveling» es «Ore dake Level Up na Ken» | 1 petición, en hilo |
-
-Lo local se pinta **antes** de salir a la red; lo de la web se añade después, ya en el hilo de
-Tkinter vía `after()`. Así el buscador responde al instante y **nunca quita** resultados: solo puede
-añadirlos.
-
-Tres detalles que hacen falta y no se ven:
-
-- **`strict=True` en la web**: el usuario ha elegido un proveedor y es el que manda; que responda otro
-  por fallback daría resultados que no ha pedido.
-- **Contador de generación** (`:135`): escribir dos veces seguidas no puede dejar que la respuesta
-  lenta de la primera pise el resultado de la segunda.
-- **`is_still_visible`**: sin esa guarda, una búsqueda lenta repinta encima de la vista a la que ya
-  has cambiado.
-
-La coincidencia local es por **subcadena** sobre el título normalizado —así «One Piece» devuelve
-también «One Piece Film: Red»— y, si no, por similitud ≥ `TITLE_SEARCH_THRESHOLD` (**0.8**), que solo
-está para tolerar erratas («dandandan» → «Dandadan»). Ver [trampa 26](10-invariantes-y-trampas.md).
-
-### `AccordionFilterButton`
-
-📖 `:239-351`. Filtro plegable con los **40 géneros** en rejilla de 10 columnas (`:294-304`) y los
-3 órdenes como radio buttons (`:306-324`).
-
-- `toggle_content()` (`:263-269`) alterna «Abrir/Cerrar filtro de animes».
-- ⚠️ `__collapse_content` (`:271-274`) hace `grid_forget()`, pero `__expand_content` (`:276-282`)
-  **crea un `CTkFrame` nuevo cada vez** → al plegar y desplegar repetidamente se acumulan frames
-  huérfanos.
-- ✅ `__apply_filters` (`:336-348`) pasa un **`str`** donde se espera un enum → la ordenación por
-  coincidencias de género nunca se aplica. Trampa 6, detalle en [04 §7](04-modelo-de-datos.md).
+Receta detallada en [11 §1](11-playbooks.md).

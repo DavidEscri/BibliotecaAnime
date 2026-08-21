@@ -1,7 +1,7 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "sidebarButtons"
 __module__ = "pendingAnimes.py"
-__version__ = "0.3"
+__version__ = "0.4"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 """«Pendientes»: la cola de lo que todavía no has empezado.
@@ -32,6 +32,8 @@ from APIs.common.models import AnimeInfo
 from dataPersistence.animesPersistence import AnimesPersistence, AnimesPersistenceSingleton, AnimeStatus, AnimeRecord
 from gui.anime_window import open_saved_anime
 from gui.components.anime_row import AnimeRow, RowAction
+from gui.components.empty_state import EmptyState, ICON_SIZE as EMPTY_ICON_SIZE
+from gui.components.status_pill import StatusPill
 from gui.components.view_header import ViewHeader
 from gui.theme import Metrics, Theme
 from utils.buttons import utilsButtons
@@ -54,8 +56,9 @@ class PendingAnimeButton(utilsButtons.SidebarButton):
     TITLE_W: int = 660
 
     def __init__(self, main_window, icon_path, row, column):
-        # icon_path_light = os.path.join(icon_path, "pendientes_light.png")
-        # icon_path_dark = os.path.join(icon_path, "pendientes_dark.png")
+        # Mismo caso que en «Viendo»: `pendientes_light/dark.png` son los dos de
+        # tinta negra, así que no sirven como par (claro, oscuro). Ver el comentario
+        # de watchingAnimes.py.
         icon_path_light = icon_path_dark = os.path.join(icon_path, "pendientes.png")
         super().__init__(main_window.sidebar_frame, "Pendientes", row, column, self.show_pending_animes, icon_path_light, icon_path_dark)
 
@@ -103,15 +106,15 @@ class PendingAnimeButton(utilsButtons.SidebarButton):
         self.__build_controls(header)
 
         if not pending_animes:
-            empty_label = ctk.CTkLabel(
+            empty_state = EmptyState(
                 content,
-                text="No tienes ningún anime en la cola.\n"
-                     "Marca uno como «Pendiente» desde su ficha y aparecerá aquí.",
-                font=Theme.font(*Theme.T_ROW),
-                text_color=Theme.TXT_2,
-                justify="center"
+                "No tienes nada en la cola",
+                icon=StatusPill.icon(AnimeStatus.PENDING, EMPTY_ICON_SIZE, Theme.TXT_3, gap=0),
+                hint="Marca un anime como «Pendiente» desde su ficha y aparecerá aquí.",
+                action_text="Buscar un anime",
+                on_action=lambda: self.main_window.navigate_to("Buscar")
             )
-            empty_label.grid(row=1, column=0, pady=(40, 0))
+            empty_state.grid(row=1, column=0, pady=(60, 0))
             return
 
         self.__list_frame = ctk.CTkFrame(content, height=1, corner_radius=0, fg_color=Theme.TRANSPARENT)

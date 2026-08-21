@@ -1,7 +1,7 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "gui.components"
 __module__ = "status_pill.py"
-__version__ = "0.3"
+__version__ = "0.4"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 """Píldora de estado: «Viendo», «Pendiente», «Finalizado» o «Favorito».
@@ -124,7 +124,7 @@ _GLYPHS: Dict[AnimeStatus, Callable[[ImageDraw.ImageDraw, float, str], None]] = 
 #: Glifos ya construidos, indexados por (estado, tamaño). Un ``CTkImage`` se
 #: puede compartir entre widgets: con doce celdas por página, dibujarlo una vez
 #: ahorra once dibujos por repintado.
-_ICON_CACHE: Dict[Tuple[AnimeStatus, int, Optional[ColorToken]], ctk.CTkImage] = {}
+_ICON_CACHE: Dict[Tuple[AnimeStatus, int, Optional[ColorToken], int], ctk.CTkImage] = {}
 
 
 class StatusPill(ctk.CTkLabel):
@@ -173,7 +173,8 @@ class StatusPill(ctk.CTkLabel):
 
     @staticmethod
     def icon(status: AnimeStatus, size: int = ICON_SIZE,
-             color: Optional[ColorToken] = None) -> Optional[ctk.CTkImage]:
+             color: Optional[ColorToken] = None,
+             gap: int = _ICON_GAP) -> Optional[ctk.CTkImage]:
         """Glifo del estado, listo para ponerlo delante de un texto.
 
         Devuelve ``None`` para los estados sin glifo. Hoy los tiene los cuatro,
@@ -198,12 +199,18 @@ class StatusPill(ctk.CTkLabel):
         :param size: lado del dibujo. El ancho de la imagen es ``size`` más el
             hueco que la separa del texto.
         :param color: par ``(claro, oscuro)`` con el que teñirlo.
+        :param gap: hueco transparente reservado a la derecha. Por defecto, el
+            que necesita un glifo pegado a un texto. **Con ``gap=0`` el dibujo
+            sale cuadrado**, que es lo que hace falta cuando el glifo va solo y
+            centrado: es el caso del ``EmptyState`` de las cuatro vistas de
+            biblioteca, donde los cinco píxeles sobrantes descolocarían el icono
+            respecto de la frase de debajo.
         """
         draw_glyph = _GLYPHS.get(status)
         if draw_glyph is None:
             return None
 
-        key = (status, size, color)
+        key = (status, size, color, gap)
         cached = _ICON_CACHE.get(key)
         if cached is not None:
             return cached
@@ -213,22 +220,22 @@ class StatusPill(ctk.CTkLabel):
             tones = (dark_variant, dark_variant)
         else:
             tones = color
-        light_glyph, dark_glyph = (StatusPill.__draw(draw_glyph, size, tone) for tone in tones)
+        light_glyph, dark_glyph = (StatusPill.__draw(draw_glyph, size, tone, gap) for tone in tones)
 
         image = ctk.CTkImage(light_image=light_glyph, dark_image=dark_glyph,
-                             size=(size + _ICON_GAP, size))
+                             size=(size + gap, size))
         _ICON_CACHE[key] = image
         return image
 
     @staticmethod
     def __draw(draw_glyph: Callable[[ImageDraw.ImageDraw, float, str], None],
-               size: int, color: str) -> Image.Image:
+               size: int, color: str, gap: int = _ICON_GAP) -> Image.Image:
         """Dibuja un glifo supermuestreado y lo reduce al tamaño pedido."""
         big = size * _SUPERSAMPLE
-        gap = _ICON_GAP * _SUPERSAMPLE
-        glyph = Image.new("RGBA", (big + gap, big), (0, 0, 0, 0))
+        big_gap = gap * _SUPERSAMPLE
+        glyph = Image.new("RGBA", (big + big_gap, big), (0, 0, 0, 0))
         draw_glyph(ImageDraw.Draw(glyph), big, color)
-        return glyph.resize((size + _ICON_GAP, size), Image.LANCZOS)
+        return glyph.resize((size + gap, size), Image.LANCZOS)
 
     @staticmethod
     def other_status(anime_record: AnimeRecord,

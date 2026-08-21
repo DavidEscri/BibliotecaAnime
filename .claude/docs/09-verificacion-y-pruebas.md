@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-08-16 · **Commit** `a3d4331` (2026-08-17, rama `main`) · árbol **limpio** |
+| **Fecha** | 2026-08-21 · rama `feature/ui-redisign` · árbol **con la fase 9 del rediseño sin commitear** |
 | **Última revisión** | 2026-08-16 (**columna `provider_id`**): **§3c nuevo** — las 8 tandas de comprobaciones de la fase 8, **351 sin fallos**; checklist de §7 puesto al día con lo que ha cambiado de comportamiento |
 | **Cubre** | procedimiento; scripts ejecutados el 2026-07-28 contra el código de `src/` |
 
@@ -457,141 +457,165 @@ Todo lo de esa lista está marcado como 📖 en el resto de documentos.
 
 Sin tests automáticos, esto es lo que hay. Marca lo que compruebes.
 
-### Arranque
+> ✅ **Reescrito el 2026-08-21** tras el rediseño de interfaz (fases 1-9). Lo que decía antes de
+> «Abrir filtro de animes», de los botones que cambian de texto o del GIF de búsqueda ya no existe.
+
+### 7.0 Las cuatro dimensiones
+
+El recorrido completo es **7 vistas × 2 temas × 2 estados de barra**. No es tanto como parece: el
+tema y el plegado no cambian de vista, así que se hacen dos pasadas de siete.
+
+| Dimensión | Valores |
+|---|---|
+| Vistas | Nuevos lanzamientos · Favoritos · Viendo · Pendientes · Finalizados · Buscar · Ficha |
+| Tema | `Light` · `Dark` · y **`System`**, que es el valor de fábrica |
+| Barra | desplegada (224 px) · plegada (84 px) |
+| Biblioteca | con datos · **vacía** (los estados vacíos solo se ven así) |
+
+### 7.1 Arranque
 - [ ] GIF + barra avanzan 0→40→90→100 %.
-- [ ] La sidebar aparece **solo** al terminar la carga.
-- [ ] Sin conexión: sale el `messagebox` de aviso y la vista de recientes vacía.
+- [ ] La barra lateral aparece **solo** al terminar la carga.
+- [ ] 🆕 **La pantalla de carga desaparece**. Si se queda, es la [trampa 33](10-invariantes-y-trampas.md).
+- [ ] 🔴 **Sin conexión**: sale el aviso, **la pantalla de carga se retira igual** y la portada
+      muestra su estado vacío con «Reintentar». Es el caso que nadie prueba y el que estuvo roto.
+- [ ] 🆕 La barra recuerda si la dejaste plegada (`sidebar_collapsed` en `DB_user.db`).
 
-### Animes recientes
-- [ ] Rejilla con ~20 pósters, título bajo cada uno.
-- [ ] Clic → cursor «watch» → ficha (instantánea si ya estaba precargada).
-- [ ] Redimensionar la ventana y volver a entrar: cambia el número de columnas.
+### 7.2 Barra lateral
+- [ ] Los seis destinos en este orden: Nuevos lanzamientos · Favoritos · Viendo · Pendientes ·
+      Finalizados · Buscar. **Ninguno lleva la palabra «Anime»**.
+- [ ] El activo tiene fondo `CARD` y la barrita de 2 px en `ACCENT` a la izquierda.
+- [ ] 🔴 **Los seis se ven**. Si salen en blanco, es la [trampa 29](10-invariantes-y-trampas.md).
+- [ ] Los contadores cuadran con lo que hay en cada pestaña.
+- [ ] 🆕 Marcar un estado desde la ficha **mueve el contador en el acto**
+      ([trampa 31](10-invariantes-y-trampas.md)).
+- [ ] Plegar (««»): la barra baja a 84 px, quedan los iconos a 48 × 48 y el contador pasa a globo
+      arriba a la derecha. El pie pierde las etiquetas y el desplegable de apariencia.
+- [ ] Desplegar la devuelve exactamente a como estaba.
+- [ ] El **pin** sale azul si el proveedor que usas es tu predeterminado, gris si te has desviado.
 
-### Favoritos / Finalizados / Viendo / Pendientes
-- [ ] Muestra los animes con ese flag.
-- [ ] ⚠️ Los pósters se leen de `resources/images/<categoría>/`; si faltan, salen **grises**.
-- [ ] «Abrir filtro de animes» despliega los 40 géneros y los 3 órdenes.
-- [ ] «Aplicar Filtros» filtra por género (⚠️ el **orden** no se aplica — trampa 6).
-- [ ] 🆕 El buscador encuentra **con el cable desenchufado**: es local. Escribir «one piece»
-      devuelve One Piece **con cualquiera de los tres proveedores seleccionado** (trampa 26).
-- [ ] 🆕 Con conexión, buscar «Solo Leveling» devuelve también «Ore dake Level Up na Ken» si lo
-      tienes guardado: eso solo lo aporta la búsqueda web, y **se suma**, nunca quita.
-- [ ] 🆕 Clic en un anime **NO congela la ventana**: cursor «watch» y la UI sigue respondiendo.
-- [ ] 🆕 Bajo el título de cada anime aparece **el proveedor** en gris; vacío si la fila no lo
-      declara (no debe poner «desconocido»).
+### 7.3 Nuevos lanzamientos
+- [ ] Rejilla de **6 columnas**, pósters de 176 × 264 con esquinas redondeadas.
+- [ ] Paginador de **12** al pie: «Mostrando 1-12 de 20».
+- [ ] Banda «Retomar donde lo dejaste» arriba con hasta **3** tarjetas, cada una con «Siguiente:
+      episodio N de M» y su barra de progreso.
+- [ ] 🆕 **La banda no se pinta si no hay nada que retomar**: ni etiqueta ni hueco.
+- [ ] Clic en una tarjeta de «Retomar» abre la ficha **del anime guardado**, no la de un homónimo.
+- [ ] Clic en la rejilla → cursor «watch» → ficha.
 
-### Buscador
-- [ ] Búsqueda por texto → GIF → rejilla + paginación.
-- [ ] Filtro por géneros + orden → resultados.
-- [ ] «Siguiente »» / «1» / última página navegan.
-- [ ] Salir del buscador y volver: se restaura la última búsqueda (`last_search_instance`).
-- [ ] ⚠️ Pulsar «Buscar» dos veces rápido lanza dos búsquedas (trampa/carrera C4).
+### 7.4 Favoritos
+- [ ] Rejilla de **5 columnas**, pósters de 216 × 324 — los más grandes de la aplicación.
+- [ ] Paginador de **10**.
+- [ ] Cinco estrellas bajo cada título, con **medios puntos**, y la cifra a su derecha.
+- [ ] Pulsar la mitad izquierda de la tercera estrella pone 2,5; la derecha, 3,0.
+- [ ] 🔴 **Calificar NO reordena la rejilla**: el anime se queda donde estaba aunque el orden sea por
+      calificación. Si se recolocara, la segunda estrella caería sobre otro anime.
+- [ ] Volver a pulsar la misma calificación la **quita** (vuelve a «sin calificar», que no es cero).
+- [ ] El desplegable ofrece «Mi calificación» y «Título (A-Z)», y **la elección sobrevive al
+      reinicio** (`favourites_order`).
+- [ ] Ordenando por calificación, **lo no calificado va al final**, nunca primero.
+- [ ] 🆕 El sello sobre el póster dice qué **más** es el anime (Viendo / Pendiente / Finalizado), y
+      **nunca «Favorito»**: sería el dato repetido que prohíbe el diseño.
+- [ ] 🔴 **El sello se lee sobre una carátula blanca** (prueba con *Dragon Ball Daima*), en los dos
+      temas. Fondo oscuro opaco, texto blanco, color del estado solo en el glifo.
 
-### Ficha de detalle
-- [ ] Póster, título, sinopsis y géneros.
-- [ ] El póster se ve a tamaño correcto también en un anime que **solo** esté en «viendo»
-      (regresión de las trampas 15 y 16, resueltas en `83a8448`).
-- [ ] Sinopsis de AnimeAV1 **con tildes correctas** («título», no «tÃ­tulo») — regresión de la
-      trampa 14, resuelta en `94b497e`. Ver [05 §7](05-proveedores-y-scraping.md).
-- [ ] Con la red caída, hacer clic en un anime muestra un **diálogo de error** y no deja la app
-      muda — regresión de la trampa 10, resuelta en `1bfdf0f`.
-- [ ] Los 4 botones cambian de texto y de acción al pulsarlos.
-- [ ] Activar «viendo» desactiva «finalizado» y «pendiente» en la propia UI.
-- [ ] Aparecen **25** episodios como máximo.
-- [ ] Botón de orden alterna «Mayor a menor ↓» / «Menor a mayor ↑».
-- [ ] Buscar un número de episodio muestra ese episodio + navegación anterior/siguiente.
+### 7.5 Viendo
+- [ ] Cascada de una fila por anime, póster de 70 × 100, fila de 132 px.
+- [ ] **Sin paginador**: caben de una vez.
+- [ ] Panel de 290 px a la derecha con «Lo último que veías» y su botón.
+- [ ] 🆕 El panel recorre los **tres** identificadores guardados: si el más reciente ya no está en
+      esta pestaña, enseña el siguiente.
+- [ ] Barra de progreso y «N / M vistos» en cada fila.
+- [ ] **Hover**: la fila se resalta con `CARD_HOVER` y aparece la píldora «Episodio N →».
+- [ ] 🔴 **La píldora no se apaga al ir a pulsarla**, y la fila **no cambia de ancho**
+      ([trampa 34](10-invariantes-y-trampas.md)).
+- [ ] El proveedor de cada fila aparece a la derecha.
+
+### 7.6 Pendientes
+- [ ] Cascada con póster de 56 × 80, fila de 113 px, **sin barra de progreso**.
+- [ ] A la derecha, «N episodios · Proveedor».
+- [ ] Desplegable de orden: **Más cortos primero** (por defecto) · Más largos primero · Título (A-Z).
+- [ ] 🔴 **Lo que no tiene lista de episodios va al final en los dos sentidos**: «no se sabe cuánto
+      dura» no es «dura poco».
+- [ ] ⚠️ El orden **no** se persiste: al volver a entrar vuelve a «Más cortos primero».
+- [ ] **Hover** → píldora «Empezar»; pulsarla mueve el anime a «Viendo», **mueve los contadores de la
+      barra** y abre su ficha.
+
+### 7.7 Finalizados
+- [ ] Rejilla de **6**, paginador de **12**.
+- [ ] Sello «✓ N / M» sobre cada póster, arriba a la izquierda.
+- [ ] 🆕 Un finalizado **sin lista de episodios** dice «Finalizado», **no «0 / 0»**.
+- [ ] Los números son los **reales y sin corregir**: un «3 / 12» significa que lo marcaste a mano.
+
+### 7.8 Buscar
+- [ ] **No tiene título de vista**: el campo de 620 px con la lupa dentro *es* la cabecera.
+- [ ] Fila de fichas de género: 7 visibles + «Más géneros (33)».
+- [ ] Las fichas dicen **«Acción» y «Ciencia ficción», con tildes** (salen de `.name`, no de `.value`).
+- [ ] Tocar una ficha busca **en el acto**, sin botón de aplicar; la seleccionada pasa **primera**,
+      con `ACCENT_SOFT`, borde `ACCENT` y una ✕.
+- [ ] 🔴 **Texto y géneros no se combinan: manda el último gesto.** Buscar por texto apaga las fichas;
+      tocar una ficha vacía el texto.
+- [ ] Mientras busca, la línea de estado dice «Buscando animes…» y la rejilla se vacía. **No hay GIF.**
+- [ ] La línea de resultados dice **quién respondió de verdad**: con una consulta que AnimeAV1 no
+      tenga, debe salir «… en JKAnime» (el fallback), no el proveedor del desplegable.
+- [ ] Sello «ya lo tienes» sobre los resultados guardados, **también cuando el slug no coincide** y
+      el cruce es por título.
+- [ ] 🔴 Abrir un resultado sellado y marcarle un estado **no crea una fila duplicada**
+      ([trampa 21](10-invariantes-y-trampas.md)).
+- [ ] Paginador: con un género («Acción») debe salir «Página 1 de 50» y los botones deben traer
+      resultados distintos.
+- [ ] Salir y volver: se restaura la última búsqueda sin repetir la petición.
+
+### 7.9 Ficha del anime
+- [ ] Póster de 248 × 372 redondeado, título a 30, sinopsis y fichas de género **con su contorno**.
+- [ ] Sinopsis de AnimeAV1 **con tildes correctas** («título», no «tÃ­tulo»).
+- [ ] 🆕 Los **4 botones de estado se encienden y se apagan**; ya no cambian de texto.
+- [ ] Encender «Viendo» apaga «Finalizado» y «Pendiente» en la propia interfaz.
+- [ ] Encendidos van con el color pastel de su estado; apagados, con borde `LINE`.
+- [ ] 🆕 Las filas de episodio dicen **«Episodio N»**, sin repetir el título del anime.
+- [ ] Aparecen **25** como máximo, y **la lista lo dice** cuando hay más.
+- [ ] 🆕 El botón de orden dice **el orden que llega del proveedor**, no siempre «Mayor a menor».
 - [ ] Marcar el episodio 10 marca del 1 al 10; desmarcar el 5 desmarca **solo** el 5.
-- [ ] Salir de la ficha y volver: el estado de los switches se restaura desde BD.
-- [ ] Clic en un episodio despliega los servidores (⚠️ congela la ventana mientras carga: es la
-      única llamada HTTP que sigue en el hilo de Tkinter, [07 C5](07-concurrencia-e-hilos.md)).
+- [ ] Clic en un episodio despliega los servidores debajo **sin empujar la lista**; volver a pulsar
+      los repliega (⚠️ congela la ventana mientras carga: es la única llamada HTTP que sigue en el
+      hilo de Tkinter, [07 C5](07-concurrencia-e-hilos.md)).
 - [ ] Elegir un servidor abre el navegador.
+- [ ] Con la red caída, el clic muestra un **diálogo de error** y no deja la app muda.
+- [ ] **Identidad partida**: con JKAnime seleccionado, abrir un anime guardado desde AnimeAV1 debe
+      sacar «⚠ En tu biblioteca: AnimeAV1» en ámbar y el botón «Actualizar a JKAnime».
+- [ ] Migrar **conserva los episodios vistos y las cuatro categorías**, y **no duplica**.
+- [ ] 🔴 **Salir de la ficha y entrar en otra vista**: la vista siguiente ocupa el ancho completo. Si
+      sale apretada a la izquierda, es la [trampa 32](10-invariantes-y-trampas.md).
 
-### Tema
-- [ ] Light / Dark / System cambian el aspecto.
-- [ ] ⚠️ Arrancando en modo oscuro, el texto de la sidebar nace **negro** hasta que se cambia a mano
-      (deuda observada en `utilsButtons.py:69`; **no** es un TODO del código — ver [06 §5](06-gui-y-vistas.md)).
+### 7.10 Estados vacíos 🆕
 
-### Proveedor JKAnime *(2026-08-06)*
+Solo se ven con la biblioteca vacía o sin red. La receta para provocarlos sin tocar tus datos está en
+[§3](#3-probar-la-persistencia--sobre-una-copia): repuntar las dos persistencias a ficheros nuevos
+del scratchpad **antes** de construir `MainWindow`.
 
-- [ ] El desplegable de la sidebar ofrece **tres** proveedores: AnimeAV1, JKAnime y AnimeFLV.
-- [ ] Al elegir **JKAnime**, la portada se recarga con sus animes recientes y **los pósters son
-      carátulas, no fotogramas de episodio** (trampa 23).
-- [ ] Abrir una ficha desde ahí: sinopsis, géneros y lista de episodios rellenos, y la etiqueta
-      «Proveedor» de la ficha dice **JKAnime**.
-- [ ] En esa ficha, un episodio ofrece servidores de vídeo con **nombres reales** (Desu, Magi…),
-      no «Opción 1».
-- [ ] Buscar algo desde la lupa con JKAnime activo: salen resultados y **no aparece paginación**
-      más allá de la primera página.
+- [ ] Las **6** vistas tienen icono, frase y un botón que lleva a alguna parte.
+- [ ] 🔴 **La portada no dice «no tienes nada»**: dice «No se han podido cargar los estrenos» y
+      ofrece «Reintentar». El catálogo no es del usuario.
+- [ ] «Buscar» **no ofrece «prueba con otro proveedor»**: el gestor ya los ha probado todos. Ofrece
+      borrar la búsqueda o quitar los filtros.
+- [ ] Los botones navegan de verdad y **la barra lateral marca el destino** al llegar.
 
-### Selector de proveedor y pin *(2026-07-30, reformado el 2026-08-06, [13](13-selector-de-proveedor.md))*
+### 7.11 Tema y plegado
+- [ ] `Light`, `Dark` y `System` cambian el aspecto **sin reiniciar** y sin dejar textos negros sobre
+      negro.
+- [ ] 🆕 El texto de la barra lateral nace correcto en los dos temas: los colores son tuplas
+      `(claro, oscuro)` y los resuelve CustomTkinter. *(La deuda que había aquí murió con la fase 1.)*
+- [ ] Texto sobre `ACCENT` legible en los dos temas (`ACCENT_INK`: blanco en claro, casi negro en
+      oscuro).
+- [ ] Con la barra **plegada**, las 7 vistas se ensanchan a 1 356 px y **nada se sale ni se recorta**.
+- [ ] La sinopsis de la ficha **no** se ensancha al plegar: tiene tope de 74 caracteres a propósito.
 
-**Sidebar — desplegable**
-- [ ] Arranque con `DB_user.db` borrada: se crea, el desplegable muestra **AnimeAV1** y el pin nace
-      **gris**. El log debe decir «Sin proveedor fijado, se usa animeav1».
-- [ ] Cambiar de proveedor → la portada de recientes se repuebla y se navega a esa vista.
-- [ ] 🔴 **La prueba que da sentido a la reforma**: cambiar de proveedor **sin** tocar el pin, cerrar y
-      reabrir → la app arranca con el proveedor **anterior**, no con el que se probó, y
-      `SELECT * FROM USER_SETTINGS` no ha cambiado.
-
-**Sidebar — pin**
-- [ ] Con el desplegable desviado, el pin está **gris**; al pulsarlo se pone **azul** y la fila de
-      `USER_SETTINGS` pasa a ese proveedor. Cerrar y reabrir → arranca con él.
-- [ ] Pulsar el pin estando **azul** → se pone gris, `setting_value` queda a `NULL` y **el proveedor
-      en uso no cambia**. Cerrar y reabrir → arranca con AnimeAV1 (el del registro).
-- [ ] Cambiar el desplegable estando el pin azul → el pin pasa a gris **sin** escribir en BD.
-- [ ] Con `DB_user.db` no disponible, pulsar el pin avisa con `messagebox` y **no** se pone azul.
-- [ ] El bloque desplegable + pin no se solapa con el selector de apariencia (la fila 8 del sidebar es
-      el espaciador con `weight=1`) — compruébalo con una **captura**, que el layout no avisa por
-      consola.
-- [ ] En tema claro y en oscuro el pin se ve (usa `light_image`/`dark_image`, no `update_icon()`).
-
-**Ficha de detalle**
-- [ ] Abrir una ficha desde **cada una** de las 6 vistas: la etiqueta «Proveedor: X» dice quién sirvió
-      los datos. ⚠️ Ya **no** hay desplegable en la ficha.
-- [ ] La sinopsis **no** queda recortada por la derecha (trampa 22).
-- [ ] Desplegar servidores → son los del proveedor de la etiqueta (compruébalo por el dominio de la
-      URL); si ese proveedor no ofrece ninguno, sale un aviso y no un selector vacío.
-- [ ] `SELECT COUNT(*) FROM ANIMES` antes y después de toda la sesión → **el mismo número**.
-
-> 🗑️ Se han retirado las pruebas de «cambiar de proveedor dentro de la ficha»: ese control ya no
-> existe. La **trampa 21** sigue viva, y desde el 2026-08-16 **vuelve a poder dispararse a mano** —
-> ver el bloque siguiente.
-
-### Columna `provider_id` *(2026-08-16, [13 §14](13-selector-de-proveedor.md))*
-
-**Abrir un anime guardado**
-- [ ] Con **AnimeAV1** seleccionado (la referencia), abrir un anime guardado desde AnimeFLV: el bloque
-      dice `Proveedor: AnimeFLV` / `En tu biblioteca: AnimeFLV`, **en gris y sin ⚠**.
-- [ ] Con **JKAnime** seleccionado, el mismo anime: `Proveedor: JKAnime` /
-      `⚠ En tu biblioteca: AnimeFLV`, **en ámbar**. Los datos vienen de JKAnime.
-- [ ] 🔴 En ese estado, pulsar un botón de estado **no crea una fila nueva**:
-      `SELECT COUNT(*) FROM ANIMES` no cambia. Es la [trampa 21](10-invariantes-y-trampas.md), que
-      llegó a reintroducirse una vez.
-- [ ] Un anime guardado **antes** de existir la columna: al abrirlo por primera vez, su `provider_id`
-      pasa de `NULL` al proveedor que lo sirvió. Al reabrirlo, **no vuelve a escribirse**.
-
-**Migrar a otro proveedor**
-- [ ] El botón «Actualizar a X» aparece siempre que el proveedor seleccionado difiera del de la fila
-      — **no solo** cuando hay discrepancia. (Fue el fallo reportado por el usuario.)
-- [ ] Confirmar la migración: el diálogo enumera proveedor, identificador y título, y dice **cuántos
-      episodios vistos se conservan**.
-- [ ] Tras migrar: `anime_id` y `provider_id` cambiados, **`watched_episodes` idéntico**, los cuatro
-      estados intactos, y el póster sigue viéndose (renombrado, no re-descargado).
-- [ ] Si el `anime_id` destino ya lo ocupa otra fila → **aviso y no se toca nada**.
-- [ ] Si el proveedor destino no tiene el anime → `showinfo` y el anime sigue guardado igual.
-
-**Aviso de duplicado**
-- [ ] Abrir un anime desde un proveedor distinto al que lo guardó y pulsar «Añadir a favoritos»: sale
-      el aviso nombrando **«tu Biblioteca de Favoritos»** (la sección pulsada), dónde está el
-      duplicado y desde qué proveedor.
-- [ ] Aceptar crea de verdad la segunda fila; cancelar **no escribe nada**.
-
-**Regresión global**
+### 7.12 Regresión global
 - [ ] `SELECT COUNT(*) FROM ANIMES` antes y después de toda la sesión → el mismo número, salvo lo que
       hayas añadido a propósito.
 - [ ] `SELECT COUNT(*) FROM ANIMES WHERE provider_id IS NULL` → cuenta que **solo baja**, nunca sube.
+- [ ] 🆕 `sha256` de `DB_Animes.db` idéntico si la sesión era de solo mirar.
+- [ ] `git grep -nE "#[0-9A-Fa-f]{6}" -- src/` devuelve **solo** `src/gui/theme.py`.
 
----
 
 ## 8. Limpieza
 

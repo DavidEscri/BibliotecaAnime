@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-07-30 fases 1-6 (`a9b44ea`, `fd53056`) · 2026-08-06 fase 7: el pin · **2026-08-16 fase 8: la columna `provider_id`** · todo en **`main`**, la fase 8 en `a3d4331` |
+| **Fecha** | 2026-07-30 fases 1-6 (`a9b44ea`, `fd53056`) · 2026-08-06 fase 7: el pin · **2026-08-16 fase 8: la columna `provider_id`** (`a3d4331`, en `main`) · **2026-08-21: tres preferencias nuevas** del rediseño de interfaz (§4), en `feature/ui-redisign` |
 | **Estado** | ✅ **Cerrado del todo.** La fase 8 implementa la columna que quedaba diferida ([§14](#14-fase-8--la-columna-provider_id-2026-08-16)) |
 | **Cierra** | TODO #4 (borrado de `main_window.py`), el punto «Selector de proveedor con preferencia persistida» y el punto 2 del roadmap ([12 §6](12-deuda-tecnica-y-roadmap.md)) |
 | **Mitiga** | **R2** — dependencia de un único proveedor sano ([12 §5](12-deuda-tecnica-y-roadmap.md)) |
@@ -292,12 +292,35 @@ Módulo nuevo: **`src/dataPersistence/userPersistence.py`**. Espeja la estructur
 > Se evita a propósito llamar a las columnas `key` y `value`: no son palabras reservadas en SQLite,
 > pero `VALUES` sí lo es y la confusión no aporta nada.
 
-### Claves previstas
+### Claves reconocidas
 
-| Clave | Valor | Estado |
-|---|---|---|
-| `default_anime_provider` | `PROVIDER_ID` (`"animeav1"`, `"animeflv"`, …) | **Se implementa ahora** |
-| `default_manga_provider` | `PROVIDER_ID` del proveedor de manga | 🔮 Reservada, ver [§10](#10-preparación-para-la-convivencia-animemanga) |
+🔴 **Las claves no son cadenas libres.** `get_setting()` y `set_setting()` reciben un
+**`UserSettingKey`** (`userPersistence.py:40`), así que **añadir una preferencia es añadir un miembro
+a ese enum** — igual que añadir un proveedor es añadir un miembro a `AnimeProviderId`. Lo que no hace
+falta es tocar el esquema ni migrar: la tabla es clave/valor.
+
+| Miembro de `UserSettingKey` | Clave persistida | Valor | Desde |
+|---|---|---|---|
+| `DEFAULT_ANIME_PROVIDER` | `default_anime_provider` | `AnimeProviderId.value` (`"animeav1"`, `"jkanime"`, …) | 2026-07-30 |
+| `SIDEBAR_COLLAPSED` 🆕 | `sidebar_collapsed` | `"0"` desplegada · `"1"` plegada | rediseño, fase 1 |
+| `LAST_WATCHED_ANIME_IDS` 🆕 | `last_watched_anime_ids` | hasta **3** `anime_id` separados por comas, el más reciente primero | rediseño, fase 2 |
+| `FAVOURITES_ORDER` 🆕 | `favourites_order` | `"rating"` o `"title"` | rediseño, fase 5 |
+| *(reservada)* | `default_manga_provider` | `PROVIDER_ID` del proveedor de manga | 🔮 ver [§10](#10-preparación-para-la-convivencia-animemanga) |
+
+Cada una tiene su **par tipado** en `UserPersistence`, para que la GUI no maneje cadenas sueltas:
+`get_sidebar_collapsed()` / `set_sidebar_collapsed(bool)`,
+`get_last_watched_ids()` / `push_last_watched_id(anime_id)`,
+`get_favourites_order()` / `set_favourites_order(str)`.
+
+Tres detalles que no son obvios:
+
+- **`last_watched_anime_ids` guarda identificadores, no filas.** Quien la pinte tiene que tolerar que
+  el anime ya no esté en la biblioteca (`get_anime_by_anime_id()` → `None`) y **descartarlo en
+  silencio**. Lo hacen la banda «Retomar» de la portada y el panel lateral de «Viendo».
+- **El panel de «Viendo» recorre los tres**, no solo el primero: si el más reciente ya no está en esa
+  pestaña —porque lo marcaste como finalizado—, el siguiente también es algo que estabas viendo.
+- **El orden de «Pendientes» NO se persiste**, aunque el de «Favoritos» sí. Vive en memoria; si se
+  quiere recordar, es un miembro más de `UserSettingKey`.
 
 ### API pública de `UserPersistence`
 
@@ -309,6 +332,12 @@ set_setting(key, value) -> bool           # UPSERT (INSERT … ON CONFLICT DO UP
 get_all_settings() -> Dict[str, str]
 get_default_provider_id() -> str|None     # atajo tipado sobre get_setting
 set_default_provider_id(provider_id)      # atajo tipado sobre set_setting
+get_sidebar_collapsed() -> bool           # 🆕 rediseño, fase 1
+set_sidebar_collapsed(collapsed) -> bool
+get_last_watched_ids() -> List[str]       # 🆕 rediseño, fase 2 (como mucho 3)
+push_last_watched_id(anime_id) -> bool    #    lo pone el primero y recorta a 3
+get_favourites_order() -> str             # 🆕 rediseño, fase 5 ("rating" | "title")
+set_favourites_order(order) -> bool
 ```
 
 Más `UserPersistenceSingleton`, con el mismo patrón que el resto: `__new__` devuelve la **instancia

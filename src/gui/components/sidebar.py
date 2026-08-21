@@ -1,7 +1,7 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "gui.components"
 __module__ = "sidebar.py"
-__version__ = "0.1"
+__version__ = "0.2"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 """Barra lateral del rediseño: navegación, proveedor y apariencia.
@@ -278,7 +278,10 @@ class Sidebar(ctk.CTkFrame):
         self.__header_frame.grid(row=0, column=0, sticky="ew", padx=10, pady=(16, 12))
         self.__header_frame.grid_columnconfigure(0, weight=1)
 
-        # Sin la palabra "Anime": cierra el TODO de main_window.py.
+        # Sin la palabra "Anime": cierra la tarea que anotaba main_window.py:32.
+        # El inventario de tareas pendientes se hace por grep, así que este
+        # comentario evita a propósito la palabra con la que se marcan: hablar de
+        # una ya cerrada falsearía la cuenta.
         self.__title_label = ctk.CTkLabel(
             self.__header_frame,
             text="Mi Biblioteca",
@@ -464,6 +467,26 @@ class Sidebar(ctk.CTkFrame):
         for item in self.__items:
             is_active = item.destination is destination
             item.set_active(is_active)
+
+    def navigate_to(self, sidebar_text: str) -> bool:
+        """Cambia de vista **como si se hubiera pulsado su ítem**: activo y pintado.
+
+        Existe desde los estados vacíos de la fase 9: «Ir a Pendientes» tiene que
+        dejar la barra señalando Pendientes, no la pestaña de la que se venía.
+        Se busca por la etiqueta y no por la clase porque las etiquetas ya son la
+        clave de ``counter_providers`` y viven en cada vista, no aquí.
+
+        :param sidebar_text: etiqueta del destino («Viendo», «Buscar»…).
+        :return: ``False`` si esa etiqueta no es ningún destino. No lanza: un
+            estado vacío no puede tumbar la aplicación por una cadena mal escrita.
+        """
+        for item in self.__items:
+            if item.destination.sidebar_text == sidebar_text:
+                self.set_active(item.destination)
+                item.destination.sidebar_command()
+                return True
+        print(f"Destino de barra lateral desconocido: {sidebar_text!r}")
+        return False
 
     # ------------------------------------------------------------------
     # Contadores
