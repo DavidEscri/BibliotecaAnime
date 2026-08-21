@@ -5,12 +5,12 @@
 
 | | |
 |---|---|
-| **Fase actual** | 9 — Cohesión |
-| **Situación** | 🟡 en curso |
-| **Último paso completado** | Paso 9.5 — documentación. **Los 5 pasos de la fase 9 están hechos** |
-| **Siguiente paso** | Cerrar la fase: checklist punto por punto y commit |
+| **Fase actual** | — · **el plan está terminado**: las 9 fases en ✅ |
+| **Situación** | ✅ **plan cerrado el 2026-08-21**. Las 9 fases terminadas y verificadas con la app real |
+| **Último paso completado** | Fase 9 entera, commiteada en `7606def` |
+| **Siguiente paso** | Ninguno de este plan. Lo que recomienda el cierre (§ *Qué queda*, al final): **sacar la petición de servidores del hilo de Tkinter** |
 | **Rama** | ✅ `feature/ui-redisign` (**no** `feature/rediseno-ui`: ya existía, ver Decisiones) |
-| **Base** | `bd25742` (fase 1) → fases 2 a 8 encima, en `feature/ui-redisign`. El plan partió de `6377b92`, no de `4f9e429` |
+| **Base** | `bd25742` (fase 1) → fases 2 a **9** encima, en `feature/ui-redisign`. El plan partió de `6377b92`, no de `4f9e429`. ⚠️ **La rama no se ha fusionado con `main`**: eso lo decide el usuario |
 | **Commits** | automáticos (uno al cerrar cada fase) |
 | **Actualizado** | 2026-08-21 |
 
@@ -28,7 +28,7 @@
 | 6 | Finalizados | ✅ terminada | `bfbad7d` | ✅ app real ejecutada y **mirada** (4 arranques: Finalizados en oscuro y en claro, Favoritos, ficha abierta con clic sintético + recorrido de las 6 vistas) + **22 comprobaciones** sobre la app en marcha + **10** de casos límite del sello + **3** de los glifos, **mirados ampliados x10** |
 | 7 | Buscar | ✅ terminada | `b68b5b4` | ✅ app real ejecutada y **mirada** (2 arranques, **11 capturas**: buscar por texto, dos géneros, «Más géneros» desplegado, paginador con 50 páginas, página 2, fallback a JKAnime, tema claro y cambio de vista en vuelo) + **51 comprobaciones** de la vista con CTk real + **28** de `GenreChips` |
 | 8 | Ficha del anime | ✅ terminada | `5bf0b3f` | ✅ app real ejecutada y **mirada** (3 arranques, **8 capturas**: portada, Viendo, ficha de One Piece, servidores desplegados, barra plegada, tema claro, pendiente de AnimeFLV e identidad partida forzada con JKAnime) + **93 comprobaciones** con CTk real sobre **copia** de la BD, con red de verdad en servidores y migración |
-| 9 | Cohesión | 🟡 en curso | — | — |
+| 9 | Cohesión | ✅ terminada | `7606def` | ✅ app real ejecutada y **mirada** (4 arranques: biblioteca **vacía** y **copia de la real**, en oscuro y en claro, **54 capturas** de las 7 vistas × 2 temas × 2 estados de barra) + **116 comprobaciones** con CTk real + **`pyinstaller` compilado y el `.exe` arrancado** + `python src/app.py` sin un solo `Traceback` |
 
 **Situación**: ⬜ no empezada · 🟡 en curso · ✅ terminada · ⚠️ terminada sin verificar · ❌ revertida
 
@@ -812,3 +812,55 @@ Una entrada por paso completado, **la más reciente arriba**. Formato:
   (`animeav1`), baja los pósters y pinta la portada.
 - Verificado: sí · `python -u src/app.py`, log en el scratchpad.
 - Pendiente que deja: nada.
+
+---
+
+## Cierre del plan *(2026-08-21)*
+
+Las **9 fases** están terminadas, verificadas con la aplicación real y commiteadas en
+`feature/ui-redisign`, de `bd25742` a `7606def`. ⚠️ **La rama no se ha fusionado con `main`**: el plan
+no lo autorizaba y esa decisión es del usuario.
+
+### Qué quedó fuera
+
+Lo que el plan declaró fuera de alcance desde el principio y sigue fuera: la convivencia anime +
+manga, el bloque «Si te ha gustado X…», los proveedores nuevos (MonosChinos2, TioAnime) y redibujar
+los iconos de origen dudoso (deuda **B11**).
+
+Lo que se decidió **durante** el plan y no llegó a entrar:
+
+| Qué | Por qué | Dónde retomarlo |
+|---|---|---|
+| ⚠️ **La petición de servidores sigue en el hilo de Tkinter** | Es un cambio de concurrencia, no de aspecto; la fase 9 no podía ampliarse por su cuenta | `anime_window.py`. **Es el último sitio de la GUI que sale a la red desde el hilo de la interfaz** |
+| **El orden de «Pendientes» no se persiste** | No estaba entre las tres preferencias que `DISENO.md` §8 mandaba guardar | Un miembro más de `UserSettingKey` ([13 §4](../docs/13-selector-de-proveedor.md)) |
+| **Texto y géneros no se combinan en «Buscar»** | El contrato de proveedores no lo permite y la fase 7 no tocaba `APIs/` | Haría falta un método nuevo en `AnimeProvider`, o filtrar en cliente |
+| **Los 4 PNG `viendo_light/dark` y `pendientes_light/dark`** | Comprobado: los dos dibujos de cada par son de tinta negra, así que no sirven como par claro/oscuro | Hay que **redibujarlos** ([11 §5](../docs/11-playbooks.md)) |
+| **`utilsButtons.py` conserva un nombre que ya no describe lo que hace** | Renombrarlo es refactor, no interfaz | Vive en `utils/` y solo tiene 3 piezas |
+
+### Qué fases se cerraron sin verificar
+
+**Ninguna.** Las nueve se ejecutaron con la aplicación real y se miraron. Lo que sí quedó sin
+ejercitar, fase por fase, está en la tabla **«Qué quedó sin verificar»** de más arriba; el patrón se
+repite y conviene leerlo entero antes de fiarse de nada:
+
+1. **El hover con un ratón de verdad** — ocho fases seguidas sin puntero. El mecanismo se ejecutó
+   emitiendo eventos **sobre el canvas interno** (que es lo que toca el ratón), pero mover el ratón,
+   no.
+2. **Los desplegables abiertos con el ratón** — su lista es un *toplevel* aparte y `PrintWindow` no la
+   captura. Se ejercitó su `command`, que es lo que el desplegable llama.
+3. **Todo lo que escribe, sobre la biblioteca real** — se hizo **sobre copias**, por la regla 2 de
+   `/fase`. La real solo se ha mirado, y su `sha256` se comprobó idéntico en cada sesión.
+4. **Marcar un episodio, cerrar la app y reabrirla** — las dos mitades están ejecutadas; la costura
+   entre ellas, no.
+
+### Qué recomendaría como siguiente tarea
+
+**Sacar la petición de servidores del hilo de Tkinter.** Es pequeño, está localizado en
+`anime_window.py`, y es lo único que queda de la aplicación que congela la ventana; además cierra el
+apartado de concurrencia de [`docs/07`](../docs/07-concurrencia-e-hilos.md), que hoy lo lista como
+riesgo vivo.
+
+Después, del roadmap del usuario: la **convivencia anime + manga**, que el rediseño ha dejado a medio
+camino sin proponérselo —las pestañas ya no dicen «Anime», ya paginan, «Viendo» ya es una cascada con
+el último capítulo y «Favoritos» ya tiene calificación—, así que lo que falta es el desplegable de
+tipo y el filtro.
