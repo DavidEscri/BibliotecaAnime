@@ -1,7 +1,7 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "sidebarButtons"
 __module__ = "favouriteAnimes.py"
-__version__ = "0.3"
+__version__ = "0.4"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 """«Favoritos»: rejilla de cinco con la calificación personal debajo de cada título.
@@ -33,9 +33,11 @@ import customtkinter as ctk
 from typing import Any, Dict, List, Optional, Union
 
 from APIs.common.animeProviderMgr import AnimeProviderManager, AnimeProviderManagerSingleton
-from dataPersistence.animesPersistence import AnimesPersistence, AnimesPersistenceSingleton, AnimeRecord
+from dataPersistence.animesPersistence import (AnimesPersistence, AnimesPersistenceSingleton, AnimeRecord,
+                                               AnimeStatus)
 from dataPersistence.userPersistence import UserPersistence
 from gui.anime_window import open_saved_anime
+from gui.components.empty_state import EmptyState, ICON_SIZE as EMPTY_ICON_SIZE
 from gui.components.pager import Pager
 from gui.components.poster_grid import PosterGrid, PosterItem
 from gui.components.rating_stars import RatingStars
@@ -114,15 +116,15 @@ class FavouritesButton(utilsButtons.SidebarButton):
         self.__build_controls(header)
 
         if not favourite_animes:
-            empty_label = ctk.CTkLabel(
+            empty_state = EmptyState(
                 content,
-                text="Todavía no tienes favoritos.\n"
-                     "Marca uno con el corazón desde su ficha y aparecerá aquí.",
-                font=Theme.font(*Theme.T_ROW),
-                text_color=Theme.TXT_2,
-                justify="center"
+                "Todavía no has marcado ningún favorito",
+                icon=StatusPill.icon(AnimeStatus.FAVOURITE, EMPTY_ICON_SIZE, Theme.TXT_3, gap=0),
+                hint="Marca uno con el corazón desde su ficha y aparecerá aquí.",
+                action_text="Ir a Nuevos lanzamientos",
+                on_action=lambda: self.main_window.navigate_to("Nuevos lanzamientos")
             )
-            empty_label.grid(row=1, column=0, pady=(40, 0))
+            empty_state.grid(row=1, column=0, pady=(60, 0))
             return
 
         self.__poster_grid = PosterGrid(content, columns=5, poster_size=Metrics.GRID5_POSTER,
@@ -282,12 +284,20 @@ class FavouritesButton(utilsButtons.SidebarButton):
         # repetirlo en las diez celdas sería el dato duplicado que prohíbe
         # `DISENO.md` §6. Que además lo estés viendo, no.
         status = StatusPill.other_status(anime_record)
+        # ⚠️ El sello va con los colores **por defecto** de `PosterGrid` —fondo
+        # oscuro opaco y texto blanco, con el color del estado solo en el glifo—
+        # y no con el par pastel de la píldora, que es lo que hacía esta vista
+        # hasta el paso 9.2. Un `FAV_BG` —que es un rosa muy claro— sobre una
+        # carátula blanca no
+        # se lee, y desde la fase 6 el sello está además en la esquina más
+        # brillante del póster. Es la misma decisión que ya tomaron Finalizados y
+        # Buscar; aquí solo faltaba aplicarla.
         return PosterItem(
             key=anime_record.anime_id,
             title=anime_record.title,
             poster_path=find_cached_poster_path(anime_record.anime_id),
             badge=StatusPill.text(status) if status is not None else None,
-            badge_colors=StatusPill.colors(status) if status is not None else None,
+            badge_icon=StatusPill.icon(status) if status is not None else None,
             footer=self.__provider_name(anime_record),
             data=anime_record
         )

@@ -25,6 +25,23 @@ a = Analysis(
         'gui.sidebarButtons.recentAnimes.recentAnimes',
         'gui.sidebarButtons.searchAnimes.searchAnimes',
         'gui.sidebarButtons.watchingAnimes.watchingAnimes',
+        # Componentes compartidos y tokens visuales del rediseño. Entraron con las
+        # fases 1 a 9 y hay que declararlos uno a uno: PyInstaller sigue los
+        # imports desde `src/app.py`, pero este proyecto usa imports absolutos con
+        # raíz en `src` y el análisis estático no siempre los resuelve, que es por
+        # lo que las seis vistas llevan aquí desde siempre.
+        'gui.theme',
+        'gui.components.anime_row',
+        'gui.components.empty_state',
+        'gui.components.genre_chips',
+        'gui.components.pager',
+        'gui.components.poster_grid',
+        'gui.components.rating_stars',
+        'gui.components.resume_card',
+        'gui.components.side_panel',
+        'gui.components.sidebar',
+        'gui.components.status_pill',
+        'gui.components.view_header',
         'gui.anime_window',
         'gui.main_window',
         'utils.buttons.utilsButtons',

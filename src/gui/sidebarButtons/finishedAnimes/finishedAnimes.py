@@ -1,7 +1,7 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "sidebarButtons"
 __module__ = "finishedAnimes.py"
-__version__ = "0.3"
+__version__ = "0.4"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 """«Finalizados»: el archivo, en rejilla de seis con el sello de completado sobre la carátula.
@@ -31,6 +31,7 @@ from typing import List, Optional, Union
 from APIs.common.animeProviderMgr import AnimeProviderManager, AnimeProviderManagerSingleton
 from dataPersistence.animesPersistence import AnimesPersistence, AnimesPersistenceSingleton, AnimeRecord, AnimeStatus
 from gui.anime_window import open_saved_anime
+from gui.components.empty_state import EmptyState, ICON_SIZE as EMPTY_ICON_SIZE
 from gui.components.pager import Pager
 from gui.components.poster_grid import PosterGrid, PosterItem
 from gui.components.status_pill import StatusPill
@@ -94,15 +95,15 @@ class FinishedAnimeButton(utilsButtons.SidebarButton):
         self.__build_controls(header)
 
         if not finished_animes:
-            empty_label = ctk.CTkLabel(
+            empty_state = EmptyState(
                 content,
-                text="Todavía no has terminado ningún anime.\n"
-                     "Los que marques como finalizados desde su ficha se archivan aquí.",
-                font=Theme.font(*Theme.T_ROW),
-                text_color=Theme.TXT_2,
-                justify="center"
+                "Aún no has terminado ninguno",
+                icon=StatusPill.icon(AnimeStatus.FINISHED, EMPTY_ICON_SIZE, Theme.TXT_3, gap=0),
+                hint="Los que marques como finalizados desde su ficha se archivan aquí.",
+                action_text="Ir a Viendo",
+                on_action=lambda: self.main_window.navigate_to("Viendo")
             )
-            empty_label.grid(row=1, column=0, pady=(40, 0))
+            empty_state.grid(row=1, column=0, pady=(60, 0))
             return
 
         self.__poster_grid = PosterGrid(content, columns=6, poster_size=Metrics.GRID6_POSTER,

@@ -2,9 +2,9 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-08-16 · **Commit** `a3d4331` (2026-08-17, rama `main`) · árbol **limpio** |
-| **Última revisión** | 2026-08-16 (**columna `provider_id`**): recuentos rehechos — el proyecto pasa de 5 460 a **6 245** líneas; fichas de `models.py`, `animeProviderMgr.py`, `animesPersistence.py`, `utils.py`, `utilsButtons.py`, `main_window.py` y `anime_window.py` actualizadas |
-| **Cubre** | los **37** ficheros `.py` de `src/` (**19** con contenido + **18** `__init__.py` vacíos) |
+| **Fecha** | 2026-08-21 · rama `feature/ui-redisign` · árbol **con la fase 9 del rediseño sin commitear** |
+| **Última revisión** | 2026-08-21 (**rediseño de interfaz**): **12 módulos nuevos** en `gui/` —`theme.py` y los 11 de `gui/components/`— con su ficha; recuentos rehechos (**6 245 → 11 309** líneas); `utilsButtons.py` pierde 5 clases y `main_window.py` gana `navigate_to()`. Antes, 2026-08-16 (**columna `provider_id`**): recuentos rehechos — el proyecto pasa de 5 460 a **6 245** líneas; fichas de `models.py`, `animeProviderMgr.py`, `animesPersistence.py`, `utils.py`, `utilsButtons.py`, `main_window.py` y `anime_window.py` actualizadas |
+| **Cubre** | los **50** ficheros `.py` de `src/` (**31** con contenido + **19** `__init__.py` vacíos) |
 
 Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ sin verificar.
 Todas las líneas citadas corresponden al **árbol de trabajo actual**, no al último commit.
@@ -22,28 +22,44 @@ Todas las líneas citadas corresponden al **árbol de trabajo actual**, no al ú
 | `src/APIs/jkanime/jkanime.py` | 534 | infraestructura |
 | `src/APIs/animeflv/animeflv.py` | 244 | infraestructura |
 | `src/dataPersistence/animesPersistence.py` | **705** | dominio/datos |
-| `src/dataPersistence/userPersistence.py` | 240 | dominio/datos |
+| `src/dataPersistence/userPersistence.py` | **334** | dominio/datos |
 | `src/utils/db/sqlite.py` | 446 | infraestructura |
-| `src/utils/utils.py` | **217** | infraestructura |
-| `src/utils/buttons/utilsButtons.py` | **350** | GUI |
-| `src/gui/main_window.py` | **542** | GUI |
-| `src/gui/anime_window.py` | **1 155** | GUI |
-| `src/gui/sidebarButtons/recentAnimes/recentAnimes.py` | 119 | GUI |
-| `src/gui/sidebarButtons/favouriteAnimes/favouriteAnimes.py` | 145 | GUI |
-| `src/gui/sidebarButtons/finishedAnimes/finishedAnimes.py` | 141 | GUI |
-| `src/gui/sidebarButtons/watchingAnimes/watchingAnimes.py` | 142 | GUI |
-| `src/gui/sidebarButtons/pendingAnimes/pendingAnimes.py` | 143 | GUI |
-| `src/gui/sidebarButtons/searchAnimes/searchAnimes.py` | 381 | GUI |
+| `src/utils/utils.py` | **304** | infraestructura |
+| `src/utils/buttons/utilsButtons.py` | **205** | GUI |
+| `src/gui/theme.py` 🆕 | **274** | GUI · tokens |
+| `src/gui/components/sidebar.py` 🆕 | **525** | GUI · componente |
+| `src/gui/components/anime_row.py` 🆕 | **333** | GUI · componente |
+| `src/gui/components/genre_chips.py` 🆕 | **333** | GUI · componente |
+| `src/gui/components/status_pill.py` 🆕 | **258** | GUI · componente |
+| `src/gui/components/pager.py` 🆕 | **247** | GUI · componente |
+| `src/gui/components/poster_grid.py` 🆕 | **234** | GUI · componente |
+| `src/gui/components/empty_state.py` 🆕 | **232** | GUI · componente |
+| `src/gui/components/side_panel.py` 🆕 | **226** | GUI · componente |
+| `src/gui/components/rating_stars.py` 🆕 | **209** | GUI · componente |
+| `src/gui/components/resume_card.py` 🆕 | **192** | GUI · componente |
+| `src/gui/components/view_header.py` 🆕 | **99** | GUI · componente |
+| `src/gui/main_window.py` | **538** | GUI |
+| `src/gui/anime_window.py` | **1 734** | GUI |
+| `src/gui/sidebarButtons/recentAnimes/recentAnimes.py` | **183** | GUI · vista |
+| `src/gui/sidebarButtons/favouriteAnimes/favouriteAnimes.py` | **350** | GUI · vista |
+| `src/gui/sidebarButtons/finishedAnimes/finishedAnimes.py` | **260** | GUI · vista |
+| `src/gui/sidebarButtons/watchingAnimes/watchingAnimes.py` | **264** | GUI · vista |
+| `src/gui/sidebarButtons/pendingAnimes/pendingAnimes.py` | **353** | GUI · vista |
+| `src/gui/sidebarButtons/searchAnimes/searchAnimes.py` | **607** | GUI · vista |
 
-**6 245 líneas** en 19 módulos. ✅ Recontado el 2026-08-16: **+785 líneas** respecto al 2026-08-07,
-casi todas de la columna `provider_id`. El grueso está en `anime_window.py` (647→**1 155**),
-`animesPersistence.py` (553→**705**) y `utilsButtons.py` (197→**350**).
+**11 309 líneas** en **31 módulos**. ✅ Recontado el 2026-08-21: **+5 064 líneas** respecto al
+2026-08-16, casi todas del rediseño de interfaz. El grueso está en los **12 módulos nuevos** de
+`gui/` (2 962 líneas entre `theme.py` y los 11 componentes), en `anime_window.py` (1 155→**1 734**)
+y en las seis vistas, que pasan de 1 071 a **2 017** líneas entre todas.
+
+⚠️ **`utilsButtons.py` es el único que ha encogido** (350 → **205**): el paso 9.4 del rediseño retiró
+las cinco clases de botón que ya no usaba nadie.
 
 ⚠️ **`anime_window.py` es hoy el módulo más grande del proyecto**, con diferencia, y el más citado por
 esta documentación. Cualquier inserción en él desplaza decenas de anclas: reubícalas comparando el
 **contenido** de la línea, no sumando un desplazamiento ([README](README.md)).
 
-Los **18** `__init__.py` están **vacíos** (0 bytes) y solo marcan paquete. ✅ El último con contenido,
+Los **19** `__init__.py` están **vacíos** (0 bytes) y solo marcan paquete; el decimonoveno es el de `gui/components/`. ✅ El último con contenido,
 `watchingAnimes/__init__.py`, se vació en `e6d1a73` (2026-08-07).
 
 > Recuentos actualizados el 2026-08-06 tras integrar **JKAnime**, que añade `jkanime.py` y su
@@ -379,24 +395,99 @@ pool; transacciones solo en las migraciones.
 
 ## `src/utils/buttons/utilsButtons.py`
 
-| Clase | Línea | Rol |
-|---|---|---|
-| 🆕 `filter_animes_by_title(records, query)` | `:23-56` | búsqueda **local** en la biblioteca, sin red y sin mirar el proveedor ([trampa 26](10-invariantes-y-trampas.md)) |
-| 🆕 `match_animes_from_search(records, results)` | `:59-94` | traduce resultados web → filas guardadas, por slug **y** por título |
-| 🆕 `SavedAnimeSearch` | `:97-166` | el buscador de las 4 vistas de estado: local al instante + web con `after(0,…)`. Contador de generación y guarda de visibilidad |
-| `BaseButton(ctk.CTkButton)` | `:168-176` | base de todos |
-| `EpisodeButton` | `:178-189` | «{título} - Episodio {n}» |
-| `SearchButton` | `:191-199` | ⚠️ **homónimo** del `SearchButton` de la sidebar (`searchAnimes.py:35`) |
-| `ApplyFiltersButton` | `:201-209` | |
-| `SidebarButton` | `:211-237` | base de las 6 vistas; `update_icon(mode)` `:232-234`; `show_frame()` abstracto `:236-237` |
-| `AccordionFilterButton` | `:239-351` | filtro plegable de género + orden |
+⚠️ **Ya no contiene ni un botón, pese al nombre.** El paso 9.4 del rediseño (2026-08-21) retiró las
+**cinco** clases de botón que quedaban huérfanas —`BaseButton`, `EpisodeButton`, `SearchButton`,
+`ApplyFiltersButton` y `AccordionFilterButton`—, sustituidas por los componentes de
+`gui/components/` y por `EpisodeRow`. El módulo pasó de **361 a 205 líneas**. Renombrarlo se dejó
+fuera del plan: el rediseño es solo interfaz y esto vive en `utils/`.
 
-**Efectos**: lee iconos de disco (`load_image`), consulta la BD en `__apply_filters` (`:336-348`) y 🆕 **la red** en `SavedAnimeSearch` (hilo daemon).
+| Símbolo | Línea | Rol |
+|---|---|---|
+| `filter_animes_by_title(records, query)` | `:43-71` | búsqueda **local** en la biblioteca, sin red y sin mirar el proveedor ([trampa 26](10-invariantes-y-trampas.md)) |
+| `match_animes_from_search(records, results)` | `:74-109` | traduce resultados web → filas guardadas, por slug **y** por título |
+| `SavedAnimeSearch` | `:112-176` | el buscador de las 4 vistas de estado: local al instante + web con `after(0,…)`. Contador de generación y guarda de visibilidad |
+| `SidebarButton` | `:179-224` | **no es un widget**: describe un destino (`sidebar_text`, `sidebar_command`, `sidebar_icon(size)`) y declara `show_frame()` abstracto. Quien pinta es `gui.components.sidebar.Sidebar` |
+
+**Efectos**: lee iconos de disco (`load_dual_image`) y **la red** en `SavedAnimeSearch` (hilo daemon).
+Ya **no consulta la BD**: la consulta por género y orden se fue con `AccordionFilterButton`.
+
+⚠️ **Homónimos**: el `SearchButton` que existe hoy es el de `searchAnimes.py` —la vista «Buscar»—, no
+el botón que había aquí.
 
 > ✅ **Bug**: `__apply_filters` (`:341`) pasa `self.selected_order.get()`, un **`str`**, a
 > `get_anime_by_genre_and_order`, que compara contra el **enum** (`animesPersistence.py:384`). La
 > comparación siempre es `True` → *return* temprano → **la ordenación por coincidencias de género
 > nunca se aplica**. Trampa 6.
+
+---
+
+## `src/gui/theme.py` 🆕
+
+**Rol**: la **única fuente de verdad** de color, tipografía y medida de toda la interfaz.
+
+**API pública**:
+
+| Símbolo | Qué es |
+|---|---|
+| `Theme` | 20 tokens de color como tuplas `(claro, oscuro)`, los 10 roles tipográficos y las dos familias |
+| `Theme.font(size, bold, mono)` | Construye —y cachea— un `CTkFont`. **Solo después de crear la raíz de Tk** |
+| `Theme.ellipsize(texto, fuente, ancho, líneas)` | Recorta a N líneas midiendo con `font.measure()`. Ver [trampa 30](10-invariantes-y-trampas.md) |
+| `Theme.clear_font_cache()` | Solo hace falta si se destruye la raíz de Tk |
+| `Metrics` | Las medidas de `DISENO.md` §3 |
+| `Metrics.pill_radius(alto)` | Radio de una píldora: la mitad de su alto |
+| `ColorToken` | Alias de `Tuple[str, str]` |
+
+**Dependencias**: solo `customtkinter` y `typing`. **No importa nada del proyecto**, y por eso puede
+importarlo cualquier módulo de `gui/`.
+
+**Efectos secundarios**: ninguno, salvo la caché de fuentes.
+
+⚠️ `Metrics.POSTER_CACHE_SIZE` está **duplicado a mano** en `utils/utils.py:24-33`, con un comentario
+que nombra a su pareja: `utils/` tiene prohibido importar de `gui/` ([01 §2](01-arquitectura.md)).
+Si cambia uno, cambia el otro.
+
+---
+
+## `src/gui/components/` 🆕 — las 11 piezas compartidas
+
+Todas viven en `gui/components/`, todas importan de `gui.theme` y **ninguna conoce a `MainWindow`**:
+reciben datos y callbacks. Una vista **compone**; si necesita una variante, se añade un **parámetro**,
+nunca una copia del fichero.
+
+| Módulo | API pública | Nace en | Notas |
+|---|---|---|---|
+| `sidebar.py` | `Sidebar` (+ `_NavItem`, privado) | fase 1 | La barra entera: 6 destinos, plegado persistido, proveedor con pin y apariencia. `navigate_to(etiqueta)` 🆕 |
+| `view_header.py` | `ViewHeader` | fase 1 | Título + subtítulo + `controls_frame`. Alto fijo 80 |
+| `poster_grid.py` | `PosterGrid`, `PosterItem` | fase 2 | Rejilla de N columnas. Sello con `place()`, pie y `extra_builder` |
+| `pager.py` | `Pager` | fase 2 | `set_total()` (corta la lista) o `set_pages()` (pagina el proveedor) |
+| `resume_card.py` | `ResumeBand`, `resume_progress()`, `resume_caption()` | fase 2 | `resume_progress()` es el **único** sitio donde se calcula por dónde ibas |
+| `anime_row.py` | `AnimeRow`, `RowAction` | fase 3 | Fila en cascada con acción en hover. La comparten «Viendo» y «Pendientes» |
+| `side_panel.py` | `SidePanel` | fase 3 | Los 290 px de la derecha en «Viendo» |
+| `rating_stars.py` | `RatingStars` | fase 5 | Cinco estrellas con medios puntos, dibujadas con PIL |
+| `status_pill.py` | `StatusPill` | fase 5 | Texto, colores y glifo de los 4 estados. `other_status()`, `icon()` |
+| `genre_chips.py` | `GenreChips` | fase 7 | Fichas de género. Colocadas con `place()`, no con `grid()` |
+| `empty_state.py` 🆕 | `EmptyState`, `glyph()`, `ICON_SIZE` | fase 9 | Icono, frase, pista y acción. Dibuja «nube tachada» y «lupa» con PIL |
+
+**Quién usa qué**:
+
+| Componente | Lo usan |
+|---|---|
+| `ViewHeader` | las 5 vistas con título (todas menos «Buscar») |
+| `PosterGrid` | Nuevos, Favoritos, Finalizados, Buscar |
+| `Pager` | Nuevos, Favoritos, Finalizados, Buscar |
+| `AnimeRow` | Viendo, Pendientes |
+| `StatusPill` | Favoritos, Finalizados, Buscar, la ficha y `EmptyState` |
+| `EmptyState` | las 6 vistas |
+| `Sidebar` | `MainWindow` |
+| `SidePanel`, `ResumeBand`, `RatingStars`, `GenreChips` | una vista cada uno |
+
+**Efectos secundarios**: `poster_grid.py`, `anime_row.py`, `side_panel.py` y `resume_card.py` **leen
+del disco** los JPG cacheados (`find_cached_poster_path()` + `load_rounded_image()`); ninguno sale a
+la red. `rating_stars.py`, `status_pill.py` y `empty_state.py` **dibujan con PIL** en tiempo de
+ejecución y cachean el `CTkImage` resultante.
+
+⚠️ **Todo componente nuevo hay que declararlo en `hiddenimports` del `.spec`**, o el `.exe` no
+arranca ([11 §6](11-playbooks.md)).
 
 ---
 

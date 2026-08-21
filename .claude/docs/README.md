@@ -2,13 +2,13 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-08-18 |
-| **Commit** | `e337d20` (rama `main`, tag **`v0.2.1`**) |
-| **Árbol de trabajo** | ✅ **limpio y publicado** — `main == origin/main`, 0 adelante / 0 detrás. Sin trackear quedan solo los 4 PNG sin usar, `.vscode/`, `.claude/settings.local.json` y `.claude/plans/` (ver [12 §1](12-deuda-tecnica-y-roadmap.md)) |
-| **Última revisión** | 2026-08-18 — **sincronización de estado**: las cabeceras de los 14 documentos dejan de decir «árbol sucio» (la tanda de licencia entró en `e337d20`; la columna `provider_id`, en `a3d4331`) y se corrige el **árbol de directorios del `README.md`**, que cerraba **C10** |
-| **Último cambio** | ✅ 2026-08-17 — **el proyecto es formalmente GPL-3.0-or-later**: `LICENSE`, aviso de copyright, `LEEME.txt` y `THIRD-PARTY-NOTICES.txt` junto al `.exe`. El `.spec` deja de empaquetar la BD y los pósters del desarrollador y queda **verificado compilando y arrancando el `.exe`** por primera vez. Cierra **A3**, **C11** y **C10**. Publicado como **`v0.2.1`** |
-| **Siguiente tarea** | Del roadmap: arreglar **B2** (`str` vs enum, barato y desbloquea dos puntos) → [12 §6](12-deuda-tecnica-y-roadmap.md) |
-| **Cubre** | los **37 ficheros `.py`** de `src/`: **19 módulos reales** (**6 245** líneas) + 18 `__init__.py`, ✅ **los 18 vacíos** desde `e6d1a73` |
+| **Fecha** | 2026-08-21 |
+| **Commit** | rama `feature/ui-redisign`, **fase 9 del rediseño sin commitear** (las 8 anteriores, de `bd25742` a `ce110c5`) |
+| **Árbol de trabajo** | 🟡 **rama de trabajo con la fase 9 sin commitear**. Sin trackear siguen los 4 PNG sin usar, `.vscode/`, `.claude/settings.local.json` y `.claude/plans/` (ver [12 §1](12-deuda-tecnica-y-roadmap.md)) |
+| **Última revisión** | 2026-08-21 — **rediseño de interfaz (fases 1-9)**: [06](06-gui-y-vistas.md) **reescrito entero**, [09 §7](09-verificacion-y-pruebas.md) también; **7 trampas nuevas** (29-35) en [10](10-invariantes-y-trampas.md); fichas de `theme.py` y de los 11 componentes en [02](02-mapa-de-modulos.md); la columna `rating` en [04 §3b](04-modelo-de-datos.md); las tres preferencias nuevas en [13 §4](13-selector-de-proveedor.md); [11](11-playbooks.md) gana §1b y **corrige §5**, que mandaba activar unos iconos que no funcionan. Antes, 2026-08-18 — **sincronización de estado**: las cabeceras de los 14 documentos dejan de decir «árbol sucio» (la tanda de licencia entró en `e337d20`; la columna `provider_id`, en `a3d4331`) y se corrige el **árbol de directorios del `README.md`**, que cerraba **C10** |
+| **Último cambio** | ✅ 2026-08-21 — **la interfaz está rediseñada de arriba abajo**: `gui/theme.py` y **11 componentes compartidos** nuevos, barra lateral plegable y persistida, las 6 vistas y la ficha rehechas, calificación personal en favoritos (columna `rating`) y estados vacíos en las 7 vistas. **+5 064 líneas**. Verificado con la app real en los dos temas y el `.exe` compilado y arrancado. Cierra el TODO de `main_window.py:32` y **5 puntos del roadmap**. Antes, 2026-08-17 — **el proyecto es formalmente GPL-3.0-or-later**: `LICENSE`, aviso de copyright, `LEEME.txt` y `THIRD-PARTY-NOTICES.txt` junto al `.exe`. El `.spec` deja de empaquetar la BD y los pósters del desarrollador y queda **verificado compilando y arrancando el `.exe`** por primera vez. Cierra **A3**, **C11** y **C10**. Publicado como **`v0.2.1`** |
+| **Siguiente tarea** | **Sacar la petición de servidores del hilo de Tkinter** (`anime_window.py`): es el último sitio de la GUI que sale a la red desde el hilo de la interfaz, y el rediseño lo dejó así a propósito para no ampliar su alcance. Después, **B2** (`str` vs enum, barato y desbloquea dos puntos) → [12 §6](12-deuda-tecnica-y-roadmap.md) |
+| **Cubre** | los **50 ficheros `.py`** de `src/`: **31 módulos reales** (**11 309** líneas) + 19 `__init__.py`, ✅ **todos vacíos** |
 
 `.claude/CLAUDE.md` es el **resumen de entrada** (qué es el proyecto, comandos, arquitectura en una
 página). Esta carpeta es la **profundidad**: lo que hay que saber antes de tocar algo frágil.
@@ -41,7 +41,7 @@ Toda afirmación de comportamiento va marcada:
 | [07-concurrencia-e-hilos.md](07-concurrencia-e-hilos.md) | Qué corre en qué hilo, reglas y carreras conocidas |
 | [08-convenciones-y-estilo.md](08-convenciones-y-estilo.md) | Cabecera obligatoria, idioma, singletons + **plantillas copiables** |
 | [09-verificacion-y-pruebas.md](09-verificacion-y-pruebas.md) | Cómo arrancar y probar; scripts listos para pegar; checklist manual |
-| [10-invariantes-y-trampas.md](10-invariantes-y-trampas.md) | **Lee esto siempre.** **28** trampas con síntoma observable |
+| [10-invariantes-y-trampas.md](10-invariantes-y-trampas.md) | **Lee esto siempre.** **35** trampas con síntoma observable |
 | [11-playbooks.md](11-playbooks.md) | Recetas paso a paso con ficheros exactos y checklist |
 | [12-deuda-tecnica-y-roadmap.md](12-deuda-tecnica-y-roadmap.md) | TODOs con `fichero:línea`, discrepancias, riesgos, roadmap técnico **y §7: licencia GPL-3.0 y cumplimiento de la distribución** |
 | [13-selector-de-proveedor.md](13-selector-de-proveedor.md) | Selector de proveedor, `DB_user.db` **y la columna `provider_id`** (§14): decisiones de diseño, qué quedó fuera y **qué está verificado y qué no** |
@@ -53,6 +53,9 @@ Toda afirmación de comportamiento va marcada:
 | Vas a tocar… | Lee, en este orden |
 |---|---|
 | **Cualquier cosa** | [10-invariantes-y-trampas.md](10-invariantes-y-trampas.md) — 10 minutos que te ahorran un día |
+| **Cualquier cosa de la interfaz** | [06](06-gui-y-vistas.md) → trampas **29-35** (todas de CustomTkinter y de layout) → [11 §1 y §1b](11-playbooks.md) |
+| **Un componente compartido, o crear uno** | [06 §6](06-gui-y-vistas.md) → [11 §1b](11-playbooks.md) → [02](02-mapa-de-modulos.md) |
+| **Colores, medidas o tipografía** | [06 §1](06-gui-y-vistas.md) → [`plan-rediseno/DISENO.md`](../plan-rediseno/DISENO.md), que es la especificación |
 | **Abrir un anime guardado, o el proveedor de una fila** | [13 §8 y §14](13-selector-de-proveedor.md) → [04 §8](04-modelo-de-datos.md) → trampas **21, 26, 27 y 28** |
 | Elegir a qué sitio pedir datos | [05 §2](05-proveedores-y-scraping.md) (tabla comparativa de los 3) → [05 §5](05-proveedores-y-scraping.md) |
 | Un proveedor de anime (`APIs/`) | [05](05-proveedores-y-scraping.md) → [01](01-arquitectura.md) → trampas 11-14, 20 |

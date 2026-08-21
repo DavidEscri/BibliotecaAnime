@@ -38,7 +38,7 @@ from typing import Any, Callable, List, Optional, Tuple
 
 import customtkinter as ctk
 
-from gui.theme import ColorToken, Metrics, Theme
+from gui.theme import Metrics, Theme
 from utils.utils import load_rounded_image
 
 
@@ -55,9 +55,13 @@ class PosterItem:
     :param badge_icon: glifo que va delante de ese texto, normalmente el de
         ``StatusPill.icon()``. El hueco que lo separa del texto viene dentro del
         propio dibujo. ``None`` deja el sello con texto solo.
-    :param badge_colors: ``(color_de_texto, color_de_fondo)`` del sello, con los
-        pares de ``Theme``. Sin él se usa el sello del diseño: superficie oscura
-        y texto blanco, que se lee sobre cualquier póster y en los dos temas.
+
+    El sello es **siempre** el del diseño: superficie oscura opaca y texto
+    blanco, con el color del estado únicamente en el glifo. No se puede elegir
+    otro par de colores, y es a propósito: va sobre la carátula, no sobre el
+    fondo de la aplicación, y los pares pastel de ``StatusPill`` no se leen sobre
+    un póster claro. «Favoritos» lo intentó hasta el paso 9.2 y era justo el
+    punto que el repaso de claro/oscuro tenía que corregir.
     :param footer: línea de apoyo bajo el título (el proveedor). ``None`` la omite
         y la celda queda más baja.
     :param data: lo que la vista necesite recuperar en ``extra_builder`` sin
@@ -69,7 +73,6 @@ class PosterItem:
     poster_path: Optional[str] = None
     badge: Optional[str] = None
     badge_icon: Optional[ctk.CTkImage] = None
-    badge_colors: Optional[Tuple[ColorToken, ColorToken]] = None
     footer: Optional[str] = None
     data: Any = None
 
@@ -161,7 +164,6 @@ class PosterGrid(ctk.CTkFrame):
         poster_label.grid(row=0, column=0)
 
         if item.badge:
-            text_color, fg_color = item.badge_colors or (Theme.BADGE_INK, Theme.BADGE_BG)
             badge_label = ctk.CTkLabel(
                 poster_label,
                 text=item.badge,
@@ -173,8 +175,8 @@ class PosterGrid(ctk.CTkFrame):
                 height=self.BADGE_H,
                 corner_radius=Metrics.pill_radius(self.BADGE_H),
                 font=Theme.font(*Theme.T_META),
-                fg_color=fg_color,
-                text_color=text_color
+                fg_color=Theme.BADGE_BG,
+                text_color=Theme.BADGE_INK
             )
             if item.badge_icon is not None:
                 self.__images.append(item.badge_icon)

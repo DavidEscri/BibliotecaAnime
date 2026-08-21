@@ -266,9 +266,9 @@ def open_saved_anime(main_window, anime_id: Union[str, int]) -> None:
 class EpisodeRow(ctk.CTkFrame):
     """Una fila de la lista de episodios.
 
-    Sustituye al ``utilsButtons.EpisodeButton``, que era un botón de ancho
-    completo con el texto «<título del anime> - Episodio N» repetido veinticinco
-    veces. Ahora la fila dice solo **«Episodio N»** —el título del anime está
+    Sustituyó al ``utilsButtons.EpisodeButton`` —retirado ya en el paso 9.4—, que
+    era un botón de ancho completo con el texto «<título del anime> - Episodio N»
+    repetido veinticinco veces. Ahora la fila dice solo **«Episodio N»** —el título del anime está
     justo encima, en la cabecera de la ficha— y reparte el resto del ancho entre
     una línea de estado y el interruptor «Visto» (`DISENO-VISUAL.html#ficha`).
 

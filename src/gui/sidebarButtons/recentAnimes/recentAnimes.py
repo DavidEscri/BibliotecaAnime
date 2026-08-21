@@ -1,23 +1,23 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "sidebarButtons"
 __module__ = "recentAnimes.py"
-__version__ = "0.3"
+__version__ = "0.4"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 import os
 import threading
-import customtkinter as ctk
 
 from typing import List, Union
 
 from APIs.common.animeProviderMgr import AnimeProviderManager, AnimeProviderManagerSingleton
 from dataPersistence.animesPersistence import AnimeRecord
 from gui.anime_window import AnimeWindowViewer, open_saved_anime, show_anime_info_error
+from gui.components.empty_state import EmptyState, glyph as empty_glyph
 from gui.components.pager import Pager
 from gui.components.poster_grid import PosterGrid, PosterItem
 from gui.components.resume_card import ResumeBand
 from gui.components.view_header import ViewHeader
-from gui.theme import Metrics, Theme
+from gui.theme import Metrics
 from utils.buttons import utilsButtons
 
 
@@ -67,14 +67,20 @@ class RecentAnimeButton(utilsButtons.SidebarButton):
 
         recent_animes = self.main_window.recent_animes
         if not recent_animes:
-            empty_label = ctk.CTkLabel(
+            # ⚠️ Aquí el hueco **no** significa «no tienes nada»: el catálogo no es
+            # del usuario. Si esta lista sale vacía es que ningún proveedor ha
+            # respondido, así que el texto habla de la red y la salida es
+            # reintentar, no ir a marcar animes (`fases/9-cohesion.md`, paso 9.1).
+            empty_state = EmptyState(
                 content,
-                text="No se pudo obtener la lista de novedades del proveedor seleccionado",
-                font=Theme.font(*Theme.T_ROW),
-                text_color=Theme.TXT_2,
-                justify="center"
+                "No se han podido cargar los estrenos",
+                icon=empty_glyph("offline"),
+                hint="Ningún proveedor ha respondido. Comprueba la conexión, "
+                     "o prueba con otro desde la barra lateral.",
+                action_text="Reintentar",
+                on_action=self.main_window.retry_recent_animes
             )
-            empty_label.grid(row=1, column=0, pady=(40, 0))
+            empty_state.grid(row=1, column=0, pady=(60, 0))
             return
 
         resume_band = ResumeBand(content, self.__resume_records(), on_click=self.__on_saved_anime_click)

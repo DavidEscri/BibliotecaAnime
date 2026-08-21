@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-08-18 · **Commit** `e337d20` (rama `main`, tag `v0.2.1`) · árbol **limpio** |
+| **Fecha** | 2026-08-21 · rama `feature/ui-redisign` · árbol **con la fase 9 del rediseño sin commitear** |
 | **Cubre** | `src/**`, `.claude/CLAUDE.md`, `README.md`, `requirements.txt`, `MiBibliotecaAnime.spec`, `LICENSE`, `LEEME.txt`, `THIRD-PARTY-NOTICES.txt` |
 | **Última revisión** | 2026-08-18: §1 rehecho —la tanda de licencia ya está publicada— y **C10 cerrado del todo**: el árbol de directorios del `README.md` tenía dos erratas de copiar-pegar y omitía los ficheros legales. Antes, 2026-08-17 (**licencia y distribución**): **A3 y C11 cerrados** —`datas` ya no lleva datos de usuario y el `.spec` está por fin **verificado compilando**—, C10 cerrado a medias, **B11 abierto** (origen de los recursos gráficos) y §7 nueva |
 
@@ -68,16 +68,21 @@ antes del arreglo de A5. Se re-descargaron con el scraper corregido; copia previ
 
 ## 2. TODOs reales en el código
 
-✅ Inventario **rehecho con `git grep -n "TODO" -- src/` el 2026-08-16**. Son **5**, no 3:
+✅ Inventario **rehecho con `git grep -n "TODO" -- src/` el 2026-08-21**. Son **4**, no 5:
 
 | # | Ubicación | Contenido | Documento afectado |
 |---|---|---|---|
-| 1 | `gui/anime_window.py:44-45` | Al final de la lista de episodios, frame «Si te ha gustado X, te puede interesar…» con 4 animes del mismo género | [06](06-gui-y-vistas.md), [03](03-flujos-de-ejecucion.md) |
-| 2 | `gui/anime_window.py:47` | Botón para alternar entre manga y anime | [06](06-gui-y-vistas.md), [01](01-arquitectura.md) |
-| 3 | `gui/main_window.py:32` | Quitar la palabra «Anime» de los nombres de botones y del título | [06](06-gui-y-vistas.md) |
-| **4** | `APIs/jkanime/jkanime.py:191` | Si el texto de búsqueda está vacío, buscar en `DIRECTORY_URL` en vez de en `SEARCH_URL` | [05 §3b](05-proveedores-y-scraping.md) |
-| **5** | `APIs/jkanime/jkanime.py:264` | Corregir `get_recent_animes` para no quedarse con todo lo que aparece en la portada | [05 §3b](05-proveedores-y-scraping.md) |
-| ~~—~~ | ~~`gui/main_window.py:31-34`~~ | ✅ **Cerrado el 2026-07-30**: selector de proveedor en la sidebar **y** en la ficha, con la preferencia persistida en la BD nueva `DB_user.db`. El TODO se ha borrado del código. Ver **[13](13-selector-de-proveedor.md)** | **[13](13-selector-de-proveedor.md)**, [04 §0](04-modelo-de-datos.md), [05 §5b](05-proveedores-y-scraping.md) |
+| 1 | `gui/anime_window.py:134` | Al final de la lista de episodios, frame «Si te ha gustado X, te puede interesar…» con 4 animes del mismo género | [06](06-gui-y-vistas.md), [03](03-flujos-de-ejecucion.md) |
+| 2 | `gui/anime_window.py:137` | Botón para alternar entre manga y anime | [06](06-gui-y-vistas.md), [01](01-arquitectura.md) |
+| 3 | `APIs/jkanime/jkanime.py:191` | Si el texto de búsqueda está vacío, buscar en `DIRECTORY_URL` en vez de en `SEARCH_URL` | [05 §3b](05-proveedores-y-scraping.md) |
+| 4 | `APIs/jkanime/jkanime.py:264` | Corregir `get_recent_animes` para no quedarse con todo lo que aparece en la portada | [05 §3b](05-proveedores-y-scraping.md) |
+| ~~—~~ | ~~`gui/main_window.py:32`~~ | ✅ **Cerrado el 2026-08-20** (rediseño, fase 1): las pestañas pierden la palabra «Anime» y «Animes recientes» pasa a «Nuevos lanzamientos». Las etiquetas viven ahora en cada vista; el título de la barra dice «Mi Biblioteca» | [06 §3](06-gui-y-vistas.md) |
+| ~~—~~ | ~~`gui/main_window.py:31-34`~~ | ✅ **Cerrado el 2026-07-30**: selector de proveedor en la sidebar **y** en la ficha, con la preferencia persistida en la BD nueva `DB_user.db`. Ver **[13](13-selector-de-proveedor.md)** | **[13](13-selector-de-proveedor.md)**, [04 §0](04-modelo-de-datos.md), [05 §5b](05-proveedores-y-scraping.md) |
+
+⚠️ **Cuidado con los falsos positivos del grep.** El 2026-08-21 la cuenta salía a 5 porque un
+comentario de `gui/components/sidebar.py` decía «cierra el TODO de main_window.py» hablando de uno ya
+cerrado. Está reescrito para no contener la palabra. Un comentario **sobre** una tarea cerrada no es
+una tarea pendiente, pero el grep no distingue.
 
 > ⚠️ **Segunda corrección de este inventario, y por el motivo contrario a la primera.** El 2026-08-07
 > se bajó de 5 a 3 quitando dos TODOs **inventados**; hoy sube a 5 porque faltaban dos **reales**, los
@@ -185,7 +190,7 @@ Auditado punto por punto. Donde el código contradice a `CLAUDE.md`, **gana el c
 | B7 | `remove_from_finished` mueve a *pendiente* en BD pero **borra el póster sin recrearlo** en `pending/` | `anime_window.py:859-865` |
 | B8 | `time.sleep(0.1)` en el hilo de UI × 7 | [07 §5](07-concurrencia-e-hilos.md) |
 | ~~B10~~ | ~~El buscador de las vistas de estado va **contra la red**, no contra la BD~~ ✅ **Cerrado (2026-08-16)**: búsqueda **local** primero, la web solo suma. Era peor de lo diagnosticado —no era solo «no funciona sin conexión», sino que **perdía animes** según el proveedor puesto ([trampa 26](10-invariantes-y-trampas.md)) | `utilsButtons.py:23-166` |
-| B11 | 🆕 **Los iconos de la sidebar y los GIF de carga son de origen desconocido**, y muy probablemente incompatibles con la GPL-3.0 del proyecto | `resources/images/utils/` |
+| B11 | **Los iconos de la sidebar y los GIF de carga son de origen desconocido**, y muy probablemente incompatibles con la GPL-3.0 del proyecto. ⚠️ **No crece**: el rediseño no añadió ni un PNG — sus diez glifos se dibujan con PIL | `resources/images/utils/` |
 
 > **B11 — origen de los recursos gráficos** (abierto el 2026-08-17). El proyecto pasó a GPL-3.0 ese
 > día (`bec0fbc` + sección «Licencia» del `README.md`), y eso convierte la procedencia de los recursos
@@ -195,7 +200,7 @@ Auditado punto por punto. Donde el código contradice a `CLAUDE.md`, **gana el c
 >
 > | Fichero | Tamaño | `Software` | DPI |
 > |---|---|---|---|
-> | `buscar.png`, `favoritos.png`, `no_favoritos.png`, `finalizados.png`, `recientes.png`, `viendo.png`, `pendientes.png` (+ variantes `_light`/`_dark`) | 512×512 | `www.inkscape.org` | 95.99 / 96.01 / 89.99 / 94.26 — **distintos entre sí** |
+> | `buscar.png`, `favoritos.png`, `no_favoritos.png`, `finalizados.png`, `recientes.png`, `viendo.png`, `pendientes.png` (+ variantes `_light`/`_dark`) | 512×512 | `www.inkscape.org` | 95.99 / 96.01 / 89.99 / 94.26 / **768** — **distintos entre sí** |
 > | `fijado_*.png`, `no_fijado_*.png` | 64×64 | *(ninguno)* | — |
 > | `loading-image.gif` | 400×400 | *(ninguno)* | — |
 > | `loading-image-3.gif` | **320×319** | *(ninguno)* | — |
@@ -213,10 +218,14 @@ Auditado punto por punto. Donde el código contradice a `CLAUDE.md`, **gana el c
 >
 > **Soluciones posibles, en orden de probabilidad:**
 >
-> 1. 🎯 **Redibujarlos con PIL** — *la vía elegida como más probable*. Ya hay precedente en el
->    proyecto: los cuatro iconos del pin se generaron así y el script son cuatro polígonos
->    ([nota en `CLAUDE.md`](../CLAUDE.md)). Provenencia limpia por construcción, cero dependencias
->    nuevas y control total del par claro/oscuro. Son ~8 glifos de sidebar.
+> 1. 🎯 **Redibujarlos con PIL** — *la vía elegida como más probable*, y **cada vez menos hipótesis**:
+>    el rediseño de interfaz (2026-08-20/21) dibujó así **diez glifos más** sin añadir un solo PNG —el
+>    pin (2026-08-06), las estrellas de la calificación, los cuatro glifos de estado y los dos iconos
+>    de estado vacío—, todos supermuestreados a 8x y reducidos con LANCZOS. La receta está probada, en
+>    `gui/components/status_pill.py` y `gui/components/empty_state.py`, y recogida en
+>    [11 §5](11-playbooks.md). Procedencia limpia por construcción, cero dependencias nuevas y control
+>    total del par claro/oscuro. **Lo que queda son los ~7 glifos de la barra lateral y los 2 GIF**,
+>    que es lo único gráfico del proyecto que sigue siendo de origen desconocido.
 > 2. **Sustituirlos por un set con licencia compatible** — Lucide (ISC), Bootstrap Icons (MIT) o
 >    Material Symbols (Apache-2.0). Las tres son compatibles con GPL-3.0 y no exigen crédito visible.
 >    Más rápido que dibujar, a cambio de aceptar el estilo del set.
