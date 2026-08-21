@@ -5,10 +5,10 @@
 
 | | |
 |---|---|
-| **Fase actual** | 7 — Buscar |
+| **Fase actual** | 8 — Ficha del anime |
 | **Situación** | ⬜ no empezada |
-| **Último paso completado** | Paso 6.2 — montar la vista (**fase 6 cerrada**) |
-| **Siguiente paso** | Paso 7.1 — leer la ficha de la fase 7. Estrena `GenreChips` y la paginación del proveedor, y **reutiliza el sello de la 6 tal cual**: `badge=StatusPill.text(status)` + `badge_icon=StatusPill.icon(status)`, sin pasar `badge_colors` (el fondo oscuro por defecto es el del diseño). 🔴 **La BD no se toca** |
+| **Último paso completado** | Paso 7.4 — montar la vista (**fase 7 cerrada**) |
+| **Siguiente paso** | Paso 8.1 — leer la ficha de la fase 8. Es la más grande del plan (`anime_window.py`, 1 155 líneas) y la única que puede quitar el tope de `[:25]` episodios. Se le han quedado **dos deudas explícitas**: los contadores de la barra no se repintan al cambiar un estado desde la ficha (fase 4) y abrir «por un episodio concreto» (fases 3 y 4) |
 | **Rama** | ✅ `feature/ui-redisign` (**no** `feature/rediseno-ui`: ya existía, ver Decisiones) |
 | **Base** | `bd25742` (fase 1) → fases 2, 3, 4, 5 y 6 encima, en `feature/ui-redisign`. El plan partió de `6377b92`, no de `4f9e429` |
 | **Commits** | automáticos (uno al cerrar cada fase) |
@@ -26,7 +26,7 @@
 | 4 | Pendientes | ✅ terminada | `3b06dd0` | ✅ app real ejecutada y **mirada** (3 arranques: portada, Pendientes y Pendientes con orden y hover + recorrido de las 6 vistas) + 61 comprobaciones sobre **copia** de la BD |
 | 5 | Favoritos | ✅ terminada | `580333b` | ✅ app real ejecutada y **mirada** (2 arranques: portada, Favoritos, calificar con el ratón, orden guardado y recorrido de las 6 vistas) + **59 comprobaciones sobre copia** de la BD + **15 sobre la real** + **56 con CTk real** |
 | 6 | Finalizados | ✅ terminada | `bfbad7d` | ✅ app real ejecutada y **mirada** (4 arranques: Finalizados en oscuro y en claro, Favoritos, ficha abierta con clic sintético + recorrido de las 6 vistas) + **22 comprobaciones** sobre la app en marcha + **10** de casos límite del sello + **3** de los glifos, **mirados ampliados x10** |
-| 7 | Buscar | ⬜ no empezada | — | — |
+| 7 | Buscar | ✅ terminada | `COMMIT7` | ✅ app real ejecutada y **mirada** (2 arranques, **11 capturas**: buscar por texto, dos géneros, «Más géneros» desplegado, paginador con 50 páginas, página 2, fallback a JKAnime, tema claro y cambio de vista en vuelo) + **51 comprobaciones** de la vista con CTk real + **28** de `GenreChips` |
 | 8 | Ficha del anime | ⬜ no empezada | — | — |
 | 9 | Cohesión | ⬜ no empezada | — | — |
 
@@ -51,6 +51,10 @@ Lo que no se ha podido ejecutar en cada fase, para que nadie lo dé por probado.
 | 6 | Los **botones del paginador pulsados con el ratón** | Se ejecutó su `command` (`__go(2)`), que es lo que el botón llama, y la página 2 se comprobó entera: 6 celdas y «Mostrando 13-18 de 18». Pulsar el botón en sí, no |
 | 6 | El **hover** de las celdas | Quinta fase seguida sin puntero. La rejilla **no tiene** estado de hover —solo cursor de mano, comprobado: `hand2`—, así que aquí no hay mecanismo que probar |
 | 6 | El sello sobre un finalizado **sin lista de episodios** en la biblioteca real | No existe esa fila hoy: los 18 finalizados tienen lista. La rama se probó con `AnimeRecord` sintéticos (6 casos, incluidos «más vistos que episodios» y «sin lista pero con vistos»), no sobre la BD |
+| 7 | El desplegable de **orden abierto con el ratón** (tercera fase seguida) | Su lista es un *toplevel* aparte y `PrintWindow` no lo captura. Sí se ejecutó su `command` con los dos criterios y se comprobó que el valor viaja al proveedor (`search_animes_by_genres_and_order(..., order="title", ...)`). El de **apariencia** sí se abrió con el ratón, capturando la **pantalla entera** en vez de la ventana: es la receta si hace falta otra vez |
+| 7 | El **hover** de las fichas de género y de las celdas | Sexta fase seguida sin puntero. Las fichas usan el `hover_color` de `CTkButton`, que es de la librería |
+| 7 | Un resultado sellado **abierto con el ratón**, comprobando que la ficha sale como guardada | Se ejecutó `__on_anime_click()` con el `AnimeWindowViewer` sustituido y se comprobó que **recibe el `AnimeRecord` correcto** (`ore-dake-level-up-na-ken`, la fila de AnimeFLV, desde un resultado de AnimeAV1). Abrirlo de verdad y mirar la ficha, no: es la vista que rehace la **fase 8** |
+| 7 | La **búsqueda por texto paginada** | AnimeAV1 devuelve las búsquedas por texto **en una sola página** (`last_page = 1`, 14 resultados) y JKAnime igual (22). El paginador se probó con la búsqueda por géneros, que sí pagina: **50 páginas de 20** |
 | 6 | El **añadido de la búsqueda web** en esta pestaña | Igual que en las fases 3 y 5: el proveedor no devolvió nada para las consultas probadas, que es el caso «sin conexión». Que un resultado web **sume** un anime que el título guardado no encuentra sigue sin ejecutarse en ninguna vista |
 
 ---
@@ -110,6 +114,17 @@ fase que la tomó. Empieza vacío a propósito: las decisiones de partida están
 | 6 | ⚠️ **El glifo se tiñe con la variante OSCURA del color del estado en los dos temas.** El sello es una superficie oscura siempre —va sobre la carátula, no sobre el fondo de la app—, así que `FIN_TXT[0]` (un verde oscuro) desaparecería justo en tema claro. Vale para cualquier cosa que se pinte sobre `BADGE_BG` |
 | 6 | **El hueco entre el glifo y el texto va dentro del propio dibujo** (`_ICON_GAP`). Tk pega imagen y texto cuando una etiqueta lleva las dos (`compound="left"`) y `CTkLabel` no expone su padding interno; sin ese margen transparente el ✓ toca la cifra |
 | 6 | **Un sello sin lista de episodios dice «Finalizado», no «0 / 0».** Pasa con las filas guardadas sin llegar a abrir su ficha: ahí no hay «totales» que enseñar y el cero doble parecería un fallo de la vista. Con lista, los números son **los reales y sin corregir**, aunque falten episodios por marcar |
+| 7 | **«Buscar» no lleva `ViewHeader`.** Es la única vista sin título: el diseño (`DISENO-VISUAL#buscar`) pone el campo de 620 px arriba del todo y nada más, y con «Buscar» ya marcado en la barra lateral un título que repitiera la palabra sería el dato duplicado que prohíbe `DISENO.md` §6. El campo **es** la cabecera |
+| 7 | **El botón «Buscar» se queda, aunque el diseño no lo pinte.** La maqueta enseña la caja sola con el cursor dentro; quitar el botón dejaría la búsqueda accesible **solo con Enter**, que es una función menos que hoy. Es la única desviación deliberada respecto de `#buscar` |
+| 7 | 🔴 **Texto y géneros son dos búsquedas distintas y no se combinan: manda el último gesto.** `search_animes_by_query()` y `search_animes_by_genres_and_order()` son métodos distintos del contrato y ninguno acepta lo del otro. Buscar por texto **vacía las fichas** y tocar una ficha (o el orden) **vacía el texto**, para que lo que se ve en pantalla sea exactamente lo que se ha pedido. El diseño los pinta a la vez, pero la capa de proveedores no lo permite y **la fase no toca `APIs/`** |
+| 7 | **Tocar una ficha de género busca en el acto**, sin botón de aplicar. Es lo que implica una ficha: si hubiera que confirmar, valdría más el acordeón que sustituye. Las peticiones no se solapan porque cada una lleva su número de generación y **solo pinta la última** |
+| 7 | **`Pager` gana un segundo modo en vez de una subclase**: `set_pages(última_página, página)` para cuando **trocea el proveedor**. `set_total()` sigue igual para las otras cinco vistas. En el modo nuevo no hay `slice_bounds()` que valga y el total de resultados **no se sabe** —el contrato devuelve la última página, no cuántos hay—, así que el pie dice «Página 2 de 50» y no «Mostrando 21-40 de 1000», que sería inventárselo |
+| 7 | **De quién son los resultados se lee del propio resultado, no del desplegable.** El manager estampa el `provider_id` en cada `AnimeInfo` al responder (`__stamp_provider`), así que la línea dice el sitio de verdad cuando entra el fallback **sin tocar `APIs/`** ni añadir un `..._with_provider` a los wrappers de búsqueda. ✅ Visto en la app: una consulta sin resultados en AnimeAV1 salió como «1 resultado en **JKAnime**» |
+| 7 | **El sello reutiliza `find_saved_duplicate()` de `anime_window.py`** (umbral 0,9), no una comparación propia. Sellar un resultado y avisar al guardarlo son **la misma pregunta**: con dos umbrales distintos, la rejilla podría no sellar algo que el guardado sí frena como duplicado. Primero se cruza por *slug* (exacto) y solo si falla, por título |
+| 7 | 🔴 **Un resultado sellado abre la ficha con `anime_record=`.** Es la [trampa 21](../docs/10-invariantes-y-trampas.md) y esta vista la tenía abierta: el cruce que decide el sello es el mismo que da la identidad de persistencia, así que ya no cuesta nada. Sin él, marcar un estado sobre un anime guardado desde otro proveedor creaba una **fila duplicada** |
+| 7 | **El texto de las fichas sale de `refactor_genre_text(genre.name)`, no de `.value`.** Los `value` del enum son *slugs* sin tildes (`ciencia-ficcion`) y la interfaz va en español con tildes. El acordeón usaba `.value` y pintaba «Accion» |
+| 7 | **Las fichas se colocan con `place()`, no con `grid()`.** Las columnas de una rejilla son **comunes a todas las filas**: envolver texto con `grid` hace que la tercera ficha de cada fila comparta ancho —el de la más larga— y la fila se abra en huecos. Con `place()` el marco no pide alto, así que `show()` se lo fija. Vale para cualquier fila que envuelva por ancho |
+| 7 | **Mientras se busca no hay GIF, hay una línea de texto.** La vista vieja pintaba el GIF de carga a 300 × 300; el diseño no lo contempla y ese GIF es de la deuda **B11** (origen desconocido). Ahora la línea de resultados dice «Buscando animes…» y la rejilla se vacía |
 
 ---
 
@@ -125,6 +140,61 @@ Una entrada por paso completado, **la más reciente arriba**. Formato:
 ```
 
 <!-- nuevas entradas aquí arriba -->
+
+### Fase 7 · Pasos 7.2, 7.3 y 7.4 — sello «ya lo tienes», paginación real y la vista          (2026-08-21)
+- Ficheros: `src/gui/sidebarButtons/searchAnimes/searchAnimes.py` (reescrito, 372 → 455 líneas),
+  `src/gui/components/pager.py` (+ `set_pages()`)
+- Verificado: sí · **app real, dos arranques y 11 capturas miradas** + **51 comprobaciones** de la
+  vista con CTk real (ventana oculta, proveedor sustituido, sin red) + **3 peticiones reales** a los
+  sitios para medir el tamaño de página
+- **Lo que se ha visto en la app real**, con la biblioteca real:
+  - «level up» → **14 resultados en AnimeAV1 · 2 ya están en tu biblioteca**, y los dos *Ore dake
+    Level Up na Ken* con su sello **✓ Finalizado**. Uno empareja por *slug* y **el otro por título**:
+    la temporada 2 está guardada desde **JKAnime** con el slug
+    `ore-dake-level-up-na-ken-season-2-arise-from-the-shadow` y AnimeAV1 la sirve como
+    `ore-dake-level-up-na-ken-season-2`
+  - «one piece» → **20 resultados · 5 ya están en tu biblioteca**: One Piece con **👁 Viendo** y
+    cuatro películas con **✓ Finalizado**. *One Piece: Gyojin Tou-hen* **no** se sella, y es correcto:
+    su fila tiene los cuatro estados a 0
+  - **Acción** → 20 resultados y el paginador de verdad: «**Página 1 de 50**» con `‹ 1 2 3 4 … 50 ›`.
+    Pulsar el **2** trae otros veinte distintos y el pie pasa a «Página 2 de 50»
+  - **Acción + Fantasía** (la segunda, desplegando «Más géneros») → los mismos que devuelve
+    `search_animes_by_genres_and_order()` a pelo. Los 40 géneros envuelven en **5 filas**
+  - **El fallback, en directo**: una consulta que AnimeAV1 no supo responder salió como «**1 resultado
+    en JKAnime**». La línea dice quién ha servido de verdad, que es justo lo que pedía la ficha
+  - **Tema claro**: el sello oscuro se lee sobre carátulas casi blancas (*One Piece Fan Letter*).
+    ⚠️ El sello pastel de **Favoritos** sigue leyéndose mal ahí — es la deuda de la **fase 9**
+  - **Cambiar de vista a los 0,25 s de lanzar una búsqueda**: la app sigue viva y el log no tiene
+    **ni un** `invalid command name` ni un `Traceback`
+- **Tamaño de página de cada proveedor** (medido): AnimeAV1 devuelve las búsquedas **por texto en una
+  sola página** (14 resultados, `last_page = 1`) y las de **género de 20 en 20 con 50 páginas**;
+  JKAnime, por texto, 22 resultados y `last_page = 1`. Es decir: **el paginador solo aparece
+  filtrando por género**
+- `AccordionFilterButton` **ya estaba huérfana** antes de esta fase (la retiraron las fases 3-6 de las
+  cuatro vistas de estado). Ahora se quedan también sin uso `utilsButtons.SearchButton` y
+  `ApplyFiltersButton`: **son tres para la fase 9**
+- La biblioteca real **no se ha tocado**: `sha256 e5b4f2e0…` y `mtime` **idénticos** antes y después
+  de los dos arranques, de las once capturas y de todas las pruebas
+- Pendiente que deja: nada de la fase. Para la 9, las tres clases huérfanas y el sello de Favoritos
+
+### Fase 7 · Paso 7.1 — `GenreChips`, las fichas de género          (2026-08-21)
+- Ficheros: `src/gui/components/genre_chips.py` (nuevo, 300 líneas)
+- Verificado: sí · **28 comprobaciones con CTk real** (ventana oculta): 7 fichas + «Más géneros
+  (33)» plegado, 41 desplegado, la seleccionada va **primera** con `ACCENT_SOFT` + borde `ACCENT` +
+  ✕, `on_change` solo en el clic (`set_selected()` no lo dispara), orden del enum al seleccionar,
+  envuelto en 3 filas sin solapes y **ninguna ficha fuera de los 1 160 px**, alto del marco = filas
+- Las fichas se colocan con **`place()`, no con `grid()`**: las columnas de una rejilla son comunes
+  a todas las filas, así que la tercera ficha de la primera fila y la de la segunda compartirían
+  ancho —el de la más larga— y la fila se abriría en huecos. Envolver texto pide posición absoluta,
+  y con `place()` el marco no pide alto: se lo fija `show()` a mano
+- El texto sale de **`refactor_genre_text(genre.name)`**, no de `.value`: los `value` del enum son
+  slugs sin tildes (`ciencia-ficcion`) y la interfaz va en español con tildes. Da «Acción»,
+  «Ciencia ficción», «Recuentos de la vida»
+- Las seleccionadas **cuentan** dentro de las 7 visibles, como en el diseño: dos activas y cinco por
+  elegir, no siete además de las activas
+- ✕ y chevrón dibujados con PIL, como las estrellas, el pin y los sellos. Estos **sí** cambian con
+  el tema (van sobre el fondo de la app, no sobre una carátula): `CTkImage(light_image=, dark_image=)`
+- Pendiente que deja: el sello y la paginación (7.2 y 7.3), y montar la vista (7.4)
 
 ### Fase 6 · Paso 6.2 — Montar la vista «Finalizados»          (2026-08-21)
 - Ficheros: `src/gui/sidebarButtons/finishedAnimes/finishedAnimes.py` (reescrito, 140 → 245 líneas)

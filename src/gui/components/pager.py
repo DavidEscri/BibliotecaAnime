@@ -1,7 +1,7 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "gui.components"
 __module__ = "pager.py"
-__version__ = "0.1"
+__version__ = "0.2"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 """Paginador: «Mostrando A-B de N» a la izquierda y los botones de página a la derecha.
@@ -14,6 +14,17 @@ lleva a ninguna parte.
 Esconderse es ``grid_remove()`` y no ``destroy()``: conserva las opciones de
 ``grid`` con las que lo colocó la vista, así que volver a aparecer es un ``grid()``
 sin argumentos cuando la lista crece.
+
+Hay **dos formas de decirle cuántas páginas hay**, y no son intercambiables:
+
+- ``set_total(n)`` — la vista tiene la lista **entera** en memoria y el paginador
+  la trocea él mismo con ``slice_bounds()``. Es el caso de las cinco vistas de
+  biblioteca: los favoritos o los finalizados salen de una consulta a SQLite.
+- ``set_pages(u, p)`` — quien trocea es **el sitio web**: la búsqueda pide una
+  página y el proveedor devuelve esos resultados y cuál es la última página. Aquí
+  no hay nada que cortar y el total de resultados **no se sabe**, así que el
+  paginador dice «Página 2 de 5» en vez de «Mostrando 13-24 de 58», que sería
+  inventárselo (`fases/7-buscar.md`, paso 7.3).
 """
 
 from typing import Callable, List, Optional, Tuple
@@ -50,6 +61,9 @@ class Pager(ctk.CTkFrame):
         self.__on_page = on_page
         self.__total = 0
         self.__page = 1
+        #: Número de páginas cuando las cuenta el proveedor. ``None`` es el modo
+        #: normal, en el que se deducen de ``__total`` y ``page_size``.
+        self.__provider_pages: Optional[int] = None
 
         self.grid_columnconfigure(0, weight=1)
 
@@ -77,6 +91,8 @@ class Pager(ctk.CTkFrame):
         return self.__page
 
     def total_pages(self) -> int:
+        if self.__provider_pages is not None:
+            return self.__provider_pages
         if self.__total <= 0:
             return 1
         return (self.__total + self.page_size - 1) // self.page_size
@@ -92,22 +108,49 @@ class Pager(ctk.CTkFrame):
         return start, min(start + self.page_size, self.__total)
 
     def set_total(self, total: int, page: int = 1) -> None:
-        """Fija cuántos elementos hay y en qué página estamos. **No** llama a ``on_page``."""
+        """Fija cuántos elementos hay y en qué página estamos. **No** llama a ``on_page``.
+
+        Modo normal: la vista tiene la lista entera y el corte lo hace
+        ``slice_bounds()``.
+        """
+        self.__provider_pages = None
         self.__total = max(0, total)
         self.__page = min(max(1, page), self.total_pages())
+        self.__repaint()
+
+    def set_pages(self, total_pages: int, page: int = 1) -> None:
+        """Fija las páginas cuando **las cuenta el proveedor**. **No** llama a ``on_page``.
+
+        Lo usa «Buscar»: cada página es una petición al sitio, así que aquí no hay
+        lista que trocear y ``slice_bounds()`` no pinta nada. El total de
+        resultados no se conoce —el contrato devuelve la última página, no cuántos
+        hay—, de modo que el texto de la izquierda pasa a ser «Página P de U».
+
+        :param total_pages: última página que dice el proveedor.
+        :param page: página que se está viendo.
+        """
+        self.__provider_pages = max(1, total_pages)
+        self.__total = 0
+        self.__page = min(max(1, page), self.__provider_pages)
         self.__repaint()
 
     # ------------------------------------------------------------------
     # Pintado
     # ------------------------------------------------------------------
     def __repaint(self) -> None:
-        if self.__total <= self.page_size:
+        # Con una sola página no hay nada que paginar. Sirve para los dos modos:
+        # una lista más corta que la página da total_pages() == 1 igual que un
+        # proveedor que responde que su última página es la primera.
+        if self.total_pages() <= 1:
             self.grid_remove()
             return
         self.grid()
 
-        start, end = self.slice_bounds()
-        self.__range_label.configure(text=f"Mostrando {start + 1}-{end} de {self.__total}")
+        if self.__provider_pages is not None:
+            self.__range_label.configure(text=f"Página {self.__page} de {self.__provider_pages}")
+        else:
+            start, end = self.slice_bounds()
+            self.__range_label.configure(text=f"Mostrando {start + 1}-{end} de {self.__total}")
 
         for widget in self.__buttons:
             widget.destroy()
