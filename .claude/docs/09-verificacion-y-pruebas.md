@@ -2,8 +2,8 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-08-31 · rama `feature/ui-redisign` · árbol **con el arreglo del fondo de la pantalla de carga sin commitear** |
-| **Última revisión** | 2026-08-31 (**fondo de la pantalla de carga**): §7.1 gana la comprobación del fondo del arranque —que a ojo se falla— y la receta de captura de §8 usa el título real de la ventana. Antes, 2026-08-16 (**columna `provider_id`**): **§3c nuevo** — las 8 tandas de comprobaciones de la fase 8, **351 sin fallos**; checklist de §7 puesto al día con lo que ha cambiado de comportamiento |
+| **Fecha** | 2026-09-01 · rama `feature/ui-redisign` · árbol **limpio de código**: el arreglo del fondo de la pantalla de carga va en `e7d8f2f` y el del hover de los episodios en `df47130`; lo único sin commitear es esta tanda de documentación |
+| **Última revisión** | 2026-09-01 (**hover de la lista de episodios**): **§6b nuevo** —recorrer el hover con `SetCursorPos` de píxel en píxel, que es lo único que encuentra un `<Leave>` que no llega—, §7.9 gana el recorrido de la lista de episodios y §8 avisa de no matar la instancia que tenga abierta el usuario. Antes, 2026-08-31 (**fondo de la pantalla de carga**): §7.1 gana la comprobación del fondo del arranque —que a ojo se falla— y la receta de captura de §8 usa el título real de la ventana. Antes, 2026-08-16 (**columna `provider_id`**): **§3c nuevo** — las 8 tandas de comprobaciones de la fase 8, **351 sin fallos**; checklist de §7 puesto al día con lo que ha cambiado de comportamiento |
 | **Cubre** | procedimiento; scripts ejecutados el 2026-07-28 contra el código de `src/` |
 
 Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ sin verificar.
@@ -454,6 +454,44 @@ Todo lo de esa lista está marcado como 📖 en el resto de documentos.
 
 ---
 
+## 6b. Recorrer el hover con el puntero *(2026-09-01)*
+
+Los fallos de hover **no se ven a ojo ni se reproducen con la mano**: dependen de por qué píxel
+cruzas y de a qué velocidad. La única forma honesta de comprobarlos es mover el puntero por programa
+y **contar** lo que queda encendido.
+
+La receta, que es la que encontró la [trampa 37](10-invariantes-y-trampas.md):
+
+1. Montar una ventana suelta en el scratchpad con **el componente real** —importado de `src`, no una
+   copia— repetido unas cuantas veces. No hace falta ni BD ni red: `EpisodeRow` solo necesita un
+   `EpisodeInfo` y dos *callbacks* vacíos.
+2. Mover el puntero con `ctypes.windll.user32.SetCursorPos(x, y)` y, tras cada paso, llamar a
+   `app.update()` unas cuantas veces con una pausa mínima, para que Tk procese los cruces.
+3. Después de cada paso, contar las filas con `fila.cget("fg_color") != Theme.TRANSPARENT`.
+   **Tiene que valer 1 dentro de la pila y 0 fuera.**
+4. Al terminar, **devolver el puntero donde estaba** (`GetCursorPos` antes, `SetCursorPos` después).
+
+Cuatro cosas que hacen la diferencia entre encontrar el fallo y darlo por bueno:
+
+- 🔴 **El paso tiene que ser de 1 px.** Con 2 px el recorrido se salta el separador de 1 px que hay
+  entre filas y **todo parece correcto**. La trampa 37 es invisible con pasos de 2.
+- **Salir de la pila también a pasos.** Teletransportar el puntero fuera de la ventana de un solo
+  `SetCursorPos` no genera cruce: la última fila se queda encendida y parece un fallo que no existe.
+  Un ratón de verdad no puede teletransportarse; la sonda sí.
+- **Recorrer varias columnas**: la del número, la del centro y la del interruptor. Un hijo sin `bind`
+  solo estorba en la banda que ocupa.
+- `app.winfo_containing(x, y)` dice **qué widget hay debajo del puntero**, con su ruta de Tk
+  (`.!ctkframe.!episoderow4.!ctkswitch.!ctkcanvas`). Es lo que enseña de un vistazo que los hijos de
+  un widget de CustomTkinter son nietos y hermanos, no lo que parece desde el código.
+
+✅ **Ejecutada el 2026-09-01** sobre `EpisodeRow`: recorridos de 1 px por tres columnas, saltos de 52,
+26 y 7 px, una diagonal de ~300 pasos, salidas por los dos laterales y entrada directa sobre el
+interruptor. Antes del arreglo: **5 filas encendidas de 5**, y seguían encendidas fuera de la pila.
+Después: **1 siempre, 0 al salir**. Ocho casos más de desplegar y plegar servidores con el puntero
+dentro y fuera, todos correctos.
+
+---
+
 ## 7. Checklist de regresión manual por vista
 
 Sin tests automáticos, esto es lo que hay. Marca lo que compruebes.
@@ -583,6 +621,12 @@ tema y el plegado no cambian de vista, así que se hacen dos pasadas de siete.
 - [ ] Clic en un episodio despliega los servidores debajo **sin empujar la lista**; volver a pulsar
       los repliega (⚠️ congela la ventana mientras carga: es la única llamada HTTP que sigue en el
       hilo de Tkinter, [07 C5](07-concurrencia-e-hilos.md)).
+- [ ] 🆕 🔴 **Bajar el ratón despacio por toda la lista de episodios**: en cada momento hay **una
+      sola** fila resaltada, y al sacar el ratón no queda ninguna. Si se quedan encendidas las que has
+      recorrido, es la [trampa 37](10-invariantes-y-trampas.md) — y **deprisa no se reproduce**:
+      hay que cruzar el separador de 1 px que hay entre filas ([§6b](#6b-recorrer-el-hover-con-el-puntero-2026-09-01)).
+- [ ] 🆕 Al **plegar** los servidores con el ratón encima, la fila se queda en color de hover, no
+      apagada bajo el cursor.
 - [ ] Elegir un servidor abre el navegador.
 - [ ] Con la red caída, el clic muestra un **diálogo de error** y no deja la app muda.
 - [ ] **Identidad partida**: con JKAnime seleccionado, abrir un anime guardado desde AnimeAV1 debe
@@ -640,6 +684,19 @@ git status    # debe mostrar SOLO lo que tenías antes de empezar
 - ⚠️ Si has lanzado la app desde un script en segundo plano, **comprueba que no queda ningún proceso
   vivo**: `Get-Process python`. La app no termina sola y una instancia huérfana sigue sirviendo la
   ventana y bloqueando la BD.
+- 🔴 **Antes de matar nada, mira de quién es cada proceso.** El usuario puede tener la app abierta, y
+  `Get-Process` no distingue su instancia de la tuya. Cada lanzamiento deja **dos** procesos —el
+  `python.exe` del entorno virtual reejecuta `D:\Python\python.exe`—, así que hay que mirar la línea
+  de órdenes y la hora de creación antes de decidir:
+
+  ```powershell
+  Get-CimInstance Win32_Process -Filter "Name='python.exe'" |
+      Select-Object ProcessId, ParentProcessId, CreationDate, CommandLine | Format-List
+  ```
+
+  ⚠️ Y la captura por título (`MainWindowTitle -eq "Mi Biblioteca"`) coge **la primera que encuentre**:
+  con dos instancias abiertas puedes estar mirando la del usuario, que además lleva el código de antes
+  de tu cambio. Pasó el 2026-09-01.
 
 ### Capturar la ventana de la app sin robar el foco
 

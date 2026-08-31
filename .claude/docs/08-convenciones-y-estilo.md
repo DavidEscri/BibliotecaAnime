@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-08-21 · rama `feature/ui-redisign` · árbol **con la fase 9 del rediseño sin commitear** |
+| **Fecha** | 2026-08-21 · rama `feature/ui-redisign` · la fase 9 que entonces estaba sin commitear entró en **`7606def`**; el documento no se ha revisado desde entonces |
 | **Cubre** | los 19 módulos con contenido de `src/` |
 | **Última revisión** | 2026-08-16: plantilla de proveedor actualizada (`PROVIDER_ID` es un enum, §7.3) y convención de log `[{PROVIDER_ID.value}]` (§6) |
 
