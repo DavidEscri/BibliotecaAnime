@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-08-21 · rama `feature/ui-redisign` · árbol **con la fase 9 del rediseño sin commitear** |
+| **Fecha** | 2026-08-21 · rama `feature/ui-redisign` · la fase 9 que entonces estaba sin commitear entró en **`7606def`**; el documento no se ha revisado desde entonces |
 | **Última revisión** | 2026-08-17: **§6 reescrito** — 8 pasos en vez de 6, con la verificación compilando, la regla de no volver a meter datos de usuario en `datas`, la copia de los ficheros legales tras `COLLECT` y la regeneración de `THIRD-PARTY-NOTICES.txt`. Antes, 2026-08-16: §2 reescrito con el **caso real ya ejecutado** (`provider_id` en medio del enum, con reconstrucción de tabla) y §3 con el paso 0 nuevo — añadir un proveedor empieza por `AnimeProviderId` |
 | **Cubre** | recetas operativas sobre los 19 módulos de `src/` + `MiBibliotecaAnime.spec` |
 

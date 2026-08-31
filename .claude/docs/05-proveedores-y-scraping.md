@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-08-21 · rama `feature/ui-redisign` · árbol **con la fase 9 del rediseño sin commitear** |
+| **Fecha** | 2026-08-21 · rama `feature/ui-redisign` · la fase 9 que entonces estaba sin commitear entró en **`7606def`**; el documento no se ha revisado desde entonces |
 | **Última revisión** | 2026-08-16: `PROVIDER_ID` deja de ser una cadena y pasa a ser **`AnimeProviderId`** (§1); `provider_info()` nuevo; el fallback ahora **estampa** quién respondió (§5) |
 | **Cubre** | `src/APIs/common/animeProviderMgr.py`, `src/APIs/common/models.py`, `src/APIs/animeav1/animeav1.py`, `src/APIs/animeflv/animeflv.py`, `src/APIs/jkanime/jkanime.py` |
 

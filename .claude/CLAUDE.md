@@ -18,7 +18,7 @@ internamente lo pedido usando [`.claude/COMO-PEDIR-TAREAS.md`](COMO-PEDIR-TAREAS
    primero que hay que aclarar, y lo que más cambia el tamaño del trabajo.
 3. **Ficheros exactos y frontera de alcance.** Las 4 vistas de estado son casi idénticas línea por
    línea: decide si la tarea afecta a una o a las cuatro.
-4. **¿Es una trampa conocida?** Coteja con `docs/10-invariantes-y-trampas.md` (**36** trampas con su
+4. **¿Es una trampa conocida?** Coteja con `docs/10-invariantes-y-trampas.md` (**37** trampas con su
    síntoma) **antes** de investigar desde cero.
 5. **Nivel de verificación** — ejecutar la GUI · script en el scratchpad · solo lectura. No hay
    tests: si no se ejecuta, se entrega marcado como no verificado.
@@ -332,6 +332,15 @@ servidores en la impar de debajo, así que desplegarlos no empuja nada; el corte
 pantalla**; y el botón de orden dice **el orden que llega del proveedor**, que no es el mismo en
 todos. La ficha además **refresca los contadores** de la barra al cambiar un estado.
 
+🔴 **En `EpisodeRow`, el hover va atado a los cinco hijos y el clic solo a tres.** El interruptor y el
+separador de 1 px reciben `<Enter>` / `<Leave>` pero no `<Button-1>`: `CTkFrame.bind()` ata al canvas
+interno, que es **hermano** de los demás hijos y no su ancestro, así que salir de la fila por un hijo
+sin atar **no manda ningún `<Leave>`** y el episodio se queda resaltado para siempre. Recorrer la
+lista despacio dejaba encendidos todos los episodios por los que pasabas — y **deprisa no se
+reproduce**, porque el salto se salta el separador ([trampa 37](docs/10-invariantes-y-trampas.md),
+resuelta el 2026-09-01). Encima, `EpisodeRow.__hovered` es un atributo **de clase**: la fila que se
+enciende apaga a la anterior, así que no puede haber dos. Si añades un hijo a la fila, **átalo**.
+
 **El bloque de proveedor** son hasta tres líneas: `Proveedor: X` (de dónde vienen los datos que ves),
 `En tu biblioteca: Y` (de quién es tu fila) y el botón «Actualizar a Z». **El ⚠ ámbar compara las dos
 primeras**: iguales → gris informativo; distintas → hay identidad partida.
@@ -497,7 +506,7 @@ Guía de colaboración (cómo plantear una tarea en este repo, qué asumo por de
 cambian mi comportamiento): [`.claude/COMO-PEDIR-TAREAS.md`](COMO-PEDIR-TAREAS.md).
 
 **Antes de tocar cualquier cosa, lee [`docs/10-invariantes-y-trampas.md`](docs/10-invariantes-y-trampas.md)**
-— **36** trampas con su síntoma observable.
+— **37** trampas con su síntoma observable.
 
 | Documento | Qué responde |
 |---|---|
@@ -511,7 +520,7 @@ cambian mi comportamiento): [`.claude/COMO-PEDIR-TAREAS.md`](COMO-PEDIR-TAREAS.m
 | [docs/07-concurrencia-e-hilos.md](docs/07-concurrencia-e-hilos.md) | Qué corre en qué hilo, reglas y carreras conocidas |
 | [docs/08-convenciones-y-estilo.md](docs/08-convenciones-y-estilo.md) | Cabecera obligatoria, singletons, **plantillas copiables** |
 | [docs/09-verificacion-y-pruebas.md](docs/09-verificacion-y-pruebas.md) | Cómo probar cada capa sin GUI; scripts listos; checklist manual |
-| [docs/10-invariantes-y-trampas.md](docs/10-invariantes-y-trampas.md) | **Empieza por aquí.** **36** trampas con síntoma observable |
+| [docs/10-invariantes-y-trampas.md](docs/10-invariantes-y-trampas.md) | **Empieza por aquí.** **37** trampas con síntoma observable |
 | [docs/11-playbooks.md](docs/11-playbooks.md) | Recetas: añadir vista, columna, proveedor, campo; empaquetar |
 | [docs/12-deuda-tecnica-y-roadmap.md](docs/12-deuda-tecnica-y-roadmap.md) | TODOs con `fichero:línea`, discrepancias, riesgos, roadmap técnico **y licencia/cumplimiento de la distribución (§7)** |
 | [docs/13-selector-de-proveedor.md](docs/13-selector-de-proveedor.md) | Selector de proveedor, `DB_user.db` **y la columna `provider_id`** (§14). **Léelo antes de tocar `animeProviderMgr.py`, `main_window.py` o `anime_window.py`** |

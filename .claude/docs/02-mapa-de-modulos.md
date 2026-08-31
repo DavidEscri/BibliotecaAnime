@@ -2,8 +2,8 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-08-31 · rama `feature/ui-redisign` · árbol **con el arreglo del fondo de la pantalla de carga sin commitear** |
-| **Última revisión** | 2026-08-31 (**fondo de la pantalla de carga**): ficha de `MainWindow` reanclada —sus líneas iban ~29 desplazadas—, `show_loading_screen()` descrito de verdad y `__config_main_window()` añadido. Antes, 2026-08-21 (**rediseño de interfaz**): **12 módulos nuevos** en `gui/` —`theme.py` y los 11 de `gui/components/`— con su ficha; recuentos rehechos (**6 245 → 11 309** líneas); `utilsButtons.py` pierde 5 clases y `main_window.py` gana `navigate_to()`. Antes, 2026-08-16 (**columna `provider_id`**): recuentos rehechos — el proyecto pasa de 5 460 a **6 245** líneas; fichas de `models.py`, `animeProviderMgr.py`, `animesPersistence.py`, `utils.py`, `utilsButtons.py`, `main_window.py` y `anime_window.py` actualizadas |
+| **Fecha** | 2026-09-01 · rama `feature/ui-redisign` · árbol **limpio de código**: el arreglo del fondo de la pantalla de carga va en `e7d8f2f` y el del hover de los episodios en `df47130`; lo único sin commitear es esta tanda de documentación |
+| **Última revisión** | 2026-09-01 (**hover de la lista de episodios**): **ficha de `EpisodeRow` nueva** —no la tenía—, y recuentos rehechos con la convención del documento explicada. Antes, 2026-08-31 (**fondo de la pantalla de carga**): ficha de `MainWindow` reanclada —sus líneas iban ~29 desplazadas—, `show_loading_screen()` descrito de verdad y `__config_main_window()` añadido. Antes, 2026-08-21 (**rediseño de interfaz**): **12 módulos nuevos** en `gui/` —`theme.py` y los 11 de `gui/components/`— con su ficha; recuentos rehechos (**6 245 → 11 309** líneas); `utilsButtons.py` pierde 5 clases y `main_window.py` gana `navigate_to()`. Antes, 2026-08-16 (**columna `provider_id`**): recuentos rehechos — el proyecto pasa de 5 460 a **6 245** líneas; fichas de `models.py`, `animeProviderMgr.py`, `animesPersistence.py`, `utils.py`, `utilsButtons.py`, `main_window.py` y `anime_window.py` actualizadas |
 | **Cubre** | los **50** ficheros `.py` de `src/` (**31** con contenido + **19** `__init__.py` vacíos) |
 
 Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ sin verificar.
@@ -38,8 +38,8 @@ Todas las líneas citadas corresponden al **árbol de trabajo actual**, no al ú
 | `src/gui/components/rating_stars.py` 🆕 | **209** | GUI · componente |
 | `src/gui/components/resume_card.py` 🆕 | **192** | GUI · componente |
 | `src/gui/components/view_header.py` 🆕 | **99** | GUI · componente |
-| `src/gui/main_window.py` | **538** | GUI |
-| `src/gui/anime_window.py` | **1 734** | GUI |
+| `src/gui/main_window.py` | **545** | GUI |
+| `src/gui/anime_window.py` | **1 745** | GUI |
 | `src/gui/sidebarButtons/recentAnimes/recentAnimes.py` | **183** | GUI · vista |
 | `src/gui/sidebarButtons/favouriteAnimes/favouriteAnimes.py` | **350** | GUI · vista |
 | `src/gui/sidebarButtons/finishedAnimes/finishedAnimes.py` | **260** | GUI · vista |
@@ -47,9 +47,13 @@ Todas las líneas citadas corresponden al **árbol de trabajo actual**, no al ú
 | `src/gui/sidebarButtons/pendingAnimes/pendingAnimes.py` | **353** | GUI · vista |
 | `src/gui/sidebarButtons/searchAnimes/searchAnimes.py` | **607** | GUI · vista |
 
-**11 309 líneas** en **31 módulos**. ✅ Recontado el 2026-08-21: **+5 064 líneas** respecto al
+**11 309 líneas** en **31 módulos**. ✅ Recontado el 2026-09-01 —`wc -l` **+ 1 por módulo**, que es la
+convención con la que se contó en agosto: casi ningún fichero termina en salto de línea—. Da la **misma
+cifra** que entonces pese a los 18 renglones ganados desde el rediseño (`main_window.py` +7 con el fondo de
+la pantalla de carga, `anime_window.py` +11 con el hover de los episodios), así que la cifra de agosto venía
+**18 alta**. Aquella se anotó el 2026-08-21 así: **+5 064 líneas** respecto al
 2026-08-16, casi todas del rediseño de interfaz. El grueso está en los **12 módulos nuevos** de
-`gui/` (2 962 líneas entre `theme.py` y los 11 componentes), en `anime_window.py` (1 155→**1 734**)
+`gui/` (2 962 líneas entre `theme.py` y los 11 componentes), en `anime_window.py` (1 155→**1 744**)
 y en las seis vistas, que pasan de 1 071 a **2 017** líneas entre todas.
 
 ⚠️ **`utilsButtons.py` es el único que ha encogido** (350 → **205**): el paso 9.4 del rediseño retiró
@@ -546,6 +550,25 @@ contenido de `content_frame`.
 | `show_anime_info_error(anime_id)` | `:50-66` | `print` + `messagebox.showerror`. Se llama cuando `get_anime_info` devuelve `None`; sin ella, el clic no hacía nada (trampa 10) |
 | 🆕 `find_saved_duplicate(records, title, exclude_anime_id=None)` | `:69-105` | el mismo anime guardado con otro slug, por título normalizado. **No** detecta títulos completamente distintos («Solo Leveling» / «Ore dake Level Up na Ken»): eso necesitaría red y esto corre en el hilo de la UI |
 | 🆕 `open_saved_anime(main_window, anime_id)` | `:108-193` | **punto de entrada único de las 4 vistas de estado**. Elige el proveedor con `provider_for_saved_anime()`, re-resuelve por título si hay desviación, y saca la petición del hilo de Tkinter |
+
+### `EpisodeRow` — la fila de la lista de episodios
+
+📖 `anime_window.py:266-424`. Un `CTkFrame` con cinco hijos: las etiquetas del número y del estado, el
+interruptor «Visto», el separador de 1 px (con `place`, para no gastar una fila de rejilla) y —por
+CustomTkinter— su propio `_canvas` interno.
+
+| Miembro | Línea | Nota |
+|---|---|---|
+| 🆕 `__hovered` *(atributo de **clase**)* | `:280` | la fila resaltada ahora mismo. La que se enciende apaga a la anterior: **nunca hay dos** |
+| `set_watched(watched)` | `:344-358` | mueve el interruptor **sin** disparar su `command` (`select()`/`deselect()` no lo llaman) |
+| `set_expanded(expanded)` | `:363-370` | resalta la fila mientras sus servidores están desplegados. 🆕 Al **plegar**, vuelve al color de hover si el puntero sigue encima, no a transparente |
+| 🆕 `__bind_interactions()` | `:375-390` | **dos bucles**: el hover a los **cinco** hijos, el clic solo a la fila y a las dos etiquetas |
+| `__handle_enter` / `__handle_leave` / 🆕 `__release_hover` | `:395-416` | encender, apagar comprobando el puntero, y apagar sin preguntar |
+| `__pointer_inside()` | `:418-424` | `winfo_pointerxy()` contra el rectángulo real de la fila |
+
+🔴 **El interruptor y el separador reciben `<Enter>` / `<Leave>` pero no `<Button-1>`.** Sin el hover
+quedaban como salidas mudas de las que no llega ningún `<Leave>` ([trampa 37](10-invariantes-y-trampas.md));
+con el clic, marcar un episodio abriría sus servidores. Si añades un hijo, va al **primer** bucle.
 
 **v0.1 → v0.2 el 2026-07-30**: la clase maneja **dos identidades del mismo anime**
 (**[trampa 21](10-invariantes-y-trampas.md)**, [13 D5](13-selector-de-proveedor.md)).

@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-08-31 · rama `feature/ui-redisign` · árbol **con el arreglo del fondo de la pantalla de carga sin commitear** |
+| **Fecha** | 2026-08-31 · rama `feature/ui-redisign` · árbol con el arreglo del fondo de la pantalla de carga, hoy commiteado en `e7d8f2f` |
 | **Última revisión** | 2026-08-31 (**fondo de la pantalla de carga**): anclas de `main_window.py` reverificadas en §1, §2 y §4 (iban ~29 líneas desplazadas) y `place_forget()` corregido a `destroy()` en C1; las de #5 a #13 **siguen sin verificar**. Antes, 2026-08-16 (**columna `provider_id`**): hilos a **13** (eran 8) y `after()` a **10** (eran 4); **C2 resuelta** — los 4 puntos que abren una ficha pintan ya en el hilo de Tk. C5 sigue viva |
 | **Cubre** | `src/gui/main_window.py`, `src/gui/anime_window.py`, `src/gui/sidebarButtons/**`, `src/utils/utils.py` |
 

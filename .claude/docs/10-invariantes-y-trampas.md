@@ -2,9 +2,9 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-08-31 · rama `feature/ui-redisign` · árbol **con el arreglo del fondo de la pantalla de carga sin commitear** |
+| **Fecha** | 2026-09-01 · rama `feature/ui-redisign` · árbol **limpio de código**: el arreglo del fondo de la pantalla de carga va en `e7d8f2f` y el del hover de los episodios en `df47130`; lo único sin commitear es esta tanda de documentación |
 | **Cubre** | los **31** módulos con contenido de `src/` + `MiBibliotecaAnime.spec` + `requirements.txt` |
-| **Última revisión** | 2026-08-31 (**fondo de la pantalla de carga**): trampa **36** nueva —un widget sin `fg_color` sale del gris por defecto de CustomTkinter, no de `Theme`—, con el `minsize` que sobrevive a `grid_forget()` y el GIF transparente como medias trampas; la **33** gana un aviso: el comentario que la anclaba en el código ya no está. Antes, 2026-08-21 (**rediseño de interfaz**): **7 trampas nuevas** (29-35), todas de CustomTkinter y de layout, en un apartado propio; la **33** nace ya resuelta. La trampa **22** queda cerrada: la ficha ya no calcula anchos a mano. Antes, 2026-08-17 (**licencia y empaquetado**): la trampa **18** se subdivide en **a-e** — **18d cerrada** (`datas` ya no lleva datos de usuario; PyInstaller **ignora en silencio las carpetas vacías**) y **18e nueva** (los destinos de `datas` caen dentro de `_internal/`, no junto al `.exe`). Antes, 2026-08-16 (**columna `provider_id`**): **3 trampas nuevas** (26, 27, 28), trampa **21 reescrita** —ahora se puede provocar a voluntad y la ficha la señala en pantalla—, trampas **4** y **13** ampliadas, y anclas de `anime_window.py` (647→1156) y `animesPersistence.py` reubicadas |
+| **Última revisión** | 2026-09-01 (**hover de la lista de episodios**): trampa **37** nueva —un hijo sin `bind` es una salida de la que no llega ningún `<Leave>`, la complementaria de la **34**—, con la nota de que **no se reproduce moviendo el ratón deprisa**. Antes, 2026-08-31 (**fondo de la pantalla de carga**): trampa **36** nueva —un widget sin `fg_color` sale del gris por defecto de CustomTkinter, no de `Theme`—, con el `minsize` que sobrevive a `grid_forget()` y el GIF transparente como medias trampas; la **33** gana un aviso: el comentario que la anclaba en el código ya no está. Antes, 2026-08-21 (**rediseño de interfaz**): **7 trampas nuevas** (29-35), todas de CustomTkinter y de layout, en un apartado propio; la **33** nace ya resuelta. La trampa **22** queda cerrada: la ficha ya no calcula anchos a mano. Antes, 2026-08-17 (**licencia y empaquetado**): la trampa **18** se subdivide en **a-e** — **18d cerrada** (`datas` ya no lleva datos de usuario; PyInstaller **ignora en silencio las carpetas vacías**) y **18e nueva** (los destinos de `datas` caen dentro de `_internal/`, no junto al `.exe`). Antes, 2026-08-16 (**columna `provider_id`**): **3 trampas nuevas** (26, 27, 28), trampa **21 reescrita** —ahora se puede provocar a voluntad y la ficha la señala en pantalla—, trampas **4** y **13** ampliadas, y anclas de `anime_window.py` (647→1156) y `animesPersistence.py` reubicadas |
 
 Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ sin verificar.
 
@@ -725,7 +725,7 @@ el destino esté libre. La BD no lo va a hacer por ti.
 
 ---
 
-## Rediseño de interfaz *(añadidas 2026-08-21, fases 1-9; la 36, el 2026-08-31)*
+## Rediseño de interfaz *(añadidas 2026-08-21, fases 1-9; la 36, el 2026-08-31; la 37, el 2026-09-01)*
 
 Siete trampas de **CustomTkinter y de layout**. Ninguna da error: todas se manifiestan como algo que
 sale mal colocado, invisible o parpadeando, y todas costaron al menos una tarde.
@@ -838,6 +838,11 @@ para cualquier fila o tarjeta con acción en hover.
 la píldora solo se muestra y se esconde. Si se creara al entrar el ratón, la fila cambiaría de ancho
 bajo el cursor.
 
+🔴 **Léela junto a la trampa 37**:
+esta trampa dice que sobran `<Leave>`, y la otra que **faltan**. Comprobar el puntero antes de apagar
+—lo que arregla ésta— es justo lo que hace que un `<Leave>` que no llega deje la fila encendida para
+siempre. Las dos se arreglan juntas o no se arregla ninguna.
+
 ---
 
 ### 35. `bind()` y `event_generate()` no hablan del mismo widget en CustomTkinter 🔴 ✅
@@ -918,6 +923,60 @@ deben dar `#14161A` en oscuro y `#F4F5F7` en claro ([09 §7.1](09-verificacion-y
 **De paso**: el bloque se centraba con `x = winfo_width() * 2.5`, y `winfo_width()` vale **1** antes
 de que la ventana esté dibujada. Acertaba por casualidad. Hoy se centra con
 `place(relx=0.5, rely=0.5, anchor=CENTER)` dentro de un marco transparente.
+
+---
+
+### 37. Un hijo sin `bind` es un agujero por el que el hover se queda encendido 🔴 ✅ *(resuelta 2026-09-01)*
+
+Es **la complementaria de la trampa 34**: aquella dice que un `<Leave>` de más no significa que el
+ratón se haya ido; ésta, que **hay salidas de las que no llega ningún `<Leave>`**.
+
+**Por qué**, en tres pasos que hay que encadenar para verlo:
+
+1. `CTkFrame.bind()` **no ata al marco**: ata a su `_canvas` interno
+   (trampa 35).
+2. Ese canvas es **hermano** de los demás hijos del marco, **no su ancestro**.
+3. Tk manda los *leaves* virtuales solo a los **ancestros** del widget que se abandona. Así que si el
+   puntero sale de la fila **desde un hijo que no tiene `bind`**, el canvas —que ya recibió su
+   `<Leave>` al entrar el puntero en ese hijo, y lo ignoró por la trampa 34— **no recibe ninguno
+   más**. Nadie apaga la fila.
+
+Le pasaba a `EpisodeRow` (`anime_window.py:266-424`), que ataba el hover a la fila y a sus dos
+etiquetas y dejaba fuera **el interruptor «Visto» y el separador de 1 px**. El separador va con
+`place(rely=1.0, relwidth=1.0)`: ocupa **toda la última fila de píxeles** de cada episodio, así que
+bajar de un episodio al siguiente **obliga a cruzarlo**.
+
+**Síntoma observable**: pasar el ratón por **un solo** episodio y salir funciona. **Recorrer la
+lista** deja encendidos todos los episodios por los que has pasado, y siguen encendidos con el ratón
+fuera de la ventana; volver a entrar y salir de uno lo apaga solo a él. Ningún error por consola.
+
+⚠️ **Y no se reproduce moviendo el ratón deprisa**: un salto de 2 px se salta el separador y todo
+parece correcto. Hace falta el paso de **1 px** —un ratón lento de verdad— para cruzarlo.
+
+**Invariante**: el **hover se ata a todos los hijos** del widget que se resalta; el **clic**, solo a
+los que deban responder a él. En `EpisodeRow` son dos bucles distintos y a propósito
+(`anime_window.py:375-390`): el interruptor recibe `<Enter>` / `<Leave>` pero **no** `<Button-1>`,
+porque tiene su propio comando y marcar un episodio no debe abrir sus servidores.
+
+**Y un cinturón además de los tirantes**: `EpisodeRow.__hovered` (`anime_window.py:280`) es un
+atributo **de clase** con la fila resaltada; la que se enciende apaga a la anterior
+(`__handle_enter` → `__release_hover`). Aunque en el futuro se pierda un `<Leave>`, **no puede haber
+dos filas encendidas a la vez**.
+
+**Por qué `AnimeRow` no lo sufre**: su separador está **fuera** del cuerpo que se resalta
+(`anime_row.py:143-144` lo mete en la fila, no en `__body`), y `__bind_interactions()` recorre todos
+los descendientes de `__body`. No es suerte: es la estructura. `EpisodeRow` metió el separador
+**dentro** con `place()` para no gastar una fila de rejilla, y ahí nació el agujero.
+
+**Cómo comprobarlo**: no a ojo y no con la mano. Se monta una pila de `EpisodeRow` reales en una
+ventana suelta y se recorre con `SetCursorPos` **de píxel en píxel**, contando cuántas filas tienen
+`fg_color != Theme.TRANSPARENT` en cada paso ([09 §6b](09-verificacion-y-pruebas.md)). Debe ser
+**siempre 1**, y **0** al salir de la pila. Antes del arreglo daba **5 de 5**, y la primera se quedaba
+pegada exactamente en el píxel del separador.
+
+**Hermana, del mismo arreglo**: al **plegar** los servidores, `set_expanded(False)` devolvía la fila
+a `TRANSPARENT` aunque el puntero siguiera encima — el resaltado se apagaba justo debajo del ratón.
+Ahora consulta `__pointer_inside()` (`anime_window.py:363-370`).
 
 ---
 

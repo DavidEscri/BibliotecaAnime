@@ -2,8 +2,8 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-08-31 · rama `feature/ui-redisign` · árbol **con el arreglo del fondo de la pantalla de carga sin commitear** |
-| **Última revisión** | 2026-08-31 (**fondo de la pantalla de carga**): el apartado *Arranque* explica que la pantalla de carga es la ventana entera pintada de `Theme.BG`, y qué se veía antes. Antes, 2026-08-21 (**rediseño de interfaz, fases 1-9**): documento **reescrito entero**. Nacen `gui/theme.py` y los **11** componentes de `gui/components/`; la barra lateral pasa de seis botones sueltos a un `Sidebar` plegable; `SidebarButton` deja de ser un widget; las 6 vistas se rehacen y la ficha crece de 1 156 a 1 734 líneas |
+| **Fecha** | 2026-09-01 · rama `feature/ui-redisign` · árbol **limpio de código**: el arreglo del fondo de la pantalla de carga va en `e7d8f2f` y el del hover de los episodios en `df47130`; lo único sin commitear es esta tanda de documentación |
+| **Última revisión** | 2026-09-01 (**hover de la lista de episodios**): `EpisodeRow` ata el hover a todos sus hijos y guarda la fila resaltada en un atributo de clase; se explica por qué `AnimeRow` no sufre lo mismo, y la regla de `bind()` gana su consecuencia con el ratón real. Antes, 2026-08-31 (**fondo de la pantalla de carga**): el apartado *Arranque* explica que la pantalla de carga es la ventana entera pintada de `Theme.BG`, y qué se veía antes. Antes, 2026-08-21 (**rediseño de interfaz, fases 1-9**): documento **reescrito entero**. Nacen `gui/theme.py` y los **11** componentes de `gui/components/`; la barra lateral pasa de seis botones sueltos a un `Sidebar` plegable; `SidebarButton` deja de ser un widget; las 6 vistas se rehacen y la ficha crece de 1 156 a 1 734 líneas |
 | **Cubre** | `src/gui/theme.py`, `src/gui/components/**`, `src/gui/main_window.py`, `src/gui/anime_window.py`, `src/gui/sidebarButtons/**`, `src/utils/buttons/utilsButtons.py` |
 
 Procedencia: ✅ verificado en ejecución (arranque real de la GUI) · 📖 leído en código · ⚠️ sin verificar.
@@ -261,6 +261,12 @@ nada ([trampa 34](10-invariantes-y-trampas.md)).
 **El hueco de la acción se reserva siempre**, con tamaño fijo y `grid_propagate(False)`: si la
 píldora se creara al entrar el ratón, la fila cambiaría de ancho bajo el cursor.
 
+⚠️ **`AnimeRow` no sufre la [trampa 37](10-invariantes-y-trampas.md) por cómo está montada, no por
+suerte**: su separador va **fuera** del cuerpo que se resalta (`anime_row.py:143-144` lo mete en la
+fila, no en `__body`) y `__bind_interactions()` recorre **todos los descendientes** de `__body`. No
+queda ningún hijo sin atar dentro del rectángulo que se comprueba. Si algún día se mete un widget
+dentro de `__body` sin atarlo, vuelve el fallo.
+
 ### `SidePanel` y `ResumeBand`
 Los 290 px de la derecha en «Viendo» y la banda «Retomar donde lo dejaste» de la portada.
 Los 290 son **248 + 21 × 2**: 248 es el ancho al que se guarda el póster, así que se pinta a tamaño
@@ -369,6 +375,16 @@ interruptor «Visto».
 **Las filas van en las posiciones PARES de la rejilla y los servidores en la impar de debajo**:
 desplegarlos no empuja nada, y la fila impar mide cero mientras está vacía.
 
+🔴 **El hover se ata a TODOS los hijos de la fila; el clic, solo a la fila y a sus dos etiquetas**
+(`anime_window.py:375-390`, dos bucles a propósito). El interruptor recibe `<Enter>` / `<Leave>` pero
+no `<Button-1>` —tiene su propio comando y marcar un episodio no debe abrir sus servidores—, y el
+**separador de 1 px** también va atado, porque `place(rely=1.0, relwidth=1.0)` lo pone en la última
+fila de píxeles de cada episodio y **bajar de un episodio al siguiente obliga a cruzarlo**. Dejarlo
+fuera era una salida de la que no llegaba ningún `<Leave>`, y el resaltado se quedaba encendido en
+todos los episodios recorridos ([trampa 37](10-invariantes-y-trampas.md), resuelta el 2026-09-01).
+Encima de eso, `EpisodeRow.__hovered` —atributo **de clase**— guarda la fila resaltada y la que se
+enciende apaga a la anterior: **no puede haber dos a la vez** aunque se pierda un evento.
+
 **El corte de 25 episodios sigue en pie**, pero ahora **la lista lo dice** («Se muestran 25 de
 1 174 episodios · usa "Ir al episodio…"»), que es lo que convierte el buscador de al lado en la
 salida evidente. **La lista no se reordena al abrir** ([trampa 8](10-invariantes-y-trampas.md)), y el
@@ -446,6 +462,12 @@ Antes de tocar un widget desde un callback diferido, comprobar `widget.winfo_exi
 igual, pero **`widget.event_generate()` sobre el objeto CTk no dispara nada**: cualquier prueba de
 hover o de clic tiene que emitir sobre el hijo interno, o invocar el `command`
 ([trampa 35](10-invariantes-y-trampas.md)).
+
+🔴 **Y con el ratón real tampoco da igual del todo.** Ese `_canvas` es **hermano** de los demás hijos
+del marco, **no su ancestro**, y Tk manda los *leaves* virtuales solo a los ancestros: si el puntero
+abandona el marco **desde un hijo sin `bind`**, el canvas no recibe ningún `<Leave>` y el hover se
+queda encendido para siempre ([trampa 37](10-invariantes-y-trampas.md)). La regla que sale de ahí:
+**el hover se ata a todos los hijos**, aunque el clic no.
 
 Detalle completo en [07-concurrencia-e-hilos.md](07-concurrencia-e-hilos.md).
 
