@@ -1,15 +1,16 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "sidebarButtons"
 __module__ = "recentAnimes.py"
-__version__ = "0.4"
+__version__ = "0.5"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 import os
 import threading
 
-from typing import List, Union
+from typing import List, Tuple, Union
 
 from APIs.common.animeProviderMgr import AnimeProviderManager, AnimeProviderManagerSingleton
+from APIs.common.models import EpisodeInfo
 from dataPersistence.animesPersistence import AnimeRecord
 from gui.anime_window import AnimeWindowViewer, open_saved_anime, show_anime_info_error
 from gui.components.empty_state import EmptyState, glyph as empty_glyph
@@ -83,10 +84,12 @@ class RecentAnimeButton(utilsButtons.SidebarButton):
             empty_state.grid(row=1, column=0, pady=(60, 0))
             return
 
-        resume_band = ResumeBand(content, self.__resume_records(), on_click=self.__on_saved_anime_click)
+        resume_records = self.__resume_records()
+        resume_band = ResumeBand(content, resume_records, on_click=self.__on_saved_anime_click)
         if resume_band.has_content():
             resume_band.grid(row=1, column=0, sticky="ew",
                              padx=Metrics.CONTENT_PAD_X, pady=(0, 28))
+            self.__refresh_resume_episodes(resume_band, resume_records)
 
         self.__poster_grid = PosterGrid(content, columns=6, poster_size=Metrics.GRID6_POSTER,
                                         on_click=self.__on_anime_click)
@@ -121,6 +124,60 @@ class RecentAnimeButton(utilsButtons.SidebarButton):
             if anime_record is not None:
                 records.append(anime_record)
         return records
+
+    # ------------------------------------------------------------------
+    # Refresco de la banda «Retomar»
+    # ------------------------------------------------------------------
+    def __refresh_resume_episodes(self, resume_band: ResumeBand, anime_records: List[AnimeRecord]) -> None:
+        """Vuelve a preguntar por los episodios de lo que hay en la banda.
+
+        La columna ``episodes`` de una fila solo se reescribía al abrir su ficha
+        (`anime_window.py`, ``__load_anime_status()``), así que un anime **en
+        emisión** mentía en la portada hasta que entrabas en él: el episodio que
+        salió el domingo no existía todavía para la biblioteca, y la tarjeta decía
+        «lo has visto entero» estando a uno de distancia.
+
+        Se pregunta **al entrar en la portada**, no al arrancar: es donde se ve el
+        dato, cuesta como mucho tres peticiones y no retrasa el arranque porque va
+        en un hilo aparte.
+        """
+        if not anime_records:
+            return
+
+        def _apply(fresh_episodes: List[Tuple[str, List[EpisodeInfo]]]) -> None:
+            """Ya en el hilo de Tkinter: persiste lo que haya cambiado y repinta."""
+            if not self.main_window.winfo_exists():
+                return
+            for anime_id, episodes in fresh_episodes:
+                anime_record = self.main_window.animes_persistence.get_anime_by_anime_id(anime_id)
+                if anime_record is None or len(anime_record.episodes) == len(episodes):
+                    continue
+                if not self.main_window.animes_persistence.update_anime_episodes(anime_id, episodes):
+                    continue
+                print(f"«{anime_record.title}» pasa de {len(anime_record.episodes)} "
+                      f"a {len(episodes)} episodios")
+                # La banda puede haberse ido mientras se pedían los datos (otra
+                # vista, u otra visita a esta). La escritura ya está hecha, así que
+                # la próxima visita leerá el dato bueno de todas formas.
+                if not resume_band.winfo_exists():
+                    continue
+                updated_record = self.main_window.animes_persistence.get_anime_by_anime_id(anime_id)
+                if updated_record is not None:
+                    resume_band.update_record(updated_record)
+
+        def _fetch() -> None:
+            fresh_episodes: List[Tuple[str, List[EpisodeInfo]]] = []
+            for anime_record in anime_records:
+                anime_info, _ = self.anime_provider_mgr.get_anime_info_with_provider(
+                    anime_record.anime_id, provider_id=anime_record.provider_id, strict=True)
+                # Sin episodios no se toca nada: un corte de red o un cambio en el
+                # HTML del sitio no puede vaciar la lista que ya está guardada.
+                if anime_info is not None and anime_info.episodes:
+                    fresh_episodes.append((anime_record.anime_id, anime_info.episodes))
+            if fresh_episodes:
+                self.main_window.after(0, _apply, fresh_episodes)
+
+        threading.Thread(target=_fetch, daemon=True).start()
 
     def __render_page(self, page: int) -> None:
         """Repinta la rejilla con la página pedida. Lo llama el paginador."""
