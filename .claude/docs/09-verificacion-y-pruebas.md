@@ -2,8 +2,8 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-09-01 · rama `feature/ui-redisign` · árbol **limpio de código**: el arreglo del fondo de la pantalla de carga va en `e7d8f2f` y el del hover de los episodios en `df47130`; lo único sin commitear es esta tanda de documentación |
-| **Última revisión** | 2026-09-01 (**hover de la lista de episodios**): **§6b nuevo** —recorrer el hover con `SetCursorPos` de píxel en píxel, que es lo único que encuentra un `<Leave>` que no llega—, §7.9 gana el recorrido de la lista de episodios y §8 avisa de no matar la instancia que tenga abierta el usuario. Antes, 2026-08-31 (**fondo de la pantalla de carga**): §7.1 gana la comprobación del fondo del arranque —que a ojo se falla— y la receta de captura de §8 usa el título real de la ventana. Antes, 2026-08-16 (**columna `provider_id`**): **§3c nuevo** — las 8 tandas de comprobaciones de la fase 8, **351 sin fallos**; checklist de §7 puesto al día con lo que ha cambiado de comportamiento |
+| **Fecha** | 2026-09-01 · rama `feature/ui-redisign` · árbol **limpio de código**: el refresco de la banda «Retomar» va en `4ffc2ef`, el hover de los episodios en `df47130` y el fondo de la pantalla de carga en `e7d8f2f`; lo único sin commitear es esta tanda de documentación |
+| **Última revisión** | 2026-09-01 (**refresco de la banda «Retomar»**): **§6c nuevo** —cómo comprobar en tres tramos algo que sale a la red, escribe en la biblioteca y repinta un widget, sin tocar la BD real—, y §7.3 gana la regresión del anime en emisión. Antes, 2026-09-01 (**hover de la lista de episodios**): **§6b nuevo** —recorrer el hover con `SetCursorPos` de píxel en píxel, que es lo único que encuentra un `<Leave>` que no llega—, §7.9 gana el recorrido de la lista de episodios y §8 avisa de no matar la instancia que tenga abierta el usuario. Antes, 2026-08-31 (**fondo de la pantalla de carga**): §7.1 gana la comprobación del fondo del arranque —que a ojo se falla— y la receta de captura de §8 usa el título real de la ventana. Antes, 2026-08-16 (**columna `provider_id`**): **§3c nuevo** — las 8 tandas de comprobaciones de la fase 8, **351 sin fallos**; checklist de §7 puesto al día con lo que ha cambiado de comportamiento |
 | **Cubre** | procedimiento; scripts ejecutados el 2026-07-28 contra el código de `src/` |
 
 Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ sin verificar.
@@ -492,6 +492,51 @@ dentro y fuera, todos correctos.
 
 ---
 
+## 6c. Comprobar un refresco que sale a la red **y** escribe en la biblioteca *(2026-09-01)*
+
+El refresco de la banda «Retomar» ([03 §11](03-flujos-de-ejecucion.md)) es de lo más incómodo de
+verificar que hay en el proyecto: encadena **red real**, una **escritura en la biblioteca del usuario**
+y un **repintado de widget**. Ninguna de las tres se puede probar con las otras dos delante.
+
+La receta que se usó, en **tres scripts separados**, ninguno de los cuales toca `DB_Animes.db`:
+
+**1) El camino de red, en solo lectura.** Se abren las dos BD con `sqlite3.connect("file:…?mode=ro",
+uri=True)` —así una escritura accidental **lanza** en vez de pasar desapercibida—, se leen los ids de
+`last_watched_anime_ids` y, por cada uno, se repite **la llamada exacta** del código:
+`get_anime_info_with_provider(anime_id, provider_id=<el de la fila>, strict=True)`. Se imprime
+`guardados vs. servidos` y lo que **haría** el código, sin hacerlo.
+✅ Los tres animes de la banda, servidos por `animeav1`: 1176 / 10 / 1, iguales a la fila.
+
+**2) La escritura, sobre copia.** `shutil.copy2` del `.db` al scratchpad y
+`animesPersistence.get_resource_path = lambda rel: <sandbox>/rel` **antes** de construir la
+persistencia —parchear el nombre en el módulo, no en `utils`, que ya está importado—. Sobre la copia
+se puede simular el domingo: quitarle a la fila su último episodio, comprobar qué dice la tarjeta, y
+correr la lógica de `_apply()`.
+✅ «Mushoku Tensei III» con 9 episodios y 9 vistos → **«Lo has visto entero · 9 episodios»**, barra
+al 100 %; tras el refresco, **«Siguiente: episodio 10 de 10»** y barra al 90 %. Y lo que **no** debe
+cambiar sigue igual: `watched_episodes` (1163 rangos expandidos en One Piece), `last_watched_episode`,
+los cuatro estados, título y póster.
+
+**3) El repintado, con la raíz de Tk oculta.** `root = ctk.CTk(); root.withdraw()`, se construye la
+`ResumeBand` **real** con filas leídas en modo `ro`, y se lee el resultado del widget en vez de
+mirarlo: `band.grid_slaves(row=1, column=i)[0]` da la tarjeta, y dentro, el pie y la barra.
+✅ `update_record()` con una fila de un episodio más → el pie pasa de «… de 10» a «… de 11» y la barra
+de 0,90 a 0,8182; con un `anime_id` que no está en la banda devuelve `False` y **no toca ninguna
+tarjeta**.
+
+Tres detalles que costaron un intento cada uno:
+
+- ⚠️ **`USER_SETTINGS` no tiene columnas `key` / `value`**, sino `setting_key` / `setting_value`.
+- ⚠️ **`EpisodeInfo` es `(id, anime)`**, no `(id, anime_id)`.
+- ⚠️ **`AnimeRecord.watched_episodes` es un `Set[int]`**, así que compararlo con una `list` da `False`
+  aunque el contenido sea idéntico. Un falso positivo de «se ha corrompido el campo» que asusta.
+- ⚠️ **No dobles la inversión.** `update_anime_episodes()` invierte lo que le des
+  ([trampa 4](10-invariantes-y-trampas.md)): hay que pasarle los episodios **en el orden del
+  proveedor** (ascendente en AnimeAV1), no ya invertidos, o la copia queda al revés y parece un fallo
+  del código.
+
+---
+
 ## 7. Checklist de regresión manual por vista
 
 Sin tests automáticos, esto es lo que hay. Marca lo que compruebes.
@@ -544,6 +589,14 @@ tema y el plegado no cambian de vista, así que se hacen dos pasadas de siete.
 - [ ] 🆕 **La banda no se pinta si no hay nada que retomar**: ni etiqueta ni hueco.
 - [ ] Clic en una tarjeta de «Retomar» abre la ficha **del anime guardado**, no la de un homónimo.
 - [ ] Clic en la rejilla → cursor «watch» → ficha.
+- [ ] 🆕 **Un anime en emisión con capítulo nuevo se corrige solo**: con la fila desactualizada, al
+      entrar en la vista la tarjeta pasa de «Lo has visto entero» a «Siguiente: episodio N de N» en
+      un segundo o dos, **sin recargar la portada ni abrir la ficha**, y por consola sale
+      «*X* pasa de N a M episodios» ([trampa 38](10-invariantes-y-trampas.md)).
+- [ ] 🆕 **Sin conexión, la banda no se rompe ni se vacía**: las tarjetas siguen con el dato guardado
+      y no se escribe nada en la BD.
+- [ ] 🆕 **Salir de la vista mientras se piden los datos no revienta nada**: entrar y cambiar de
+      sección enseguida no debe dar `invalid command name …!ctkcanvas` por consola.
 
 ### 7.4 Favoritos
 - [ ] Rejilla de **5 columnas**, pósters de 216 × 324 — los más grandes de la aplicación.

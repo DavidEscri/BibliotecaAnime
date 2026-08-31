@@ -2,8 +2,8 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-09-01 · rama `feature/ui-redisign` · árbol **limpio de código**: el arreglo del fondo de la pantalla de carga va en `e7d8f2f` y el del hover de los episodios en `df47130`; lo único sin commitear es esta tanda de documentación |
-| **Última revisión** | 2026-09-01 (**hover de la lista de episodios**): **ficha de `EpisodeRow` nueva** —no la tenía—, y recuentos rehechos con la convención del documento explicada. Antes, 2026-08-31 (**fondo de la pantalla de carga**): ficha de `MainWindow` reanclada —sus líneas iban ~29 desplazadas—, `show_loading_screen()` descrito de verdad y `__config_main_window()` añadido. Antes, 2026-08-21 (**rediseño de interfaz**): **12 módulos nuevos** en `gui/` —`theme.py` y los 11 de `gui/components/`— con su ficha; recuentos rehechos (**6 245 → 11 309** líneas); `utilsButtons.py` pierde 5 clases y `main_window.py` gana `navigate_to()`. Antes, 2026-08-16 (**columna `provider_id`**): recuentos rehechos — el proyecto pasa de 5 460 a **6 245** líneas; fichas de `models.py`, `animeProviderMgr.py`, `animesPersistence.py`, `utils.py`, `utilsButtons.py`, `main_window.py` y `anime_window.py` actualizadas |
+| **Fecha** | 2026-09-01 · rama `feature/ui-redisign` · árbol **limpio de código**: el refresco de la banda «Retomar» va en `4ffc2ef`, el hover de los episodios en `df47130` y el fondo de la pantalla de carga en `e7d8f2f`; lo único sin commitear es esta tanda de documentación |
+| **Última revisión** | 2026-09-01 (**refresco de la banda «Retomar»**): recuentos rehechos (**11 309 → 11 403**); `resume_card.py` estrena `update_record()` en sus **dos** clases y `recentAnimes.py`, `__refresh_resume_episodes()`; la tabla de «cómo abre la ficha» reanclada, que iba ~125 líneas desplazada. Antes, 2026-09-01 (**hover de la lista de episodios**): **ficha de `EpisodeRow` nueva** —no la tenía—, y recuentos rehechos con la convención del documento explicada. Antes, 2026-08-31 (**fondo de la pantalla de carga**): ficha de `MainWindow` reanclada —sus líneas iban ~29 desplazadas—, `show_loading_screen()` descrito de verdad y `__config_main_window()` añadido. Antes, 2026-08-21 (**rediseño de interfaz**): **12 módulos nuevos** en `gui/` —`theme.py` y los 11 de `gui/components/`— con su ficha; recuentos rehechos (**6 245 → 11 309** líneas); `utilsButtons.py` pierde 5 clases y `main_window.py` gana `navigate_to()`. Antes, 2026-08-16 (**columna `provider_id`**): recuentos rehechos — el proyecto pasa de 5 460 a **6 245** líneas; fichas de `models.py`, `animeProviderMgr.py`, `animesPersistence.py`, `utils.py`, `utilsButtons.py`, `main_window.py` y `anime_window.py` actualizadas |
 | **Cubre** | los **50** ficheros `.py` de `src/` (**31** con contenido + **19** `__init__.py` vacíos) |
 
 Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ sin verificar.
@@ -34,24 +34,26 @@ Todas las líneas citadas corresponden al **árbol de trabajo actual**, no al ú
 | `src/gui/components/pager.py` 🆕 | **247** | GUI · componente |
 | `src/gui/components/poster_grid.py` 🆕 | **234** | GUI · componente |
 | `src/gui/components/empty_state.py` 🆕 | **232** | GUI · componente |
+| `src/gui/components/resume_card.py` 🆕 | **229** | GUI · componente |
 | `src/gui/components/side_panel.py` 🆕 | **226** | GUI · componente |
 | `src/gui/components/rating_stars.py` 🆕 | **209** | GUI · componente |
-| `src/gui/components/resume_card.py` 🆕 | **192** | GUI · componente |
 | `src/gui/components/view_header.py` 🆕 | **99** | GUI · componente |
 | `src/gui/main_window.py` | **545** | GUI |
 | `src/gui/anime_window.py` | **1 745** | GUI |
-| `src/gui/sidebarButtons/recentAnimes/recentAnimes.py` | **183** | GUI · vista |
+| `src/gui/sidebarButtons/recentAnimes/recentAnimes.py` | **240** | GUI · vista |
 | `src/gui/sidebarButtons/favouriteAnimes/favouriteAnimes.py` | **350** | GUI · vista |
 | `src/gui/sidebarButtons/finishedAnimes/finishedAnimes.py` | **260** | GUI · vista |
 | `src/gui/sidebarButtons/watchingAnimes/watchingAnimes.py` | **264** | GUI · vista |
 | `src/gui/sidebarButtons/pendingAnimes/pendingAnimes.py` | **353** | GUI · vista |
 | `src/gui/sidebarButtons/searchAnimes/searchAnimes.py` | **607** | GUI · vista |
 
-**11 309 líneas** en **31 módulos**. ✅ Recontado el 2026-09-01 —`wc -l` **+ 1 por módulo**, que es la
-convención con la que se contó en agosto: casi ningún fichero termina en salto de línea—. Da la **misma
-cifra** que entonces pese a los 18 renglones ganados desde el rediseño (`main_window.py` +7 con el fondo de
-la pantalla de carga, `anime_window.py` +11 con el hover de los episodios), así que la cifra de agosto venía
-**18 alta**. Aquella se anotó el 2026-08-21 así: **+5 064 líneas** respecto al
+**11 403 líneas** en **31 módulos**. ✅ Recontado el 2026-09-01 —`wc -l` **+ 1 por módulo**, que es la
+convención con la que se contó en agosto: casi ningún fichero termina en salto de línea—. Las **94
+últimas** son el refresco de la banda «Retomar»: `recentAnimes.py` **+57** y `resume_card.py` **+37**.
+
+Sin esa tanda daba **11 309**, la **misma cifra** que el 2026-08-21 pese a los 18 renglones ganados desde el
+rediseño (`main_window.py` +7 con el fondo de la pantalla de carga, `anime_window.py` +11 con el hover de
+los episodios), así que la cifra de agosto venía **18 alta**. Aquella se anotó el 2026-08-21 así: **+5 064 líneas** respecto al
 2026-08-16, casi todas del rediseño de interfaz. El grueso está en los **12 módulos nuevos** de
 `gui/` (2 962 líneas entre `theme.py` y los 11 componentes), en `anime_window.py` (1 155→**1 744**)
 y en las seis vistas, que pasan de 1 071 a **2 017** líneas entre todas.
@@ -464,7 +466,7 @@ nunca una copia del fichero.
 | `view_header.py` | `ViewHeader` | fase 1 | Título + subtítulo + `controls_frame`. Alto fijo 80 |
 | `poster_grid.py` | `PosterGrid`, `PosterItem` | fase 2 | Rejilla de N columnas. Sello con `place()`, pie y `extra_builder` |
 | `pager.py` | `Pager` | fase 2 | `set_total()` (corta la lista) o `set_pages()` (pagina el proveedor) |
-| `resume_card.py` | `ResumeBand`, `resume_progress()`, `resume_caption()` | fase 2 | `resume_progress()` es el **único** sitio donde se calcula por dónde ibas |
+| `resume_card.py` | `ResumeBand`, `ResumeCard`, `resume_progress()`, `resume_caption()` | fase 2 | `resume_progress()` es el **único** sitio donde se calcula por dónde ibas. 🆕 `update_record()` repinta el pie y la barra de **una** tarjeta sin recrear la banda |
 | `anime_row.py` | `AnimeRow`, `RowAction` | fase 3 | Fila en cascada con acción en hover. La comparten «Viendo» y «Pendientes» |
 | `side_panel.py` | `SidePanel` | fase 3 | Los 290 px de la derecha en «Viendo» |
 | `rating_stars.py` | `RatingStars` | fase 5 | Cinco estrellas con medios puntos, dibujadas con PIL |
@@ -484,6 +486,15 @@ nunca una copia del fichero.
 | `EmptyState` | las 6 vistas |
 | `Sidebar` | `MainWindow` |
 | `SidePanel`, `ResumeBand`, `RatingStars`, `GenreChips` | una vista cada uno |
+
+⚠️ **`resume_card.py` es dos cosas, y la tabla de arriba solo cuenta una.** Sus *widgets*
+(`ResumeBand` / `ResumeCard`) los usa **una** vista, la portada; pero sus dos **funciones puras**
+—`resume_progress()` y `resume_caption()`— tienen **cinco** llamantes: `resume_card.py:155`,
+`anime_row.py:190` (la barra de «Viendo» y «Pendientes»), `side_panel.py:112`,
+`watchingAnimes.py:162` (el subtítulo «M episodios pendientes») y `watchingAnimes.py:238` (la píldora
+«Episodio N →»). Por eso `anime_row.py` y `side_panel.py`, que no pintan ninguna tarjeta, importan de
+un módulo que se llama «tarjeta»: `resume` es *retomar*, no *resumen*. Si algún día molesta, la
+separación limpia es llevarse las dos funciones a un módulo propio y dejar aquí los widgets.
 
 **Efectos secundarios**: `poster_grid.py`, `anime_row.py`, `side_panel.py` y `resume_card.py` **leen
 del disco** los JPG cacheados (`find_cached_poster_path()` + `load_rounded_image()`); ninguno sale a
@@ -635,12 +646,18 @@ seis. `recentAnimes.py` sigue siendo la única con `show_frame()` que revela la 
 
 | Vista | Cómo abre la ficha | Buscador |
 |---|---|---|
-| `recentAnimes.py` | hilo propio (`:105-114`) → `after(0,…)`; pide al proveedor que trajo la portada | — |
+| `recentAnimes.py` | hilo propio (`:205-232`) → `after(0,…)`; pide al proveedor que trajo la portada | — |
 | las **4 de estado** | 🆕 `open_saved_anime()` (`anime_window.py:108-193`) | 🆕 `SavedAnimeSearch`: local + web |
 | `searchAnimes.py` | 🆕 hilo propio (`:363-382`) → `after(0,…)`; **arrastra el `provider_id`** del resultado, porque su `id` es el slug de ESE sitio | propio, contra el proveedor |
 
 `searchAnimes.py` añade `AnimeSearch` (`:24-31`, `dataclasses.dataclass` de la stdlib), paginación
 (`:273-330`) y un frame de carga con GIF (`:171-216`).
+
+🆕 **`recentAnimes.py` es también la única que refresca datos guardados** (`:131-180`,
+`__refresh_resume_episodes()`): al entrar en la vista relee los episodios de las ≤3 filas de la banda
+«Retomar» y reescribe la columna `episodes` si el proveedor sirve más que la biblioteca. Es el único
+sitio del proyecto que escribe en `ANIMES` **sin que el usuario haya pedido nada**, así que va con
+`strict=True` — sin *fallback* ([03 §11](03-flujos-de-ejecucion.md), [trampa 38](10-invariantes-y-trampas.md)).
 
 > ⚠️ **Las 4 vistas de estado ya no son intercambiables con las otras dos** en lo que toca al clic y
 > al buscador. Al copiar código de una a otra, mira primero cuál de los dos grupos es: las de estado

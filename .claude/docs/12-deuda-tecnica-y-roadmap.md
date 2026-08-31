@@ -2,9 +2,9 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-08-21 · rama `feature/ui-redisign` · la fase 9 que entonces estaba sin commitear entró en **`7606def`**; el documento no se ha revisado desde entonces |
+| **Fecha** | 2026-09-01 · rama `feature/ui-redisign` · último commit **`4ffc2ef`** (refresco de la banda «Retomar»). ⚠️ **Solo se ha revisado §4**: §1, §5, §6 y §7 siguen ancladas en el 2026-08-21 y sus recuentos y líneas están sin comprobar desde entonces |
 | **Cubre** | `src/**`, `.claude/CLAUDE.md`, `README.md`, `requirements.txt`, `MiBibliotecaAnime.spec`, `LICENSE`, `LEEME.txt`, `THIRD-PARTY-NOTICES.txt` |
-| **Última revisión** | 2026-08-18: §1 rehecho —la tanda de licencia ya está publicada— y **C10 cerrado del todo**: el árbol de directorios del `README.md` tenía dos erratas de copiar-pegar y omitía los ficheros legales. Antes, 2026-08-17 (**licencia y distribución**): **A3 y C11 cerrados** —`datas` ya no lleva datos de usuario y el `.spec` está por fin **verificado compilando**—, C10 cerrado a medias, **B11 abierto** (origen de los recursos gráficos) y §7 nueva |
+| **Última revisión** | 2026-09-01 (**refresco de la banda «Retomar»**): **B12 nuevo** —solo se refrescan las ≤3 filas de la portada; el resto de la biblioteca sigue enseñando el recuento del día que abriste su ficha—, y **B3 y B8 cerrados**: los tres hilos del buscador y los siete `time.sleep(0.1)` que describían **ya no existen en `src/`** desde el rediseño. Antes, 2026-08-18: §1 rehecho —la tanda de licencia ya está publicada— y **C10 cerrado del todo**: el árbol de directorios del `README.md` tenía dos erratas de copiar-pegar y omitía los ficheros legales. Antes, 2026-08-17 (**licencia y distribución**): **A3 y C11 cerrados** —`datas` ya no lleva datos de usuario y el `.spec` está por fin **verificado compilando**—, C10 cerrado a medias, **B11 abierto** (origen de los recursos gráficos) y §7 nueva |
 
 Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ sin verificar.
 
@@ -184,13 +184,26 @@ Auditado punto por punto. Donde el código contradice a `CLAUDE.md`, **gana el c
 | # | Problema | Dónde |
 |---|---|---|
 | B2 | La ordenación por géneros nunca se aplica (`str` vs enum) | `utilsButtons.py:341` |
-| B3 | Guard antidoble-búsqueda inoperante (`.start()` → `None`) | `searchAnimes.py:206,212,335` |
-| ~~B4~~ | ~~HTTP en el hilo de UI: servidores y clic desde 5 de las 6 vistas~~ ✅ **Casi cerrado (2026-08-16)**: los **6** puntos de clic van ya en hilo + `after(0,…)`. Queda **solo** la llamada de servidores | `anime_window.py:1116-1121` ([07 C5](07-concurrencia-e-hilos.md)) |
+| ~~B3~~ | ~~Guard antidoble-búsqueda inoperante (`.start()` → `None`)~~ ✅ **Desaparecido con el rediseño (2026-08-21)**: el buscador se quedó con **dos** hilos y un **contador de generación** en vez del guard; verificado el 2026-09-01 | ~~`searchAnimes.py:206,212,335`~~ → `searchAnimes.py:107, 329-330, 361` |
+| ~~B4~~ | ~~HTTP en el hilo de UI: servidores y clic desde 5 de las 6 vistas~~ ✅ **Casi cerrado (2026-08-16)**: los **6** puntos de clic van ya en hilo + `after(0,…)`. Queda **solo** la llamada de servidores | `anime_window.py:1694` ([07 C5](07-concurrencia-e-hilos.md)) |
 | B6 | Las 4 listas cacheadas de `MainWindow` **no las usa nadie** | `main_window.py:87-93` vs `favouriteAnimes.py:75` |
 | B7 | `remove_from_finished` mueve a *pendiente* en BD pero **borra el póster sin recrearlo** en `pending/` | `anime_window.py:859-865` |
-| B8 | `time.sleep(0.1)` en el hilo de UI × 7 | [07 §5](07-concurrencia-e-hilos.md) |
+| ~~B8~~ | ~~`time.sleep(0.1)` en el hilo de UI × 7~~ ✅ **Cerrado con el rediseño (2026-08-21)**: `git grep -n "time.sleep" -- src/` solo devuelve las dos esperas entre reintentos de scraping, que van en hilo daemon. Verificado el 2026-09-01 | [07 §5](07-concurrencia-e-hilos.md) |
 | ~~B10~~ | ~~El buscador de las vistas de estado va **contra la red**, no contra la BD~~ ✅ **Cerrado (2026-08-16)**: búsqueda **local** primero, la web solo suma. Era peor de lo diagnosticado —no era solo «no funciona sin conexión», sino que **perdía animes** según el proveedor puesto ([trampa 26](10-invariantes-y-trampas.md)) | `utilsButtons.py:23-166` |
 | B11 | **Los iconos de la sidebar y los GIF de carga son de origen desconocido**, y muy probablemente incompatibles con la GPL-3.0 del proyecto. ⚠️ **No crece**: el rediseño no añadió ni un PNG — sus diez glifos se dibujan con PIL | `resources/images/utils/` |
+| **B12** 🆕 | **Solo se refrescan los episodios de las ≤3 filas de la banda «Retomar».** El resto de la biblioteca sigue enseñando el recuento del día que abriste su ficha, así que un anime en emisión miente en las barras de «Viendo» y «Pendientes», en el subtítulo «M episodios pendientes» y en el sello de «Finalizados» ([trampa 38](10-invariantes-y-trampas.md)) | `recentAnimes.py:131-180` (lo que sí se refresca) vs. `anime_window.py:602-603` (el único otro sitio que escribe `episodes`) |
+
+> **B12 — hasta dónde llevar el refresco** (abierto el 2026-09-01). El arreglo de `4ffc2ef` cubre lo
+> que el usuario mira **para decidir qué ver**, que era el síntoma que molestaba. Extenderlo a
+> «Viendo» entero es tentador y **no es un simple copiar-pegar**: son N peticiones en vez de 3, y cada
+> una **escribe en la biblioteca sin que el usuario lo pida**, así que hereda las dos precauciones del
+> original —`strict=True` y no escribir nunca con respuesta vacía ([trampa 27](10-invariantes-y-trampas.md))—.
+> La alternativa barata, si algún día pesa: refrescar **solo la fila del `SidePanel`**, que es la única
+> de esa vista que se mira de cerca.
+>
+> ⚠️ **Lo que no hay que hacer** es refrescar al arrancar: retrasaría el arranque para todos, incluidos
+> los que no van a mirar la banda. La decisión de hacerlo **al entrar en la vista** está razonada en
+> [03 §11](03-flujos-de-ejecucion.md).
 
 > **B11 — origen de los recursos gráficos** (abierto el 2026-08-17). El proyecto pasó a GPL-3.0 ese
 > día (`bec0fbc` + sección «Licencia» del `README.md`), y eso convierte la procedencia de los recursos
