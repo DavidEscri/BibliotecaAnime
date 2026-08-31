@@ -2,8 +2,8 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-08-21 · rama `feature/ui-redisign` · árbol **con la fase 9 del rediseño sin commitear** |
-| **Última revisión** | 2026-08-16 (**columna `provider_id`**): §3 pasa de 2 caminos a **3, todos asíncronos**; **flujo 10 nuevo** (migrar una fila a otro proveedor); anclas de `anime_window.py` reubicadas tras crecer a 1 155 líneas |
+| **Fecha** | 2026-08-31 · rama `feature/ui-redisign` · árbol **con el arreglo del fondo de la pantalla de carga sin commitear** |
+| **Última revisión** | 2026-08-31 (**fondo de la pantalla de carga**): §1 reanclado entero contra el código real y corregido —seguía diciendo `place_forget()`, que la fase 9 cambió a `destroy()`— y con la nota del fondo `Theme.BG`. Antes, 2026-08-16 (**columna `provider_id`**): §3 pasa de 2 caminos a **3, todos asíncronos**; **flujo 10 nuevo** (migrar una fila a otro proveedor); anclas de `anime_window.py` reubicadas tras crecer a 1 155 líneas |
 | **Cubre** | `main_window.py`, `anime_window.py`, `recentAnimes.py`, `searchAnimes.py`, las 4 vistas de estado, `animeProviderMgr.py`, `animesPersistence.py`, `utils.py` |
 
 Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ sin verificar.
@@ -13,7 +13,7 @@ Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ si
 
 ## 1. Arranque y pantalla de carga
 
-✅ Verificado: la app arranca, abre la ventana «Mi Biblioteca de Anime» y muestra los recientes sin
+✅ Verificado: la app arranca, abre la ventana «Mi Biblioteca» y muestra los recientes sin
 traceback.
 
 ```mermaid
@@ -29,37 +29,38 @@ sequenceDiagram
 
     U->>APP: python src/app.py
     APP->>MW: MainWindow()
-    MW->>MW: __config_main_window() :100-111
-    MW->>MW: __config_main_frames() :113-116
-    MW->>MGR: register(AnimeAV1, default=True) :47
-    MW->>MGR: register(JKAnime) :48
-    MW->>MGR: register(AnimeFLV) :49
-    MW->>MW: __registry_default_provider_id = get_default_provider_id() :65-66
-    MW->>MW: __apply_saved_provider_preference() :68
-    MW->>MW: load_sidebar_buttons() :154-238
-    MW->>MW: show_loading_screen() :440
-    MW->>MW: sidebar_frame.grid_forget() :441
-    Note over MW: GIF + barra a 0 %#59; update_gif se reprograma con self.after(100,...) :474
-    MW->>T: Thread(download_images_and_show_animes).start() :479
+    MW->>MW: __config_main_window() :96-108 (incluye fg_color=Theme.BG :104)
+    MW->>MW: __config_main_frames() :110-116
+    MW->>MGR: register(AnimeAV1, default=True) :46
+    MW->>MGR: register(JKAnime) :47
+    MW->>MGR: register(AnimeFLV) :48
+    MW->>MW: __registry_default_provider_id = get_default_provider_id() :63
+    MW->>MW: __apply_saved_provider_preference() :64
+    MW->>MW: load_sidebar_buttons() :136-177
+    MW->>MW: show_loading_screen() :412
+    MW->>MW: sidebar_frame.grid_forget() :413
+    Note over MW: loading_frame cubre la ventana entera con Theme.BG :414-415#59;<br/>GIF + barra a 0 %#59; update_gif se reprograma con self.after(100,...) :458
+    MW->>T: Thread(download_images_and_show_animes).start() :463
     APP->>MW: mainloop()
 
-    T->>P: load_animes() :483 → start() :265
+    T->>P: load_animes() :467 → start() :265
     P-->>T: favourite/finished/watching/pending
-    Note over T: progreso 10→40 % (:530-543)<br/>⚠️ progress_bar.set() desde hilo daemon
-    T->>MGR: get_recent_animes() :484
+    Note over T: progreso 10→40 % (:531-541)<br/>⚠️ progress_bar.set() desde hilo daemon
+    T->>MGR: get_recent_animes() :468
     MGR->>NET: GET https://animeav1.com
     NET-->>MGR: HTML
     MGR-->>T: List[AnimeInfo] (20 elementos ✅)
 
     alt lista vacía
-        T->>U: messagebox.showwarning(...) :486-488
-        T->>MW: __recent_animes_button.show_frame() :489
+        T->>MW: loading_frame.destroy() :474
+        T->>U: messagebox.showwarning(...) :475-478
+        T->>MW: __recent_animes_button.show_frame() :480
     else lista con datos
-        T->>T: progress_bar.set(0.9) :491
-        T->>FS: download_images_progress(...) :493
-        T->>MW: loading_frame.place_forget() :494
-        T->>MW: __recent_animes_button.show_frame() :495
-        T->>T: Thread(__preload_recent_animes_info).start() :499-500
+        T->>T: progress_bar.set(0.9) :482
+        T->>FS: download_images_progress(...) :484
+        T->>MW: loading_frame.destroy() :487
+        T->>MW: __recent_animes_button.show_frame() :490
+        T->>T: Thread(__preload_recent_animes_info).start() :494-498
     end
 ```
 
@@ -67,9 +68,16 @@ sequenceDiagram
 
 - `show_frame()` de `RecentAnimeButton` (`recentAnimes.py:29-34`) **revela la sidebar** con
   `sidebar_frame.grid(...)` (`:31`) antes de pintar. Es el único sitio donde reaparece.
-- 📖 Los `progress_bar.set()` / `configure()` de `load_animes` (`main_window.py:530-543`) y el
-  `messagebox.showwarning` (`:486`) corren en **hilo daemon** ([07 §4](07-concurrencia-e-hilos.md)).
-- 🆕 El paso `__registry_default_provider_id` (`:65-66`) va **antes** de aplicar la preferencia
+- 📖 Los `progress_bar.set()` / `configure()` de `load_animes` (`main_window.py:531-541`) y el
+  `messagebox.showwarning` (`:475`) corren en **hilo daemon** ([07 §4](07-concurrencia-e-hilos.md)).
+- 🆕 **La pantalla de carga no es una tarjeta: es la ventana entera pintada de `Theme.BG`**
+  (`:414-415`), con el bloque —título, GIF y barra— centrado con `place(relx=0.5, rely=0.5)` dentro
+  de un marco transparente (`:417-418`). Antes era un `CTkFrame` del tamaño de su contenido y **sin
+  `fg_color`**, así que salía del gris por defecto de CustomTkinter y se recortaba como un rectángulo
+  sobre el fondo de la app. Es la [trampa 36](10-invariantes-y-trampas.md). ✅ Medido el 2026-08-31:
+  `#14161A` en los cinco puntos muestreados en oscuro y `#F4F5F7` en claro, iguales a los de la
+  portada ya cargada.
+- 🆕 El paso `__registry_default_provider_id` (`:63`) va **antes** de aplicar la preferencia
   guardada, y no es cosmético: `__apply_saved_provider_preference()` llama a `set_default()`, que lo
   pisaría. Es la referencia contra la que se mide si el desplegable está desviado
   ([13 §8](13-selector-de-proveedor.md)).

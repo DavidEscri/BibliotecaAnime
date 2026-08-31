@@ -2,9 +2,9 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-08-21 · rama `feature/ui-redisign` · árbol **con la fase 9 del rediseño sin commitear** |
+| **Fecha** | 2026-08-31 · rama `feature/ui-redisign` · árbol **con el arreglo del fondo de la pantalla de carga sin commitear** |
 | **Cubre** | los **31** módulos con contenido de `src/` + `MiBibliotecaAnime.spec` + `requirements.txt` |
-| **Última revisión** | 2026-08-21 (**rediseño de interfaz**): **7 trampas nuevas** (29-35), todas de CustomTkinter y de layout, en un apartado propio; la **33** nace ya resuelta. La trampa **22** queda cerrada: la ficha ya no calcula anchos a mano. Antes, 2026-08-17 (**licencia y empaquetado**): la trampa **18** se subdivide en **a-e** — **18d cerrada** (`datas` ya no lleva datos de usuario; PyInstaller **ignora en silencio las carpetas vacías**) y **18e nueva** (los destinos de `datas` caen dentro de `_internal/`, no junto al `.exe`). Antes, 2026-08-16 (**columna `provider_id`**): **3 trampas nuevas** (26, 27, 28), trampa **21 reescrita** —ahora se puede provocar a voluntad y la ficha la señala en pantalla—, trampas **4** y **13** ampliadas, y anclas de `anime_window.py` (647→1156) y `animesPersistence.py` reubicadas |
+| **Última revisión** | 2026-08-31 (**fondo de la pantalla de carga**): trampa **36** nueva —un widget sin `fg_color` sale del gris por defecto de CustomTkinter, no de `Theme`—, con el `minsize` que sobrevive a `grid_forget()` y el GIF transparente como medias trampas; la **33** gana un aviso: el comentario que la anclaba en el código ya no está. Antes, 2026-08-21 (**rediseño de interfaz**): **7 trampas nuevas** (29-35), todas de CustomTkinter y de layout, en un apartado propio; la **33** nace ya resuelta. La trampa **22** queda cerrada: la ficha ya no calcula anchos a mano. Antes, 2026-08-17 (**licencia y empaquetado**): la trampa **18** se subdivide en **a-e** — **18d cerrada** (`datas` ya no lleva datos de usuario; PyInstaller **ignora en silencio las carpetas vacías**) y **18e nueva** (los destinos de `datas` caen dentro de `_internal/`, no junto al `.exe`). Antes, 2026-08-16 (**columna `provider_id`**): **3 trampas nuevas** (26, 27, 28), trampa **21 reescrita** —ahora se puede provocar a voluntad y la ficha la señala en pantalla—, trampas **4** y **13** ampliadas, y anclas de `anime_window.py` (647→1156) y `animesPersistence.py` reubicadas |
 
 Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ sin verificar.
 
@@ -725,7 +725,7 @@ el destino esté libre. La BD no lo va a hacer por ti.
 
 ---
 
-## Rediseño de interfaz *(añadidas 2026-08-21, fases 1-9)*
+## Rediseño de interfaz *(añadidas 2026-08-21, fases 1-9; la 36, el 2026-08-31)*
 
 Siete trampas de **CustomTkinter y de layout**. Ninguna da error: todas se manifiestan como algo que
 sale mal colocado, invisible o parpadeando, y todas costaron al menos una tarde.
@@ -815,6 +815,11 @@ verse nunca. Solo aparece si se prueba el arranque **sin red**, que es justo lo 
 salidas de la función. La animación comprueba `winfo_exists()` antes de repintarse; sin esa guarda,
 destruir el marco produce `invalid command name`.
 
+> ⚠️ **El comentario que anclaba esta trampa dentro de `update_gif()` ya no está en el código**
+> (2026-08-31). El invariante sigue vigente y la guarda `winfo_exists()` sigue ahí, pero quien lea
+> `show_loading_screen()` ya no encuentra escrito por qué. Ese mismo arranque tenía **otro** defecto
+> visual, independiente de éste: la **trampa 36**, más abajo.
+
 ---
 
 ### 34. Un `<Leave>` no significa que el ratón se haya ido 🔴 ✅
@@ -859,6 +864,60 @@ sobre una fila, «pasa» sin que ocurra nada, y se da por verificado algo que no
   que Tk pelado: el tamaño se le da al construir el widget.
 - CustomTkinter **no redondea la `image` de un widget** por mucho `corner_radius` que tenga. El
   recorte hay que traerlo hecho desde PIL (`load_rounded_image()`).
+
+---
+
+### 36. Un widget sin `fg_color` no es del tema de la aplicación 🔴 ✅ *(resuelta 2026-08-31)*
+
+**Por qué**: un **marco** sin `fg_color` **no nace transparente ni hereda del padre** — eso solo lo
+hace `CTkLabel`. Toma el color de la paleta de la librería (`blue.json`), que no es la de `Theme`:
+
+| Widget | `fg_color` por defecto (claro, oscuro) |
+|---|---|
+| `CTkFrame` | `gray86` / `gray17` → `#DBDBDB` / `#2B2B2B` |
+| `CTk` (la raíz) | `gray92` / `gray14` → `#EBEBEB` / `#242424` |
+| `CTkProgressBar` | canal `#939BA2` / `#4A4D50`, progreso `#3B8ED0` / `#1F6AA5` |
+| `CTkLabel` | `transparent` — **este sí** hereda |
+
+Un widget al que se le olvide el `fg_color` **no falla ni avisa**: sale de otro color y ya.
+
+Le pasaba a la pantalla de carga: `loading_frame` era un `CTkFrame(self, corner_radius=0)` a secas,
+del tamaño justo de su contenido. El arranque enseñaba **tres fondos a la vez**, medidos sobre la
+captura:
+
+| Zona | Color | De dónde salía |
+|---|---|---|
+| El bloque de carga | `#2B2B2B` | gris por defecto de `CTkFrame` |
+| Franja izquierda de 224 px | `#242424` | gris por defecto de la raíz `CTk` |
+| El resto de la ventana | `#14161A` | `Theme.BG`, el bueno |
+
+**Síntoma observable**: al arrancar, el título «Cargando biblioteca de anime», el GIF y la barra
+salen dentro de un **rectángulo gris recortado** sobre el fondo de la aplicación, con una **banda
+vertical** de un tercer gris a la izquierda. Ningún error por consola. Se ve en los dos temas.
+
+**Y dos medias trampas más, las dos silenciosas:**
+
+- **El GIF no tiene fondo propio.** `loading-image.gif` es paleta con `transparency = 1`: Tk compone
+  su alfa contra el fondo del `CTkLabel` que lo sostiene. Cambiarle el color al marco **le cambia el
+  fondo al GIF**; buscar el problema dentro del `.gif` es perder la tarde.
+- **El `minsize` de una columna sobrevive a `grid_forget()`.** `Sidebar` reserva la columna 0 con
+  `grid_columnconfigure(0, weight=0, minsize=width)` (`sidebar.py:418`). `show_loading_screen()`
+  retira la barra con `grid_forget()`, pero la columna **sigue midiendo 224 px**, y en esa franja se
+  ve el fondo de la raíz de Tk. Retirar un widget no libera el hueco que su columna tiene reservado.
+
+**Invariante**: **todo marco de fondo lleva su `fg_color` explícito**, salido de `Theme`, y eso
+incluye la **raíz de Tk** (`self.configure(fg_color=Theme.BG)` en `__config_main_window()`,
+`main_window.py:104`). Lo mismo para el canal de un `CTkProgressBar` (`fg_color` + `progress_color`)
+y para el `text_color` de una etiqueta. La comprobación de `git grep -nE "#[0-9A-Fa-f]{6}" -- src/`
+**no detecta esto**: el defecto no es un literal de color, es la **ausencia** de uno.
+
+**Cómo comprobarlo**: capturar la ventana durante el arranque y muestrear píxeles, no mirarla a ojo
+—dos grises oscuros parecidos se distinguen mal—. Con la app en marcha, todos los puntos de fondo
+deben dar `#14161A` en oscuro y `#F4F5F7` en claro ([09 §7.1](09-verificacion-y-pruebas.md)).
+
+**De paso**: el bloque se centraba con `x = winfo_width() * 2.5`, y `winfo_width()` vale **1** antes
+de que la ventana esté dibujada. Acertaba por casualidad. Hoy se centra con
+`place(relx=0.5, rely=0.5, anchor=CENTER)` dentro de un marco transparente.
 
 ---
 
