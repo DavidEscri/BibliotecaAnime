@@ -2,9 +2,9 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-09-01 · rama `feature/ui-redisign` · árbol **limpio de código**: el arreglo del fondo de la pantalla de carga va en `e7d8f2f` y el del hover de los episodios en `df47130`; lo único sin commitear es esta tanda de documentación |
+| **Fecha** | 2026-09-01 · rama `feature/ui-redisign` · árbol **limpio de código**: el refresco de la banda «Retomar» va en `4ffc2ef`, el hover de los episodios en `df47130` y el fondo de la pantalla de carga en `e7d8f2f`; lo único sin commitear es esta tanda de documentación |
 | **Cubre** | los **31** módulos con contenido de `src/` + `MiBibliotecaAnime.spec` + `requirements.txt` |
-| **Última revisión** | 2026-09-01 (**hover de la lista de episodios**): trampa **37** nueva —un hijo sin `bind` es una salida de la que no llega ningún `<Leave>`, la complementaria de la **34**—, con la nota de que **no se reproduce moviendo el ratón deprisa**. Antes, 2026-08-31 (**fondo de la pantalla de carga**): trampa **36** nueva —un widget sin `fg_color` sale del gris por defecto de CustomTkinter, no de `Theme`—, con el `minsize` que sobrevive a `grid_forget()` y el GIF transparente como medias trampas; la **33** gana un aviso: el comentario que la anclaba en el código ya no está. Antes, 2026-08-21 (**rediseño de interfaz**): **7 trampas nuevas** (29-35), todas de CustomTkinter y de layout, en un apartado propio; la **33** nace ya resuelta. La trampa **22** queda cerrada: la ficha ya no calcula anchos a mano. Antes, 2026-08-17 (**licencia y empaquetado**): la trampa **18** se subdivide en **a-e** — **18d cerrada** (`datas` ya no lleva datos de usuario; PyInstaller **ignora en silencio las carpetas vacías**) y **18e nueva** (los destinos de `datas` caen dentro de `_internal/`, no junto al `.exe`). Antes, 2026-08-16 (**columna `provider_id`**): **3 trampas nuevas** (26, 27, 28), trampa **21 reescrita** —ahora se puede provocar a voluntad y la ficha la señala en pantalla—, trampas **4** y **13** ampliadas, y anclas de `anime_window.py` (647→1156) y `animesPersistence.py` reubicadas |
+| **Última revisión** | 2026-09-01 (**refresco de la banda «Retomar»**): trampa **38** nueva —una fila guardada no refresca sus episodios sola, así que un anime en emisión miente hasta que abres su ficha—, **resuelta solo para las ≤3 tarjetas de la portada** y viva en el resto de la biblioteca. Antes, 2026-09-01 (**hover de la lista de episodios**): trampa **37** nueva —un hijo sin `bind` es una salida de la que no llega ningún `<Leave>`, la complementaria de la **34**—, con la nota de que **no se reproduce moviendo el ratón deprisa**. Antes, 2026-08-31 (**fondo de la pantalla de carga**): trampa **36** nueva —un widget sin `fg_color` sale del gris por defecto de CustomTkinter, no de `Theme`—, con el `minsize` que sobrevive a `grid_forget()` y el GIF transparente como medias trampas; la **33** gana un aviso: el comentario que la anclaba en el código ya no está. Antes, 2026-08-21 (**rediseño de interfaz**): **7 trampas nuevas** (29-35), todas de CustomTkinter y de layout, en un apartado propio; la **33** nace ya resuelta. La trampa **22** queda cerrada: la ficha ya no calcula anchos a mano. Antes, 2026-08-17 (**licencia y empaquetado**): la trampa **18** se subdivide en **a-e** — **18d cerrada** (`datas` ya no lleva datos de usuario; PyInstaller **ignora en silencio las carpetas vacías**) y **18e nueva** (los destinos de `datas` caen dentro de `_internal/`, no junto al `.exe`). Antes, 2026-08-16 (**columna `provider_id`**): **3 trampas nuevas** (26, 27, 28), trampa **21 reescrita** —ahora se puede provocar a voluntad y la ficha la señala en pantalla—, trampas **4** y **13** ampliadas, y anclas de `anime_window.py` (647→1156) y `animesPersistence.py` reubicadas |
 
 Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ sin verificar.
 
@@ -977,6 +977,48 @@ pegada exactamente en el píxel del separador.
 **Hermana, del mismo arreglo**: al **plegar** los servidores, `set_expanded(False)` devolvía la fila
 a `TRANSPARENT` aunque el puntero siguiera encima — el resaltado se apagaba justo debajo del ratón.
 Ahora consulta `__pointer_inside()` (`anime_window.py:363-370`).
+
+---
+
+## Frescura de los datos guardados *(añadida 2026-09-01)*
+
+### 38. Una fila guardada no refresca sus episodios sola 🔴 ✅ *(resuelta solo en la portada, 2026-09-01)*
+
+`ANIMES.episodes` es una **foto del día en que abriste la ficha de ese anime**, no «los episodios que
+hay». Durante mucho tiempo el **único** sitio que la reescribía fue `__load_anime_status()`
+(`anime_window.py:602-603`), y solo al abrir la ficha.
+
+**Síntoma observable**: un anime **en emisión** miente cuando sale un capítulo nuevo. El caso real que
+la destapó: «One Piece» y «Mushoku Tensei III» estrenan los domingos; abriendo la aplicación ese mismo
+domingo, la banda «Retomar donde lo dejaste» decía **«Lo has visto entero»** con el capítulo nuevo ya
+publicado. Entrabas en el anime —lo que reescribía la fila— y al volver a la portada ya salía bien.
+Ningún error por consola: el dato es coherente, solo viejo.
+
+✅ **Reproducida sobre copia** el 2026-09-01: fila con 9 episodios y los 9 vistos, proveedor sirviendo
+10 → tarjeta «Lo has visto entero · 9 episodios», barra al 100 %.
+
+**Resuelta a medias.** Desde `4ffc2ef`, `RecentAnimeButton.__refresh_resume_episodes()`
+(`recentAnimes.py:131-180`) relee los episodios **de las ≤3 filas de la banda** al entrar en la
+portada ([03 §11](03-flujos-de-ejecucion.md)). Lo que **sigue mintiendo**, con el mismo síntoma:
+
+| Dónde | Qué enseña de más |
+|---|---|
+| Barras de `AnimeRow` en «Viendo» y «Pendientes» | todo lo que **no** esté en la banda |
+| Subtítulo «N animes a medias · **M episodios pendientes**» (`watchingAnimes.py:162`) | el total es el guardado |
+| Sello «vistos / totales» de «Finalizados» | idem |
+| `SidePanel` de «Viendo» | se salva por casualidad: enseña el primero de `last_watched_anime_ids`, que suele estar en la banda |
+
+**Invariante**: `AnimeRecord.episodes` responde «cuántos episodios servía el proveedor **la última vez
+que miré**». Cualquier vista que presente un total, un porcentaje o un «lo has visto entero» está
+afirmando algo que puede llevar días caducado.
+
+🔴 **Y ampliarlo no es gratis.** Refrescar más filas significa **escribir en la biblioteca del usuario
+sin que lo haya pedido**, y ahí entra la **trampa 27** (más arriba, en «Columna `provider_id`»):
+el mismo *slug* puede existir en otro sitio con otra cuenta de episodios, así que la petición tiene
+que ir con **`strict=True`** —al proveedor de la fila y a ninguno más— y **no escribir nunca** si la
+respuesta viene vacía. Es justo al revés que `open_saved_anime()`, que sí quiere *fallback* porque
+solo lee. Quien extienda esto a «Viendo» debe copiar esas dos precauciones, no el patrón de abrir una
+ficha.
 
 ---
 

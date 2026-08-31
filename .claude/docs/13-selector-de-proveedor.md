@@ -59,7 +59,7 @@ integren, el desplegable ofrezca proveedores de manga si lo que se está viendo 
 |---|---|
 | `AnimeInfo.id` es el **slug del sitio**, no un identificador universal | `models.py:120`, `animeav1.py:177`, `animeflv.py:179` |
 | La tabla `ANIMES` está **cauterizada a ese slug**: `anime_id` es la clave con la que se busca todo | `animesPersistence.py:308-317` |
-| `EpisodeInfo.anime` también es el slug, y es lo que se pasa a `get_anime_episode_servers` | `models.py:115`, `anime_window.py:1116-1121` |
+| `EpisodeInfo.anime` también es el slug, y es lo que se pasa a `get_anime_episode_servers` | `models.py:115`, `anime_window.py:1694-1696` (✅ reanclado el 2026-09-01) |
 | Los pósters en disco se llaman `{anime_id}.jpg` | `utils.py:57,83,153,192` |
 
 Consecuencia: **el mismo anime tiene un `id` distinto en cada proveedor.** AnimeAV1 sirve

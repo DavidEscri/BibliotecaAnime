@@ -18,7 +18,7 @@ internamente lo pedido usando [`.claude/COMO-PEDIR-TAREAS.md`](COMO-PEDIR-TAREAS
    primero que hay que aclarar, y lo que más cambia el tamaño del trabajo.
 3. **Ficheros exactos y frontera de alcance.** Las 4 vistas de estado son casi idénticas línea por
    línea: decide si la tarea afecta a una o a las cuatro.
-4. **¿Es una trampa conocida?** Coteja con `docs/10-invariantes-y-trampas.md` (**37** trampas con su
+4. **¿Es una trampa conocida?** Coteja con `docs/10-invariantes-y-trampas.md` (**38** trampas con su
    síntoma) **antes** de investigar desde cero.
 5. **Nivel de verificación** — ejecutar la GUI · script en el scratchpad · solo lectura. No hay
    tests: si no se ejecuta, se entrega marcado como no verificado.
@@ -304,12 +304,26 @@ catálogo.
 
 | Vista | Disposición | Paginador |
 |---|---|---|
-| Nuevos lanzamientos | banda «Retomar» + rejilla de **6** (176 × 264) | 12 |
+| Nuevos lanzamientos | banda «Retomar» (**se refresca al entrar**) + rejilla de **6** (176 × 264) | 12 |
 | Favoritos | rejilla de **5** (216 × 324) + calificación en estrellas | 10 |
 | Viendo | cascada de `AnimeRow` + panel lateral de 290 px | — |
 | Pendientes | cascada de `AnimeRow`, orden por duración, «Empezar» en hover | — |
 | Finalizados | rejilla de **6** con el sello «vistos / totales» | 12 |
 | Buscar | campo de 620 px + `GenreChips` + rejilla de **6** | del proveedor |
+
+🔴 **«Nuevos lanzamientos» es la única vista que sale a la red por datos que ya tiene guardados.** Al
+entrar, `__refresh_resume_episodes()` (`recentAnimes.py:131-180`) relee los episodios de las **≤3**
+filas de la banda «Retomar» y reescribe la columna `episodes` si el proveedor sirve más que la
+biblioteca. Sin eso, un anime **en emisión** decía «Lo has visto entero» desde que salía el capítulo
+nuevo hasta que abrías su ficha, que era el único sitio que refrescaba la fila
+([trampa 38](docs/10-invariantes-y-trampas.md), [`docs/03 §11`](docs/03-flujos-de-ejecucion.md)).
+
+⚠️ Va con **`strict=True`** —al proveedor de la fila y a ninguno más—, al revés que
+`open_saved_anime()`. Aquí se **escribe en la biblioteca sin que el usuario lo pida**, y con
+*fallback* el mismo slug puede existir en otro sitio con otra cuenta de episodios
+([trampa 27](docs/10-invariantes-y-trampas.md)). Tampoco escribe nunca si la respuesta viene vacía:
+un corte de red no puede vaciar la lista guardada. **Copia esas dos precauciones** si extiendes el
+refresco a otra vista.
 
 ⚠️ **Los contadores de la barra salen de las listas cacheadas del hub, y esas listas solo se llenan al
 arrancar.** Quien cambie un estado tiene que **releerlas** antes de llamar a
@@ -494,6 +508,10 @@ Después, sin orden fijado. **El rediseño se llevó por delante buena parte de 
      desconocido ([`docs/12 §4`](docs/12-deuda-tecnica-y-roadmap.md)). El rediseño **no la hizo
      crecer**: sus diez glifos se dibujan con PIL.
   3. El orden de «Pendientes» **no se persiste**, a diferencia del de «Favoritos».
+  4. **B12**: el refresco de episodios llega **solo a las ≤3 filas de la banda «Retomar»**. El resto
+     de la biblioteca sigue enseñando el recuento del día que abriste su ficha, así que las barras de
+     «Viendo» y «Pendientes» y el sello de «Finalizados» siguen mintiendo con los animes en emisión
+     ([trampa 38](docs/10-invariantes-y-trampas.md), [`docs/12 §4`](docs/12-deuda-tecnica-y-roadmap.md)).
 
 ---
 
@@ -506,21 +524,21 @@ Guía de colaboración (cómo plantear una tarea en este repo, qué asumo por de
 cambian mi comportamiento): [`.claude/COMO-PEDIR-TAREAS.md`](COMO-PEDIR-TAREAS.md).
 
 **Antes de tocar cualquier cosa, lee [`docs/10-invariantes-y-trampas.md`](docs/10-invariantes-y-trampas.md)**
-— **37** trampas con su síntoma observable.
+— **38** trampas con su síntoma observable.
 
 | Documento | Qué responde |
 |---|---|
 | [docs/README.md](docs/README.md) | Índice, mapa de lectura «si tocas X, lee Y», cómo mantenerlo vivo |
 | [docs/01-arquitectura.md](docs/01-arquitectura.md) | Capas, dependencias permitidas/prohibidas, invariantes de diseño |
 | [docs/02-mapa-de-modulos.md](docs/02-mapa-de-modulos.md) | Ficha por módulo: API pública, dependencias, efectos secundarios |
-| [docs/03-flujos-de-ejecucion.md](docs/03-flujos-de-ejecucion.md) | Los **11** flujos en diagramas de secuencia, con el hilo de cada paso |
+| [docs/03-flujos-de-ejecucion.md](docs/03-flujos-de-ejecucion.md) | Los **12** flujos en diagramas de secuencia, con el hilo de cada paso |
 | [docs/04-modelo-de-datos.md](docs/04-modelo-de-datos.md) | `AnimeInfo` vs `AnimeRecord`, esquema real de `ANIMES`, rangos, estados |
 | [docs/05-proveedores-y-scraping.md](docs/05-proveedores-y-scraping.md) | Contrato, payload de AnimeAV1, selectores de AnimeFLV, fallback, diagnóstico |
 | [docs/06-gui-y-vistas.md](docs/06-gui-y-vistas.md) | `MainWindow` como hub, ciclo de vida de una vista, layout, temas |
 | [docs/07-concurrencia-e-hilos.md](docs/07-concurrencia-e-hilos.md) | Qué corre en qué hilo, reglas y carreras conocidas |
 | [docs/08-convenciones-y-estilo.md](docs/08-convenciones-y-estilo.md) | Cabecera obligatoria, singletons, **plantillas copiables** |
 | [docs/09-verificacion-y-pruebas.md](docs/09-verificacion-y-pruebas.md) | Cómo probar cada capa sin GUI; scripts listos; checklist manual |
-| [docs/10-invariantes-y-trampas.md](docs/10-invariantes-y-trampas.md) | **Empieza por aquí.** **37** trampas con síntoma observable |
+| [docs/10-invariantes-y-trampas.md](docs/10-invariantes-y-trampas.md) | **Empieza por aquí.** **38** trampas con síntoma observable |
 | [docs/11-playbooks.md](docs/11-playbooks.md) | Recetas: añadir vista, columna, proveedor, campo; empaquetar |
 | [docs/12-deuda-tecnica-y-roadmap.md](docs/12-deuda-tecnica-y-roadmap.md) | TODOs con `fichero:línea`, discrepancias, riesgos, roadmap técnico **y licencia/cumplimiento de la distribución (§7)** |
 | [docs/13-selector-de-proveedor.md](docs/13-selector-de-proveedor.md) | Selector de proveedor, `DB_user.db` **y la columna `provider_id`** (§14). **Léelo antes de tocar `animeProviderMgr.py`, `main_window.py` o `anime_window.py`** |

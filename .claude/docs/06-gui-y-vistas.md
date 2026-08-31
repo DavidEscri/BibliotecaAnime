@@ -2,8 +2,8 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-09-01 · rama `feature/ui-redisign` · árbol **limpio de código**: el arreglo del fondo de la pantalla de carga va en `e7d8f2f` y el del hover de los episodios en `df47130`; lo único sin commitear es esta tanda de documentación |
-| **Última revisión** | 2026-09-01 (**hover de la lista de episodios**): `EpisodeRow` ata el hover a todos sus hijos y guarda la fila resaltada en un atributo de clase; se explica por qué `AnimeRow` no sufre lo mismo, y la regla de `bind()` gana su consecuencia con el ratón real. Antes, 2026-08-31 (**fondo de la pantalla de carga**): el apartado *Arranque* explica que la pantalla de carga es la ventana entera pintada de `Theme.BG`, y qué se veía antes. Antes, 2026-08-21 (**rediseño de interfaz, fases 1-9**): documento **reescrito entero**. Nacen `gui/theme.py` y los **11** componentes de `gui/components/`; la barra lateral pasa de seis botones sueltos a un `Sidebar` plegable; `SidebarButton` deja de ser un widget; las 6 vistas se rehacen y la ficha crece de 1 156 a 1 734 líneas |
+| **Fecha** | 2026-09-01 · rama `feature/ui-redisign` · árbol **limpio de código**: el refresco de la banda «Retomar» va en `4ffc2ef`, el hover de los episodios en `df47130` y el fondo de la pantalla de carga en `e7d8f2f`; lo único sin commitear es esta tanda de documentación |
+| **Última revisión** | 2026-09-01 (**refresco de la banda «Retomar»**): `ResumeBand` y `ResumeCard` estrenan `update_record()`; la portada pasa a ser la **única vista que sale a la red por datos ya guardados**, y se explica por qué va sin *fallback*. Antes, 2026-09-01 (**hover de la lista de episodios**): `EpisodeRow` ata el hover a todos sus hijos y guarda la fila resaltada en un atributo de clase; se explica por qué `AnimeRow` no sufre lo mismo, y la regla de `bind()` gana su consecuencia con el ratón real. Antes, 2026-08-31 (**fondo de la pantalla de carga**): el apartado *Arranque* explica que la pantalla de carga es la ventana entera pintada de `Theme.BG`, y qué se veía antes. Antes, 2026-08-21 (**rediseño de interfaz, fases 1-9**): documento **reescrito entero**. Nacen `gui/theme.py` y los **11** componentes de `gui/components/`; la barra lateral pasa de seis botones sueltos a un `Sidebar` plegable; `SidebarButton` deja de ser un widget; las 6 vistas se rehacen y la ficha crece de 1 156 a 1 734 líneas |
 | **Cubre** | `src/gui/theme.py`, `src/gui/components/**`, `src/gui/main_window.py`, `src/gui/anime_window.py`, `src/gui/sidebarButtons/**`, `src/utils/buttons/utilsButtons.py` |
 
 Procedencia: ✅ verificado en ejecución (arranque real de la GUI) · 📖 leído en código · ⚠️ sin verificar.
@@ -275,6 +275,18 @@ natural, y **toda línea de la tarjeta se mide contra 248**.
 antes de mirar nada, porque `AnimeRecord.episodes` **viene invertido** de la BD ([trampa 2](10-invariantes-y-trampas.md)).
 La banda **no se pinta si no hay nada que retomar**: ni etiqueta ni hueco.
 
+⚠️ **`resume_card.py` guarda dos cosas de naturaleza distinta**: los widgets de la banda, que usa una
+sola vista, y las dos funciones puras `resume_progress()` / `resume_caption()`, que usan **cinco**
+llamantes —incluidos `anime_row.py` y `side_panel.py`, que no pintan ninguna tarjeta—. `resume` es
+*retomar*, no *resumen*. Inventario de llamantes en [02 §componentes](02-mapa-de-modulos.md).
+
+🆕 **La banda se puede refrescar en caliente** (2026-09-01). `ResumeCard.update_record(record)` vuelca
+una fila recién leída en el pie y en la barra —no recrea la tarjeta, que solo serviría para releer el
+póster del disco y hacer parpadear la banda entera—, y `ResumeBand.update_record(record)` busca a
+quién le toca **por `anime_id`**, no por posición, porque entre que se piden los datos y llegan la
+banda pudo repintarse con otro reparto. Devuelve `False` si ese anime ya no está en la banda.
+Quien lo usa es la portada: [03 §11](03-flujos-de-ejecucion.md).
+
 ### `RatingStars`
 Cinco estrellas con medios puntos, **dibujadas con PIL** en tiempo de ejecución. Escala entera 0-10
 (dos puntos por estrella); `NULL` **no es 0**. Volver a pulsar la misma calificación la quita.
@@ -328,7 +340,7 @@ distingue:
 
 | Vista | Disposición | Paginador | Buscador | Estrena |
 |---|---|---|---|---|
-| **Nuevos lanzamientos** | `ResumeBand` + rejilla de **6** (176 × 264) | sí, **12** | — | la banda «Retomar» |
+| **Nuevos lanzamientos** | `ResumeBand` + rejilla de **6** (176 × 264) | sí, **12** | — | la banda «Retomar», y 🆕 su **refresco** al entrar |
 | **Favoritos** | rejilla de **5** (216 × 324) + estrellas | sí, **10** | local | la calificación y su orden persistido |
 | **Viendo** | cascada de `AnimeRow` (póster 70 × 100) + `SidePanel` | no | local | el panel de retomar |
 | **Pendientes** | cascada de `AnimeRow` (póster 56 × 80) | no | local | orden por duración + «Empezar» |
@@ -337,6 +349,13 @@ distingue:
 
 **Rejilla donde se mira, cascada donde se decide** (`DISENO.md` §6). El tamaño de página es 10, salvo
 en las rejillas de 6 columnas, que usan 12 para no dejar filas cojas.
+
+🆕 **«Nuevos lanzamientos» es la única vista que sale a la red por datos que ya tiene guardados.**
+Al entrar, `__refresh_resume_episodes()` (`recentAnimes.py:131-180`) relee los episodios de las ≤3
+filas de la banda y reescribe la columna `episodes` si el proveedor sirve más que la biblioteca; sin
+eso, un anime en emisión decía «Lo has visto entero» hasta que abrías su ficha. Va con `strict=True`
+—**sin fallback**— precisamente porque escribe sin que el usuario lo haya pedido
+([03 §11](03-flujos-de-ejecucion.md), [trampa 38](10-invariantes-y-trampas.md)).
 
 Tres cosas comunes a las **cuatro vistas de biblioteca**:
 

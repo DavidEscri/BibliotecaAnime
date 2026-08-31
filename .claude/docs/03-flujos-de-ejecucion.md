@@ -2,9 +2,9 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-08-31 · rama `feature/ui-redisign` · árbol con el arreglo del fondo de la pantalla de carga, hoy commiteado en `e7d8f2f` |
-| **Última revisión** | 2026-08-31 (**fondo de la pantalla de carga**): §1 reanclado entero contra el código real y corregido —seguía diciendo `place_forget()`, que la fase 9 cambió a `destroy()`— y con la nota del fondo `Theme.BG`. Antes, 2026-08-16 (**columna `provider_id`**): §3 pasa de 2 caminos a **3, todos asíncronos**; **flujo 10 nuevo** (migrar una fila a otro proveedor); anclas de `anime_window.py` reubicadas tras crecer a 1 155 líneas |
-| **Cubre** | `main_window.py`, `anime_window.py`, `recentAnimes.py`, `searchAnimes.py`, las 4 vistas de estado, `animeProviderMgr.py`, `animesPersistence.py`, `utils.py` |
+| **Fecha** | 2026-09-01 · rama `feature/ui-redisign` · árbol **limpio de código**: el refresco de la banda «Retomar» va en `4ffc2ef`, el hover de los episodios en `df47130` y el fondo de la pantalla de carga en `e7d8f2f`; lo único sin commitear es esta tanda de documentación |
+| **Última revisión** | 2026-09-01 (**refresco de la banda «Retomar»**): **flujo 11 nuevo** —la portada relee los episodios de lo que estás viendo al entrar—, y el antiguo §11 pasa a **§12**. Antes, 2026-08-31 (**fondo de la pantalla de carga**): §1 reanclado entero contra el código real y corregido —seguía diciendo `place_forget()`, que la fase 9 cambió a `destroy()`— y con la nota del fondo `Theme.BG`. Antes, 2026-08-16 (**columna `provider_id`**): §3 pasa de 2 caminos a **3, todos asíncronos**; **flujo 10 nuevo** (migrar una fila a otro proveedor); anclas de `anime_window.py` reubicadas tras crecer a 1 155 líneas |
+| **Cubre** | `main_window.py`, `anime_window.py`, `recentAnimes.py`, `resume_card.py`, `searchAnimes.py`, las 4 vistas de estado, `animeProviderMgr.py`, `animesPersistence.py`, `utils.py` |
 
 Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ sin verificar.
 **Convención de hilos**: 🖥️ = hilo de Tkinter (UI) · 🧵 = hilo daemon · ⚙️ = worker del `ThreadPoolExecutor`.
@@ -592,7 +592,99 @@ sequenceDiagram
 
 ---
 
-## 11. Flujos documentados en otro sitio
+## 11. Refrescar la banda «Retomar» al entrar en la portada 🆕 *(2026-09-01)*
+
+📖 `recentAnimes.py:88-92` y `:131-180`. Es el **único flujo que escribe en la biblioteca sin que el
+usuario haya pedido nada**, y por eso es el más conservador de todos: solo toca una columna, solo si
+el recuento cambia, y sin *fallback*.
+
+**El problema que resuelve**: la columna `episodes` de una fila solo se reescribía al abrir su ficha
+(`anime_window.py:603`). Un anime **en emisión** mentía en la portada hasta que entrabas en él: el
+capítulo que salió el domingo no existía todavía para la biblioteca, así que la tarjeta decía «Lo has
+visto entero» estando a uno de distancia. ✅ Reproducido sobre copia con Mushoku Tensei III: fila con
+9 episodios y 9 vistos, proveedor sirviendo 10.
+
+```mermaid
+sequenceDiagram
+    participant U as Usuario
+    participant RA as 🖥️ RecentAnimeButton
+    participant B as 🖥️ ResumeBand
+    participant T as 🧵 daemon
+    participant MGR as AnimeProviderManager
+    participant P as AnimesPersistence
+
+    U->>RA: entra en «Nuevos lanzamientos»
+    RA->>RA: __resume_records() :114-126
+    Note over RA,P: los ≤3 ids de last_watched_anime_ids → get_anime_by_anime_id()<br/>lo que ya no esté en la biblioteca se descarta en silencio
+    RA->>B: ResumeBand(records) :88
+    B->>U: tarjetas pintadas YA, con el dato guardado
+    opt has_content()
+        RA->>T: Thread(_fetch).start() :180
+    end
+
+    loop por cada fila de la banda (≤3)
+        T->>MGR: get_anime_info_with_provider(anime_id,<br/>provider_id=«el de la fila», strict=True) :171-172
+        MGR-->>T: (AnimeInfo | None, provider_id)
+        alt sin respuesta, o episodes vacío
+            Note over T: se descarta :173-176<br/>un corte de red NO puede vaciar la fila
+        else con episodios
+            T->>T: fresh_episodes.append((anime_id, episodes))
+        end
+    end
+    opt hay algo que aplicar
+        T->>RA: after(0, _apply, fresh_episodes) :178
+    end
+
+    RA->>RA: _apply() :147 — ya en 🖥️
+    alt la ventana se cerró
+        Note over RA: winfo_exists() → return :149-150
+    end
+    loop por cada (anime_id, episodes)
+        RA->>P: get_anime_by_anime_id(anime_id) :152
+        alt la fila ya no está, o mismo recuento
+            Note over RA: continue :153-154 — no se escribe nada
+        else difiere
+            RA->>P: update_anime_episodes(anime_id, episodes) :155
+            Note over P: SOLO la columna episodes.<br/>watched_episodes, estados y rating intactos
+            RA->>RA: print «X pasa de N a M episodios» :157-158
+            opt la banda sigue en pantalla
+                RA->>P: get_anime_by_anime_id(anime_id) :164
+                RA->>B: update_record(fila releída) :166
+                B->>B: busca la tarjeta por anime_id — resume_card.py:224-227
+                B->>U: pie y barra repintados — resume_card.py:143-157
+            end
+        end
+    end
+```
+
+**Cinco decisiones que se ven en el diagrama y conviene no revertir**:
+
+1. **Al entrar en la vista, no al arrancar.** Es donde se ve el dato; cuesta como mucho tres
+   peticiones y no retrasa el arranque. Cambiarlo a `MainWindow.__init__` volvería a pagar la espera
+   quien ni siquiera va a mirar la banda.
+2. **Las tarjetas se pintan antes de preguntar.** Se ven al instante con el dato guardado y se
+   corrigen solas un segundo después; esperar a la red dejaría la portada a medias.
+3. 🔴 **`strict=True`, al revés que `open_saved_anime()`** (§3b).
+   Aquí se escribe en la biblioteca sin que el usuario lo pida, y con *fallback* el mismo *slug*
+   puede existir en otro sitio con otra cuenta de episodios ([trampa 27](10-invariantes-y-trampas.md)):
+   quedarse con el dato viejo es recuperable, guardar el de otro anime no.
+4. **Se compara el recuento, no las listas.** Basta para «ha salido un capítulo», que es lo único que
+   se quiere detectar, y evita reescribir la fila en cada visita a la portada.
+5. **La tarjeta se repinta, no se recrea.** `ResumeCard.update_record()` toca el pie y la barra;
+   recrearla solo serviría para releer el póster del disco y hacer parpadear la banda entera. Y se
+   busca por `anime_id`, no por posición: entre que se piden los datos y llegan, la banda pudo
+   repintarse con otro reparto.
+
+⚠️ **La escritura sobrevive a que la banda se vaya.** Si el usuario cambia de vista mientras se piden
+los datos, `_apply()` **igualmente persiste** y solo se salta el repintado (`:162-163`): la próxima
+visita leerá el dato bueno.
+
+⚠️ **Solo se refrescan las ≤3 filas de la banda.** El resto de la biblioteca sigue con el dato del día
+que abriste su ficha ([trampa 38](10-invariantes-y-trampas.md)).
+
+---
+
+## 12. Flujos documentados en otro sitio
 
 - **Cambio de tema claro/oscuro** (`main_window.py:428-438`) → [06 §5](06-gui-y-vistas.md).
 - **Semántica interna del fallback entre proveedores** → [05 §5](05-proveedores-y-scraping.md).
