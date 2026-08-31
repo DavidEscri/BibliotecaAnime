@@ -2,8 +2,8 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-08-21 · rama `feature/ui-redisign` · árbol **con la fase 9 del rediseño sin commitear** |
-| **Última revisión** | 2026-08-16 (**columna `provider_id`**): hilos a **13** (eran 8) y `after()` a **10** (eran 4); **C2 resuelta** — los 4 puntos que abren una ficha pintan ya en el hilo de Tk. C5 sigue viva |
+| **Fecha** | 2026-08-31 · rama `feature/ui-redisign` · árbol **con el arreglo del fondo de la pantalla de carga sin commitear** |
+| **Última revisión** | 2026-08-31 (**fondo de la pantalla de carga**): anclas de `main_window.py` reverificadas en §1, §2 y §4 (iban ~29 líneas desplazadas) y `place_forget()` corregido a `destroy()` en C1; las de #5 a #13 **siguen sin verificar**. Antes, 2026-08-16 (**columna `provider_id`**): hilos a **13** (eran 8) y `after()` a **10** (eran 4); **C2 resuelta** — los 4 puntos que abren una ficha pintan ya en el hilo de Tk. C5 sigue viva |
 | **Cubre** | `src/gui/main_window.py`, `src/gui/anime_window.py`, `src/gui/sidebarButtons/**`, `src/utils/utils.py` |
 
 Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ sin verificar.
@@ -22,12 +22,17 @@ Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ si
 ✅ Recontados el 2026-08-16: son **13**, no 8. Los **cinco nuevos** (#9 a #13) llegaron con la columna
 `provider_id`, y todos siguen la regla buena: petición en el hilo, repintado con `after(0, …)`.
 
+⚠️ **Las anclas de línea de las filas #1 a #4 se reverificaron el 2026-08-31; las de #5 a #13, no.**
+Las cuatro primeras estaban desplazadas ~29 líneas respecto al código real, así que **no te fíes de
+los números de este documento sin comprobarlos**: busca por nombre de método
+(`git grep -n "target=self\.__preload"`) antes de abrir un fichero por su línea.
+
 | # | Dónde | Línea | Objetivo | Vuelve con `after`? |
 |---|---|---|---|---|
-| 1 | `main_window.__reload_recent_animes` | `:386-390` | `__reload_recent_animes_worker` — recarga al cambiar de proveedor | ✅ |
-| 2 | `main_window.__on_recent_animes_reloaded` | `:425-426` | `__preload_recent_animes_info` tras la recarga | — |
-| 3 | `main_window.show_loading_screen` | `:479` | `download_images_and_show_animes` | ❌ (C1) |
-| 4 | `main_window.download_images_and_show_animes` | `:499-500` | `__preload_recent_animes_info` | — |
+| 1 | `main_window.__reload_recent_animes` | `:355-359` | `__reload_recent_animes_worker` — recarga al cambiar de proveedor | ✅ |
+| 2 | `main_window.__on_recent_animes_reloaded` | `:396-400` | `__preload_recent_animes_info` tras la recarga | — |
+| 3 | `main_window.show_loading_screen` | `:463` | `download_images_and_show_animes` | ❌ (C1) |
+| 4 | `main_window.download_images_and_show_animes` | `:494-498` | `__preload_recent_animes_info` | — |
 | 5 | `recentAnimes.__on_anime_click` | `:114` | `_load_and_show` (ficha) | ✅ 🆕 |
 | 6 | `searchAnimes.__show_loading_frame` | `:206-210` | `__search_anime_by_query` | ❌ (C1) |
 | 7 | `searchAnimes.__show_loading_frame` | `:212-216` | `__search_anime_by_filter` | ❌ (C1) |
@@ -59,18 +64,18 @@ cierra sin colgarse.
 | Operación | Hilo | Anclaje |
 |---|---|---|
 | `mainloop()` y todos los callbacks de widget | 🖥️ UI | `app.py:14` |
-| Animación del GIF (`after(100, …)`) | 🖥️ UI | `main_window.py:471-474`, `searchAnimes.py:198-202` |
-| Carga inicial de la BD (`load_animes`) | 🧵 daemon | `main_window.py:483` → `530-543` |
-| `get_recent_animes()` | 🧵 daemon | `main_window.py:484` |
+| Animación del GIF (`after(100, …)`) | 🖥️ UI | `main_window.py:453-458`, `searchAnimes.py:198-202` |
+| Carga inicial de la BD (`load_animes`) | 🧵 daemon | `main_window.py:467` → `531-541` |
+| `get_recent_animes()` | 🧵 daemon | `main_window.py:468` |
 | Descarga de pósters de recientes | ⚙️ pool (8) | `utils.py:168` |
-| Precarga de fichas de recientes | 🧵 daemon | `main_window.py:502-528` |
+| Precarga de fichas de recientes | 🧵 daemon | `main_window.py:500-526` |
 | Clic en anime **desde recientes** | 🧵 daemon → `after(0,…)` ✅ | `recentAnimes.py:105-114` |
 | Clic en anime **desde las 4 vistas de estado** | 🧵 daemon → `after(0,…)` ✅ 🆕 | `open_saved_anime` (`anime_window.py:145-193`) |
 | Clic en anime **desde el buscador** | 🧵 daemon → `after(0,…)` ✅ 🆕 | `searchAnimes.py:363-382` |
 | Búsquedas del buscador | 🧵 daemon | `searchAnimes.py:206-216` |
 | Búsqueda dentro de las vistas de estado | 🖥️ UI (local) + 🧵 daemon (web) → `after(0,…)` ✅ 🆕 | `utilsButtons.py:137-165` |
 | **Servidores de un episodio** | 🖥️ **UI** ⚠️ | `anime_window.py:1116-1121` |
-| Recarga de recientes al cambiar de proveedor | 🧵 daemon → `after(0,…)` | `main_window.py:392-426` ✅ |
+| Recarga de recientes al cambiar de proveedor | 🧵 daemon → `after(0,…)` | `main_window.py:343-400` ✅ |
 | **Migrar una fila a otro proveedor** | 🧵 daemon → `after(0,…)` ✅ 🆕 | `anime_window.py:675-683` |
 | Todas las escrituras de estado en BD | 🖥️ UI (desde callbacks) | `anime_window.py:830-903` |
 | Descarga/borrado de pósters por estado | 🖥️ UI ⚠️ | `anime_window.py:835, 852, 872…` |
@@ -88,7 +93,7 @@ cierra sin colgarse.
 
 1. **Toda petición HTTP va en un hilo daemon.** Patrón de referencia: `recentAnimes.py:105-114`.
 2. **Para volver al hilo de UI, usa `self.after(delay, callback)`.** Es lo que hacen las animaciones
-   de GIF (`main_window.py:471-474`).
+   de GIF (`main_window.py:453-458`).
 3. **Comprueba `widget.winfo_exists()` antes de tocar un widget desde un callback diferido.**
    El frame puede haberse destruido. Ejemplo bueno: `searchAnimes.py:198-202`.
 
@@ -121,10 +126,10 @@ El caso más extendido. Ejemplos reales:
 
 | Dónde | Qué hace desde un hilo daemon |
 |---|---|
-| `main_window.py:530-543` | `progress_bar.set()` y `progress_label.configure()` |
-| `main_window.py:486-488` | **`messagebox.showwarning`** |
-| `main_window.py:491-494` | `progress_bar.set(0.9)`, `loading_frame.place_forget()` |
-| `main_window.py:495` | `show_frame()` → construye **toda** la vista de recientes |
+| `main_window.py:531-541` | `progress_bar.set()` y `progress_label.configure()` |
+| `main_window.py:475-478` | **`messagebox.showwarning`** |
+| `main_window.py:482-487` | `progress_bar.set(0.9)`, `loading_frame.destroy()` |
+| `main_window.py:490` | `show_frame()` → construye **toda** la vista de recientes |
 | `utils.py:146-147` | `progress_bar.set()` desde **8 workers** del pool |
 | ~~`recentAnimes.py:97-99`~~ | ✅ **resuelto**: ahora vuelve con `after(0,…)` (C2) |
 | `searchAnimes.py:220-225` | `__display_animes` → crea decenas de widgets |

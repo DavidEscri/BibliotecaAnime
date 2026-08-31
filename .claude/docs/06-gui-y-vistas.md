@@ -2,8 +2,8 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-08-21 · rama `feature/ui-redisign` · árbol **con la fase 9 del rediseño sin commitear** |
-| **Última revisión** | 2026-08-21 (**rediseño de interfaz, fases 1-9**): documento **reescrito entero**. Nacen `gui/theme.py` y los **11** componentes de `gui/components/`; la barra lateral pasa de seis botones sueltos a un `Sidebar` plegable; `SidebarButton` deja de ser un widget; las 6 vistas se rehacen y la ficha crece de 1 156 a 1 734 líneas |
+| **Fecha** | 2026-08-31 · rama `feature/ui-redisign` · árbol **con el arreglo del fondo de la pantalla de carga sin commitear** |
+| **Última revisión** | 2026-08-31 (**fondo de la pantalla de carga**): el apartado *Arranque* explica que la pantalla de carga es la ventana entera pintada de `Theme.BG`, y qué se veía antes. Antes, 2026-08-21 (**rediseño de interfaz, fases 1-9**): documento **reescrito entero**. Nacen `gui/theme.py` y los **11** componentes de `gui/components/`; la barra lateral pasa de seis botones sueltos a un `Sidebar` plegable; `SidebarButton` deja de ser un widget; las 6 vistas se rehacen y la ficha crece de 1 156 a 1 734 líneas |
 | **Cubre** | `src/gui/theme.py`, `src/gui/components/**`, `src/gui/main_window.py`, `src/gui/anime_window.py`, `src/gui/sidebarButtons/**`, `src/utils/buttons/utilsButtons.py` |
 
 Procedencia: ✅ verificado en ejecución (arranque real de la GUI) · 📖 leído en código · ⚠️ sin verificar.
@@ -96,7 +96,7 @@ vista muta directamente.
 
 0. `__init__` registra los tres proveedores y arranca `UserPersistence` **de forma síncrona** — el
    desplegable tiene que nacer con el valor guardado y el pin aplicado antes de la primera petición.
-1. `show_loading_screen()` pinta el GIF y lanza un hilo daemon.
+1. `show_loading_screen()` (`:412`) pinta el GIF y lanza un hilo daemon.
 2. Ese hilo: `load_animes()` (BD, 0→40 %) → `get_recent_animes()` → `download_images_progress()`
    (90→100 %) → **destruye la pantalla de carga** → `RecentAnimeButton.show_frame()`.
 3. Un segundo hilo (`__preload_recent_animes_info`) rellena sinopsis/géneros/episodios de cada
@@ -107,6 +107,26 @@ estrenos.** Hasta la fase 9 solo se retiraba en la rama de éxito, así que **un
 dejaba el GIF tapando la portada para siempre**; y como el widget seguía vivo, su animación se
 reprogramaba cada 100 ms durante toda la sesión repintando un GIF de 400 × 400. Es la
 [trampa 33](10-invariantes-y-trampas.md). ✅ Visto y arreglado el 2026-08-21.
+
+🆕 **Y es la ventana entera, no una tarjeta.** El `loading_frame` va con `fg_color=Theme.BG` y
+`place(relx=0, rely=0, relwidth=1, relheight=1)` (`:414-415`); dentro, un marco **transparente**
+centrado con `place(relx=0.5, rely=0.5, anchor=CENTER)` (`:417-418`) sostiene el título, el GIF y la
+barra. Título, porcentaje y barra salen de `Theme` (`TXT`, `TXT_2`, `LINE`, `ACCENT`, `T_VIEW`,
+`T_UI`).
+
+Hasta el 2026-08-31 ese marco **no llevaba `fg_color`** y se dibujaba del tamaño justo de su
+contenido, de modo que el arranque enseñaba **tres fondos a la vez**: el gris por defecto de
+CustomTkinter en el bloque (`#2B2B2B`), el de la raíz de Tk en la franja que reserva el `minsize` de
+la columna de la barra lateral (`#242424`) y `Theme.BG` en el resto (`#14161A`). El GIF tiene el
+fondo **transparente**, así que no tenía color propio: heredaba el del marco. Es la
+[trampa 36](10-invariantes-y-trampas.md).
+
+Dos cosas más de ese arreglo, por si se tocan:
+
+- La raíz de Tk se pinta con `self.configure(fg_color=Theme.BG)` en `__config_main_window()`
+  (`:104`). Solo asoma donde no llega ningún hijo, pero ahí se veía como una banda de otro color.
+- El centrado ya **no** se calcula con `winfo_width() * 2.5`. Antes de que la ventana esté dibujada
+  `winfo_width()` vale 1, así que aquel centrado acertaba por casualidad.
 
 ---
 

@@ -18,7 +18,7 @@ internamente lo pedido usando [`.claude/COMO-PEDIR-TAREAS.md`](COMO-PEDIR-TAREAS
    primero que hay que aclarar, y lo que más cambia el tamaño del trabajo.
 3. **Ficheros exactos y frontera de alcance.** Las 4 vistas de estado son casi idénticas línea por
    línea: decide si la tarea afecta a una o a las cuatro.
-4. **¿Es una trampa conocida?** Coteja con `docs/10-invariantes-y-trampas.md` (**35** trampas con su
+4. **¿Es una trampa conocida?** Coteja con `docs/10-invariantes-y-trampas.md` (**36** trampas con su
    síntoma) **antes** de investigar desde cero.
 5. **Nivel de verificación** — ejecutar la GUI · script en el scratchpad · solo lectura. No hay
    tests: si no se ejecuta, se entrega marcado como no verificado.
@@ -226,6 +226,10 @@ dos piezas que antes no existían:
   `Metrics` (medidas). 🔴 **Ningún color literal fuera de este módulo**; si hace falta uno que no
   está, se añade el token primero. Comprobable: `git grep -nE "#[0-9A-Fa-f]{6}" -- src/` solo debe
   devolver `theme.py`.
+  ⚠️ **Ese grep no detecta el defecto contrario**: un marco **sin `fg_color`** no sale transparente
+  ni hereda del padre — sale del gris por defecto de CustomTkinter, que no es de `Theme`. No hay
+  literal que buscar, porque el problema es la **ausencia** de uno. Le pasaba a la pantalla de carga
+  hasta el 2026-08-31 ([trampa 36](docs/10-invariantes-y-trampas.md)).
 - **`gui/components/`** — **11** piezas compartidas: `Sidebar`, `ViewHeader`, `PosterGrid`, `Pager`,
   `AnimeRow`, `SidePanel`, `ResumeBand`, `RatingStars`, `StatusPill`, `GenreChips` y `EmptyState`.
 
@@ -245,7 +249,9 @@ los botones de los estados vacíos— y `retry_recent_animes()`.
 Arranque:
 0. `__init__` registra los proveedores y arranca `UserPersistence` **de forma síncrona** para aplicar el proveedor
    predeterminado del usuario antes de la primera petición y de construir el desplegable (es SQLite local, no red).
-1. `show_loading_screen()` pinta el GIF + barra de progreso y lanza un hilo daemon.
+1. `show_loading_screen()` pinta el GIF + barra de progreso y lanza un hilo daemon. **Cubre la
+   ventana entera con `Theme.BG`** y centra el bloque con `place(relx=0.5, rely=0.5)`; la raíz de Tk
+   lleva ese mismo fondo desde `__config_main_window()`.
 2. Ese hilo: `load_animes()` (BD, 0→40 %) → `get_recent_animes()` del manager → `download_images_progress()`
    (90→100 %) → `RecentAnimeButton.show_frame()`, que además revela la sidebar.
 3. Tras mostrar la portada, un segundo hilo (`__preload_recent_animes_info`) rellena sinopsis/géneros/episodios de cada
@@ -255,6 +261,11 @@ Arranque:
 Hasta el 2026-08-21 solo se retiraba en la rama de éxito, así que **un arranque sin red dejaba el GIF
 tapando la portada para siempre**; y como el widget seguía vivo, su animación se reprogramaba cada
 100 ms toda la sesión ([trampa 33](docs/10-invariantes-y-trampas.md)).
+
+⚠️ Y hasta el **2026-08-31** el arranque enseñaba **tres fondos a la vez**: el gris por defecto del
+`CTkFrame` de carga, el de la raíz de Tk en la franja que reserva el `minsize` de la columna de la
+barra lateral —que **sobrevive al `grid_forget()`**— y `Theme.BG` en el resto. El GIF tiene el fondo
+**transparente**, así que heredaba el del marco ([trampa 36](docs/10-invariantes-y-trampas.md)).
 
 **La barra lateral** la construye y la mantiene `gui/components/sidebar.py`. Se **pliega** (224 → 84 px)
 y recuerda su estado en `DB_user.db`. Los seis destinos van en este orden: Nuevos lanzamientos ·
@@ -486,7 +497,7 @@ Guía de colaboración (cómo plantear una tarea en este repo, qué asumo por de
 cambian mi comportamiento): [`.claude/COMO-PEDIR-TAREAS.md`](COMO-PEDIR-TAREAS.md).
 
 **Antes de tocar cualquier cosa, lee [`docs/10-invariantes-y-trampas.md`](docs/10-invariantes-y-trampas.md)**
-— **35** trampas con su síntoma observable.
+— **36** trampas con su síntoma observable.
 
 | Documento | Qué responde |
 |---|---|
@@ -500,7 +511,7 @@ cambian mi comportamiento): [`.claude/COMO-PEDIR-TAREAS.md`](COMO-PEDIR-TAREAS.m
 | [docs/07-concurrencia-e-hilos.md](docs/07-concurrencia-e-hilos.md) | Qué corre en qué hilo, reglas y carreras conocidas |
 | [docs/08-convenciones-y-estilo.md](docs/08-convenciones-y-estilo.md) | Cabecera obligatoria, singletons, **plantillas copiables** |
 | [docs/09-verificacion-y-pruebas.md](docs/09-verificacion-y-pruebas.md) | Cómo probar cada capa sin GUI; scripts listos; checklist manual |
-| [docs/10-invariantes-y-trampas.md](docs/10-invariantes-y-trampas.md) | **Empieza por aquí.** **35** trampas con síntoma observable |
+| [docs/10-invariantes-y-trampas.md](docs/10-invariantes-y-trampas.md) | **Empieza por aquí.** **36** trampas con síntoma observable |
 | [docs/11-playbooks.md](docs/11-playbooks.md) | Recetas: añadir vista, columna, proveedor, campo; empaquetar |
 | [docs/12-deuda-tecnica-y-roadmap.md](docs/12-deuda-tecnica-y-roadmap.md) | TODOs con `fichero:línea`, discrepancias, riesgos, roadmap técnico **y licencia/cumplimiento de la distribución (§7)** |
 | [docs/13-selector-de-proveedor.md](docs/13-selector-de-proveedor.md) | Selector de proveedor, `DB_user.db` **y la columna `provider_id`** (§14). **Léelo antes de tocar `animeProviderMgr.py`, `main_window.py` o `anime_window.py`** |

@@ -2,8 +2,8 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-08-21 · rama `feature/ui-redisign` · árbol **con la fase 9 del rediseño sin commitear** |
-| **Última revisión** | 2026-08-16 (**columna `provider_id`**): **§3c nuevo** — las 8 tandas de comprobaciones de la fase 8, **351 sin fallos**; checklist de §7 puesto al día con lo que ha cambiado de comportamiento |
+| **Fecha** | 2026-08-31 · rama `feature/ui-redisign` · árbol **con el arreglo del fondo de la pantalla de carga sin commitear** |
+| **Última revisión** | 2026-08-31 (**fondo de la pantalla de carga**): §7.1 gana la comprobación del fondo del arranque —que a ojo se falla— y la receta de captura de §8 usa el título real de la ventana. Antes, 2026-08-16 (**columna `provider_id`**): **§3c nuevo** — las 8 tandas de comprobaciones de la fase 8, **351 sin fallos**; checklist de §7 puesto al día con lo que ha cambiado de comportamiento |
 | **Cubre** | procedimiento; scripts ejecutados el 2026-07-28 contra el código de `src/` |
 
 Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ sin verificar.
@@ -39,7 +39,7 @@ este documento asumen la raíz del repo.
 
 ✅ **Resultado esperado** (verificado el 2026-07-28): GIF de carga con barra de progreso →
 0 %→40 % (BD) → 90 % → 100 % (pósters) → rejilla de recientes y sidebar visible. Título de ventana
-«Mi Biblioteca de Anime». Único mensaje en consola:
+«**Mi Biblioteca**» — perdió el «de Anime» en la fase 1 del rediseño. Único mensaje en consola:
 
 ```
 No se pudo borrar la imagen Chi.: [WinError 2] El sistema no puede encontrar el archivo
@@ -438,7 +438,8 @@ Get-Process python | Select-Object Id, MainWindowTitle
 Stop-Process -Id <id>
 ```
 
-✅ **Verificado el 2026-07-28**: la ventana abre con título «Mi Biblioteca de Anime», el arranque
+✅ **Verificado el 2026-07-28**: la ventana abre con título «Mi Biblioteca de Anime» —hoy «Mi
+Biblioteca»—, el arranque
 completa, no hay traceback, y **`DB_Animes.db` no cambia de `LastWriteTime`** (el arranque solo lee).
 
 ⚠️ **Lo que NO se verificó con GUI** — requiere interacción manual y no se hizo:
@@ -475,6 +476,10 @@ tema y el plegado no cambian de vista, así que se hacen dos pasadas de siete.
 ### 7.1 Arranque
 - [ ] GIF + barra avanzan 0→40→90→100 %.
 - [ ] La barra lateral aparece **solo** al terminar la carga.
+- [ ] 🆕 **El fondo del arranque es uno solo, y el mismo que el de la portada.** Ni recuadro gris
+      alrededor del GIF, ni banda vertical a la izquierda. Es la
+      [trampa 36](10-invariantes-y-trampas.md), y **a ojo se falla**: capturar la ventana y muestrear
+      píxeles. Todo punto de fondo debe dar `#14161A` en oscuro y `#F4F5F7` en claro.
 - [ ] 🆕 **La pantalla de carga desaparece**. Si se queda, es la [trampa 33](10-invariantes-y-trampas.md).
 - [ ] 🔴 **Sin conexión**: sale el aviso, **la pantalla de carga se retira igual** y la portada
       muestra su estado vacío con «Reintentar». Es el caso que nadie prueba y el que estuvo roto.
@@ -642,7 +647,7 @@ git status    # debe mostrar SOLO lo que tenías antes de empezar
 
 ```powershell
 # El objeto de Start-Process no publica MainWindowHandle con Tk: buscar por titulo.
-$win = Get-Process | Where-Object { $_.MainWindowTitle -eq "Mi Biblioteca de Anime" }
+$win = Get-Process | Where-Object { $_.MainWindowTitle -eq "Mi Biblioteca" }
 # Capturar con PrintWindow(h, hdc, 2) -> PW_RENDERFULLCONTENT: funciona aunque
 # la ventana este tapada y NO la trae al frente.
 ```
