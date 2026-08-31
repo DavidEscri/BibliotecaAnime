@@ -277,6 +277,8 @@ class EpisodeRow(ctk.CTkFrame):
     episodio no abre sus servidores sin querer.
     """
 
+    __hovered: Optional["EpisodeRow"] = None
+
     def __init__(self, parent, episode_info: EpisodeInfo, watched: bool, state_text: str,
                  on_click: Callable[[EpisodeInfo], None],
                  on_toggle: Callable[[int], None], **kwargs):
@@ -294,10 +296,6 @@ class EpisodeRow(ctk.CTkFrame):
         self.__on_click = on_click
         self.__expanded = False
 
-        # minsize y no `height=` + grid_propagate(False): esa combinación deja el
-        # marco al alto pedido pero su rejilla interna sigue centrando los hijos
-        # como si midiera los 200 por defecto de CTkFrame, y el contenido acaba
-        # fuera de la parte visible (misma lección que en ViewHeader).
         self.grid_rowconfigure(0, minsize=Metrics.EPISODE_ROW_H)
         self.grid_columnconfigure(1, weight=1)
 
@@ -334,11 +332,6 @@ class EpisodeRow(ctk.CTkFrame):
         )
         self.switch.grid(row=0, column=2, sticky="e", padx=(EPISODE_GAP, EPISODE_PAD_X))
 
-        # El separador va con place() y no en una fila propia: la fila mide 52 px
-        # justos y una segunda fila de rejilla la haría crecer.
-        #
-        # ⚠️ El alto se le da al CONSTRUIRLO: CustomTkinter rechaza `width=` y
-        # `height=` dentro de place() con un ValueError, al revés que Tk pelado.
         self.__separator = ctk.CTkFrame(self, height=1, corner_radius=0, fg_color=Theme.LINE_SOFT)
         self.__separator.place(relx=0, rely=1.0, anchor="sw", relwidth=1.0)
 
@@ -370,22 +363,29 @@ class EpisodeRow(ctk.CTkFrame):
     def set_expanded(self, expanded: bool) -> None:
         """Resalta la fila mientras sus servidores están desplegados."""
         self.__expanded = expanded
-        self.configure(fg_color=Theme.CARD if expanded else Theme.TRANSPARENT)
+        if expanded:
+            self.configure(fg_color=Theme.CARD)
+        else:
+            self.configure(fg_color=Theme.CARD_HOVER if self.__pointer_inside() else Theme.TRANSPARENT)
         self.number_label.configure(text_color=Theme.ACCENT if expanded else Theme.TXT)
 
     # ------------------------------------------------------------------
     # Interacción
     # ------------------------------------------------------------------
     def __bind_interactions(self) -> None:
-        """Ata hover y clic a la fila y a sus etiquetas.
+        """
+        Ata hover y clic a la fila y a sus hijos.
 
         Los eventos de Tk no burbujean: sin recorrer los hijos, pulsar justo
-        encima del número no haría nada. El interruptor se queda fuera a
-        propósito — tiene su propio comando.
+        encima del número no haría nada. El **clic** se queda en la fila y sus dos
+        etiquetas —el interruptor tiene su propio comando y no debe abrir los
+        servidores—, pero el **hover se ata a todos los hijos**, incluidos el
+        interruptor y el separador de 1 px.
         """
-        for widget in (self, self.number_label, self.state_label):
+        for widget in (self, self.number_label, self.state_label, self.switch, self.__separator):
             widget.bind("<Enter>", self.__handle_enter)
             widget.bind("<Leave>", self.__handle_leave)
+        for widget in (self, self.number_label, self.state_label):
             widget.bind("<Button-1>", self.__handle_click)
             widget.configure(cursor="hand2")
 
@@ -393,6 +393,10 @@ class EpisodeRow(ctk.CTkFrame):
         self.__on_click(self.episode_info)
 
     def __handle_enter(self, _event=None) -> None:
+        previous = EpisodeRow.__hovered
+        if previous is not None and previous is not self:
+            previous.__release_hover()
+        EpisodeRow.__hovered = self
         if not self.__expanded:
             self.configure(fg_color=Theme.CARD_HOVER)
 
@@ -400,9 +404,16 @@ class EpisodeRow(ctk.CTkFrame):
         # Tk manda Leave también al pasar del marco a uno de sus hijos, así que
         # apagar el resaltado sin mirar dónde está el puntero hace parpadear la
         # fila (misma trampa que en AnimeRow).
-        if self.__expanded or self.__pointer_inside():
+        if self.__pointer_inside():
             return
-        self.configure(fg_color=Theme.TRANSPARENT)
+        self.__release_hover()
+
+    def __release_hover(self) -> None:
+        """Apaga el resaltado, lo pida esta fila o la que se enciende después."""
+        if EpisodeRow.__hovered is self:
+            EpisodeRow.__hovered = None
+        if not self.__expanded and self.winfo_exists():
+            self.configure(fg_color=Theme.TRANSPARENT)
 
     def __pointer_inside(self) -> bool:
         """``True`` si el puntero sigue dentro de la fila."""
