@@ -1,7 +1,7 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "gui.components"
 __module__ = "resume_card.py"
-__version__ = "0.1"
+__version__ = "0.2"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 """Banda «Retomar donde lo dejaste» de la portada: hasta tres tarjetas en fila.
@@ -15,6 +15,10 @@ que lo que sale de la BD está en orden descendente y el «siguiente» no es
 ``episodes[0]`` ([trampa 2](../../../.claude/docs/10-invariantes-y-trampas.md)).
 ``resume_progress()`` los ordena antes de mirar nada, y es el único sitio donde se
 calcula: si una fase futura necesita el mismo dato, que llame aquí.
+
+Las tarjetas se pueden **refrescar en caliente** con ``update_record()``: la
+portada vuelve a preguntar por los episodios al entrar, y el dato que cambia es
+justo el que calcula ``resume_progress()``.
 
 La banda **no se pinta si no hay nada que retomar** — ni etiqueta ni hueco. Un
 apartado vacío en la portada de quien acaba de instalar la aplicación es peor que
@@ -108,34 +112,49 @@ class ResumeCard(ctk.CTkFrame):
         )
         title_label.grid(row=0, column=1, sticky="ew", padx=(0, 14), pady=(14, 0))
 
-        next_episode, total, fraction = resume_progress(anime_record)
-        caption_label = ctk.CTkLabel(
+        self.__caption_label = ctk.CTkLabel(
             self,
-            text=resume_caption(next_episode, total),
+            text="",
             font=Theme.font(*Theme.T_UI),
             text_color=Theme.TXT_2,
             anchor="w"
         )
-        caption_label.grid(row=1, column=1, sticky="ew", padx=(0, 14))
+        self.__caption_label.grid(row=1, column=1, sticky="ew", padx=(0, 14))
 
-        progress_bar = ctk.CTkProgressBar(
+        self.__progress_bar = ctk.CTkProgressBar(
             self,
             height=Metrics.PROGRESS_H,
             corner_radius=Metrics.PROGRESS_RADIUS,
             fg_color=Theme.LINE_SOFT,
             progress_color=Theme.ACCENT
         )
-        progress_bar.set(1.0 if next_episode is None else fraction)
-        progress_bar.grid(row=2, column=1, sticky="ew", padx=(0, 14), pady=(10, 16))
+        self.__progress_bar.grid(row=2, column=1, sticky="ew", padx=(0, 14), pady=(10, 16))
+        self.__apply_progress()
 
         if self.__on_click is None:
             return
         # Los eventos de Tk no burbujean: hay que atar el clic a cada pieza.
-        for widget in (self, poster_label, title_label, caption_label, progress_bar):
+        for widget in (self, poster_label, title_label, self.__caption_label, self.__progress_bar):
             widget.bind("<Button-1>", self.__handle_click)
             widget.bind("<Enter>", self.__handle_enter)
             widget.bind("<Leave>", self.__handle_leave)
             widget.configure(cursor="hand2")
+
+    def update_record(self, anime_record: AnimeRecord) -> None:
+        """Repinta el progreso con una fila recién leída de la BD.
+
+        Solo se tocan el pie y la barra: el anime es el mismo, así que recrear la
+        tarjeta únicamente serviría para releer el póster del disco y hacer
+        parpadear la banda entera.
+        """
+        self.anime_record = anime_record
+        self.__apply_progress()
+
+    def __apply_progress(self) -> None:
+        """Vuelca en el pie y en la barra lo que dice ``resume_progress()``."""
+        next_episode, total, fraction = resume_progress(self.anime_record)
+        self.__caption_label.configure(text=resume_caption(next_episode, total))
+        self.__progress_bar.set(1.0 if next_episode is None else fraction)
 
     def __handle_click(self, _event=None) -> None:
         self.__on_click(self.anime_record.anime_id)
@@ -163,6 +182,9 @@ class ResumeBand(ctk.CTkFrame):
         super().__init__(parent, height=1, corner_radius=0, fg_color=Theme.TRANSPARENT, **kwargs)
 
         self.__records = list(anime_records)
+        #: Las tarjetas en el mismo orden que ``__records``, para poder refrescar
+        #: una sola sin recorrer los hijos de Tk ni recrear la banda.
+        self.__cards: List[ResumeCard] = []
         if not self.__records:
             # Sin tarjetas la banda se queda vacía a propósito: quien la coloca
             # consulta has_content() y ni siquiera la mete en la rejilla.
@@ -180,6 +202,7 @@ class ResumeBand(ctk.CTkFrame):
         for index, anime_record in enumerate(self.__records):
             self.grid_columnconfigure(index, weight=1, uniform="resume")
             card = ResumeCard(self, anime_record, on_click=on_click)
+            self.__cards.append(card)
             card.grid(
                 row=1, column=index, sticky="ew",
                 padx=(0 if index == 0 else Metrics.GRID_GAP_X // 2,
@@ -189,3 +212,17 @@ class ResumeBand(ctk.CTkFrame):
     def has_content(self) -> bool:
         """``True`` si hay al menos una tarjeta que pintar."""
         return bool(self.__records)
+
+    def update_record(self, anime_record: AnimeRecord) -> bool:
+        """Refresca la tarjeta de ese anime con una fila nueva, si está en la banda.
+
+        Se busca por ``anime_id`` y no por posición: entre que se pidieron los
+        datos y llegan, la banda pudo repintarse con otro reparto.
+
+        :return: ``True`` si había una tarjeta que refrescar.
+        """
+        for card in self.__cards:
+            if card.anime_record.anime_id == anime_record.anime_id:
+                card.update_record(anime_record)
+                return True
+        return False
