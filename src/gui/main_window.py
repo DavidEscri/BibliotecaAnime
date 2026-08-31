@@ -101,6 +101,7 @@ class MainWindow(ctk.CTk):
         y = int((pantalla_largo / 2) - (self.MAIN_WINDOW_LARGO / 2))
         self.geometry(f"{self.MAIN_WINDOW_ANCHO}x{self.MAIN_WINDOW_LARGO}+{x}+{y}")
         self.iconbitmap(get_resource_path("resources/images/utils/app_icon.ico"))
+        self.configure(fg_color=Theme.BG)
 
         self.grid_columnconfigure(0, weight=0)
         self.grid_columnconfigure(1, weight=1)
@@ -410,18 +411,18 @@ class MainWindow(ctk.CTk):
 
     def show_loading_screen(self):
         self.sidebar_frame.grid_forget()
-        loading_frame = ctk.CTkFrame(self, corner_radius=0)  # Tamaño fijo para centrarlo
+        loading_frame = ctk.CTkFrame(self, corner_radius=0, fg_color=Theme.BG)
+        loading_frame.place(relx=0, rely=0, relwidth=1, relheight=1)
 
-        # Centrar el frame
-        x_position = (self.winfo_width() * 2.5)
-        y_position = (self.winfo_height() / 1.5)
-        loading_frame.place(x=x_position, y=y_position)
+        loading_content = ctk.CTkFrame(loading_frame, fg_color=Theme.TRANSPARENT)
+        loading_content.place(relx=0.5, rely=0.5, anchor=ctk.CENTER)
 
         # Mostrar el texto de "Cargando biblioteca de anime"
         loading_label = ctk.CTkLabel(
-            loading_frame,
+            loading_content,
             text="Cargando biblioteca de anime",
-            font=ctk.CTkFont(size=24, weight="bold")
+            font=Theme.font(*Theme.T_VIEW),
+            text_color=Theme.TXT
         )
         loading_label.pack(pady=20)
 
@@ -429,21 +430,27 @@ class MainWindow(ctk.CTk):
         loading_image_path = get_resource_path("resources/images/utils/loading-image.gif")
         gif_image = Image.open(loading_image_path)
         gif_frames = [ctk.CTkImage(frame.copy(), size=(400, 400)) for frame in ImageSequence.Iterator(gif_image)]
-        loading_image_label = ctk.CTkLabel(loading_frame, text="")
+        loading_image_label = ctk.CTkLabel(loading_content, text="")
         loading_image_label.pack(pady=20)
 
         # Crear y mostrar la barra de progreso
-        progress_bar = ctk.CTkProgressBar(loading_frame, width=400)
+        progress_bar = ctk.CTkProgressBar(
+            loading_content,
+            width=400,
+            fg_color=Theme.LINE,
+            progress_color=Theme.ACCENT
+        )
         progress_bar.set(0)
         progress_bar.pack(pady=10)
-        progress_label = ctk.CTkLabel(loading_frame, text="0 %")
+        progress_label = ctk.CTkLabel(
+            loading_content,
+            text="0 %",
+            font=Theme.font(*Theme.T_UI),
+            text_color=Theme.TXT_2
+        )
         progress_label.pack(pady=5)
 
         def update_gif(frame=0):
-            # La animación se reprogramaba sola para siempre: al retirar la
-            # pantalla de carga con `place_forget()` el widget seguía vivo, así
-            # que el GIF de 400x400 se seguía repintando cada 100 ms durante toda
-            # la sesión. Ahora la pantalla se destruye y esta guarda corta el ciclo.
             if not loading_image_label.winfo_exists():
                 return
             loading_image_label.configure(image=gif_frames[frame])
