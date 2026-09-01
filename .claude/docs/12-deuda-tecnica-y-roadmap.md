@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-09-01 · rama `feature/ui-redisign` · último commit **`4ffc2ef`** (refresco de la banda «Retomar»). ⚠️ **Solo se ha revisado §4**: §1, §5, §6 y §7 siguen ancladas en el 2026-08-21 y sus recuentos y líneas están sin comprobar desde entonces |
+| **Fecha** | 2026-09-01 · rama `feature/ui-redisign` · último commit **`1b63882`** (ancho de las fichas de género; no añade deuda). ⚠️ **Solo se ha revisado §4**: §1, §5, §6 y §7 siguen ancladas en el 2026-08-21 y sus recuentos y líneas están sin comprobar desde entonces |
 | **Cubre** | `src/**`, `.claude/CLAUDE.md`, `README.md`, `requirements.txt`, `MiBibliotecaAnime.spec`, `LICENSE`, `LEEME.txt`, `THIRD-PARTY-NOTICES.txt` |
 | **Última revisión** | 2026-09-01 (**refresco de la banda «Retomar»**): **B12 nuevo** —solo se refrescan las ≤3 filas de la portada; el resto de la biblioteca sigue enseñando el recuento del día que abriste su ficha—, y **B3 y B8 cerrados**: los tres hilos del buscador y los siete `time.sleep(0.1)` que describían **ya no existen en `src/`** desde el rediseño. Antes, 2026-08-18: §1 rehecho —la tanda de licencia ya está publicada— y **C10 cerrado del todo**: el árbol de directorios del `README.md` tenía dos erratas de copiar-pegar y omitía los ficheros legales. Antes, 2026-08-17 (**licencia y distribución**): **A3 y C11 cerrados** —`datas` ya no lleva datos de usuario y el `.spec` está por fin **verificado compilando**—, C10 cerrado a medias, **B11 abierto** (origen de los recursos gráficos) y §7 nueva |
 

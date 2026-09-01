@@ -2,8 +2,8 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-09-01 · rama `feature/ui-redisign` · árbol **limpio de código**: el refresco de la banda «Retomar» va en `4ffc2ef`, el hover de los episodios en `df47130` y el fondo de la pantalla de carga en `e7d8f2f`; lo único sin commitear es esta tanda de documentación |
-| **Última revisión** | 2026-09-01 (**refresco de la banda «Retomar»**): **§6c nuevo** —cómo comprobar en tres tramos algo que sale a la red, escribe en la biblioteca y repinta un widget, sin tocar la BD real—, y §7.3 gana la regresión del anime en emisión. Antes, 2026-09-01 (**hover de la lista de episodios**): **§6b nuevo** —recorrer el hover con `SetCursorPos` de píxel en píxel, que es lo único que encuentra un `<Leave>` que no llega—, §7.9 gana el recorrido de la lista de episodios y §8 avisa de no matar la instancia que tenga abierta el usuario. Antes, 2026-08-31 (**fondo de la pantalla de carga**): §7.1 gana la comprobación del fondo del arranque —que a ojo se falla— y la receta de captura de §8 usa el título real de la ventana. Antes, 2026-08-16 (**columna `provider_id`**): **§3c nuevo** — las 8 tandas de comprobaciones de la fase 8, **351 sin fallos**; checklist de §7 puesto al día con lo que ha cambiado de comportamiento |
+| **Fecha** | 2026-09-01 · rama `feature/ui-redisign` · árbol **limpio de código**: el ancho de las fichas de género va en `1b63882`, el refresco de la banda «Retomar» en `4ffc2ef` y el hover de los episodios en `df47130`; lo único sin commitear es esta tanda de documentación |
+| **Última revisión** | 2026-09-01 (**ancho de las fichas de género**): **§6d nuevo** —comprobar una medida de layout leyendo el widget en vez de mirarlo—, y §7.6 gana la regresión de las fichas solapadas. Antes, 2026-09-01 (**refresco de la banda «Retomar»**): **§6c nuevo** —cómo comprobar en tres tramos algo que sale a la red, escribe en la biblioteca y repinta un widget, sin tocar la BD real—, y §7.3 gana la regresión del anime en emisión. Antes, 2026-09-01 (**hover de la lista de episodios**): **§6b nuevo** —recorrer el hover con `SetCursorPos` de píxel en píxel, que es lo único que encuentra un `<Leave>` que no llega—, §7.9 gana el recorrido de la lista de episodios y §8 avisa de no matar la instancia que tenga abierta el usuario. Antes, 2026-08-31 (**fondo de la pantalla de carga**): §7.1 gana la comprobación del fondo del arranque —que a ojo se falla— y la receta de captura de §8 usa el título real de la ventana. Antes, 2026-08-16 (**columna `provider_id`**): **§3c nuevo** — las 8 tandas de comprobaciones de la fase 8, **351 sin fallos**; checklist de §7 puesto al día con lo que ha cambiado de comportamiento |
 | **Cubre** | procedimiento; scripts ejecutados el 2026-07-28 contra el código de `src/` |
 
 Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ sin verificar.
@@ -537,6 +537,54 @@ Tres detalles que costaron un intento cada uno:
 
 ---
 
+## 6d. Comprobar una medida de layout leyendo el widget *(2026-09-01)*
+
+Un problema de anchos **no se comprueba mirando la ventana**: a ojo no se distingue «se solapan 8 px»
+de «el hueco es más pequeño de lo que debería», y menos aún se ve que una ficha sin seleccionar
+también sobre 6 px. Lo que hay que hacer es **preguntarle a Tk dónde ha puesto cada cosa**.
+
+La receta, que es la que encontró la [trampa 39](10-invariantes-y-trampas.md):
+
+1. `root = ctk.CTk(); root.withdraw()` y el **componente real** importado de `src` dentro de un marco
+   con el ancho que se quiera simular. Ocultar la raíz no impide medir: Tk calcula la geometría igual.
+2. **`root.update_idletasks()`**. Sin esto no hay nada que leer: el ancho pedido de un widget con
+   hijos en `grid` se recalcula en el *idle*, y hasta entonces `winfo_reqwidth()` devuelve el que se
+   pasó al constructor — justo el número equivocado que se quiere desmentir.
+3. Recuperar las fichas ya colocadas con `contenedor.place_slaves()` y quedarse con las del tipo que
+   interese (`isinstance(w, ctk.CTkButton)`).
+4. Comparar, por cada una, **lo contado con lo pintado**: `w.cget("width")` contra
+   `w.winfo_reqwidth()`. Cualquier diferencia es el fallo.
+5. Reconstruir las cajas —`(winfo_y(), winfo_x(), winfo_reqwidth())`—, ordenarlas y comprobar dos
+   cosas sobre las contiguas de la **misma fila**: que no se pisan (`x₁ + ancho₁ ≤ x₂`) y que el hueco
+   es **exactamente** el que dice la constante del componente.
+
+Y tres comprobaciones que salen casi gratis una vez montado:
+
+- que ninguna caja **desborda** por la derecha (`x + ancho > available`);
+- que el **alto pedido** por el marco (`cget("height")`) coincide con el real
+  (`max(y) + alto de la ficha`), que es lo que evita que la fila se coma lo que tiene debajo
+  ([trampa 29](10-invariantes-y-trampas.md));
+- repetir todo con **varios anchos** y **varios estados**, que es donde aparecen los casos raros.
+
+✅ **Ejecutada el 2026-09-01** sobre `GenreChips`. Antes del arreglo, con la fila colocada:
+
+```
+texto              contado  pintado  delta
+Acción (activa)         73       89    +16
+Más géneros (33)       125      141    +16
+Comedia                 69       75     +6
+```
+
+Después: **0 descuadres y 0 solapes** en 4 estados de selección (ninguna · una · tres · nombres
+largos) y con los **41 chips desplegados** en 4 anchos (1188 / 700 / 400 / 260), hueco siempre
+`CHIP_GAP` = 8, ningún desborde, y alto pedido = alto real en los cuatro (103, 140, 214, 362, 584).
+
+⚠️ **`place()` de CustomTkinter no acepta `width`**: `CTkBaseClass.place()` lanza `ValueError` si se
+lo pasas. No hay atajo para forzar el ancho desde fuera, así que **la única salida es que la cuenta
+esté bien**, y esta receta es la que lo demuestra.
+
+---
+
 ## 7. Checklist de regresión manual por vista
 
 Sin tests automáticos, esto es lo que hay. Marca lo que compruebes.
@@ -648,6 +696,12 @@ tema y el plegado no cambian de vista, así que se hacen dos pasadas de siete.
 - [ ] Las fichas dicen **«Acción» y «Ciencia ficción», con tildes** (salen de `.name`, no de `.value`).
 - [ ] Tocar una ficha busca **en el acto**, sin botón de aplicar; la seleccionada pasa **primera**,
       con `ACCENT_SOFT`, borde `ACCENT` y una ✕.
+- [ ] 🆕 **La ficha seleccionada no se mete encima de la de al lado**: la ✕ se ve entera y el hueco
+      hasta la siguiente es el mismo que entre dos fichas sin seleccionar. Probar con **varias**
+      activas a la vez y con la fila desplegada («Más géneros»), que es cuando envuelve en varias
+      líneas ([trampa 39](10-invariantes-y-trampas.md)).
+- [ ] 🆕 **Plegar la barra lateral re-envuelve las fichas** sin solaparlas ni desbordar por la
+      derecha, y sin meterse debajo del desplegable de orden.
 - [ ] 🔴 **Texto y géneros no se combinan: manda el último gesto.** Buscar por texto apaga las fichas;
       tocar una ficha vacía el texto.
 - [ ] Mientras busca, la línea de estado dice «Buscando animes…» y la rejilla se vacía. **No hay GIF.**

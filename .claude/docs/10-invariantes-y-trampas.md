@@ -2,9 +2,9 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-09-01 · rama `feature/ui-redisign` · árbol **limpio de código**: el refresco de la banda «Retomar» va en `4ffc2ef`, el hover de los episodios en `df47130` y el fondo de la pantalla de carga en `e7d8f2f`; lo único sin commitear es esta tanda de documentación |
+| **Fecha** | 2026-09-01 · rama `feature/ui-redisign` · último commit **`4ffc2ef`** (refresco de la banda «Retomar»); **sin commitear**, el ancho de las fichas de género (`genre_chips.py`) y esta tanda de documentación |
 | **Cubre** | los **31** módulos con contenido de `src/` + `MiBibliotecaAnime.spec` + `requirements.txt` |
-| **Última revisión** | 2026-09-01 (**refresco de la banda «Retomar»**): trampa **38** nueva —una fila guardada no refresca sus episodios sola, así que un anime en emisión miente hasta que abres su ficha—, **resuelta solo para las ≤3 tarjetas de la portada** y viva en el resto de la biblioteca. Antes, 2026-09-01 (**hover de la lista de episodios**): trampa **37** nueva —un hijo sin `bind` es una salida de la que no llega ningún `<Leave>`, la complementaria de la **34**—, con la nota de que **no se reproduce moviendo el ratón deprisa**. Antes, 2026-08-31 (**fondo de la pantalla de carga**): trampa **36** nueva —un widget sin `fg_color` sale del gris por defecto de CustomTkinter, no de `Theme`—, con el `minsize` que sobrevive a `grid_forget()` y el GIF transparente como medias trampas; la **33** gana un aviso: el comentario que la anclaba en el código ya no está. Antes, 2026-08-21 (**rediseño de interfaz**): **7 trampas nuevas** (29-35), todas de CustomTkinter y de layout, en un apartado propio; la **33** nace ya resuelta. La trampa **22** queda cerrada: la ficha ya no calcula anchos a mano. Antes, 2026-08-17 (**licencia y empaquetado**): la trampa **18** se subdivide en **a-e** — **18d cerrada** (`datas` ya no lleva datos de usuario; PyInstaller **ignora en silencio las carpetas vacías**) y **18e nueva** (los destinos de `datas` caen dentro de `_internal/`, no junto al `.exe`). Antes, 2026-08-16 (**columna `provider_id`**): **3 trampas nuevas** (26, 27, 28), trampa **21 reescrita** —ahora se puede provocar a voluntad y la ficha la señala en pantalla—, trampas **4** y **13** ampliadas, y anclas de `anime_window.py` (647→1156) y `animesPersistence.py` reubicadas |
+| **Última revisión** | 2026-09-01 (**ancho de las fichas de género**): trampa **39** nueva —un `CTkButton` no respeta el `width` que se le pide: su rejilla interna propaga tamaño y el ancho *pedido* gana—, en un apartado propio, con la aritmética exacta de lo que reserva por dentro. Antes, 2026-09-01 (**refresco de la banda «Retomar»**): trampa **38** nueva —una fila guardada no refresca sus episodios sola, así que un anime en emisión miente hasta que abres su ficha—, **resuelta solo para las ≤3 tarjetas de la portada** y viva en el resto de la biblioteca. Antes, 2026-09-01 (**hover de la lista de episodios**): trampa **37** nueva —un hijo sin `bind` es una salida de la que no llega ningún `<Leave>`, la complementaria de la **34**—, con la nota de que **no se reproduce moviendo el ratón deprisa**. Antes, 2026-08-31 (**fondo de la pantalla de carga**): trampa **36** nueva —un widget sin `fg_color` sale del gris por defecto de CustomTkinter, no de `Theme`—, con el `minsize` que sobrevive a `grid_forget()` y el GIF transparente como medias trampas; la **33** gana un aviso: el comentario que la anclaba en el código ya no está. Antes, 2026-08-21 (**rediseño de interfaz**): **7 trampas nuevas** (29-35), todas de CustomTkinter y de layout, en un apartado propio; la **33** nace ya resuelta. La trampa **22** queda cerrada: la ficha ya no calcula anchos a mano. Antes, 2026-08-17 (**licencia y empaquetado**): la trampa **18** se subdivide en **a-e** — **18d cerrada** (`datas` ya no lleva datos de usuario; PyInstaller **ignora en silencio las carpetas vacías**) y **18e nueva** (los destinos de `datas` caen dentro de `_internal/`, no junto al `.exe`). Antes, 2026-08-16 (**columna `provider_id`**): **3 trampas nuevas** (26, 27, 28), trampa **21 reescrita** —ahora se puede provocar a voluntad y la ficha la señala en pantalla—, trampas **4** y **13** ampliadas, y anclas de `anime_window.py` (647→1156) y `animesPersistence.py` reubicadas |
 
 Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ sin verificar.
 
@@ -1019,6 +1019,69 @@ que ir con **`strict=True`** —al proveedor de la fila y a ninguno más— y **
 respuesta viene vacía. Es justo al revés que `open_saved_anime()`, que sí quiere *fallback* porque
 solo lee. Quien extienda esto a «Viendo» debe copiar esas dos precauciones, no el patrón de abrir una
 ficha.
+
+---
+
+## Medir un widget de CustomTkinter *(añadida 2026-09-01)*
+
+### 39. Un `CTkButton` no respeta el `width` que se le pide 🔴 ✅ *(resuelta 2026-09-01)*
+
+Pasarle `width=` a un `CTkButton` fija el ancho **del marco**, no el del widget. Por dentro es un
+`tkinter.Frame` con una rejilla de 5×5 (`ctk_button.py::_create_grid`) y **propagación de tamaño
+activada**: si esa rejilla necesita más, el ancho *pedido* del botón pasa a ser el suyo. Y cuando el
+botón se coloca con `place(x=…)` sin ancho explícito, Tk lo pinta a su ancho **pedido**.
+
+No hay forma de forzarlo desde fuera: `CTkBaseClass.place()` **lanza `ValueError`** si le pasas
+`width` o `height` («must be passed to the constructor»), así que la única salida es **contar bien**.
+
+Lo que la rejilla reserva y no aparece en ningún sitio:
+
+| Concepto | px | De dónde sale |
+|---|---|---|
+| Columnas 0 y 4 | `max(corner_radius, border_width + 1, border_spacing)` por lado | `_create_grid()`. En una **píldora manda el radio**: 14 px con `CHIP_H = 29` |
+| Etiqueta del texto | 1 por lado | la crea con `padx=0, pady=0, **borderwidth=1**` |
+| Hueco texto ↔ icono | `CTkButton._image_label_spacing` = **6** | `minsize` de la columna 2, solo si hay texto **e** imagen |
+| Etiqueta del icono | 2 por lado | se crea sin argumentos → `borderwidth` 2 por defecto de Tk. Su `padx` **no** cuenta: Tk solo se lo suma al texto |
+
+**Síntoma observable**: en «Buscar», **al seleccionar un género la ficha se metía encima de la de al
+lado y le tapaba la ✕**. Ningún error. Lo delataba la selección porque es la que más sobra: la
+seleccionada estrena icono, y de paso va en negrita.
+
+✅ **Medido** el 2026-09-01, con la raíz de Tk oculta, comparando `cget("width")` con
+`winfo_reqwidth()` de cada ficha ya colocada:
+
+```
+texto              contado  pintado  delta
+Acción (activa)         73       89    +16   ← se come los 8 px de CHIP_GAP y solapa 8
+Más géneros (33)       125      141    +16   ← también lleva glifo
+Comedia                 69       75     +6   ← quedaba 2 px de hueco: no se ve
+```
+
+Una ficha sin icono sobraba 6 px y aún dejaba hueco; **al seleccionarla el sobrante saltaba a 16 y se
+comía la separación entera**. Como las seleccionadas se pintan **las primeras** y `place()` apila
+encima lo que se coloca después, quien tapaba la ✕ era la ficha siguiente.
+
+**Invariante**: quien coloque `CTkButton` con `place()` y lleve él mismo la cuenta del ancho tiene que
+sumar la rejilla interna, no solo `font.measure(texto)` y su propio relleno. Y el relleno efectivo es
+`max(el del diseño, corner_radius)`: pedir menos no encoge nada.
+
+**Resuelta** en `GenreChips.__chip_width()` (`genre_chips.py:278-301`, con las tres constantes en
+`:57-69`), que suma las cuatro filas de la tabla y pregunta al `CTkImage` por su `size` en vez de
+recalcularlo. ✅ Verificado: 4 estados de
+selección y los 41 chips desplegados en 4 anchos → **0 descuadres, 0 solapes, hueco exactamente
+`CHIP_GAP`**, y el alto pedido por el marco coincide al píxel con el real. ✅ Confirmado también
+**mirando la aplicación** por el usuario.
+
+⚠️ **Los números salen de customtkinter 5.2.2.** Si algún día sube la versión, lo primero que hay que
+volver a medir es esto: el síntoma no da error y no lo detecta ningún `grep`.
+
+**Primas hermanas**: la **29** (un `CTkFrame` no mide cero) y la **30** (un `CTkLabel` no se recorta a
+su `height`). Las tres son la misma idea — **en CustomTkinter, `width` y `height` son una petición, no
+un contrato**.
+
+⚠️ **La ficha de detalle se libra por otro camino**: `__place_genre_tags()` (`anime_window.py:736-801`)
+también envuelve fichas con `place()`, pero las suyas son `CTkFrame` con la etiqueta **dentro**, y un
+hijo colocado con `place()` **no** propaga tamaño al padre. Por eso ahí el `width=` sí se respeta.
 
 ---
 

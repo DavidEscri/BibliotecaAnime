@@ -2,8 +2,8 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-09-01 · rama `feature/ui-redisign` · árbol **limpio de código**: el refresco de la banda «Retomar» va en `4ffc2ef`, el hover de los episodios en `df47130` y el fondo de la pantalla de carga en `e7d8f2f`; lo único sin commitear es esta tanda de documentación |
-| **Última revisión** | 2026-09-01 (**refresco de la banda «Retomar»**): recuentos rehechos (**11 309 → 11 403**); `resume_card.py` estrena `update_record()` en sus **dos** clases y `recentAnimes.py`, `__refresh_resume_episodes()`; la tabla de «cómo abre la ficha» reanclada, que iba ~125 líneas desplazada. Antes, 2026-09-01 (**hover de la lista de episodios**): **ficha de `EpisodeRow` nueva** —no la tenía—, y recuentos rehechos con la convención del documento explicada. Antes, 2026-08-31 (**fondo de la pantalla de carga**): ficha de `MainWindow` reanclada —sus líneas iban ~29 desplazadas—, `show_loading_screen()` descrito de verdad y `__config_main_window()` añadido. Antes, 2026-08-21 (**rediseño de interfaz**): **12 módulos nuevos** en `gui/` —`theme.py` y los 11 de `gui/components/`— con su ficha; recuentos rehechos (**6 245 → 11 309** líneas); `utilsButtons.py` pierde 5 clases y `main_window.py` gana `navigate_to()`. Antes, 2026-08-16 (**columna `provider_id`**): recuentos rehechos — el proyecto pasa de 5 460 a **6 245** líneas; fichas de `models.py`, `animeProviderMgr.py`, `animesPersistence.py`, `utils.py`, `utilsButtons.py`, `main_window.py` y `anime_window.py` actualizadas |
+| **Fecha** | 2026-09-01 · rama `feature/ui-redisign` · árbol **limpio de código**: el ancho de las fichas de género va en `1b63882`, el refresco de la banda «Retomar» en `4ffc2ef` y el hover de los episodios en `df47130`; lo único sin commitear es esta tanda de documentación |
+| **Última revisión** | 2026-09-01 (**ancho de las fichas de género**): recuentos rehechos (**11 403 → 11 430**); `genre_chips.py` **333 → 360** con la aritmética real del ancho de un `CTkButton` ([trampa 39](10-invariantes-y-trampas.md)). Antes, 2026-09-01 (**refresco de la banda «Retomar»**): recuentos rehechos (**11 309 → 11 403**); `resume_card.py` estrena `update_record()` en sus **dos** clases y `recentAnimes.py`, `__refresh_resume_episodes()`; la tabla de «cómo abre la ficha» reanclada, que iba ~125 líneas desplazada. Antes, 2026-09-01 (**hover de la lista de episodios**): **ficha de `EpisodeRow` nueva** —no la tenía—, y recuentos rehechos con la convención del documento explicada. Antes, 2026-08-31 (**fondo de la pantalla de carga**): ficha de `MainWindow` reanclada —sus líneas iban ~29 desplazadas—, `show_loading_screen()` descrito de verdad y `__config_main_window()` añadido. Antes, 2026-08-21 (**rediseño de interfaz**): **12 módulos nuevos** en `gui/` —`theme.py` y los 11 de `gui/components/`— con su ficha; recuentos rehechos (**6 245 → 11 309** líneas); `utilsButtons.py` pierde 5 clases y `main_window.py` gana `navigate_to()`. Antes, 2026-08-16 (**columna `provider_id`**): recuentos rehechos — el proyecto pasa de 5 460 a **6 245** líneas; fichas de `models.py`, `animeProviderMgr.py`, `animesPersistence.py`, `utils.py`, `utilsButtons.py`, `main_window.py` y `anime_window.py` actualizadas |
 | **Cubre** | los **50** ficheros `.py` de `src/` (**31** con contenido + **19** `__init__.py` vacíos) |
 
 Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ sin verificar.
@@ -29,7 +29,7 @@ Todas las líneas citadas corresponden al **árbol de trabajo actual**, no al ú
 | `src/gui/theme.py` 🆕 | **274** | GUI · tokens |
 | `src/gui/components/sidebar.py` 🆕 | **525** | GUI · componente |
 | `src/gui/components/anime_row.py` 🆕 | **333** | GUI · componente |
-| `src/gui/components/genre_chips.py` 🆕 | **333** | GUI · componente |
+| `src/gui/components/genre_chips.py` 🆕 | **360** | GUI · componente |
 | `src/gui/components/status_pill.py` 🆕 | **258** | GUI · componente |
 | `src/gui/components/pager.py` 🆕 | **247** | GUI · componente |
 | `src/gui/components/poster_grid.py` 🆕 | **234** | GUI · componente |
@@ -47,9 +47,11 @@ Todas las líneas citadas corresponden al **árbol de trabajo actual**, no al ú
 | `src/gui/sidebarButtons/pendingAnimes/pendingAnimes.py` | **353** | GUI · vista |
 | `src/gui/sidebarButtons/searchAnimes/searchAnimes.py` | **607** | GUI · vista |
 
-**11 403 líneas** en **31 módulos**. ✅ Recontado el 2026-09-01 —`wc -l` **+ 1 por módulo**, que es la
-convención con la que se contó en agosto: casi ningún fichero termina en salto de línea—. Las **94
-últimas** son el refresco de la banda «Retomar»: `recentAnimes.py` **+57** y `resume_card.py` **+37**.
+**11 430 líneas** en **31 módulos**. ✅ Recontado el 2026-09-01 —`wc -l` **+ 1 por módulo**, que es la
+convención con la que se contó en agosto: casi ningún fichero termina en salto de línea—. Las **27
+últimas** son el ancho de las fichas de género (`genre_chips.py`, casi todo explicación de lo que
+`CTkButton` reserva por dentro), y las **94** anteriores, el refresco de la banda «Retomar»:
+`recentAnimes.py` **+57** y `resume_card.py` **+37**.
 
 Sin esa tanda daba **11 309**, la **misma cifra** que el 2026-08-21 pese a los 18 renglones ganados desde el
 rediseño (`main_window.py` +7 con el fondo de la pantalla de carga, `anime_window.py` +11 con el hover de
@@ -471,7 +473,7 @@ nunca una copia del fichero.
 | `side_panel.py` | `SidePanel` | fase 3 | Los 290 px de la derecha en «Viendo» |
 | `rating_stars.py` | `RatingStars` | fase 5 | Cinco estrellas con medios puntos, dibujadas con PIL |
 | `status_pill.py` | `StatusPill` | fase 5 | Texto, colores y glifo de los 4 estados. `other_status()`, `icon()` |
-| `genre_chips.py` | `GenreChips` | fase 7 | Fichas de género. Colocadas con `place()`, no con `grid()` |
+| `genre_chips.py` | `GenreChips` | fase 7 | Fichas de género. Colocadas con `place()`, no con `grid()`, así que el componente **lleva a mano la cuenta del ancho** — y esa cuenta incluye lo que `CTkButton` reserva por dentro ([trampa 39](10-invariantes-y-trampas.md)) |
 | `empty_state.py` 🆕 | `EmptyState`, `glyph()`, `ICON_SIZE` | fase 9 | Icono, frase, pista y acción. Dibuja «nube tachada» y «lupa» con PIL |
 
 **Quién usa qué**:
