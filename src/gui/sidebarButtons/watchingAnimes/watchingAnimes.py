@@ -1,7 +1,7 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "sidebarButtons"
 __module__ = "watchingAnimes.py"
-__version__ = "0.4"
+__version__ = "0.5"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 import os
@@ -110,7 +110,11 @@ class WatchingAnimeButton(utilsButtons.SidebarButton):
                 body,
                 side_record,
                 provider_name=self.__provider_name(side_record),
-                on_action=self.__on_anime_click
+                # El botón lleva al episodio; el póster y el título, a la ficha a
+                # secas. Es el mismo reparto que en la fila: la acción es la que
+                # promete un episodio concreto, y solo ella tiene que cumplirlo.
+                on_action=lambda _anime_id, record=side_record: self.__on_row_action(record),
+                on_click=self.__on_anime_click
             )
             side_panel.grid(row=0, column=1, sticky="n", padx=(32, 0))
 
@@ -250,11 +254,21 @@ class WatchingAnimeButton(utilsButtons.SidebarButton):
         self.__search.search(search_entry.get())
 
     def __on_row_action(self, anime_record: AnimeRecord):
-        # Hoy lleva a la ficha, igual que el clic en la fila. Dejarla abierta
-        # **por ese episodio** es cosa de la fase 8, que es la que rehace la lista
-        # de episodios (y la que puede quitarle el tope de 25, sin el cual un
-        # "Episodio 1164" no tendría dónde caer).
-        self.__on_anime_click(anime_record.anime_id)
+        """«Episodio N →» y «Seguir por el N»: abren la ficha **por ese episodio**.
+
+        Las dos acciones de la vista prometen un episodio concreto en su texto, así
+        que las dos llevan a él: la ficha sale con esa fila desplegada, sus
+        servidores a la vista y la ventana desplazada hasta ella.
+
+        El número se vuelve a calcular aquí en vez de arrastrarlo desde el texto
+        del botón: sale del mismo ``resume_progress()`` que lo escribió, que es el
+        único sitio donde se decide por qué episodio ibas. No se toca el orden de
+        la lista —al revés que «Empezar»—: con un anime largo servido de mayor a
+        menor, el episodio por el que vas está entre los 25 que se pintan y
+        forzarlo a ascendente lo dejaría fuera.
+        """
+        next_episode, _episodes, _fraction = resume_progress(anime_record)
+        open_saved_anime(self.main_window, anime_record.anime_id, focus_episode=next_episode)
 
     def __on_anime_click(self, anime_id: Union[str, int]):
         # Es un anime de la biblioteca: el proveedor sale de su fila y la petición

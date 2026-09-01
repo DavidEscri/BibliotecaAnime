@@ -1,7 +1,7 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "gui"
 __module__ = "anime_window.py"
-__version__ = "0.7"
+__version__ = "0.8"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 """Ficha de detalle de un anime: la pantalla desde la que se ve un episodio.
@@ -16,6 +16,12 @@ que cambia es **la disposición y los estados visibles**, no la lógica:
   dicen «Episodio N» con su línea de estado al lado;
 - se estrena la **barra de vistos**, el único añadido real: sale de
   ``get_watched_episodes()`` sin tocar la persistencia.
+
+La ficha se puede abrir **por un episodio**
+(``focus_episode``): sale con esa fila desplegada, sus servidores a la vista y la
+ventana desplazada hasta ella. Es lo que hacen «Episodio N →» y «Seguir por el N»
+en «Viendo» y «Empezar» en «Pendientes», que antes solo llevaban al anime y
+dejaban al usuario buscando la fila.
 
 Lo estructural —la identidad congelada, el aviso de identidad partida, el aviso
 de duplicado y el marcado acumulativo— ya estaba resuelto y aquí **solo se
@@ -130,6 +136,15 @@ EPISODE_SEARCH_W = 160
 #: cada redimensionado de la ventana repintaría las fichas decenas de veces.
 RELAYOUT_THRESHOLD = 8
 
+#: Espera antes de desplegar los servidores del episodio por el que se ha abierto
+#: la ficha. No es cosmética: `__toggle_servers_frame()` sale a la red **en el
+#: hilo de Tkinter**, así que sin este respiro la ventana se quedaría congelada
+#: con la ficha a medio pintar y el usuario no vería a qué está esperando.
+FOCUS_DELAY_MS = 50
+#: Aire que se deja por encima de la fila a la que se desplaza la ficha. Pegarla
+#: al borde superior escondería que hay lista antes de ella.
+FOCUS_SCROLL_MARGIN = 24
+
 
 # TODO: Al final de la lista de episodios nuevo frame del estilo. "Si te ha gustado One piece, te puede interesar..." y
 #  mostrar 4 animes con los mimos generos.
@@ -193,7 +208,9 @@ def find_saved_duplicate(anime_records: List[AnimeRecord], title: str,
     return best_record if best_ratio >= DUPLICATE_TITLE_THRESHOLD else None
 
 
-def open_saved_anime(main_window, anime_id: Union[str, int]) -> None:
+def open_saved_anime(main_window, anime_id: Union[str, int],
+                     focus_episode: Optional[int] = None,
+                     force_ascending: bool = False) -> None:
     """Abre la ficha de un anime **ya guardado** en la biblioteca.
 
     Punto de entrada único de las cuatro vistas de estado (favoritos, viendo,
@@ -212,6 +229,13 @@ def open_saved_anime(main_window, anime_id: Union[str, int]) -> None:
     :param main_window: hub de la aplicación (`MainWindow`).
     :param anime_id: ``anime_id`` de la fila, es decir, el slug del proveedor que
         la guardó.
+    :param focus_episode: número de episodio por el que abrir la ficha. La deja
+        con **ese episodio desplegado** y desplazada hasta él, que es lo que
+        esperan las acciones «Episodio N →», «Seguir por el N» y «Empezar»:
+        llevan al episodio, no al anime. ``None`` abre la ficha como siempre.
+    :param force_ascending: ordena la lista de menor a mayor pase lo que pase.
+        Lo usa «Empezar», donde el episodio por el que se entra es el primero y
+        detrás tienen que ir el 2, el 3 y el 4, no el final de la serie.
     """
     anime_record: AnimeRecord = main_window.animes_persistence.get_anime_by_anime_id(anime_id)
     provider_id, is_deviation = main_window.provider_for_saved_anime(anime_record.provider_id if anime_record is not None else None)
@@ -233,7 +257,9 @@ def open_saved_anime(main_window, anime_id: Union[str, int]) -> None:
         # elegido y su `id` es OTRO slug, así que sin la fila la ficha escribiría
         # con el identificador equivocado y duplicaría el anime.
         AnimeWindowViewer(main_window, anime_info, served_by,
-                          anime_record=anime_record).display_anime_info()
+                          anime_record=anime_record,
+                          focus_episode=focus_episode,
+                          force_ascending=force_ascending).display_anime_info()
 
     def _load_and_show():
         anime_info = served_by = None
@@ -467,7 +493,8 @@ class AnimeWindowViewer:
     """
 
     def __init__(self, main_window, anime_info: AnimeInfo, provider_id: AnimeProviderId | None = None,
-                 anime_record: AnimeRecord | None = None):
+                 anime_record: AnimeRecord | None = None,
+                 focus_episode: Optional[int] = None, force_ascending: bool = False):
         """
         :param anime_info: ficha del anime. No puede ser ``None``.
         :param provider_id: proveedor que sirvió esa ficha. Si se omite se usa el
@@ -480,6 +507,11 @@ class AnimeWindowViewer:
             también lo guardado, que es cierto al abrir desde recientes o desde
             una búsqueda, pero no al abrir un anime de la biblioteca con el
             desplegable desviado.
+        :param focus_episode: número de episodio por el que abrir la ficha, ya
+            con sus servidores desplegados y a la vista. Ver
+            ``__focus_on_episode()``.
+        :param force_ascending: fuerza el orden de menor a mayor, sea cual sea el
+            que sirva el proveedor.
         """
         if anime_info is None:
             raise ValueError("AnimeWindowViewer requiere un AnimeInfo; se recibió None")
@@ -517,9 +549,13 @@ class AnimeWindowViewer:
         #: viendo lo contrario; ahora arranca diciendo lo que hay. La lista no se
         #: reordena al abrir: el corte de 25 sigue siendo el que era.
         self.sort_descending: bool = self.__incoming_order_is_descending()
-        #: Los cuatro estados de la fila. Sustituye a los cuatro booleanos
-        #: sueltos: los botones se pintan recorriendo este diccionario, así que
-        #: encender uno y apagar los excluyentes es una vuelta de bucle.
+        if force_ascending and self.sort_descending:
+            self.anime_info = replace(
+                self.anime_info,
+                episodes=sorted(self.anime_info.episodes, key=lambda episode: episode.id)
+            )
+            self.sort_descending = False
+        self.__focus_episode: Optional[int] = focus_episode
         self.__status_state: Dict[AnimeStatus, bool] = {status: False for status in STATUS_SECTION_NAMES}
 
         # --- Widgets de la ficha ------------------------------------------
@@ -626,6 +662,13 @@ class AnimeWindowViewer:
 
         self.__build_sheet(content)
         self.__build_episodes(content)
+
+        if self.__focus_episode is not None:
+            # Con `after`, no aquí: desplegar los servidores es una petición HTTP y
+            # va en el hilo de Tkinter (deuda conocida). Así la ficha ya está
+            # pintada cuando la ventana se queda esperando, en vez de congelarse a
+            # medio dibujar.
+            self.main_window.after(FOCUS_DELAY_MS, self.__focus_on_episode)
 
     def __build_sheet(self, content: ctk.CTkFrame) -> None:
         """Póster a la izquierda y columna de información a la derecha."""
@@ -1563,6 +1606,93 @@ class AnimeWindowViewer:
             command=lambda: self.__next_episode(episode_info)
         )
         next_button.grid(row=0, column=2, sticky="e")
+
+    def __focus_on_episode(self) -> None:
+        """Deja la ficha abierta **por el episodio** con el que se entró.
+
+        Es lo que convierte «Episodio N →», «Seguir por el N» y «Empezar» en un
+        solo gesto: antes llevaban a la ficha y el usuario tenía que buscar la
+        fila y pulsarla para que salieran los servidores.
+
+        Tres pasos, y el segundo es el que no es obvio:
+
+        1. si el episodio **no está entre los 25 que se pintan** —el corte de
+           siempre (trampa 8), que con orden descendente deja fuera el episodio 3
+           y con ascendente el 1164— se enseña él solo con sus botones de
+           anterior y siguiente, exactamente igual que al buscarlo a mano. El
+           número se escribe además en «Ir al episodio…»: es el mismo estado, y
+           sin el número puesto parecería que la ficha ha perdido la lista;
+        2. se despliegan sus servidores, que es a lo que se venía;
+        3. se desplaza la ventana hasta la fila, sin lo cual el paso 2 no se ve.
+
+        Se llama **una vez** y consume ``__focus_episode``: es una acción de
+        apertura, no un estado. Que el proveedor no liste ese episodio no es un
+        error —la biblioteca puede ir por delante de lo que hay publicado—, así
+        que se deja la ficha como estaba y se anota en el log.
+        """
+        episode_id, self.__focus_episode = self.__focus_episode, None
+        # La ficha puede haberse ido en estos 50 ms: cambiar de pestaña destruye
+        # el cuerpo de la lista y `after` no cancela nada por su cuenta.
+        if self.__episodes_body is None or not self.__episodes_body.winfo_exists():
+            return
+
+        episode_info = next((episode for episode in self.anime_info.episodes
+                             if episode.id == episode_id), None)
+        if episode_info is None:
+            provider_name = self.anime_provider_mgr.get_provider_name(self.provider_id)
+            print(f"[{provider_name}] no lista el episodio {episode_id} de "
+                  f"{self.anime_info.id}; la ficha se abre sin desplegar nada")
+            return
+
+        if episode_info.id not in self.__episode_rows:
+            self.__display_episodes([episode_info])
+            self.__display_previous_and_next_episodes(episode_info)
+            if self.search_entry is not None and self.search_entry.winfo_exists():
+                self.search_entry.delete(0, "end")
+                self.search_entry.insert(0, str(episode_id))
+
+        if episode_info.id not in self.__servers_frames:
+            self.__toggle_servers_frame(episode_info)
+        self.__scroll_to_episode(episode_info.id)
+
+    def __scroll_to_episode(self, episode_id: Any) -> None:
+        """Desplaza el ``content_frame`` **solo si hace falta** para ver la fila.
+
+        Sin desplazar nada la función no se notaría: la lista arranca por debajo
+        del póster de 372 px, así que a partir de la novena fila el episodio que
+        se acaba de abrir cae fuera de la ventana y la ficha parece no haber hecho
+        nada. Pero desplazar **siempre** es igual de malo por el otro lado: con el
+        episodio 1 —el caso de «Empezar»— la fila ya se ve, y subir la ventana
+        hasta ella solo serviría para tirar fuera el póster, la sinopsis y los
+        botones de estado a cambio de nada.
+
+        Así que se mide: si la fila **y sus servidores** caben enteros en lo que
+        se está viendo, no se toca el desplazamiento. Si no, la fila se lleva
+        arriba con ``FOCUS_SCROLL_MARGIN`` de aire.
+        """
+        row = self.__episode_rows.get(episode_id)
+        content = self.main_window.content_frame
+        canvas = getattr(content, "_parent_canvas", None)
+        if canvas is None or row is None or not row.winfo_exists():
+            return
+
+        # La fila acaba de nacer y los servidores de debajo también: sin esto,
+        # `winfo_rooty()` devuelve la posición que tenían antes de colocarse.
+        content.update_idletasks()
+        total_height = content.winfo_height()
+        if total_height <= 0:
+            return
+
+        block_height = row.winfo_height()
+        servers_frame = self.__servers_frames.get(episode_id)
+        if servers_frame is not None and servers_frame.winfo_exists():
+            block_height += servers_frame.winfo_height()
+        visible_top = row.winfo_rooty() - canvas.winfo_rooty()
+        if visible_top >= 0 and visible_top + block_height <= canvas.winfo_height():
+            return
+
+        offset = row.winfo_rooty() - content.winfo_rooty() - FOCUS_SCROLL_MARGIN
+        canvas.yview_moveto(min(max(offset, 0) / total_height, 1.0))
 
     def __toggle_sort_order(self):
         # Cambiar el estado de orden y actualizar la lista de episodios
