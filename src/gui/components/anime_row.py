@@ -25,11 +25,10 @@ Dos cosas que conviene no deshacer:
   parpadearía y la acción aparecería y desaparecería sola. Se comprueba la
   posición real del puntero antes de apagar nada (``__pointer_inside()``).
 """
+import customtkinter as ctk
 
 from dataclasses import dataclass
 from typing import Any, Callable, List, Optional, Tuple
-
-import customtkinter as ctk
 
 from dataPersistence.animesPersistence import AnimeRecord
 from gui.components.resume_card import resume_progress
@@ -281,19 +280,36 @@ class AnimeRow(ctk.CTkFrame):
 
         Los eventos de Tk no burbujean: sin recorrer los descendientes, pulsar
         justo encima del título no haría nada.
+
+        1. La píldora queda fuera del clic **con todo su interior**. Un
+           ``CTkButton`` es un marco con un ``CTkCanvas`` y un ``Label`` dentro, y
+           esos dos hijos **no son** el botón: excluir solo el botón dejaba el
+           clic de la fila atado justo donde se pulsa.
+        2. Lo que se le ata a la píldora va con ``add="+"``. ``bind()`` sin él
+           **sustituye** el manejador que ya hubiera, y CustomTkinter monta ahí
+           dentro los suyos: ``_clicked`` en ``<Button-1>`` y su hover en
+           ``<Enter>`` / ``<Leave>``. Pisarlos dejaba la píldora sin ``command`` y
+           sin color de hover.
+
+        Juntas explican por qué «Episodio N →» y «Empezar» abrían la ficha pero
+        no hacían **su** trabajo: no se ejecutaba su acción, sino el ``on_click``
+        de la fila. Como los dos abrían la misma ficha, no se notó hasta que
+        dejaron de hacer lo mismo.
+
+        El hover sí llega a la píldora entera, y tiene que seguir llegando: si un
+        hijo suyo se queda sin ``<Leave>``, salir de la fila por ahí deja el
+        resaltado encendido para siempre — la trampa 37, la de ``EpisodeRow``.
         """
+        action_widgets = (self.__descendants(self.__action_button)
+                          if self.__action_button is not None else [])
         for widget in self.__descendants(self.__body):
-            if widget is self.__action_button:
-                continue                # la píldora tiene su propio comando y su propio hover
-            widget.bind("<Enter>", self.__handle_enter)
-            widget.bind("<Leave>", self.__handle_leave)
-            if self.__on_click is not None:
+            # add="+": dentro de la píldora hay manejadores de CustomTkinter que
+            # no son nuestros y que no se pueden perder.
+            widget.bind("<Enter>", self.__handle_enter, add="+")
+            widget.bind("<Leave>", self.__handle_leave, add="+")
+            if self.__on_click is not None and widget not in action_widgets:
                 widget.bind("<Button-1>", self.__handle_click)
                 widget.configure(cursor="hand2")
-        if self.__action_button is not None:
-            # Entrar en la píldora no puede apagar el hover de la fila.
-            self.__action_button.bind("<Enter>", self.__handle_enter)
-            self.__action_button.bind("<Leave>", self.__handle_leave)
 
     def __descendants(self, widget) -> List[Any]:
         found = [widget]

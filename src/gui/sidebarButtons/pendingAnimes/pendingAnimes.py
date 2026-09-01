@@ -1,7 +1,7 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "sidebarButtons"
 __module__ = "pendingAnimes.py"
-__version__ = "0.4"
+__version__ = "0.5"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 """«Pendientes»: la cola de lo que todavía no has empezado.
@@ -13,7 +13,9 @@ aquí no hay progreso que enseñar (`DISENO.md` §3 y §7):
   hueco que deja lo ocupa «N episodios · Proveedor», que es el dato con el que
   se elige: siete animes de 12 episodios no son lo mismo que uno de 55;
 - la cabecera lleva un **orden por duración**, y la fila una acción «Empezar»
-  que mueve el anime a «Viendo» y abre su ficha sin dar el rodeo.
+  que mueve el anime a «Viendo» y abre su ficha **por el primer episodio**, en
+  orden ascendente y con los servidores ya desplegados: de la cola a elegir
+  servidor en un solo clic.
 
 Todo lo que se pinta sale de la biblioteca guardada: la vista **funciona sin
 conexión**. Solo salen a la red la búsqueda del proveedor —que se **suma** a la
@@ -33,6 +35,7 @@ from dataPersistence.animesPersistence import AnimesPersistence, AnimesPersisten
 from gui.anime_window import open_saved_anime
 from gui.components.anime_row import AnimeRow, RowAction
 from gui.components.empty_state import EmptyState, ICON_SIZE as EMPTY_ICON_SIZE
+from gui.components.resume_card import resume_progress
 from gui.components.status_pill import StatusPill
 from gui.components.view_header import ViewHeader
 from gui.theme import Metrics, Theme
@@ -291,7 +294,9 @@ class PendingAnimeButton(utilsButtons.SidebarButton):
 
         Encadena lo que ya existía, en este orden y no en otro: primero la BD
         —``update_anime_to_watching`` apaga finalizado y pendiente él solo—,
-        luego los contadores, y la ficha al final, que es lo que cambia de vista.
+        luego los contadores, y la ficha al final, que es lo que cambia de vista,
+        y que se abre **por el primer episodio**: en orden ascendente y con sus
+        servidores desplegados, que es a lo que se le da a «Empezar».
 
         ⚠️ El ``AnimeInfo`` se construye desde la **fila guardada**
         ([trampa 21](.claude/docs/10-invariantes-y-trampas.md)): su ``anime_id``
@@ -313,10 +318,14 @@ class PendingAnimeButton(utilsButtons.SidebarButton):
 
         self.__cache_poster_async(anime_info)
         self.__refresh_library_counts()
-        # Hoy lleva a la ficha, igual que el clic en la fila. Abrirla **por el
-        # episodio 1** es cosa de la fase 8, que es la que rehace la lista de
-        # episodios; hasta entonces la ficha ya sale con el primero arriba.
-        self.__on_anime_click(anime_record.anime_id)
+        # El episodio sale de `resume_progress()` y no de un 1 a pelo: en un
+        # pendiente sin nada visto son lo mismo, pero si el anime volvió a la cola
+        # a medias, «empezar» es seguir por donde se dejó, no repetir el piloto.
+        # `force_ascending` es lo que garantiza que detrás vayan el 2 y el 3 aunque
+        # el proveedor sirva la lista al revés.
+        next_episode, _episodes, _fraction = resume_progress(anime_record)
+        open_saved_anime(self.main_window, anime_record.anime_id,
+                         focus_episode=next_episode, force_ascending=True)
 
     def __cache_poster_async(self, anime_info: AnimeInfo) -> None:
         """Deja una copia del póster en ``resources/images/watching/``.
