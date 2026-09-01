@@ -18,7 +18,7 @@ internamente lo pedido usando [`.claude/COMO-PEDIR-TAREAS.md`](COMO-PEDIR-TAREAS
    primero que hay que aclarar, y lo que más cambia el tamaño del trabajo.
 3. **Ficheros exactos y frontera de alcance.** Las 4 vistas de estado son casi idénticas línea por
    línea: decide si la tarea afecta a una o a las cuatro.
-4. **¿Es una trampa conocida?** Coteja con `docs/10-invariantes-y-trampas.md` (**39** trampas con su
+4. **¿Es una trampa conocida?** Coteja con `docs/10-invariantes-y-trampas.md` (**40** trampas con su
    síntoma) **antes** de investigar desde cero.
 5. **Nivel de verificación** — ejecutar la GUI · script en el scratchpad · solo lectura. No hay
    tests: si no se ejecuta, se entrega marcado como no verificado.
@@ -238,6 +238,12 @@ dos piezas que antes no existían:
   `GenreChips`— tiene que sumar esa reserva y **comprobarla leyendo `winfo_reqwidth()`**, no
   `cget("width")` ([trampas 29, 30 y 39](docs/10-invariantes-y-trampas.md),
   [`docs/09 §6d`](docs/09-verificacion-y-pruebas.md)).
+  🔴 **Y atar un evento encima de uno de estos widgets tiene dos reglas.** `bind()` sin `add="+"`
+  **sustituye** el manejador que ya hubiera, y CustomTkinter monta los suyos **dentro** (`_clicked`,
+  su hover): excluir un botón de un recorrido recursivo **no excluye su canvas ni su etiqueta**, que
+  es donde cae el ratón. Las dos juntas dejaron la píldora de `AnimeRow` **sin ejecutar nunca su
+  `command`** —y «Empezar» sin mover nada a «Viendo»— durante diez días, en silencio
+  ([trampa 40](docs/10-invariantes-y-trampas.md), [`docs/09 §6e`](docs/09-verificacion-y-pruebas.md)).
 
 🔴 **Una vista compone, no dibuja.** Si necesita una variante de un componente, **se le añade un
 parámetro; no se bifurca el fichero**. Es lo que mantiene `AnimeRow` en un solo módulo para «Viendo»
@@ -316,6 +322,19 @@ catálogo.
 | Pendientes | cascada de `AnimeRow`, orden por duración, «Empezar» en hover | — |
 | Finalizados | rejilla de **6** con el sello «vistos / totales» | 12 |
 | Buscar | campo de 620 px + `GenreChips` + rejilla de **6** | del proveedor |
+
+🔴 **«Viendo» y «Pendientes» abren la ficha por un episodio, no por el anime** (2026-09-01). Sus tres
+acciones dicen un episodio en su texto —«Episodio N →», «Seguir por el N» y «Empezar»— y lo cumplen:
+`open_saved_anime(..., focus_episode=N, force_ascending=…)` deja la ficha con esa fila desplegada, sus
+servidores a la vista y la ventana desplazada **solo si la fila no cabía**. El número sale del mismo
+`resume_progress()` que escribió el texto.
+⚠️ **«Empezar» fuerza el orden ascendente y «Viendo» no**, y no es un descuido: el corte de 25
+episodios se aplica sobre la lista **tal y como llega**, así que con One Piece por el 1164 forzarlo a
+ascendente lo dejaría fuera. Cuando el episodio cae fuera del corte, se enseña **él solo** con sus
+botones de navegación, como al buscarlo a mano ([`docs/03 §12`](docs/03-flujos-de-ejecucion.md)).
+⚠️ Esto hace que la petición de servidores —que **sigue en el hilo de Tkinter**, la deuda nº 1— se
+dispare **al abrir la ficha**, no solo al pulsar una fila. Va envuelta en un `after(50 ms)` para que al
+menos la ficha se pinte antes.
 
 🔴 **Las fichas de `GenreChips` se colocan con `place()`, así que el componente lleva a mano la cuenta
 del ancho** — y esa cuenta incluye lo que `CTkButton` reserva por dentro. Quedarse corto no encoge la
@@ -515,7 +534,9 @@ Después, sin orden fijado. **El rediseño se llevó por delante buena parte de 
 - Integrar más proveedores (MonosChinos2, TioAnime) y proveedores de manga.
 - **Deuda que deja el rediseño**, por orden de lo que más molesta:
   1. ⚠️ **La petición de servidores de la ficha sigue en el hilo de Tkinter** — el **último** sitio de
-     la GUI que sale a la red desde el hilo de la interfaz. Congela la ventana un par de segundos.
+     la GUI que sale a la red desde el hilo de la interfaz. Congela la ventana un par de segundos, y
+     desde el 2026-09-01 **molesta más**: abrir la ficha por un episodio la dispara sin que el usuario
+     pulse nada.
   2. **B11**: los ~7 iconos de la barra lateral y los 2 GIF de carga siguen siendo de origen
      desconocido ([`docs/12 §4`](docs/12-deuda-tecnica-y-roadmap.md)). El rediseño **no la hizo
      crecer**: sus diez glifos se dibujan con PIL.
@@ -536,21 +557,21 @@ Guía de colaboración (cómo plantear una tarea en este repo, qué asumo por de
 cambian mi comportamiento): [`.claude/COMO-PEDIR-TAREAS.md`](COMO-PEDIR-TAREAS.md).
 
 **Antes de tocar cualquier cosa, lee [`docs/10-invariantes-y-trampas.md`](docs/10-invariantes-y-trampas.md)**
-— **39** trampas con su síntoma observable.
+— **40** trampas con su síntoma observable.
 
 | Documento | Qué responde |
 |---|---|
 | [docs/README.md](docs/README.md) | Índice, mapa de lectura «si tocas X, lee Y», cómo mantenerlo vivo |
 | [docs/01-arquitectura.md](docs/01-arquitectura.md) | Capas, dependencias permitidas/prohibidas, invariantes de diseño |
 | [docs/02-mapa-de-modulos.md](docs/02-mapa-de-modulos.md) | Ficha por módulo: API pública, dependencias, efectos secundarios |
-| [docs/03-flujos-de-ejecucion.md](docs/03-flujos-de-ejecucion.md) | Los **12** flujos en diagramas de secuencia, con el hilo de cada paso |
+| [docs/03-flujos-de-ejecucion.md](docs/03-flujos-de-ejecucion.md) | Los **13** flujos en diagramas de secuencia, con el hilo de cada paso |
 | [docs/04-modelo-de-datos.md](docs/04-modelo-de-datos.md) | `AnimeInfo` vs `AnimeRecord`, esquema real de `ANIMES`, rangos, estados |
 | [docs/05-proveedores-y-scraping.md](docs/05-proveedores-y-scraping.md) | Contrato, payload de AnimeAV1, selectores de AnimeFLV, fallback, diagnóstico |
 | [docs/06-gui-y-vistas.md](docs/06-gui-y-vistas.md) | `MainWindow` como hub, ciclo de vida de una vista, layout, temas |
 | [docs/07-concurrencia-e-hilos.md](docs/07-concurrencia-e-hilos.md) | Qué corre en qué hilo, reglas y carreras conocidas |
 | [docs/08-convenciones-y-estilo.md](docs/08-convenciones-y-estilo.md) | Cabecera obligatoria, singletons, **plantillas copiables** |
 | [docs/09-verificacion-y-pruebas.md](docs/09-verificacion-y-pruebas.md) | Cómo probar cada capa sin GUI; scripts listos; checklist manual |
-| [docs/10-invariantes-y-trampas.md](docs/10-invariantes-y-trampas.md) | **Empieza por aquí.** **39** trampas con síntoma observable |
+| [docs/10-invariantes-y-trampas.md](docs/10-invariantes-y-trampas.md) | **Empieza por aquí.** **40** trampas con síntoma observable |
 | [docs/11-playbooks.md](docs/11-playbooks.md) | Recetas: añadir vista, columna, proveedor, campo; empaquetar |
 | [docs/12-deuda-tecnica-y-roadmap.md](docs/12-deuda-tecnica-y-roadmap.md) | TODOs con `fichero:línea`, discrepancias, riesgos, roadmap técnico **y licencia/cumplimiento de la distribución (§7)** |
 | [docs/13-selector-de-proveedor.md](docs/13-selector-de-proveedor.md) | Selector de proveedor, `DB_user.db` **y la columna `provider_id`** (§14). **Léelo antes de tocar `animeProviderMgr.py`, `main_window.py` o `anime_window.py`** |

@@ -2,8 +2,8 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-09-01 · rama `feature/ui-redisign` · árbol **limpio de código**, último commit `1b63882`. ⚠️ **Revisado por última vez el 2026-09-01 con el refresco de la banda «Retomar» (`4ffc2ef`)**: el arreglo posterior del ancho de las fichas de género no toca nada de este documento |
-| **Última revisión** | 2026-09-01 (**refresco de la banda «Retomar»**): hilo nuevo en la portada, y **§1, §2 y §6 reancladas enteras contra el código real** — la mitad de las líneas que citaban se habían movido con el rediseño y tres hilos del inventario **ya no existían**. Antes, 2026-08-31 (**fondo de la pantalla de carga**): anclas de `main_window.py` reverificadas en §1, §2 y §4 (iban ~29 líneas desplazadas) y `place_forget()` corregido a `destroy()` en C1; las de #5 a #13 **siguen sin verificar**. Antes, 2026-08-16 (**columna `provider_id`**): hilos a **13** (eran 8) y `after()` a **10** (eran 4); **C2 resuelta** — los 4 puntos que abren una ficha pintan ya en el hilo de Tk. C5 sigue viva |
+| **Fecha** | 2026-09-01 · rama `feature/ui-redisign` · último commit **`a0e3f37`** (abrir la ficha por un episodio). ⚠️ **Solo se ha revisado C5**: el resto del documento sigue anclado en el 2026-09-01 con el refresco de la banda «Retomar» (`4ffc2ef`) |
+| **Última revisión** | 2026-09-01 (**abrir la ficha por un episodio**): **C5 sube de gravedad** — la petición de servidores ya no la dispara solo el usuario, la dispara también abrir la ficha desde «Viendo» o «Pendientes»; el `after(50 ms)` que lo envuelve es una tirita, no el arreglo. Antes, 2026-09-01 (**refresco de la banda «Retomar»**): hilo nuevo en la portada, y **§1, §2 y §6 reancladas enteras contra el código real** — la mitad de las líneas que citaban se habían movido con el rediseño y tres hilos del inventario **ya no existían**. Antes, 2026-08-31 (**fondo de la pantalla de carga**): anclas de `main_window.py` reverificadas en §1, §2 y §4 (iban ~29 líneas desplazadas) y `place_forget()` corregido a `destroy()` en C1; las de #5 a #13 **siguen sin verificar**. Antes, 2026-08-16 (**columna `provider_id`**): hilos a **13** (eran 8) y `after()` a **10** (eran 4); **C2 resuelta** — los 4 puntos que abren una ficha pintan ya en el hilo de Tk. C5 sigue viva |
 | **Cubre** | `src/gui/main_window.py`, `src/gui/anime_window.py`, `src/gui/sidebarButtons/**`, `src/utils/utils.py` |
 
 Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ sin verificar.
@@ -232,8 +232,15 @@ t.start()
 
 ### C5 — HTTP en el hilo de UI al abrir servidores 📖
 
-`anime_window.py:1694` llama a `get_anime_episode_servers` en el callback del botón. ✅ Con AnimeAV1
-tarda ~0,2 s.
+`anime_window.py:1802-1871` llama a `get_anime_episode_servers` en el callback de la fila. ✅ Con
+AnimeAV1 tarda ~0,2 s.
+
+🆕 **Desde el 2026-09-01 esta llamada ya no la dispara solo el usuario.** Abrir la ficha por un
+episodio ([03 §12](03-flujos-de-ejecucion.md)) entra por aquí sola, así que la congelación pasó de
+«cuando pulso una fila» a «cada vez que entro desde “Viendo” o “Pendientes”». Se mitiga con un
+`after(FOCUS_DELAY_MS = 50)` **detrás del pintado**: la ficha se ve entera y el cursor `watch` sale
+después. Es una tirita —la petición sigue en 🖥️— y sube la prioridad de C5, que es el **último** sitio
+de la GUI que sale a la red desde el hilo de la interfaz.
 
 > ⚠️ **Corrección (2026-08-07).** La versión anterior decía que «si AnimeAV1 falla y entra el fallback
 > a AnimeFLV, se suman los timeouts de ambos proveedores». **Es falso desde el 2026-07-30**: esa

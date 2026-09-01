@@ -2,8 +2,8 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-09-01 · rama `feature/ui-redisign` · árbol **limpio de código**: el ancho de las fichas de género va en `1b63882`, el refresco de la banda «Retomar» en `4ffc2ef` y el hover de los episodios en `df47130`; lo único sin commitear es esta tanda de documentación |
-| **Última revisión** | 2026-09-01 (**ancho de las fichas de género**): `GenreChips` explica **quién decide el ancho de una ficha** y por qué el componente tiene que contarlo él ([trampa 39](10-invariantes-y-trampas.md)); se añade la regla general de que en CustomTkinter `width` es una petición, no un contrato. Antes, 2026-09-01 (**refresco de la banda «Retomar»**): `ResumeBand` y `ResumeCard` estrenan `update_record()`; la portada pasa a ser la **única vista que sale a la red por datos ya guardados**, y se explica por qué va sin *fallback*. Antes, 2026-09-01 (**hover de la lista de episodios**): `EpisodeRow` ata el hover a todos sus hijos y guarda la fila resaltada en un atributo de clase; se explica por qué `AnimeRow` no sufre lo mismo, y la regla de `bind()` gana su consecuencia con el ratón real. Antes, 2026-08-31 (**fondo de la pantalla de carga**): el apartado *Arranque* explica que la pantalla de carga es la ventana entera pintada de `Theme.BG`, y qué se veía antes. Antes, 2026-08-21 (**rediseño de interfaz, fases 1-9**): documento **reescrito entero**. Nacen `gui/theme.py` y los **11** componentes de `gui/components/`; la barra lateral pasa de seis botones sueltos a un `Sidebar` plegable; `SidebarButton` deja de ser un widget; las 6 vistas se rehacen y la ficha crece de 1 156 a 1 734 líneas |
+| **Fecha** | 2026-09-01 · rama `feature/ui-redisign` · último commit **`a0e3f37`** (**abrir la ficha por un episodio**); **sin commitear**, solo esta tanda de documentación |
+| **Última revisión** | 2026-09-01 (**abrir la ficha por un episodio**): la ficha estrena `focus_episode` / `force_ascending` y dos métodos (`__focus_on_episode`, `__scroll_to_episode`); `AnimeRow` corrige sus ataduras —el clic saltaba el botón pero no su interior, así que la píldora **nunca ejecutó su `command`** ([trampa 40](10-invariantes-y-trampas.md))—; «Viendo» y «Pendientes» dejan de llevar al anime y llevan al episodio. Antes, 2026-09-01 (**ancho de las fichas de género**): `GenreChips` explica **quién decide el ancho de una ficha** y por qué el componente tiene que contarlo él ([trampa 39](10-invariantes-y-trampas.md)); se añade la regla general de que en CustomTkinter `width` es una petición, no un contrato. Antes, 2026-09-01 (**refresco de la banda «Retomar»**): `ResumeBand` y `ResumeCard` estrenan `update_record()`; la portada pasa a ser la **única vista que sale a la red por datos ya guardados**, y se explica por qué va sin *fallback*. Antes, 2026-09-01 (**hover de la lista de episodios**): `EpisodeRow` ata el hover a todos sus hijos y guarda la fila resaltada en un atributo de clase; se explica por qué `AnimeRow` no sufre lo mismo, y la regla de `bind()` gana su consecuencia con el ratón real. Antes, 2026-08-31 (**fondo de la pantalla de carga**): el apartado *Arranque* explica que la pantalla de carga es la ventana entera pintada de `Theme.BG`, y qué se veía antes. Antes, 2026-08-21 (**rediseño de interfaz, fases 1-9**): documento **reescrito entero**. Nacen `gui/theme.py` y los **11** componentes de `gui/components/`; la barra lateral pasa de seis botones sueltos a un `Sidebar` plegable; `SidebarButton` deja de ser un widget; las 6 vistas se rehacen y la ficha crece de 1 156 a 1 734 líneas |
 | **Cubre** | `src/gui/theme.py`, `src/gui/components/**`, `src/gui/main_window.py`, `src/gui/anime_window.py`, `src/gui/sidebarButtons/**`, `src/utils/buttons/utilsButtons.py` |
 
 Procedencia: ✅ verificado en ejecución (arranque real de la GUI) · 📖 leído en código · ⚠️ sin verificar.
@@ -263,9 +263,21 @@ píldora se creara al entrar el ratón, la fila cambiaría de ancho bajo el curs
 
 ⚠️ **`AnimeRow` no sufre la [trampa 37](10-invariantes-y-trampas.md) por cómo está montada, no por
 suerte**: su separador va **fuera** del cuerpo que se resalta (`anime_row.py:143-144` lo mete en la
-fila, no en `__body`) y `__bind_interactions()` recorre **todos los descendientes** de `__body`. No
-queda ningún hijo sin atar dentro del rectángulo que se comprueba. Si algún día se mete un widget
-dentro de `__body` sin atarlo, vuelve el fallo.
+fila, no en `__body`) y el **hover** se ata a **todos los descendientes** de `__body`. No queda ningún
+hijo sin atar dentro del rectángulo que se comprueba. Si algún día se mete un widget dentro de
+`__body` sin atarlo, vuelve el fallo.
+
+🔴 **El clic, en cambio, salta la píldora entera — con su canvas y su etiqueta dentro**
+(`anime_row.py:278-312`, resuelto el 2026-09-01). Hasta entonces se saltaba **solo el botón**, y como
+un `CTkButton` es un marco con hijos y `bind()` **sustituye** en vez de sumar, la fila estaba pisando
+el `_clicked` que CustomTkinter monta en esos hijos: **la píldora nunca ejecutó su propio `command`**.
+Pulsarla corría el `on_click` de la fila. Los dos abrían la ficha del mismo anime, así que no se notó
+—salvo que **«Empezar» no movía nada a «Viendo»**— hasta que dejaron de hacer lo mismo
+([trampa 40](10-invariantes-y-trampas.md)). Dos reglas de ahí en adelante:
+
+- para excluir un widget de un recorrido recursivo, **exclúyele el subárbol**, no el widget;
+- lo que se ate encima de un widget de CustomTkinter va con **`add="+"`** — por eso el hover sí llega
+  a la píldora sin borrarle el suyo, que también estaba pisado y por eso nunca se coloreó.
 
 ### `SidePanel` y `ResumeBand`
 Los 290 px de la derecha en «Viendo» y la banda «Retomar donde lo dejaste» de la portada.
@@ -373,10 +385,22 @@ eso, un anime en emisión decía «Lo has visto entero» hasta que abrías su fi
 —**sin fallback**— precisamente porque escribe sin que el usuario lo haya pedido
 ([03 §11](03-flujos-de-ejecucion.md), [trampa 38](10-invariantes-y-trampas.md)).
 
+🆕 **«Viendo» y «Pendientes» ya no llevan al anime, llevan al episodio** (2026-09-01). Sus tres
+acciones dicen un episodio concreto en su propio texto —«Episodio N →», «Seguir por el N» y
+«Empezar»— y ahora lo cumplen: la ficha se abre con esa fila desplegada y sus servidores a la vista.
+El número sale del mismo `resume_progress()` que escribió el texto. **«Empezar» además fuerza el
+orden ascendente**, y «Viendo» **no**: con un anime largo servido de mayor a menor, forzarlo dejaría
+el episodio fuera de los 25 que se pintan ([03 §12](03-flujos-de-ejecucion.md)).
+
+⚠️ En el `SidePanel` son **dos gestos distintos**: el **botón** lleva al episodio, el **póster y el
+título** siguen abriendo la ficha a secas. Es el mismo reparto que ya tenía `AnimeRow`, y el motivo de
+que el panel fuera el único de los tres que funcionó a la primera: deja el botón fuera de sus
+ataduras a mano, así que nunca le pisó el `command` ([trampa 40](10-invariantes-y-trampas.md)).
+
 Tres cosas comunes a las **cuatro vistas de biblioteca**:
 
-- Su clic delega en **`open_saved_anime()`**, que elige el proveedor y saca la petición del hilo de
-  Tkinter.
+- Su clic delega en **`open_saved_anime()`**, que elige el proveedor, saca la petición del hilo de
+  Tkinter y —🆕 desde el 2026-09-01— acepta `focus_episode=` y `force_ascending=`.
 - Su buscador es **local** (`SavedAnimeSearch`): compara títulos guardados, funciona sin conexión, y
   la búsqueda web se **suma** encima sin quitar resultados nunca ([trampa 26](10-invariantes-y-trampas.md)).
 - **Enseñan siempre el proveedor de la fila**, porque puede no ser el seleccionado.
@@ -394,7 +418,7 @@ y **solo pinta la última**.
 
 ## 8. `AnimeWindowViewer` — sigue sin ser una ventana
 
-📖 `gui/anime_window.py` (1 734 líneas). Reemplaza el contenido de `content_frame`.
+📖 `gui/anime_window.py` (1 875 líneas). Reemplaza el contenido de `content_frame`.
 
 **Disposición**: bloque de proveedor + póster de 248 × 372 (redondeado) + título `T_SHEET` + sinopsis
 + fichas de género a la izquierda; los **4 botones de estado** en fila; y la lista de episodios.
@@ -419,6 +443,26 @@ fuera era una salida de la que no llegaba ningún `<Leave>`, y el resaltado se q
 todos los episodios recorridos ([trampa 37](10-invariantes-y-trampas.md), resuelta el 2026-09-01).
 Encima de eso, `EpisodeRow.__hovered` —atributo **de clase**— guarda la fila resaltada y la que se
 enciende apaga a la anterior: **no puede haber dos a la vez** aunque se pierda un evento.
+
+🆕 **La ficha se puede abrir por un episodio** (2026-09-01). `focus_episode=N` la deja con esa fila
+desplegada, sus servidores a la vista y la ventana desplazada hasta ella; `force_ascending=True`
+ordena la lista de menor a mayor pase lo que pase. Lo usan las tres acciones que prometen un episodio
+en su texto — «Episodio N →», «Seguir por el N» y «Empezar» — y **solo ellas**: sin esos parámetros la
+ficha se abre exactamente como antes. Recorrido completo y los dos finales silenciosos en
+[03 §12](03-flujos-de-ejecucion.md).
+
+Tres decisiones que no se ven leyendo la firma:
+
+- **Se hace con `after(50 ms)` detrás del pintado**, no durante. Pedir servidores sigue yendo en el
+  hilo de Tkinter (§10), así que sin ese respiro la ventana se congelaría con la ficha a medio
+  dibujar.
+- **Si el episodio cae fuera del corte de 25, se enseña él solo** con sus botones de anterior y
+  siguiente, y el número se escribe en «Ir al episodio…»: es el mismo estado al que se llega
+  buscándolo a mano. Con AnimeAV1 —que sirve ascendente— es lo que pasa con One Piece por el 1164.
+- **El desplazamiento solo ocurre si hace falta.** Se mide la fila y el marco de servidores contra lo
+  que se está viendo; si caben, no se toca nada. Desplazar siempre tiraba fuera el póster en el caso
+  de «Empezar», donde el episodio 1 ya se veía. 🔴 `CTkScrollableFrame` no expone el desplazamiento en
+  customtkinter 5.2.2: se usa su `_parent_canvas`.
 
 **El corte de 25 episodios sigue en pie**, pero ahora **la lista lo dice** («Se muestran 25 de
 1 174 episodios · usa "Ir al episodio…"»), que es lo que convierte el buscador de al lado en la

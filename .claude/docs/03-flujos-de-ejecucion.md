@@ -2,8 +2,8 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-09-01 · rama `feature/ui-redisign` · árbol **limpio de código**, último commit `1b63882`. ⚠️ **Revisado por última vez el 2026-09-01 con el refresco de la banda «Retomar» (`4ffc2ef`)**: el arreglo posterior del ancho de las fichas de género no toca nada de este documento |
-| **Última revisión** | 2026-09-01 (**refresco de la banda «Retomar»**): **flujo 11 nuevo** —la portada relee los episodios de lo que estás viendo al entrar—, y el antiguo §11 pasa a **§12**. Antes, 2026-08-31 (**fondo de la pantalla de carga**): §1 reanclado entero contra el código real y corregido —seguía diciendo `place_forget()`, que la fase 9 cambió a `destroy()`— y con la nota del fondo `Theme.BG`. Antes, 2026-08-16 (**columna `provider_id`**): §3 pasa de 2 caminos a **3, todos asíncronos**; **flujo 10 nuevo** (migrar una fila a otro proveedor); anclas de `anime_window.py` reubicadas tras crecer a 1 155 líneas |
+| **Fecha** | 2026-09-01 · rama `feature/ui-redisign` · último commit **`a0e3f37`** (**abrir la ficha por un episodio**); **sin commitear**, solo esta tanda de documentación |
+| **Última revisión** | 2026-09-01 (**abrir la ficha por un episodio**): **flujo 12 nuevo** —las tres acciones que prometen un episodio lo cumplen: la ficha sale con esa fila desplegada—, y el antiguo §12 pasa a **§13**; §3 gana el parámetro `focus_episode` y §8 deja de ser siempre cosa del usuario. Antes, 2026-09-01 (**refresco de la banda «Retomar»**): **flujo 11 nuevo** —la portada relee los episodios de lo que estás viendo al entrar—, y el antiguo §11 pasa a **§12**. Antes, 2026-08-31 (**fondo de la pantalla de carga**): §1 reanclado entero contra el código real y corregido —seguía diciendo `place_forget()`, que la fase 9 cambió a `destroy()`— y con la nota del fondo `Theme.BG`. Antes, 2026-08-16 (**columna `provider_id`**): §3 pasa de 2 caminos a **3, todos asíncronos**; **flujo 10 nuevo** (migrar una fila a otro proveedor); anclas de `anime_window.py` reubicadas tras crecer a 1 155 líneas |
 | **Cubre** | `main_window.py`, `anime_window.py`, `recentAnimes.py`, `resume_card.py`, `searchAnimes.py`, las 4 vistas de estado, `animeProviderMgr.py`, `animesPersistence.py`, `utils.py` |
 
 Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ sin verificar.
@@ -124,6 +124,11 @@ vuelven al hilo de Tkinter con `after(0, …)`; lo que cambia es **cómo se deci
 | **3a** Recientes | el que trajo la portada (`anime_clicked.provider_id`) | el slug es suyo |
 | **3b** Las 4 de estado | `provider_for_saved_anime()` — puede re-resolver por título | el slug es del proveedor que **guardó la fila** |
 | **3c** Buscador | el que sirvió el resultado | el slug es de **ese** sitio |
+
+🆕 **Y desde el 2026-09-01, con qué episodio se abre.** `open_saved_anime()` acepta `focus_episode=`
+y `force_ascending=`, que solo usa **3b**: las tres acciones que prometen un episodio en su texto
+dejan la ficha abierta por él. Eso es el [§12](#12-abrir-la-ficha-por-un-episodio--2026-09-01); aquí
+no cambia nada más — sin esos parámetros el flujo es exactamente el de antes.
 
 ### 3a. Desde «Animes recientes»
 
@@ -444,6 +449,12 @@ El `1` es **una constante, no la última página real**: la paginación se colap
 
 ## 8. Obtención de servidores de un episodio
 
+🆕 **Ya no lo dispara solo el usuario** (2026-09-01): abrir la ficha por un episodio
+([§12](#12-abrir-la-ficha-por-un-episodio--2026-09-01)) entra por aquí sin que nadie pulse la fila.
+Eso hace que el ⚠️ de abajo —**la petición va en el hilo de Tkinter**— se note en un sitio nuevo: al
+abrir la ficha desde «Viendo» o «Pendientes». Por eso la llamada va con un `after(50 ms)` detrás del
+pintado, para que la ventana no se quede congelada a medio dibujar.
+
 ```mermaid
 sequenceDiagram
     participant U as Usuario
@@ -453,8 +464,8 @@ sequenceDiagram
     participant FLV as AnimeFLV
     participant BR as Navegador
 
-    U->>AW: clic en el botón del episodio (EpisodeButton :304-311)
-    AW->>AW: __toggle_servers_frame(ep, frames, row) :454
+    U->>AW: clic en la fila del episodio (EpisodeRow :266-424)
+    AW->>AW: __toggle_servers_frame(ep) :1724
     alt el frame ya estaba abierto
         AW->>AW: destroy() + del :456-457
     else
@@ -684,7 +695,93 @@ que abriste su ficha ([trampa 38](10-invariantes-y-trampas.md)).
 
 ---
 
-## 12. Flujos documentados en otro sitio
+## 12. Abrir la ficha **por un episodio** 🆕 *(2026-09-01)*
+
+📖 `anime_window.py:1610-1656` (`__focus_on_episode`) y `:1658-1704` (`__scroll_to_episode`).
+No es un flujo nuevo de red: es el **§3 con un parámetro más**. Lo que cambia es lo que pasa
+*después* de pintar la ficha.
+
+**El problema que resuelve**: tres botones prometían un episodio concreto en su propio texto
+—«Episodio N →» y «Seguir por el N» en «Viendo», «Empezar» en «Pendientes»— y los tres llevaban al
+**anime**. El usuario aterrizaba arriba del todo y tenía que bajar, encontrar la fila y pulsarla para
+que aparecieran los servidores.
+
+**Quién lo pide y con qué**:
+
+| Acción | `focus_episode` | `force_ascending` |
+|---|---|---|
+| «Episodio N →» (`watchingAnimes.py:256-272`) | `resume_progress()` | no |
+| «Seguir por el N» (`watchingAnimes.py:109-119`) | idem — **mismo callback** | no |
+| «Empezar» (`pendingAnimes.py:292-328`) | `resume_progress()` | **sí** |
+
+🔴 **«Viendo» no fuerza el orden y «Empezar» sí, y no es un descuido.** El corte de 25 episodios
+(trampa 8) se aplica **sobre la lista tal y como llega**: con One Piece por el 1164 de 1176, servido
+de mayor a menor el episodio entra en los 25 que se pintan, y forzarlo a ascendente lo dejaría fuera.
+En «Empezar» el episodio es el primero, así que ascendente es justo lo que hace falta para que detrás
+vayan el 2 y el 3.
+
+```mermaid
+sequenceDiagram
+    participant U as Usuario
+    participant V as 🖥️ Vista (Viendo / Pendientes)
+    participant T as 🧵 daemon
+    participant W as 🖥️ AnimeWindowViewer
+    participant MGR as AnimeProviderManager
+
+    U->>V: pulsa la píldora
+    Note over V: resume_progress(record) → el mismo número que dice el botón
+    V->>T: open_saved_anime(anime_id, focus_episode=N, force_ascending=?)
+    T->>MGR: get_anime_info_with_provider(...)
+    MGR-->>T: AnimeInfo
+    T->>W: after(0, _show) → AnimeWindowViewer(..., focus_episode=N)
+    opt force_ascending y la lista llega descendente
+        Note over W: replace(anime_info, episodes=sorted(...)) :552-557<br/>sobre una COPIA: el AnimeInfo puede ser el cacheado del hub
+    end
+    W->>U: ficha pintada entera
+    W->>W: after(FOCUS_DELAY_MS=50, __focus_on_episode) :666-671
+
+    Note over W: los 50 ms no son cosméticos:<br/>pedir servidores va en 🖥️ (§8) y congelaría la ficha a medio dibujar
+
+    alt el proveedor no lista ese episodio
+        Note over W: se anota por consola y la ficha se queda como está
+    else está entre los 25 que se pintan
+        W->>W: __toggle_servers_frame(episodio) → §8
+    else está FUERA del corte de 25
+        W->>W: __display_episodes([episodio]) + botones anterior/siguiente
+        Note over W: y el número se escribe en «Ir al episodio…»:<br/>es el mismo estado al que se llega buscándolo a mano
+        W->>W: __toggle_servers_frame(episodio) → §8
+    end
+    W->>W: __scroll_to_episode() :1658
+    opt la fila y sus servidores NO caben en lo que se ve
+        W->>U: content_frame desplazado hasta la fila
+    end
+```
+
+**Los dos finales que no son el bueno**, y los dos son silenciosos a propósito:
+
+- **La ficha ya no está**: entre el `after` y su disparo caben 50 ms, y cambiar de pestaña destruye el
+  cuerpo de la lista. Se comprueba `winfo_exists()` y se abandona.
+- **El proveedor no lista ese episodio**: la biblioteca puede ir por delante de lo publicado. No es un
+  error — la ficha se abre normal y queda la línea por consola.
+
+⚠️ **`__focus_episode` se consume**: `__focus_on_episode()` lo pone a `None` en su primera línea. Es
+una **acción de apertura**, no un estado de la ficha; sin eso, cualquier repintado futuro volvería a
+desplegar servidores por su cuenta.
+
+⚠️ **El desplazamiento solo ocurre si hace falta.** Se compara la fila —y el marco de servidores que
+le acaba de nacer debajo— contra lo que se está viendo, y si cabe entero no se toca nada. Desplazar
+siempre tiraba fuera el póster y la sinopsis en el caso de «Empezar», donde el episodio 1 ya se veía.
+🔴 `CTkScrollableFrame` **no expone el desplazamiento** en customtkinter 5.2.2: hay que ir a su
+`_parent_canvas` ([trampa 39](10-invariantes-y-trampas.md) para el resto de sorpresas de medir un
+widget de esta librería).
+
+⚠️ **Para que esto llegue a ejecutarse hubo que arreglar antes `AnimeRow`**: su píldora nunca había
+ejecutado su propio `command` ([trampa 40](10-invariantes-y-trampas.md)). Dos de los tres botones de
+la tabla pasan por ahí.
+
+---
+
+## 13. Flujos documentados en otro sitio
 
 - **Cambio de tema claro/oscuro** (`main_window.py:428-438`) → [06 §5](06-gui-y-vistas.md).
 - **Semántica interna del fallback entre proveedores** → [05 §5](05-proveedores-y-scraping.md).
