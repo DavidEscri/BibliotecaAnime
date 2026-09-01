@@ -1,7 +1,7 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "gui.components"
 __module__ = "genre_chips.py"
-__version__ = "0.1"
+__version__ = "0.2"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 """Fichas de género: la fila de filtros que sustituye al acordeón de cuarenta casillas.
@@ -54,6 +54,19 @@ _ICON_SIZE = 9
 #: Glifos ya construidos, indexados por (clase, color). Un ``CTkImage`` se puede
 #: compartir entre widgets y en esta fila hay cuarenta fichas.
 _ICON_CACHE: Dict[Tuple[str, ColorToken], ctk.CTkImage] = {}
+
+#: ``borderwidth`` de la etiqueta del texto, a cada lado. La crea CustomTkinter
+#: con ``padx=0, pady=0, borderwidth=1``.
+_LABEL_BORDER = 1
+
+#: ``borderwidth`` de la etiqueta del icono, a cada lado. Esa la crea sin
+#: argumentos, así que se queda con el 2 por defecto de Tk. Su ``padx`` no
+#: cuenta: Tk solo se lo suma al texto, y esta etiqueta no lleva.
+_IMAGE_LABEL_BORDER = 2
+
+#: ``CTkButton._image_label_spacing``: el hueco que la rejilla interna deja
+#: entre el texto y la imagen cuando el botón lleva las dos cosas.
+_IMAGE_LABEL_SPACING = 6
 
 
 def _cross_glyph(draw: ImageDraw.ImageDraw, size: float, color: str, offset: float) -> None:
@@ -263,14 +276,28 @@ class GenreChips(ctk.CTkFrame):
         )
 
     def __chip_width(self, text: str, font: ctk.CTkFont, icon: Optional[ctk.CTkImage]) -> int:
-        """Ancho de una ficha: su texto medido, más el relleno y el glifo.
+        """Ancho **real** de una ficha: el que va a medir el ``CTkButton`` al pintarse.
 
         Un ``CTkButton`` sin ``width`` se queda con los 140 px de la librería, así
         que la ficha de «Magia» y la de «Recuentos de la vida» saldrían iguales.
+
+        Lo que la rejilla reserva, y que hay que sumar:
+
+        - las columnas de los extremos llevan ``minsize =
+          max(corner_radius, border_width + 1, border_spacing)``. En una píldora
+          manda el radio: **14 px** por lado, más que los 12 de ``CHIP_PAD_X``;
+        - la etiqueta del texto añade su borde de 1 px por lado;
+        - con icono, el hueco ``_image_label_spacing`` y el borde de 2 px por lado
+          de la etiqueta de la imagen — y el ancho del ``CTkImage`` ya incluye el
+          ``_ICON_GAP`` transparente, por eso se pregunta por su ``size`` y no se
+          vuelve a sumar.
         """
-        width = font.measure(text) + 2 * self.CHIP_PAD_X
+        # El relleno efectivo es el mayor de los dos: el del diseño y el que el
+        # botón impone por su radio de esquina.
+        side = max(self.CHIP_PAD_X, Metrics.pill_radius(self.CHIP_H))
+        width = 2 * side + font.measure(text) + 2 * _LABEL_BORDER
         if icon is not None:
-            width += _ICON_SIZE + _ICON_GAP
+            width += _IMAGE_LABEL_SPACING + icon.cget("size")[0] + 2 * _IMAGE_LABEL_BORDER
         return width
 
     def __place_chip(self, chip: ctk.CTkButton, row: int, used: int,
