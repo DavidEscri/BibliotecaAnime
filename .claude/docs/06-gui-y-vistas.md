@@ -2,8 +2,8 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-09-01 · rama `feature/ui-redisign` · árbol **limpio de código**: el refresco de la banda «Retomar» va en `4ffc2ef`, el hover de los episodios en `df47130` y el fondo de la pantalla de carga en `e7d8f2f`; lo único sin commitear es esta tanda de documentación |
-| **Última revisión** | 2026-09-01 (**refresco de la banda «Retomar»**): `ResumeBand` y `ResumeCard` estrenan `update_record()`; la portada pasa a ser la **única vista que sale a la red por datos ya guardados**, y se explica por qué va sin *fallback*. Antes, 2026-09-01 (**hover de la lista de episodios**): `EpisodeRow` ata el hover a todos sus hijos y guarda la fila resaltada en un atributo de clase; se explica por qué `AnimeRow` no sufre lo mismo, y la regla de `bind()` gana su consecuencia con el ratón real. Antes, 2026-08-31 (**fondo de la pantalla de carga**): el apartado *Arranque* explica que la pantalla de carga es la ventana entera pintada de `Theme.BG`, y qué se veía antes. Antes, 2026-08-21 (**rediseño de interfaz, fases 1-9**): documento **reescrito entero**. Nacen `gui/theme.py` y los **11** componentes de `gui/components/`; la barra lateral pasa de seis botones sueltos a un `Sidebar` plegable; `SidebarButton` deja de ser un widget; las 6 vistas se rehacen y la ficha crece de 1 156 a 1 734 líneas |
+| **Fecha** | 2026-09-01 · rama `feature/ui-redisign` · árbol **limpio de código**: el ancho de las fichas de género va en `1b63882`, el refresco de la banda «Retomar» en `4ffc2ef` y el hover de los episodios en `df47130`; lo único sin commitear es esta tanda de documentación |
+| **Última revisión** | 2026-09-01 (**ancho de las fichas de género**): `GenreChips` explica **quién decide el ancho de una ficha** y por qué el componente tiene que contarlo él ([trampa 39](10-invariantes-y-trampas.md)); se añade la regla general de que en CustomTkinter `width` es una petición, no un contrato. Antes, 2026-09-01 (**refresco de la banda «Retomar»**): `ResumeBand` y `ResumeCard` estrenan `update_record()`; la portada pasa a ser la **única vista que sale a la red por datos ya guardados**, y se explica por qué va sin *fallback*. Antes, 2026-09-01 (**hover de la lista de episodios**): `EpisodeRow` ata el hover a todos sus hijos y guarda la fila resaltada en un atributo de clase; se explica por qué `AnimeRow` no sufre lo mismo, y la regla de `bind()` gana su consecuencia con el ratón real. Antes, 2026-08-31 (**fondo de la pantalla de carga**): el apartado *Arranque* explica que la pantalla de carga es la ventana entera pintada de `Theme.BG`, y qué se veía antes. Antes, 2026-08-21 (**rediseño de interfaz, fases 1-9**): documento **reescrito entero**. Nacen `gui/theme.py` y los **11** componentes de `gui/components/`; la barra lateral pasa de seis botones sueltos a un `Sidebar` plegable; `SidebarButton` deja de ser un widget; las 6 vistas se rehacen y la ficha crece de 1 156 a 1 734 líneas |
 | **Cubre** | `src/gui/theme.py`, `src/gui/components/**`, `src/gui/main_window.py`, `src/gui/anime_window.py`, `src/gui/sidebarButtons/**`, `src/utils/buttons/utilsButtons.py` |
 
 Procedencia: ✅ verificado en ejecución (arranque real de la GUI) · 📖 leído en código · ⚠️ sin verificar.
@@ -314,6 +314,22 @@ la más larga y la fila se abra en huecos. Con `place()` el marco no pide alto, 
 fija.
 El texto sale de `refactor_genre_text(genre.name)`, **no de `.value`**: los `value` son slugs sin
 tildes (`ciencia-ficcion`).
+
+🔴 **Colocar con `place()` obliga a llevar la cuenta del ancho, y esa cuenta no es la del diseño.**
+`__chip_width()` no puede sumar «texto medido + `CHIP_PAD_X`»: un `CTkButton` **no respeta el `width`
+que se le pide** —su rejilla interna propaga tamaño y gana el ancho que ella necesita—, y `place()`
+sin ancho explícito pinta el widget a su ancho *pedido*. Hay que sumarle además los 14 px por lado que
+reserva el radio de la píldora, el borde de la etiqueta del texto y, con icono, el hueco interno más
+el borde de la etiqueta de la imagen. Contar de menos **no encoge la ficha**: la deja pintándose
+encima de la siguiente, que es como se destapó — **al seleccionar un género, la ficha de al lado le
+tapaba la ✕**. La aritmética, con los números medidos, en la
+[trampa 39](10-invariantes-y-trampas.md).
+
+⚠️ **Regla general, no anécdota de este componente**: en CustomTkinter `width` y `height` son una
+**petición**, no un contrato. Es la misma raíz de las trampas **29** (un `CTkFrame` no mide cero) y
+**30** (un `CTkLabel` no se recorta a su `height`). Quien coloque con `place()` y calcule medidas a
+mano tiene que comprobarlas leyendo `winfo_reqwidth()` del widget ya colocado
+([09 §6d](09-verificacion-y-pruebas.md)), no fiarse de `cget("width")`.
 
 ### `EmptyState` 🆕
 Icono, frase, pista opcional y un botón de acción. Sustituye al `CTkLabel` suelto de cada vista.
