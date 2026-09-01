@@ -2,9 +2,9 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-09-01 · rama `feature/ui-redisign` · último commit **`4ffc2ef`** (refresco de la banda «Retomar»); **sin commitear**, el ancho de las fichas de género (`genre_chips.py`) y esta tanda de documentación |
+| **Fecha** | 2026-09-01 · rama `feature/ui-redisign` · último commit **`a0e3f37`** (**abrir la ficha por un episodio**); **sin commitear**, solo esta tanda de documentación |
 | **Cubre** | los **31** módulos con contenido de `src/` + `MiBibliotecaAnime.spec` + `requirements.txt` |
-| **Última revisión** | 2026-09-01 (**ancho de las fichas de género**): trampa **39** nueva —un `CTkButton` no respeta el `width` que se le pide: su rejilla interna propaga tamaño y el ancho *pedido* gana—, en un apartado propio, con la aritmética exacta de lo que reserva por dentro. Antes, 2026-09-01 (**refresco de la banda «Retomar»**): trampa **38** nueva —una fila guardada no refresca sus episodios sola, así que un anime en emisión miente hasta que abres su ficha—, **resuelta solo para las ≤3 tarjetas de la portada** y viva en el resto de la biblioteca. Antes, 2026-09-01 (**hover de la lista de episodios**): trampa **37** nueva —un hijo sin `bind` es una salida de la que no llega ningún `<Leave>`, la complementaria de la **34**—, con la nota de que **no se reproduce moviendo el ratón deprisa**. Antes, 2026-08-31 (**fondo de la pantalla de carga**): trampa **36** nueva —un widget sin `fg_color` sale del gris por defecto de CustomTkinter, no de `Theme`—, con el `minsize` que sobrevive a `grid_forget()` y el GIF transparente como medias trampas; la **33** gana un aviso: el comentario que la anclaba en el código ya no está. Antes, 2026-08-21 (**rediseño de interfaz**): **7 trampas nuevas** (29-35), todas de CustomTkinter y de layout, en un apartado propio; la **33** nace ya resuelta. La trampa **22** queda cerrada: la ficha ya no calcula anchos a mano. Antes, 2026-08-17 (**licencia y empaquetado**): la trampa **18** se subdivide en **a-e** — **18d cerrada** (`datas` ya no lleva datos de usuario; PyInstaller **ignora en silencio las carpetas vacías**) y **18e nueva** (los destinos de `datas` caen dentro de `_internal/`, no junto al `.exe`). Antes, 2026-08-16 (**columna `provider_id`**): **3 trampas nuevas** (26, 27, 28), trampa **21 reescrita** —ahora se puede provocar a voluntad y la ficha la señala en pantalla—, trampas **4** y **13** ampliadas, y anclas de `anime_window.py` (647→1156) y `animesPersistence.py` reubicadas |
+| **Última revisión** | 2026-09-01 (**abrir la ficha por un episodio**): trampa **40** nueva —un `bind()` sin `add="+"` **borra** el manejador que el widget ya tenía, y excluir un botón de un recorrido **no excluye su interior**—, en un apartado propio; es la que explica por qué «Empezar» **nunca** movió un anime a «Viendo». La **37** gana la corrección de por qué `AnimeRow` sigue sin sufrirla. Antes, 2026-09-01 (**ancho de las fichas de género**): trampa **39** nueva —un `CTkButton` no respeta el `width` que se le pide: su rejilla interna propaga tamaño y el ancho *pedido* gana—, en un apartado propio, con la aritmética exacta de lo que reserva por dentro. Antes, 2026-09-01 (**refresco de la banda «Retomar»**): trampa **38** nueva —una fila guardada no refresca sus episodios sola, así que un anime en emisión miente hasta que abres su ficha—, **resuelta solo para las ≤3 tarjetas de la portada** y viva en el resto de la biblioteca. Antes, 2026-09-01 (**hover de la lista de episodios**): trampa **37** nueva —un hijo sin `bind` es una salida de la que no llega ningún `<Leave>`, la complementaria de la **34**—, con la nota de que **no se reproduce moviendo el ratón deprisa**. Antes, 2026-08-31 (**fondo de la pantalla de carga**): trampa **36** nueva —un widget sin `fg_color` sale del gris por defecto de CustomTkinter, no de `Theme`—, con el `minsize` que sobrevive a `grid_forget()` y el GIF transparente como medias trampas; la **33** gana un aviso: el comentario que la anclaba en el código ya no está. Antes, 2026-08-21 (**rediseño de interfaz**): **7 trampas nuevas** (29-35), todas de CustomTkinter y de layout, en un apartado propio; la **33** nace ya resuelta. La trampa **22** queda cerrada: la ficha ya no calcula anchos a mano. Antes, 2026-08-17 (**licencia y empaquetado**): la trampa **18** se subdivide en **a-e** — **18d cerrada** (`datas` ya no lleva datos de usuario; PyInstaller **ignora en silencio las carpetas vacías**) y **18e nueva** (los destinos de `datas` caen dentro de `_internal/`, no junto al `.exe`). Antes, 2026-08-16 (**columna `provider_id`**): **3 trampas nuevas** (26, 27, 28), trampa **21 reescrita** —ahora se puede provocar a voluntad y la ficha la señala en pantalla—, trampas **4** y **13** ampliadas, y anclas de `anime_window.py` (647→1156) y `animesPersistence.py` reubicadas |
 
 Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ sin verificar.
 
@@ -964,9 +964,14 @@ atributo **de clase** con la fila resaltada; la que se enciende apaga a la anter
 dos filas encendidas a la vez**.
 
 **Por qué `AnimeRow` no lo sufre**: su separador está **fuera** del cuerpo que se resalta
-(`anime_row.py:143-144` lo mete en la fila, no en `__body`), y `__bind_interactions()` recorre todos
-los descendientes de `__body`. No es suerte: es la estructura. `EpisodeRow` metió el separador
-**dentro** con `place()` para no gastar una fila de rejilla, y ahí nació el agujero.
+(`anime_row.py:143-144` lo mete en la fila, no en `__body`), y `__bind_interactions()` ata el hover a
+**todos** los descendientes de `__body` — píldora de acción incluida, con su canvas y su etiqueta
+dentro. No es suerte: es la estructura. `EpisodeRow` metió el separador **dentro** con `place()` para
+no gastar una fila de rejilla, y ahí nació el agujero.
+
+⚠️ **Que el hover llegue a todos no significa que el clic también**, y desde el 2026-09-01 son dos
+listas distintas: el clic **salta la píldora entera** ([trampa 40](#40-un-bind-sin-add-borra-el-manejador-que-el-widget-ya-tenía---resuelta-2026-09-01)).
+Quitarle también el hover reabriría este agujero por la píldora.
 
 **Cómo comprobarlo**: no a ojo y no con la mano. Se monta una pila de `EpisodeRow` reales en una
 ventana suelta y se recorre con `SetCursorPos` **de píxel en píxel**, contando cuántas filas tienen
@@ -1082,6 +1087,76 @@ un contrato**.
 ⚠️ **La ficha de detalle se libra por otro camino**: `__place_genre_tags()` (`anime_window.py:736-801`)
 también envuelve fichas con `place()`, pero las suyas son `CTkFrame` con la etiqueta **dentro**, y un
 hijo colocado con `place()` **no** propaga tamaño al padre. Por eso ahí el `width=` sí se respeta.
+
+---
+
+## Atar eventos encima de CustomTkinter *(añadida 2026-09-01)*
+
+### 40. Un `bind()` sin `add="+"` borra el manejador que el widget ya tenía 🔴 ✅ *(resuelta 2026-09-01)*
+
+Es la **tercera** de la familia de la [trampa 35](#35-bind-y-event_generate-no-hablan-del-mismo-widget-en-customtkinter--)
+y la [trampa 37](#37-un-hijo-sin-bind-es-un-agujero-por-el-que-el-hover-se-queda-encendido---resuelta-2026-09-01):
+todas salen de que **un widget de CustomTkinter es un marco de Tk con hijos dentro**, y de que el
+código de la aplicación trata ese marco como si fuera un widget atómico.
+
+**Por qué**, dos hechos que por separado son inofensivos y juntos borran una funcionalidad entera:
+
+1. **`bind(seq, func)` sin `add="+"` sustituye**, no suma. Es Tk, no CustomTkinter, y está
+   documentado — pero no se piensa en ello cuando se ata un manejador propio a un widget ajeno.
+2. **Excluir un widget de un recorrido no excluye su interior.** Un `CTkButton` es un marco con un
+   `CTkCanvas` y un `Label` dentro, y CustomTkinter monta **ahí** sus manejadores: `_clicked` en
+   `<Button-1>` y su hover en `<Enter>` / `<Leave>`. Esos dos hijos **no son** el botón, así que un
+   `if widget is boton: continue` los deja pasar — y son justo donde cae el ratón, porque tapan el
+   marco entero.
+
+Le pasaba a `AnimeRow.__bind_interactions()` (`anime_row.py:278-312`), que recorre los descendientes
+de `__body` para atarles el clic de la fila —los eventos de Tk no burbujean— y saltaba **solo**
+`self.__action_button`. Resultado: la fila **pisaba el `_clicked` de su propia píldora**.
+
+Se ve en una línea, comparando la atadura antes y después de que la fila haga su `bind()`:
+
+```
+CTkButton recién creado:   canvas -> ..._clicked...    label -> ..._clicked...
+tras un bind() de la fila: canvas -> ...<lambda>...    label -> ...<lambda>...
+con add="+":               canvas -> ..._clicked... y luego ...<lambda>...
+```
+
+**Síntoma observable**: la píldora se pinta, se resalta al pasar por encima y **responde al clic**…
+pero ejecutando el `on_click` de la fila en vez de su propio `command`. Como los dos abrían la ficha
+del mismo anime, durante diez días **pareció que funcionaba**. Lo que no funcionaba, y nadie
+relacionó, es que **«Empezar» no movía el anime a «Viendo»**: esa parte vive en la acción, que no se
+ejecutaba nunca. Ningún error por consola, y el anime abría su ficha con normalidad.
+
+Salió a la luz el 2026-09-01, al hacer que la acción y el clic dejaran de hacer lo mismo
+([03 §12](03-flujos-de-ejecucion.md)): la píldora prometía llevar a un episodio y llevaba al anime.
+
+**Invariante**, dos mitades:
+
+- **Para excluir un widget de un recorrido recursivo, hay que excluir su subárbol**, no el widget.
+  `self.__descendants(self.__action_button)` y `not in`, no `is not`.
+- **Todo lo que se ate encima de un widget de CustomTkinter va con `add="+"`.** No hay forma de saber
+  desde fuera si la librería ya puso algo suyo ahí, y perderlo no da error: da un widget que parece
+  entero y no lo está.
+
+⚠️ **El hover sigue atándose a la píldora entera, y tiene que seguir así**: si un hijo suyo se queda
+sin `<Leave>`, salir de la fila por ahí deja el resaltado encendido para siempre — la
+[trampa 37](#37-un-hijo-sin-bind-es-un-agujero-por-el-que-el-hover-se-queda-encendido---resuelta-2026-09-01)
+otra vez. Por eso el arreglo **no** es quitarle las ataduras a la píldora: es `add="+"` en el hover y
+el subárbol fuera del clic.
+
+**De paso se recuperó su hover propio**: `AnimeRow` también estaba pisando el `<Enter>` / `<Leave>`
+que CustomTkinter monta en el canvas y la etiqueta, así que la píldora nunca se pintó con su
+`hover_color`. Nadie lo había notado porque la fila entera se resalta al mismo tiempo.
+
+**Los otros cinco sitios que atan clics están bien**, y por la misma razón: `poster_grid.py:232`,
+`resume_card.py:138`, `sidebar.py:145`, `side_panel.py:174` y `EpisodeRow`
+(`anime_window.py:401-409`) atan a **listas explícitas** de marcos y etiquetas y no entran en ningún
+botón. `AnimeRow` era el único que recorría en profundidad. Y `SidePanel` deja el botón fuera **a
+mano** y con un comentario que lo dice — por eso «Seguir por el N» fue el único de los tres que
+funcionó a la primera.
+
+**Cómo comprobarlo**: [09 §6e](09-verificacion-y-pruebas.md#6e-pulsar-de-verdad-un-botón-que-vive-dentro-de-otro-widget-2026-09-01). No basta con leer el código; se pulsa
+el interior de la píldora y se cuenta **cuál de los dos manejadores ha corrido**.
 
 ---
 

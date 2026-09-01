@@ -185,7 +185,7 @@ Auditado punto por punto. Donde el código contradice a `CLAUDE.md`, **gana el c
 |---|---|---|
 | B2 | La ordenación por géneros nunca se aplica (`str` vs enum) | `utilsButtons.py:341` |
 | ~~B3~~ | ~~Guard antidoble-búsqueda inoperante (`.start()` → `None`)~~ ✅ **Desaparecido con el rediseño (2026-08-21)**: el buscador se quedó con **dos** hilos y un **contador de generación** en vez del guard; verificado el 2026-09-01 | ~~`searchAnimes.py:206,212,335`~~ → `searchAnimes.py:107, 329-330, 361` |
-| ~~B4~~ | ~~HTTP en el hilo de UI: servidores y clic desde 5 de las 6 vistas~~ ✅ **Casi cerrado (2026-08-16)**: los **6** puntos de clic van ya en hilo + `after(0,…)`. Queda **solo** la llamada de servidores | `anime_window.py:1694` ([07 C5](07-concurrencia-e-hilos.md)) |
+| ~~B4~~ | ~~HTTP en el hilo de UI: servidores y clic desde 5 de las 6 vistas~~ ✅ **Casi cerrado (2026-08-16)**: los **6** puntos de clic van ya en hilo + `after(0,…)`. Queda **solo** la llamada de servidores — y desde el 2026-09-01 **molesta más**: abrir la ficha por un episodio la dispara sin que el usuario pulse nada | `anime_window.py:1802-1871` ([07 C5](07-concurrencia-e-hilos.md)) |
 | B6 | Las 4 listas cacheadas de `MainWindow` **no las usa nadie** | `main_window.py:87-93` vs `favouriteAnimes.py:75` |
 | B7 | `remove_from_finished` mueve a *pendiente* en BD pero **borra el póster sin recrearlo** en `pending/` | `anime_window.py:859-865` |
 | ~~B8~~ | ~~`time.sleep(0.1)` en el hilo de UI × 7~~ ✅ **Cerrado con el rediseño (2026-08-21)**: `git grep -n "time.sleep" -- src/` solo devuelve las dos esperas entre reintentos de scraping, que van en hilo daemon. Verificado el 2026-09-01 | [07 §5](07-concurrencia-e-hilos.md) |
@@ -432,7 +432,10 @@ que la lista avanza.**
 3. **Arreglar B2** — barato, y desbloquea dos puntos del roadmap (recomendaciones por género, ordenar
    favoritos por calificación). **Es lo siguiente que queda barato.**
 4. **Sacar la llamada de servidores del hilo de Tkinter** — lo único que queda de B4, y ahora el
-   patrón está establecido en 7 sitios: es copiar y pegar.
+   patrón está establecido en 8 sitios: es copiar y pegar. 🔺 **Sube de prioridad el 2026-09-01**: con
+   la apertura por episodio, esa petición se hace **al entrar en la ficha** desde «Viendo» o
+   «Pendientes», no solo cuando el usuario pulsa una fila. Hoy va envuelta en un `after(50 ms)` para
+   que al menos la ficha se pinte antes de congelarse.
 5. **Entonces** abordar la convivencia anime/manga, que es la refactorización grande. `ProviderInfo`
    ya tiene dónde llevar el tipo de medio, y `USER_SETTINGS` dónde guardar la preferencia.
 

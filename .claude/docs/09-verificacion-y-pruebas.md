@@ -2,8 +2,8 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-09-01 · rama `feature/ui-redisign` · árbol **limpio de código**: el ancho de las fichas de género va en `1b63882`, el refresco de la banda «Retomar» en `4ffc2ef` y el hover de los episodios en `df47130`; lo único sin commitear es esta tanda de documentación |
-| **Última revisión** | 2026-09-01 (**ancho de las fichas de género**): **§6d nuevo** —comprobar una medida de layout leyendo el widget en vez de mirarlo—, y §7.6 gana la regresión de las fichas solapadas. Antes, 2026-09-01 (**refresco de la banda «Retomar»**): **§6c nuevo** —cómo comprobar en tres tramos algo que sale a la red, escribe en la biblioteca y repinta un widget, sin tocar la BD real—, y §7.3 gana la regresión del anime en emisión. Antes, 2026-09-01 (**hover de la lista de episodios**): **§6b nuevo** —recorrer el hover con `SetCursorPos` de píxel en píxel, que es lo único que encuentra un `<Leave>` que no llega—, §7.9 gana el recorrido de la lista de episodios y §8 avisa de no matar la instancia que tenga abierta el usuario. Antes, 2026-08-31 (**fondo de la pantalla de carga**): §7.1 gana la comprobación del fondo del arranque —que a ojo se falla— y la receta de captura de §8 usa el título real de la ventana. Antes, 2026-08-16 (**columna `provider_id`**): **§3c nuevo** — las 8 tandas de comprobaciones de la fase 8, **351 sin fallos**; checklist de §7 puesto al día con lo que ha cambiado de comportamiento |
+| **Fecha** | 2026-09-01 · rama `feature/ui-redisign` · último commit **`a0e3f37`** (**abrir la ficha por un episodio**); **sin commitear**, solo esta tanda de documentación |
+| **Última revisión** | 2026-09-01 (**abrir la ficha por un episodio**): **§6e nuevo** —pulsar de verdad un botón que vive dentro de otro widget, que es lo único que destapa un `command` que no se ejecuta ([trampa 40](10-invariantes-y-trampas.md))—; §7.5 y §7.6 ganan la regresión de las tres acciones que llevan a un episodio. Antes, 2026-09-01 (**ancho de las fichas de género**): **§6d nuevo** —comprobar una medida de layout leyendo el widget en vez de mirarlo—, y §7.6 gana la regresión de las fichas solapadas. Antes, 2026-09-01 (**refresco de la banda «Retomar»**): **§6c nuevo** —cómo comprobar en tres tramos algo que sale a la red, escribe en la biblioteca y repinta un widget, sin tocar la BD real—, y §7.3 gana la regresión del anime en emisión. Antes, 2026-09-01 (**hover de la lista de episodios**): **§6b nuevo** —recorrer el hover con `SetCursorPos` de píxel en píxel, que es lo único que encuentra un `<Leave>` que no llega—, §7.9 gana el recorrido de la lista de episodios y §8 avisa de no matar la instancia que tenga abierta el usuario. Antes, 2026-08-31 (**fondo de la pantalla de carga**): §7.1 gana la comprobación del fondo del arranque —que a ojo se falla— y la receta de captura de §8 usa el título real de la ventana. Antes, 2026-08-16 (**columna `provider_id`**): **§3c nuevo** — las 8 tandas de comprobaciones de la fase 8, **351 sin fallos**; checklist de §7 puesto al día con lo que ha cambiado de comportamiento |
 | **Cubre** | procedimiento; scripts ejecutados el 2026-07-28 contra el código de `src/` |
 
 Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ sin verificar.
@@ -585,6 +585,57 @@ esté bien**, y esta receta es la que lo demuestra.
 
 ---
 
+## 6e. Pulsar de verdad un botón que vive dentro de otro widget *(2026-09-01)*
+
+Leer el código **no vale** para saber quién responde a un clic. `AnimeRow` excluía su píldora del
+clic de la fila con un `if widget is self.__action_button: continue` que se lee correctísimo, y aun
+así la píldora llevaba diez días sin ejecutar su `command` ([trampa 40](10-invariantes-y-trampas.md)).
+Lo que hay que hacer es **pulsarla y contar cuál de los dos manejadores ha corrido**.
+
+La receta, en dos mitades. La primera es estática y encuentra el fallo en un segundo:
+
+1. Montar el componente real con **dos espías distintos**, uno para `on_click` y otro para la acción.
+   Basta un `lambda x: lista.append(x)` cada uno; lo que importa es poder distinguirlos.
+2. Recorrer los descendientes y **leer la atadura como texto**: `w.bind("<Button-1>")` devuelve el
+   script de Tcl, y ahí se ve el nombre del manejador. Tres comprobaciones que caben en una línea:
+   - ningún widget **dentro** del botón debe llevar el manejador de la fila;
+   - todos ellos **sí** deben conservar el de la librería (`_clicked` para el clic, `_on_enter` /
+     `_on_leave` para el hover);
+   - y el de la fila debe estar además, no en lugar de aquél → es lo que da `add="+"`.
+
+La segunda mitad ejercita el gesto, y tiene **dos requisitos que no son negociables**:
+
+3. 🔴 **La raíz no puede estar retirada.** Con `root.withdraw()` no hay ningún widget mapeado y Tk
+   **no entrega** un `<Button-1>` sintético: la prueba pasa sin ejecutar nada. Se deja la ventana
+   visible y se aparta de la vista con `root.geometry("...+3000+3000")`. *(Al revés que §6d, donde
+   solo se mide y ocultar la raíz no estorba.)*
+4. 🔴 **Se pulsa el hijo interno, no el widget de CustomTkinter** — es la [trampa 35](10-invariantes-y-trampas.md).
+   La píldora es un `CTkButton`: hay que buscar dentro su `!label`, que es donde cae el ratón de
+   verdad porque tapa el marco entero. Lo mismo para el título de la fila: la `CTkLabel` es un marco y
+   su `Label` interno la cubre.
+5. Si el widget solo existe en hover —la píldora va con `grid_remove()`—, **encenderlo primero**
+   (`row._AnimeRow__handle_enter()`) y `update()` antes de pulsar.
+6. Comprobar las dos direcciones: clic en el botón → **solo** su acción; clic en el título → **solo**
+   `on_click`. Un fallo de este tipo se manifiesta como *las dos cosas* o como *la que no era*.
+
+Y una tercera mitad, si el botón cambia datos: **encadenarlo con la vista real**. Se instancian
+`WatchingAnimeButton` y `PendingAnimeButton` de verdad, con `open_saved_anime` sustituido por un espía
+y la persistencia doblada, y se pulsa la píldora de **cada fila real** de la biblioteca. Es lo que
+demuestra que «Empezar» mueve el anime *y* abre por el episodio 1, y no solo una de las dos.
+
+⚠️ **Una sola raíz de Tk para todo el script.** `Theme.font()` cachea los `CTkFont`, y un `CTkFont`
+muere con la raíz que lo creó: crear una segunda raíz revienta con
+`can't invoke "font" command: application has been destroyed` en la primera medida de texto.
+
+✅ **Ejecutada el 2026-09-01** sobre `AnimeRow` en sus dos formas (con y sin barra de progreso) y sobre
+las dos vistas enteras con las filas reales de la biblioteca. Antes del arreglo: clic en la píldora →
+`on_click` y **la acción no corría**. Después: 8 comprobaciones de ataduras + clic en píldora y en
+título correctos en las dos formas, los 2 animes de «Viendo» pidiendo sus episodios 1164 y 10, y los 5
+de «Pendientes» moviéndose *y* pidiendo el 1 con `force_ascending`. `DB_Animes.db` intacta (mismo
+hash antes y después).
+
+---
+
 ## 7. Checklist de regresión manual por vista
 
 Sin tests automáticos, esto es lo que hay. Marca lo que compruebes.
@@ -672,6 +723,14 @@ tema y el plegado no cambian de vista, así que se hacen dos pasadas de siete.
 - [ ] **Hover**: la fila se resalta con `CARD_HOVER` y aparece la píldora «Episodio N →».
 - [ ] 🔴 **La píldora no se apaga al ir a pulsarla**, y la fila **no cambia de ancho**
       ([trampa 34](10-invariantes-y-trampas.md)).
+- [ ] 🆕 **La píldora se colorea al pasar por encima** (`ACCENT_SOFT`), además de resaltarse la fila.
+      Hasta el 2026-09-01 no lo hacía: la fila le pisaba su hover ([trampa 40](10-invariantes-y-trampas.md)).
+- [ ] 🆕 **Pulsar «Episodio N →» abre la ficha con ese episodio desplegado**, no arriba del todo, y
+      con sus servidores a la vista.
+- [ ] 🆕 **«Seguir por el N» del panel hace lo mismo**; pulsar el **póster o el título** del panel
+      abre la ficha a secas.
+- [ ] 🔴 Con un anime largo (One Piece, episodio 1164), la ficha enseña **ese episodio solo**, con los
+      botones de anterior y siguiente y el número puesto en «Ir al episodio…»: cae fuera de los 25.
 - [ ] El proveedor de cada fila aparece a la derecha.
 
 ### 7.6 Pendientes
@@ -681,8 +740,14 @@ tema y el plegado no cambian de vista, así que se hacen dos pasadas de siete.
 - [ ] 🔴 **Lo que no tiene lista de episodios va al final en los dos sentidos**: «no se sabe cuánto
       dura» no es «dura poco».
 - [ ] ⚠️ El orden **no** se persiste: al volver a entrar vuelve a «Más cortos primero».
-- [ ] **Hover** → píldora «Empezar»; pulsarla mueve el anime a «Viendo», **mueve los contadores de la
-      barra** y abre su ficha.
+- [ ] 🔴 **Hover** → píldora «Empezar»; pulsarla **mueve el anime a «Viendo»** y **mueve los
+      contadores de la barra**. Hasta el 2026-09-01 **no movía nada**: su `command` no llegaba a
+      ejecutarse ([trampa 40](10-invariantes-y-trampas.md)). Compruébalo volviendo a «Pendientes»:
+      el anime ya no tiene que estar.
+- [ ] 🆕 Y abre la ficha **por el primer episodio**, desplegado y con sus servidores; la lista sale
+      **de menor a mayor** y el botón de orden dice «Menor a mayor ↑».
+- [ ] 🆕 Con el episodio 1 a la vista, la ficha **no se desplaza**: el póster y la sinopsis siguen
+      arriba. Solo se desplaza cuando el episodio no cabría en pantalla.
 
 ### 7.7 Finalizados
 - [ ] Rejilla de **6**, paginador de **12**.
