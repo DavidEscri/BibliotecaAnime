@@ -59,7 +59,7 @@ integren, el desplegable ofrezca proveedores de manga si lo que se está viendo 
 |---|---|
 | `AnimeInfo.id` es el **slug del sitio**, no un identificador universal | `models.py:120`, `animeav1.py:177`, `animeflv.py:179` |
 | La tabla `ANIMES` está **cauterizada a ese slug**: `anime_id` es la clave con la que se busca todo | `animesPersistence.py:308-317` |
-| `EpisodeInfo.anime` también es el slug, y es lo que se pasa a `get_anime_episode_servers` | `models.py:115`, `anime_window.py:1694-1696` (✅ reanclado el 2026-09-01) |
+| `EpisodeInfo.anime` también es el slug, y es lo que se pasa a `get_anime_episode_servers` | `models.py:115`, `anime_window.py:1743-1745` (✅ reanclado el 2026-09-01) |
 | Los pósters en disco se llaman `{anime_id}.jpg` | `utils.py:57,83,153,192` |
 
 Consecuencia: **el mismo anime tiene un `id` distinto en cada proveedor.** AnimeAV1 sirve
@@ -187,7 +187,7 @@ Al cambiar de proveedor se sustituye la primera y **se congela la segunda**. As�
 Es una elección arbitraria pero estable y sin pérdida de datos.
 
 > 🆕 **Ampliación del 2026-08-16.** La identidad de persistencia ya no se deduce solo del `AnimeInfo`
-> de apertura: el constructor recibe **`anime_record`** (`anime_window.py:232-233`) y, si el slug
+> de apertura: el constructor recibe **`anime_record`** (`anime_window.py:277-278`) y, si el slug
 > guardado no coincide con el que se está viendo, manda el de la fila. Y ahora incluye el
 > **proveedor**, porque `persistence_anime_id` es un slug *suyo*: separarlos haría que la fila
 > guardase el proveedor equivocado.
@@ -238,8 +238,8 @@ que se suponía.
 
 | Llamante | Para qué |
 |---|---|
-| `open_saved_anime()` (`anime_window.py:167-189`) | Abrir un anime guardado cuando el desplegable está desviado: el slug guardado no vale en el proveedor elegido |
-| `__repair_to_target_provider()` (`anime_window.py:593-598`) | Localizar el anime en el proveedor destino antes de migrar la fila |
+| `open_saved_anime()` (`anime_window.py:256-334`) | Abrir un anime guardado cuando el desplegable está desviado: el slug guardado no vale en el proveedor elegido |
+| `__repair_to_target_provider()` (`anime_window.py:1088-1134`) | Localizar el anime en el proveedor destino antes de migrar la fila |
 
 Los dos construyen la referencia **a mano** (`AnimeInfo(id=…, title=…, poster=…)`), sin
 `provider_id`: es el único `AnimeInfo` del sistema que no pasa por el manager, y por eso su
@@ -493,7 +493,7 @@ ficha.
 
 *Consecuencia*: el caso 1 sobre un anime guardado necesita **re-resolver** por título, o sea
 `resolve_anime_in_provider()` ([D6](#d6--resolución-cross-provider-por-búsqueda-de-título--similitud)) — el método que la fase 7 dejó sin ningún llamante en la
-GUI. ✅ **Aquí volvió**, y en dos sitios: `open_saved_anime()` (`anime_window.py:167-189`) y el botón
+GUI. ✅ **Aquí volvió**, y en dos sitios: `open_saved_anime()` (`anime_window.py:256-334`) y el botón
 «Actualizar a …» (`:593-598`).
 
 ### Lo que costó de verdad, frente a lo estimado
@@ -715,7 +715,7 @@ comprobaciones ([09](09-verificacion-y-pruebas.md)).
 
 ### Las tres funcionalidades que trajo la columna
 
-**1. Abrir cada anime por su proveedor.** `open_saved_anime()` (`anime_window.py:108-193`) es hoy el
+**1. Abrir cada anime por su proveedor.** `open_saved_anime()` (`anime_window.py:256-334`) es hoy el
 punto de entrada único de las 4 vistas de estado, que antes repetían las mismas líneas. Además de
 elegir el proveedor, saca la petición HTTP del hilo de Tkinter — la ventana se quedaba congelada
 segundos enteros con los animes cuyo slug el predeterminado ya no reconoce, porque AnimeAV1 reintenta

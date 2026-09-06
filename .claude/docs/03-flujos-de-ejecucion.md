@@ -167,7 +167,7 @@ sequenceDiagram
 
 ### 3b. Desde favoritos / finalizados / viendo / pendientes 🆕
 
-📖 `open_saved_anime()` (`anime_window.py:108-193`). Las cuatro vistas se limitan a llamarlo.
+📖 `open_saved_anime()` (`anime_window.py:256-334`). Las cuatro vistas se limitan a llamarlo.
 
 ```mermaid
 sequenceDiagram
@@ -210,7 +210,7 @@ normal y la ficha muestra quién lo ha servido de verdad.
 
 ### 3c. Desde el buscador 🆕
 
-📖 `searchAnimes.py:344-382`. Igual que 3a en estructura, pero **arrastrando el `provider_id` del
+📖 `searchAnimes.py:351-389`. Igual que 3a en estructura, pero **arrastrando el `provider_id` del
 resultado** desde el `bind` del póster (`:254-259`):
 
 ```python
@@ -274,7 +274,7 @@ algo que deba pasar por el hecho de abrir la ficha. Ver [04 §8](04-modelo-de-da
 
 ## 4. Marcar / desmarcar un episodio
 
-📖 `anime_window.py:1052-1105`. Es el flujo más delicado del proyecto.
+📖 `anime_window.py:1101-1154`. Es el flujo más delicado del proyecto.
 
 ```mermaid
 flowchart TD
@@ -322,7 +322,7 @@ flowchart TD
 
 ## 5. Cambios de estado (los 4 botones)
 
-📖 `anime_window.py:830-903` + `animesPersistence.py:594-684`. ✅ Máquina de estados verificada
+📖 `anime_window.py:879-952` + `animesPersistence.py:594-684`. ✅ Máquina de estados verificada
 completa sobre una copia de la BD.
 
 ```mermaid
@@ -368,7 +368,7 @@ anime no está en BD, ✅ `update_sql` devuelve `True` sin haber tocado nada. `a
 
 ⚠️ **El póster no se mueve de categoría.** Al hacer `remove_from_finished` el anime pasa a
 *pendiente* en BD (`:566-581`) pero su póster se borra de `finished/` y **no** se crea en `pending/`
-(`anime_window.py:859-865`) → la vista «pendientes» lo muestra en gris. Deuda B7 en
+(`anime_window.py:908-914`) → la vista «pendientes» lo muestra en gris. Deuda B7 en
 [12 §4](12-deuda-tecnica-y-roadmap.md).
 
 ---
@@ -519,7 +519,7 @@ flowchart TD
 | `download_images_progress` | idéntico + progreso `0.9 + 0.1·completados/total` (`:126`) |
 
 ⚠️ **La purga es agresiva**: `download_animes_poster` se usa también para `resources/images/search`
-(`searchAnimes.py:229`), así que **cada búsqueda borra los pósters de la búsqueda anterior**.
+(`searchAnimes.py:236`), así que **cada búsqueda borra los pósters de la búsqueda anterior**.
 
 ⚠️ **La purga puede fallar en Windows.** ✅ `load_image` (`utils.py:181`) hace `Image.open(path)` sin
 cerrar y PIL es perezoso: el fichero queda **abierto** mientras viva el `CTkImage` → `os.remove`
@@ -539,7 +539,7 @@ está verificado**.
 
 ## 10. Migrar un anime guardado a otro proveedor 🆕 *(2026-08-16)*
 
-📖 `anime_window.py:556-709`. Es el **único flujo que reescribe la identidad de una fila** de la
+📖 `anime_window.py:601-754`. Es el **único flujo que reescribe la identidad de una fila** de la
 biblioteca, y por eso es el que más comprobaciones lleva.
 
 ```mermaid
@@ -605,12 +605,12 @@ sequenceDiagram
 
 ## 11. Refrescar la banda «Retomar» al entrar en la portada 🆕 *(2026-09-01)*
 
-📖 `recentAnimes.py:88-92` y `:131-180`. Es el **único flujo que escribe en la biblioteca sin que el
+📖 `recentAnimes.py:90-94` y `:131-180`. Es el **único flujo que escribe en la biblioteca sin que el
 usuario haya pedido nada**, y por eso es el más conservador de todos: solo toca una columna, solo si
 el recuento cambia, y sin *fallback*.
 
 **El problema que resuelve**: la columna `episodes` de una fila solo se reescribía al abrir su ficha
-(`anime_window.py:603`). Un anime **en emisión** mentía en la portada hasta que entrabas en él: el
+(`anime_window.py:648`). Un anime **en emisión** mentía en la portada hasta que entrabas en él: el
 capítulo que salió el domingo no existía todavía para la biblioteca, así que la tarjeta decía «Lo has
 visto entero» estando a uno de distancia. ✅ Reproducido sobre copia con Mushoku Tensei III: fila con
 9 episodios y 9 vistos, proveedor sirviendo 10.
@@ -697,7 +697,7 @@ que abriste su ficha ([trampa 38](10-invariantes-y-trampas.md)).
 
 ## 12. Abrir la ficha **por un episodio** 🆕 *(2026-09-01)*
 
-📖 `anime_window.py:1610-1656` (`__focus_on_episode`) y `:1658-1704` (`__scroll_to_episode`).
+📖 `anime_window.py:1659-1705` (`__focus_on_episode`) y `:1658-1704` (`__scroll_to_episode`).
 No es un flujo nuevo de red: es el **§3 con un parámetro más**. Lo que cambia es lo que pasa
 *después* de pintar la ficha.
 

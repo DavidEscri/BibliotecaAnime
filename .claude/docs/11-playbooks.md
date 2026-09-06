@@ -66,6 +66,10 @@ Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ si
 - [ ] El botón aparece en la sidebar, con icono y texto.
 - [ ] El selector de apariencia sigue visible y no se solapa.
 - [ ] `show_frame()` funciona llamado a mano desde `MainWindow`.
+- [ ] Si usa `PosterGrid`: colocada con **`sticky="ew"`**, el `Pager` construido con
+      `self.__poster_grid.columns * ROWS_PER_PAGE`, y un `on_columns_changed` que repagine y repinte
+      ([trampa 41](10-invariantes-y-trampas.md)). Sin `sticky="ew"` compila y se ve bien a 1440, y no
+      se adapta nunca.
 - [ ] La rejilla recalcula columnas al redimensionar y volver a entrar.
 - [ ] Cambiar a otra vista y volver **no** deja widgets huérfanos.
 - [ ] La carpeta de pósters está en `.gitignore` si se genera en runtime.
@@ -88,6 +92,13 @@ Antes de escribir un widget en una vista, pregúntate si lo va a necesitar otra.
    y las preferencias.)
 4. **Declara `height=` explícito** en todo marco decorativo o que vaya a nacer vacío
    ([trampa 29](10-invariantes-y-trampas.md)).
+4b. 🆕 **Si el componente se adapta al ancho, tiene que poder medirlo.** Documenta en su docstring que
+   la vista lo coloque con `sticky="ew"` y con `weight` en la columna del padre: sin eso mide su
+   propio contenido y cualquier cuenta que haga sobre `winfo_width()` es un punto fijo
+   ([trampa 41](10-invariantes-y-trampas.md)). Reacciona en `<Configure>` **con `add="+"`**
+   ([trampa 40](10-invariantes-y-trampas.md)), descarta los eventos que no cambien nada y, si
+   repintar es caro, júntalos con un `after()` cancelable — y comprueba `winfo_exists()` al vencer,
+   porque un `after` no se cancela solo al destruir el widget.
 5. **Añádelo a `hiddenimports`** en `MiBibliotecaAnime.spec`. Sin esto compila, pero el `.exe`
    revienta al arrancar.
 6. **Documéntalo** en [02](02-mapa-de-modulos.md) (tabla de componentes) y en

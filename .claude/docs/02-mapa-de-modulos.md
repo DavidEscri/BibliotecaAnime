@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Fecha** | 2026-09-01 · rama `feature/ui-redisign` · último commit **`a0e3f37`** (**abrir la ficha por un episodio**); **sin commitear**, solo esta tanda de documentación |
-| **Última revisión** | 2026-09-01 (**abrir la ficha por un episodio**): recuentos rehechos (**11 430 → 11 599**); `anime_window.py` **1 745 → 1 875** con `focus_episode` / `force_ascending` y sus dos métodos nuevos, `anime_row.py` **333 → 349** con la corrección de sus ataduras ([trampa 40](10-invariantes-y-trampas.md)), y las dos vistas de cascada. Antes, 2026-09-01 (**ancho de las fichas de género**): recuentos rehechos (**11 403 → 11 430**); `genre_chips.py` **333 → 360** con la aritmética real del ancho de un `CTkButton` ([trampa 39](10-invariantes-y-trampas.md)). Antes, 2026-09-01 (**refresco de la banda «Retomar»**): recuentos rehechos (**11 309 → 11 403**); `resume_card.py` estrena `update_record()` en sus **dos** clases y `recentAnimes.py`, `__refresh_resume_episodes()`; la tabla de «cómo abre la ficha» reanclada, que iba ~125 líneas desplazada. Antes, 2026-09-01 (**hover de la lista de episodios**): **ficha de `EpisodeRow` nueva** —no la tenía—, y recuentos rehechos con la convención del documento explicada. Antes, 2026-08-31 (**fondo de la pantalla de carga**): ficha de `MainWindow` reanclada —sus líneas iban ~29 desplazadas—, `show_loading_screen()` descrito de verdad y `__config_main_window()` añadido. Antes, 2026-08-21 (**rediseño de interfaz**): **12 módulos nuevos** en `gui/` —`theme.py` y los 11 de `gui/components/`— con su ficha; recuentos rehechos (**6 245 → 11 309** líneas); `utilsButtons.py` pierde 5 clases y `main_window.py` gana `navigate_to()`. Antes, 2026-08-16 (**columna `provider_id`**): recuentos rehechos — el proyecto pasa de 5 460 a **6 245** líneas; fichas de `models.py`, `animeProviderMgr.py`, `animesPersistence.py`, `utils.py`, `utilsButtons.py`, `main_window.py` y `anime_window.py` actualizadas |
+| **Última revisión** | 2026-09-02 (**rejillas adaptables y sinopsis**): recuentos rehechos (**11 599 → 11 920**); `poster_grid.py` **234 → 396** —calcula sus columnas del ancho—, `anime_window.py` **1 875 → 1 924** con `wrap_synopsis()`, `pager.py` **247 → 277** con `set_page_size()`, y las cuatro vistas de rejilla ([trampas 41 y 42](10-invariantes-y-trampas.md)). Antes, 2026-09-01 (**abrir la ficha por un episodio**): recuentos rehechos (**11 430 → 11 599**); `anime_window.py` **1 745 → 1 875** con `focus_episode` / `force_ascending` y sus dos métodos nuevos, `anime_row.py` **333 → 349** con la corrección de sus ataduras ([trampa 40](10-invariantes-y-trampas.md)), y las dos vistas de cascada. Antes, 2026-09-01 (**ancho de las fichas de género**): recuentos rehechos (**11 403 → 11 430**); `genre_chips.py` **333 → 360** con la aritmética real del ancho de un `CTkButton` ([trampa 39](10-invariantes-y-trampas.md)). Antes, 2026-09-01 (**refresco de la banda «Retomar»**): recuentos rehechos (**11 309 → 11 403**); `resume_card.py` estrena `update_record()` en sus **dos** clases y `recentAnimes.py`, `__refresh_resume_episodes()`; la tabla de «cómo abre la ficha» reanclada, que iba ~125 líneas desplazada. Antes, 2026-09-01 (**hover de la lista de episodios**): **ficha de `EpisodeRow` nueva** —no la tenía—, y recuentos rehechos con la convención del documento explicada. Antes, 2026-08-31 (**fondo de la pantalla de carga**): ficha de `MainWindow` reanclada —sus líneas iban ~29 desplazadas—, `show_loading_screen()` descrito de verdad y `__config_main_window()` añadido. Antes, 2026-08-21 (**rediseño de interfaz**): **12 módulos nuevos** en `gui/` —`theme.py` y los 11 de `gui/components/`— con su ficha; recuentos rehechos (**6 245 → 11 309** líneas); `utilsButtons.py` pierde 5 clases y `main_window.py` gana `navigate_to()`. Antes, 2026-08-16 (**columna `provider_id`**): recuentos rehechos — el proyecto pasa de 5 460 a **6 245** líneas; fichas de `models.py`, `animeProviderMgr.py`, `animesPersistence.py`, `utils.py`, `utilsButtons.py`, `main_window.py` y `anime_window.py` actualizadas |
 | **Cubre** | los **50** ficheros `.py` de `src/` (**31** con contenido + **19** `__init__.py` vacíos) |
 
 Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ sin verificar.
@@ -31,25 +31,30 @@ Todas las líneas citadas corresponden al **árbol de trabajo actual**, no al ú
 | `src/gui/components/anime_row.py` 🆕 | **349** | GUI · componente |
 | `src/gui/components/genre_chips.py` 🆕 | **360** | GUI · componente |
 | `src/gui/components/status_pill.py` 🆕 | **258** | GUI · componente |
-| `src/gui/components/pager.py` 🆕 | **247** | GUI · componente |
-| `src/gui/components/poster_grid.py` 🆕 | **234** | GUI · componente |
+| `src/gui/components/pager.py` 🆕 | **277** | GUI · componente |
+| `src/gui/components/poster_grid.py` 🆕 | **396** | GUI · componente |
 | `src/gui/components/empty_state.py` 🆕 | **232** | GUI · componente |
 | `src/gui/components/resume_card.py` 🆕 | **229** | GUI · componente |
 | `src/gui/components/side_panel.py` 🆕 | **226** | GUI · componente |
 | `src/gui/components/rating_stars.py` 🆕 | **209** | GUI · componente |
 | `src/gui/components/view_header.py` 🆕 | **99** | GUI · componente |
 | `src/gui/main_window.py` | **545** | GUI |
-| `src/gui/anime_window.py` | **1 875** | GUI |
-| `src/gui/sidebarButtons/recentAnimes/recentAnimes.py` | **240** | GUI · vista |
-| `src/gui/sidebarButtons/favouriteAnimes/favouriteAnimes.py` | **350** | GUI · vista |
-| `src/gui/sidebarButtons/finishedAnimes/finishedAnimes.py` | **260** | GUI · vista |
+| `src/gui/anime_window.py` | **1 924** | GUI |
+| `src/gui/sidebarButtons/recentAnimes/recentAnimes.py` | **258** | GUI · vista |
+| `src/gui/sidebarButtons/favouriteAnimes/favouriteAnimes.py` | **369** | GUI · vista |
+| `src/gui/sidebarButtons/finishedAnimes/finishedAnimes.py` | **278** | GUI · vista |
 | `src/gui/sidebarButtons/watchingAnimes/watchingAnimes.py` | **278** | GUI · vista |
 | `src/gui/sidebarButtons/pendingAnimes/pendingAnimes.py` | **362** | GUI · vista |
-| `src/gui/sidebarButtons/searchAnimes/searchAnimes.py` | **607** | GUI · vista |
+| `src/gui/sidebarButtons/searchAnimes/searchAnimes.py` | **614** | GUI · vista |
 
-**11 599 líneas** en **31 módulos**. ✅ Recontado el 2026-09-01 —`wc -l` **+ 1 por módulo**, que es la
-convención con la que se contó en agosto: casi ningún fichero termina en salto de línea—. Las **169
-últimas** son la apertura de la ficha por un episodio, repartidas en cuatro módulos:
+**11 920 líneas** en **31 módulos**. ✅ Recontado el 2026-09-02 —`wc -l` **+ 1 por módulo**, que es la
+convención con la que se contó en agosto: casi ningún fichero termina en salto de línea—. Las **321
+últimas** son las rejillas adaptables y la sinopsis, repartidas en siete módulos: `poster_grid.py`
+**+162** (el cálculo de columnas, el reparto del sobrante y la espera de repintado, con su porqué),
+`anime_window.py` **+49** (`wrap_synopsis()` y sus tres patrones), `pager.py` **+30**
+(`set_page_size()`), y las cuatro vistas de rejilla **+62** entre las cuatro. Ningún módulo nuevo: el
+`.spec` no se toca. Antes, **169** de la apertura de la ficha por un episodio, repartidas en cuatro
+módulos:
 `anime_window.py` **+130** (los dos métodos nuevos y sus dos constantes), `anime_row.py` **+16**
 (ataduras corregidas, casi todo explicación de por qué), `watchingAnimes.py` **+14** y
 `pendingAnimes.py` **+9**. Antes, **27** del ancho de las fichas de género (`genre_chips.py`) y **94**
@@ -59,7 +64,7 @@ Sin esa tanda daba **11 309**, la **misma cifra** que el 2026-08-21 pese a los 1
 rediseño (`main_window.py` +7 con el fondo de la pantalla de carga, `anime_window.py` +11 con el hover de
 los episodios), así que la cifra de agosto venía **18 alta**. Aquella se anotó el 2026-08-21 así: **+5 064 líneas** respecto al
 2026-08-16, casi todas del rediseño de interfaz. El grueso está en los **12 módulos nuevos** de
-`gui/` (2 962 líneas entre `theme.py` y los 11 componentes), en `anime_window.py` (1 155→**1 875**)
+`gui/` (2 962 líneas entre `theme.py` y los 11 componentes), en `anime_window.py` (1 155→**1 734** con el rediseño; **1 924** hoy)
 y en las seis vistas, que pasan de 1 071 a **2 017** líneas entre todas.
 
 ⚠️ **`utilsButtons.py` es el único que ha encogido** (350 → **205**): el paso 9.4 del rediseño retiró
@@ -468,8 +473,8 @@ nunca una copia del fichero.
 |---|---|---|---|
 | `sidebar.py` | `Sidebar` (+ `_NavItem`, privado) | fase 1 | La barra entera: 6 destinos, plegado persistido, proveedor con pin y apariencia. `navigate_to(etiqueta)` 🆕 |
 | `view_header.py` | `ViewHeader` | fase 1 | Título + subtítulo + `controls_frame`. Alto fijo 80 |
-| `poster_grid.py` | `PosterGrid`, `PosterItem` | fase 2 | Rejilla de N columnas. Sello con `place()`, pie y `extra_builder` |
-| `pager.py` | `Pager` | fase 2 | `set_total()` (corta la lista) o `set_pages()` (pagina el proveedor) |
+| `poster_grid.py` | `PosterGrid`, `PosterItem` | fase 2 | Rejilla que **calcula sus columnas del ancho** (`columns_that_fit()`); `columns` pasó a ser la referencia del diseño, no el número real. Sello con `place()`, pie y `extra_builder`. 🔴 La vista **tiene** que colocarla con `sticky="ew"` ([trampa 41](10-invariantes-y-trampas.md)); `on_columns_changed` traspasa el repintado a quien lo pasa |
+| `pager.py` | `Pager` | fase 2 | `set_total()` (corta la lista) o `set_pages()` (pagina el proveedor). 🆕 `set_page_size()`, porque el tamaño de página sale de las columnas que quepan y conserva el **primer elemento visible**, no el número de página |
 | `resume_card.py` | `ResumeBand`, `ResumeCard`, `resume_progress()`, `resume_caption()` | fase 2 | `resume_progress()` es el **único** sitio donde se calcula por dónde ibas. 🆕 `update_record()` repinta el pie y la barra de **una** tarjeta sin recrear la banda |
 | `anime_row.py` | `AnimeRow`, `RowAction` | fase 3 | Fila en cascada con acción en hover. La comparten «Viendo» y «Pendientes». 🔴 `__bind_interactions()` (`:278-312`) ata el **hover** a todos los descendientes de `__body` y el **clic** a todos menos el **subárbol** de la píldora, con `add="+"` para no pisar lo que CustomTkinter monta dentro ([trampa 40](10-invariantes-y-trampas.md)) |
 | `side_panel.py` | `SidePanel` | fase 3 | Los 290 px de la derecha en «Viendo» |
@@ -569,7 +574,7 @@ contenido de `content_frame`.
 
 ### `EpisodeRow` — la fila de la lista de episodios
 
-📖 `anime_window.py:266-424`. Un `CTkFrame` con cinco hijos: las etiquetas del número y del estado, el
+📖 `anime_window.py:311-469`. Un `CTkFrame` con cinco hijos: las etiquetas del número y del estado, el
 interruptor «Visto», el separador de 1 px (con `place`, para no gastar una fila de rejilla) y —por
 CustomTkinter— su propio `_canvas` interno.
 
@@ -654,7 +659,7 @@ seis. `recentAnimes.py` sigue siendo la única con `show_frame()` que revela la 
 | Vista | Cómo abre la ficha | Buscador |
 |---|---|---|
 | `recentAnimes.py` | hilo propio (`:205-232`) → `after(0,…)`; pide al proveedor que trajo la portada | — |
-| las **4 de estado** | 🆕 `open_saved_anime()` (`anime_window.py:108-193`) | 🆕 `SavedAnimeSearch`: local + web |
+| las **4 de estado** | 🆕 `open_saved_anime()` (`anime_window.py:256-334`) | 🆕 `SavedAnimeSearch`: local + web |
 | `searchAnimes.py` | 🆕 hilo propio (`:363-382`) → `after(0,…)`; **arrastra el `provider_id`** del resultado, porque su `id` es el slug de ESE sitio | propio, contra el proveedor |
 
 `searchAnimes.py` añade `AnimeSearch` (`:24-31`, `dataclasses.dataclass` de la stdlib), paginación

@@ -2,8 +2,8 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-09-01 · rama `feature/ui-redisign` · último commit **`a0e3f37`** (**abrir la ficha por un episodio**); **sin commitear**, solo esta tanda de documentación |
-| **Última revisión** | 2026-09-01 (**abrir la ficha por un episodio**): la ficha estrena `focus_episode` / `force_ascending` y dos métodos (`__focus_on_episode`, `__scroll_to_episode`); `AnimeRow` corrige sus ataduras —el clic saltaba el botón pero no su interior, así que la píldora **nunca ejecutó su `command`** ([trampa 40](10-invariantes-y-trampas.md))—; «Viendo» y «Pendientes» dejan de llevar al anime y llevan al episodio. Antes, 2026-09-01 (**ancho de las fichas de género**): `GenreChips` explica **quién decide el ancho de una ficha** y por qué el componente tiene que contarlo él ([trampa 39](10-invariantes-y-trampas.md)); se añade la regla general de que en CustomTkinter `width` es una petición, no un contrato. Antes, 2026-09-01 (**refresco de la banda «Retomar»**): `ResumeBand` y `ResumeCard` estrenan `update_record()`; la portada pasa a ser la **única vista que sale a la red por datos ya guardados**, y se explica por qué va sin *fallback*. Antes, 2026-09-01 (**hover de la lista de episodios**): `EpisodeRow` ata el hover a todos sus hijos y guarda la fila resaltada en un atributo de clase; se explica por qué `AnimeRow` no sufre lo mismo, y la regla de `bind()` gana su consecuencia con el ratón real. Antes, 2026-08-31 (**fondo de la pantalla de carga**): el apartado *Arranque* explica que la pantalla de carga es la ventana entera pintada de `Theme.BG`, y qué se veía antes. Antes, 2026-08-21 (**rediseño de interfaz, fases 1-9**): documento **reescrito entero**. Nacen `gui/theme.py` y los **11** componentes de `gui/components/`; la barra lateral pasa de seis botones sueltos a un `Sidebar` plegable; `SidebarButton` deja de ser un widget; las 6 vistas se rehacen y la ficha crece de 1 156 a 1 734 líneas |
+| **Fecha** | 2026-09-02 · rama `feature/ui-redisign` · último commit **`9083a32`** (documentación) |
+| **Última revisión** | 2026-09-02 (**rejillas adaptables y sinopsis**): `PosterGrid` deja de tener un número fijo de columnas y lo **calcula del ancho**, con `on_columns_changed` para que la vista repagine; `Pager` estrena `set_page_size()`; el tamaño de página pasa de ser una constante a ser `columnas × 2 filas`. La ficha quita el tope de 74 caracteres de la sinopsis y estrena `wrap_synopsis()`, porque `wraplength` no puede con los saltos que trae el proveedor ([trampas 41 y 42](10-invariantes-y-trampas.md)). Antes, 2026-09-01 (**abrir la ficha por un episodio**): la ficha estrena `focus_episode` / `force_ascending` y dos métodos (`__focus_on_episode`, `__scroll_to_episode`); `AnimeRow` corrige sus ataduras —el clic saltaba el botón pero no su interior, así que la píldora **nunca ejecutó su `command`** ([trampa 40](10-invariantes-y-trampas.md))—; «Viendo» y «Pendientes» dejan de llevar al anime y llevan al episodio. Antes, 2026-09-01 (**ancho de las fichas de género**): `GenreChips` explica **quién decide el ancho de una ficha** y por qué el componente tiene que contarlo él ([trampa 39](10-invariantes-y-trampas.md)); se añade la regla general de que en CustomTkinter `width` es una petición, no un contrato. Antes, 2026-09-01 (**refresco de la banda «Retomar»**): `ResumeBand` y `ResumeCard` estrenan `update_record()`; la portada pasa a ser la **única vista que sale a la red por datos ya guardados**, y se explica por qué va sin *fallback*. Antes, 2026-09-01 (**hover de la lista de episodios**): `EpisodeRow` ata el hover a todos sus hijos y guarda la fila resaltada en un atributo de clase; se explica por qué `AnimeRow` no sufre lo mismo, y la regla de `bind()` gana su consecuencia con el ratón real. Antes, 2026-08-31 (**fondo de la pantalla de carga**): el apartado *Arranque* explica que la pantalla de carga es la ventana entera pintada de `Theme.BG`, y qué se veía antes. Antes, 2026-08-21 (**rediseño de interfaz, fases 1-9**): documento **reescrito entero**. Nacen `gui/theme.py` y los **11** componentes de `gui/components/`; la barra lateral pasa de seis botones sueltos a un `Sidebar` plegable; `SidebarButton` deja de ser un widget; las 6 vistas se rehacen y la ficha crece de 1 156 a 1 734 líneas |
 | **Cubre** | `src/gui/theme.py`, `src/gui/components/**`, `src/gui/main_window.py`, `src/gui/anime_window.py`, `src/gui/sidebarButtons/**`, `src/utils/buttons/utilsButtons.py` |
 
 Procedencia: ✅ verificado en ejecución (arranque real de la GUI) · 📖 leído en código · ⚠️ sin verificar.
@@ -23,7 +23,7 @@ gui/
 ├── components/              piezas compartidas; una vista no dibuja nada que ya esté aquí
 │   ├── sidebar.py           Sidebar + _NavItem — la barra entera, plegable
 │   ├── view_header.py       ViewHeader — título + subtítulo + zona de controles, alto fijo 80
-│   ├── poster_grid.py       PosterGrid + PosterItem — rejilla de N columnas, con sello superpuesto
+│   ├── poster_grid.py       PosterGrid + PosterItem — rejilla que ajusta sus columnas al ancho
 │   ├── pager.py             Pager — dos modos: trocear una lista, o paginar al proveedor
 │   ├── anime_row.py         AnimeRow + RowAction — fila en cascada, con acción en hover
 │   ├── side_panel.py        SidePanel — los 290 px de la derecha en «Viendo»
@@ -226,9 +226,35 @@ trampa 29.
 **«Buscar» es la única vista sin `ViewHeader`**: su campo de 620 px *es* la cabecera.
 
 ### `PosterGrid` / `PosterItem`
-Rejilla de N columnas. Una celda es un **`CTkFrame` propio que ocupa UNA fila** de la rejilla, con el
-póster, el título (a dos líneas, vía `ellipsize`), un pie opcional y un hueco libre opcional
-(`extra_builder`). Así añadir o quitar una línea no toca ningún índice.
+Rejilla que **ajusta sus columnas al ancho disponible**. Una celda es un **`CTkFrame` propio que ocupa
+UNA fila** de la rejilla, con el póster, el título (a dos líneas, vía `ellipsize`), un pie opcional y
+un hueco libre opcional (`extra_builder`). Así añadir o quitar una línea no toca ningún índice.
+
+🆕 **Cómo decide cuántas columnas** (2026-09-02): `columns_that_fit()` divide su `winfo_width()` entre
+`póster + GRID_GAP_X`. El parámetro `columns` dejó de fijar el número y ahora es solo la **referencia
+del diseño**: se usa mientras la rejilla todavía no se puede medir, y de ella sale el tamaño de página
+inicial de la vista.
+
+🔴 **La vista tiene que colocarla con `sticky="ew"`.** No es cosmético: con `sticky="w"` el widget se
+queda con el ancho de su contenido, así que la cuenta de columnas se mediría a sí misma y nunca
+cambiaría de valor ([trampa 41](10-invariantes-y-trampas.md)).
+
+- **El sobrante se reparte, no se acumula**: `weight=1` y un mismo grupo `uniform` en las columnas en
+  uso, y la celda con `sticky="n"` para que quede centrada en la suya. A 1440 eso deja el primer
+  póster exactamente en los 28 px de margen del diseño. ⚠️ Al encoger hay que **quitar** el peso a las
+  columnas que sobran ([trampa 32](10-invariantes-y-trampas.md)).
+- **`on_columns_changed` es un contrato, no un aviso.** Quien lo pasa **se compromete a repintar** y
+  la rejilla no vuelve a pintar por su cuenta; quien no lo pasa deja que se recoloque sola con los
+  últimos ítems que recibió. Existe porque en las vistas paginadas el ancho no cambia solo cómo se
+  coloca la página: cambia **qué animes entran en ella**, y pintar en los dos sitios sería pintar dos
+  veces.
+- ⚠️ **Repintar cuesta ~350 ms para 16 celdas, en el hilo de la interfaz** (cada una abre su JPG y lo
+  reescala con PIL). Por eso `<Configure>` descarta todo lo que no cambie el número de columnas —el
+  reparto del sobrante lo hace Tk gratis— y lo que queda pasa por `RELAYOUT_DELAY_MS`, que junta un
+  arrastre del borde en un solo repintado. Entrar en una vista pinta de inmediato.
+- El `<Configure>` va con **`add="+"`** ([trampa 40](10-invariantes-y-trampas.md)), y `clear()` es
+  seguro porque `winfo_children()` de un `CTkFrame` **no** incluye su canvas interno —CustomTkinter lo
+  filtra—, que es donde vive esa atadura.
 
 - **Sello superpuesto** (`badge` + `badge_icon`), colocado con `place()` arriba a la izquierda. Es
   **siempre** el del diseño: `BADGE_BG` opaco y `BADGE_INK`, con el color del estado solo en el
@@ -248,6 +274,12 @@ Dos modos, sin subclase:
 | `set_pages(última, actual)` | Quien trocea es el sitio web | «Página 2 de 50». El total **no se sabe**: el contrato devuelve la última página, no cuántos hay |
 
 Se esconde solo si no hay nada que paginar.
+
+🆕 **`set_page_size(n)`** (2026-09-02): el tamaño de página dejó de ser una constante porque depende
+de cuántas columnas quepan. Conserva **el primer elemento que se estaba viendo**, no el número de
+página — al pasar de 12 a 16 por página, la 2 se convierte legítimamente en la 1, y el anime que
+abría la página sigue en pantalla. En el modo del proveedor guarda el valor y no toca la página: allí
+`page_size` no corta nada.
 
 ### `AnimeRow` / `RowAction`
 Fila en cascada: póster + título + géneros + (opcional) progreso + columna derecha. Parámetros:
@@ -368,18 +400,27 @@ distingue:
 
 | Vista | Disposición | Paginador | Buscador | Estrena |
 |---|---|---|---|---|
-| **Nuevos lanzamientos** | `ResumeBand` + rejilla de **6** (176 × 264) | sí, **12** | — | la banda «Retomar», y 🆕 su **refresco** al entrar |
-| **Favoritos** | rejilla de **5** (216 × 324) + estrellas | sí, **10** | local | la calificación y su orden persistido |
+| **Nuevos lanzamientos** | `ResumeBand` + rejilla de **6 a 1440** (176 × 264) | sí, **columnas × 2** | — | la banda «Retomar», y su **refresco** al entrar |
+| **Favoritos** | rejilla de **5 a 1440** (216 × 324) + estrellas | sí, **columnas × 2** | local | la calificación y su orden persistido |
 | **Viendo** | cascada de `AnimeRow` (póster 70 × 100) + `SidePanel` | no | local | el panel de retomar |
 | **Pendientes** | cascada de `AnimeRow` (póster 56 × 80) | no | local | orden por duración + «Empezar» |
-| **Finalizados** | rejilla de **6** | sí, **12** | local | el sello «vistos / totales» |
-| **Buscar** | campo de 620 px + `GenreChips` + rejilla de **6** | sí, **del proveedor** | — | el sello «ya lo tienes» |
+| **Finalizados** | rejilla de **6 a 1440** | sí, **columnas × 2** | local | el sello «vistos / totales» |
+| **Buscar** | campo de 620 px + `GenreChips` + rejilla de **6 a 1440** | sí, **del proveedor** | — | el sello «ya lo tienes» |
 
-**Rejilla donde se mira, cascada donde se decide** (`DISENO.md` §6). El tamaño de página es 10, salvo
-en las rejillas de 6 columnas, que usan 12 para no dejar filas cojas.
+**Rejilla donde se mira, cascada donde se decide** (`DISENO.md` §6).
+
+🆕 **Las columnas ya no son un número fijo: salen del ancho** (2026-09-02). Los 6 y 5 de la tabla son
+lo que da la cuenta a 1440, que es el tamaño con el que se diseñó; maximizado a 1920 son **8 y 7**.
+Y con ellas se mueve el tamaño de página, porque la regla del diseño —«dos filas llenas, nunca una
+llena y otra coja»— solo se cumple si el número de página **acompaña** al de columnas: cada vista
+declara `ROWS_PER_PAGE = 2` y el resto lo calcula `PosterGrid`. A 1440 salen los 12 y 10 de siempre.
+
+⚠️ **«Buscar» queda fuera de esa regla**, y es correcto: allí trocea el proveedor, así que su última
+fila puede quedar coja y no hay nada que repaginar. Por eso es la única que **no** pasa
+`on_columns_changed` y deja que la rejilla se recoloque sola.
 
 🆕 **«Nuevos lanzamientos» es la única vista que sale a la red por datos que ya tiene guardados.**
-Al entrar, `__refresh_resume_episodes()` (`recentAnimes.py:131-180`) relee los episodios de las ≤3
+Al entrar, `__refresh_resume_episodes()` (`recentAnimes.py:137-186`) relee los episodios de las ≤3
 filas de la banda y reescribe la columna `episodes` si el proveedor sirve más que la biblioteca; sin
 eso, un anime en emisión decía «Lo has visto entero» hasta que abrías su ficha. Va con `strict=True`
 —**sin fallback**— precisamente porque escribe sin que el usuario lo haya pedido
@@ -418,7 +459,7 @@ y **solo pinta la última**.
 
 ## 8. `AnimeWindowViewer` — sigue sin ser una ventana
 
-📖 `gui/anime_window.py` (1 875 líneas). Reemplaza el contenido de `content_frame`.
+📖 `gui/anime_window.py` (1 924 líneas). Reemplaza el contenido de `content_frame`.
 
 **Disposición**: bloque de proveedor + póster de 248 × 372 (redondeado) + título `T_SHEET` + sinopsis
 + fichas de género a la izquierda; los **4 botones de estado** en fila; y la lista de episodios.
@@ -435,7 +476,7 @@ interruptor «Visto».
 desplegarlos no empuja nada, y la fila impar mide cero mientras está vacía.
 
 🔴 **El hover se ata a TODOS los hijos de la fila; el clic, solo a la fila y a sus dos etiquetas**
-(`anime_window.py:375-390`, dos bucles a propósito). El interruptor recibe `<Enter>` / `<Leave>` pero
+(`anime_window.py:420-435`, dos bucles a propósito). El interruptor recibe `<Enter>` / `<Leave>` pero
 no `<Button-1>` —tiene su propio comando y marcar un episodio no debe abrir sus servidores—, y el
 **separador de 1 px** también va atado, porque `place(rely=1.0, relwidth=1.0)` lo pone en la última
 fila de píxeles de cada episodio y **bajar de un episodio al siguiente obliga a cruzarlo**. Dejarlo
@@ -489,8 +530,16 @@ El `wraplength` de la sinopsis se resuelve **recalculando en `<Configure>`**, co
 ahí salen el envuelto del título, el de la sinopsis y el reenvuelto de los géneros. Ya no hay ningún
 número calculado a mano sobre el ancho del `content_frame` — eso cerró la
 [trampa 22](10-invariantes-y-trampas.md).
-La sinopsis se corta a **74 caracteres de ancho**, no al ancho disponible: por eso plegar la barra
-**no** la ensancha. Un «ch» se mide con `font.measure("0")`.
+🆕 **La sinopsis usa todo el ancho de la columna** (2026-09-02). Tenía tope de 74 caracteres
+(`.syn`: `max-width:74ch`), que se quitó porque a pantalla completa dejaba media ficha vacía.
+
+🔴 **Y recalcular el `wraplength` no basta**: si el texto trae un `
+`, Tk lo respeta pase lo que
+pase. La sinopsis de AnimeAV1 los trae —van escapados en su payload y `animeav1.py:206` los convierte
+en saltos de verdad—, así que se quedaba con los renglones del proveedor por ancha que fuera la
+ventana, **mientras el título de al lado sí se reajustaba**. Lo arregla `wrap_synopsis()` al construir
+la etiqueta: los saltos sueltos pasan a espacio y **los dobles se conservan**, porque son párrafos que
+escribió alguien ([trampa 42](10-invariantes-y-trampas.md)).
 
 ⚠️ **La petición de servidores sigue en el hilo de Tkinter.** Es lo que hacía la ficha vieja y el
 rediseño solo recolocó; lo único que se añadió es el cursor de espera. **Es el último sitio de la GUI

@@ -636,6 +636,90 @@ hash antes y después).
 
 ---
 
+## 6f. Comprobar que una rejilla se adapta al ancho *(2026-09-02)*
+
+Es el caso peor de «a ojo no se ve»: una rejilla que no se adapta y una que sí **se ven igual al
+tamaño con el que se diseñó**. La diferencia solo aparece al cambiar el tamaño de la ventana, y ahí
+la trampa es la contraria: se ve *algo* moverse y se da por bueno. Hay que **medir**.
+
+La receta, que es la que encontró y cerró la [trampa 41](10-invariantes-y-trampas.md):
+
+1. Reproducir la jerarquía **entera**, no solo el componente: raíz con `grid_columnconfigure(1,
+   weight=1)`, un marco de `Metrics.SIDEBAR_W` en la columna 0 y un **`CTkScrollableFrame`** en la 1.
+   El ancho útil sale de ahí y de ningún otro sitio; medir el componente suelto da otro número.
+2. 🔴 **La raíz no puede estar retirada**, igual que en §6e: `root.state("zoomed")` no hace nada sobre
+   una ventana sin mapear. Se deja visible.
+3. Encadenar los tamaños con **`root.after()`, no en línea recta**. Un cambio de geometría no llega
+   como una llamada: llega como un `<Configure>` por el bucle de eventos, y encima `PosterGrid` lo
+   pasa por su espera de `RELAYOUT_DELAY_MS`. Cada paso tiene que esperar **más** que esa espera;
+   800 ms van sobrados. Un `update_idletasks()` seguido de un `assert` no ve nada todavía.
+4. En cada tamaño, leer los números que importan y no la pantalla:
+   `content.winfo_width()`, `grid.winfo_width()`, `grid.columns`, `pager.page_size`,
+   `pager.page()` y las celdas agrupadas por su `grid_info()["row"]`.
+5. Afirmar sobre esos números:
+   - las columnas son **las esperadas** para ese ancho;
+   - `page_size == columnas * ROWS_PER_PAGE`, y **todas las filas de la página están llenas**;
+   - la última celda **no desborda**: `grid.winfo_x() + celda.winfo_x() + celda.winfo_width() ≤
+     content.winfo_width()`;
+   - el ítem que se estaba viendo **sigue en pantalla** tras el cambio. Ojo: lo que se conserva es el
+     **primer índice visible**, no el número de página — al pasar de 12 a 16 por página, la página 2
+     se convierte legítimamente en la 1.
+
+🔴 **Los tres tamaños no son tres: son cuatro.** Hay que **volver** al ancho grande después del
+estrecho, porque es ahí y solo ahí donde se ve si quedaron pesos de columna huérfanos
+([trampa 32](10-invariantes-y-trampas.md)).
+
+⚠️ **`root.geometry()` no des-maximiza una ventana.** Después de un `state("zoomed")` hay que hacer
+`state("normal")` **antes** de pedir un tamaño concreto, o se mide otra vez el maximizado y las
+comprobaciones pasan sin haber probado nada.
+
+⚠️ **Y hay que probar la variante sin el aviso.** «Buscar» no pasa `on_columns_changed`, así que
+recorre el camino contrario —se recoloca sola con los ítems que ya tenía— y ese camino no lo toca
+ninguna de las otras tres vistas.
+
+✅ **Ejecutada el 2026-09-02**, 14/14: 6 columnas a 1440 (idéntico al diseño, sin un solo repintado),
+8 maximizado con `page_size` 16, 3 a 1000 px sin pesos huérfanos, vuelta a 8, y «Buscar» pasando de 3
+a 8 columnas sola con sus 24 resultados intactos.
+
+**Y después, la aplicación de verdad.** Lo anterior demuestra el componente; que las cuatro vistas lo
+usan bien se comprueba lanzando `src/app.py` en segundo plano y manejándola desde PowerShell: se
+localiza la ventana por su título (`Get-Process | Where MainWindowTitle -eq "Mi Biblioteca"`) y con
+`user32.dll` vía `Add-Type` se tiene todo — `ShowWindow(h,3)` maximiza, `ShowWindow(h,9)` restaura,
+`MoveWindow` fija un tamaño, `SetCursorPos` + `mouse_event` pulsan en la barra lateral, `SendKeys`
+escribe en el buscador y `GetWindowRect` + `Graphics.CopyFromScreen` guardan un PNG que luego se
+mira. ⚠️ La ventana maximizada queda en `(-8,-8)`: la Y de un clic es la que se ve en la captura
+**+8**.
+
+---
+
+## 6g. Comprobar la normalización de la sinopsis *(2026-09-02)*
+
+`wrap_synopsis()` (`anime_window.py`) es texto puro: se importa y se prueba sin GUI, con
+`sys.path.insert(0, "src")` y `from gui.anime_window import wrap_synopsis`. Importar el módulo trae
+CustomTkinter, pero no crea ninguna raíz de Tk, así que no hace falta pantalla.
+
+Dos mitades, y hacen falta las dos:
+
+1. **Una tabla de casos construidos**, con el resultado esperado escrito a mano. Los que hay que
+   cubrir sí o sí: sin saltos · salto suelto · salto suelto con sangría · párrafo (`\n\n`) · párrafo
+   con un espacio en medio (`\n \n`) · tres saltos seguidos · **CRLF suelto y CRLF de párrafo** ·
+   CR clásico · espacios en los bordes · cadena vacía · `None`.
+   ⚠️ El CRLF **encontró un fallo real**: `\r\n\r\n` no lo reconocía ninguno de los dos patrones y
+   dejaba `Uno.\r \r Dos.`. Sin ese caso en la tabla habría entrado en el repositorio.
+2. **Las 35 sinopsis reales de `DB_Animes.db`**, en modo solo lectura, afirmando invariantes en vez de
+   resultados concretos:
+   - 🔴 **`salida.split() == entrada.split()`** — la normalización no puede perder ni inventar una
+     sola palabra. Es la comprobación que de verdad protege el texto del usuario;
+   - no queda ningún salto suelto (el propio `_SOFT_BREAK` no debe encontrar nada);
+   - no queda ningún `\r`;
+   - **cada párrafo es una sola línea lógica**: `"\n" not in parrafo` para todo
+     `salida.split("\n\n")`.
+
+✅ **Ejecutada el 2026-09-02**: 12/12 casos y las 35 sinopsis, de las que **5** cambian y ninguna
+pierde palabras.
+
+---
+
 ## 7. Checklist de regresión manual por vista
 
 Sin tests automáticos, esto es lo que hay. Marca lo que compruebes.
@@ -681,8 +765,10 @@ tema y el plegado no cambian de vista, así que se hacen dos pasadas de siete.
 - [ ] El **pin** sale azul si el proveedor que usas es tu predeterminado, gris si te has desviado.
 
 ### 7.3 Nuevos lanzamientos
-- [ ] Rejilla de **6 columnas**, pósters de 176 × 264 con esquinas redondeadas.
+- [ ] Rejilla de **6 columnas** a 1440, pósters de 176 × 264 con esquinas redondeadas.
 - [ ] Paginador de **12** al pie: «Mostrando 1-12 de 20».
+- [ ] 🆕 **Maximizada son 8 columnas y «Mostrando 1-16 de 20»**, con las dos filas llenas y sin
+      franja de fondo a la derecha. Al restaurar, vuelve a 6 y a 12.
 - [ ] Banda «Retomar donde lo dejaste» arriba con hasta **3** tarjetas, cada una con «Siguiente:
       episodio N de M» y su barra de progreso.
 - [ ] 🆕 **La banda no se pinta si no hay nada que retomar**: ni etiqueta ni hueco.
@@ -698,8 +784,10 @@ tema y el plegado no cambian de vista, así que se hacen dos pasadas de siete.
       sección enseguida no debe dar `invalid command name …!ctkcanvas` por consola.
 
 ### 7.4 Favoritos
-- [ ] Rejilla de **5 columnas**, pósters de 216 × 324 — los más grandes de la aplicación.
+- [ ] Rejilla de **5 columnas** a 1440, pósters de 216 × 324 — los más grandes de la aplicación.
 - [ ] Paginador de **10**.
+- [ ] 🆕 **Maximizada son 7 columnas y paginador de 14**, con las estrellas y el proveedor alineados
+      bajo cada título.
 - [ ] Cinco estrellas bajo cada título, con **medios puntos**, y la cifra a su derecha.
 - [ ] Pulsar la mitad izquierda de la tercera estrella pone 2,5; la derecha, 3,0.
 - [ ] 🔴 **Calificar NO reordena la rejilla**: el anime se queda donde estaba aunque el orden sea por
@@ -750,7 +838,7 @@ tema y el plegado no cambian de vista, así que se hacen dos pasadas de siete.
       arriba. Solo se desplaza cuando el episodio no cabría en pantalla.
 
 ### 7.7 Finalizados
-- [ ] Rejilla de **6**, paginador de **12**.
+- [ ] Rejilla de **6** y paginador de **12** a 1440; **8 y 16** maximizada.
 - [ ] Sello «✓ N / M» sobre cada póster, arriba a la izquierda.
 - [ ] 🆕 Un finalizado **sin lista de episodios** dice «Finalizado», **no «0 / 0»**.
 - [ ] Los números son los **reales y sin corregir**: un «3 / 12» significa que lo marcaste a mano.
@@ -828,7 +916,12 @@ del scratchpad **antes** de construir `MainWindow`.
 - [ ] Texto sobre `ACCENT` legible en los dos temas (`ACCENT_INK`: blanco en claro, casi negro en
       oscuro).
 - [ ] Con la barra **plegada**, las 7 vistas se ensanchan a 1 356 px y **nada se sale ni se recorta**.
-- [ ] La sinopsis de la ficha **no** se ensancha al plegar: tiene tope de 74 caracteres a propósito.
+- [ ] 🆕 La sinopsis de la ficha **sí** se ensancha al plegar y al maximizar: usa todo el ancho de su
+      columna. *(Tenía tope de 74 caracteres hasta el 2026-09-02; se quitó porque dejaba una franja
+      vacía a la derecha.)*
+- [ ] 🆕 La sinopsis **envuelve al ancho de la ventana** y no conserva los renglones del proveedor,
+      pero **sí conserva sus párrafos**: «One Piece Film: Red» se lee en tres bloques separados por
+      una línea en blanco ([trampa 42](10-invariantes-y-trampas.md)).
 
 ### 7.12 Regresión global
 - [ ] `SELECT COUNT(*) FROM ANIMES` antes y después de toda la sesión → el mismo número, salvo lo que
