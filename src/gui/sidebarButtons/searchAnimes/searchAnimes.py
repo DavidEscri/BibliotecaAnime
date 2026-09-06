@@ -149,7 +149,14 @@ class SearchButton(utilsButtons.SidebarButton):
 
         self.__poster_grid = PosterGrid(content, columns=6, poster_size=Metrics.GRID6_POSTER,
                                         on_click=self.__on_anime_click)
-        self.__poster_grid.grid(row=3, column=0, sticky="w", padx=(PosterGrid.OUTER_PAD_X, 0))
+        # sticky="ew" y no "w": es lo que da a la rejilla el ancho de la ventana
+        # para que decida cuántas columnas caben (`poster_grid.py`).
+        #
+        # Sin `on_columns_changed`, al revés que las tres vistas de rejilla
+        # paginadas: aquí el contenido de una página lo decide el proveedor y no
+        # el ancho, así que al ensanchar la ventana no hay nada que volver a
+        # pedirle. La rejilla se recoloca sola con los resultados que ya tiene.
+        self.__poster_grid.grid(row=3, column=0, sticky="ew", padx=(PosterGrid.OUTER_PAD_X, 0))
 
         # La fila 4 la ocupa el estado vacío cuando hace falta; el paginador baja
         # a la 5 para que no tengan que compartir celda.

@@ -59,9 +59,11 @@ ORDER_LABELS: Dict[str, str] = {
 class FavouritesButton(utilsButtons.SidebarButton):
     """La estantería de lo que más te gusta, ordenada por lo que tú le has puesto."""
 
-    #: Animes por página. 10 en las rejillas de 5 columnas (`DISENO.md` §6): dos
-    #: filas llenas.
-    PAGE_SIZE: int = 10
+    #: Filas por página. El tamaño de página **no es un número fijo**: sale de
+    #: multiplicar esto por las columnas que quepan, así que una página es siempre
+    #: dos filas llenas (`DISENO.md` §6). A 1440 son los 10 de siempre; con la
+    #: ventana maximizada, 12.
+    ROWS_PER_PAGE: int = 2
 
     def __init__(self, main_window, icon_path, row, column):
         icon_path_light = icon_path_dark = os.path.join(icon_path, "favoritos.png")
@@ -129,8 +131,11 @@ class FavouritesButton(utilsButtons.SidebarButton):
 
         self.__poster_grid = PosterGrid(content, columns=5, poster_size=Metrics.GRID5_POSTER,
                                         on_click=self.__on_anime_click,
-                                        extra_builder=self.__build_rating)
-        self.__poster_grid.grid(row=1, column=0, sticky="w", padx=(PosterGrid.OUTER_PAD_X, 0))
+                                        extra_builder=self.__build_rating,
+                                        on_columns_changed=self.__on_columns_changed)
+        # sticky="ew" y no "w": es lo que da a la rejilla el ancho de la ventana
+        # para que decida cuántas columnas caben (`poster_grid.py`).
+        self.__poster_grid.grid(row=1, column=0, sticky="ew", padx=(PosterGrid.OUTER_PAD_X, 0))
 
         # Mensaje de «la búsqueda no encontró nada». Nace escondido: aparece y
         # desaparece con grid()/grid_remove(), que conserva dónde iba colocado.
@@ -145,7 +150,8 @@ class FavouritesButton(utilsButtons.SidebarButton):
                                   padx=Metrics.CONTENT_PAD_X, pady=(20, 0))
         self.__message_label.grid_remove()
 
-        self.__pager = Pager(content, page_size=self.PAGE_SIZE, on_page=self.__render_page)
+        self.__pager = Pager(content, page_size=self.__poster_grid.columns * self.ROWS_PER_PAGE,
+                             on_page=self.__render_page)
         self.__pager.grid(row=3, column=0, sticky="ew",
                           padx=Metrics.CONTENT_PAD_X, pady=(4, 24))
 
@@ -268,6 +274,18 @@ class FavouritesButton(utilsButtons.SidebarButton):
                 self.__message_label.grid()
 
         self.__render_page(1)
+
+    def __on_columns_changed(self, columns: int) -> None:
+        """La ventana ha cambiado de ancho y ahora cabe otro número de columnas.
+
+        Repintar es cosa de la vista y no de la rejilla porque el ancho no cambia
+        solo cómo se coloca la página: cambia **qué animes entran en ella**. El
+        paginador conserva el primero que se estaba viendo.
+        """
+        if self.__pager is None or not self.__pager.winfo_exists():
+            return
+        self.__pager.set_page_size(columns * self.ROWS_PER_PAGE)
+        self.__render_page(self.__pager.page())
 
     def __render_page(self, page: int) -> None:
         """Repinta la rejilla con la página pedida. Lo llama el paginador."""

@@ -30,6 +30,7 @@ real: ver las trampas 21 y 22 de `.claude/docs/10-invariantes-y-trampas.md`.
 """
 
 import difflib
+import re
 import threading
 import webbrowser
 import customtkinter as ctk
@@ -114,8 +115,6 @@ SEEN_W = 420
 SEEN_H = 22
 #: Separación entre la barra y su leyenda (`.seen`: gap 12).
 SEEN_GAP = 12
-#: Ancho de lectura cómoda de la sinopsis, en caracteres (`.syn`: max-width 74ch).
-SYNOPSIS_MAX_CH = 74
 #: Fichas de género (`.tags span`: alto 26, hueco 7, relleno lateral 11).
 GENRE_CHIP_H = 26
 GENRE_CHIP_GAP = 7
@@ -150,6 +149,52 @@ FOCUS_SCROLL_MARGIN = 24
 #  mostrar 4 animes con los mimos generos.
 
 # TODO: Agregar botón para alternar entre el manga y el anime.
+
+
+#: Fin de línea al estilo Windows o Mac clásico. Se pasa a ``\n`` antes que nada:
+#: ninguno de los dos patrones de abajo lo reconocería, y un ``\r`` suelto que se
+#: cuele en un CTkLabel no se ve pero cuenta como carácter.
+_CARRIAGE_RETURN = re.compile(r"\r\n?")
+#: Un salto de línea con espacios o tabuladores alrededor, sin otro salto pegado:
+#: es un corte de renglón del sitio de origen, no una separación de párrafos.
+_SOFT_BREAK = re.compile(r"(?<!\n)[ \t]*\n[ \t]*(?!\n)")
+#: Dos o más saltos seguidos, con lo que haya entre medias: eso sí es un párrafo.
+_PARAGRAPH_BREAK = re.compile(r"[ \t]*\n[ \t\n]*\n[ \t]*")
+
+
+def wrap_synopsis(synopsis: Optional[str]) -> Optional[str]:
+    """Deja la sinopsis en condiciones de envolverse al ancho de la ventana.
+
+    Deja pasar ``None`` tal cual —hay proveedores que no dan sinopsis— para que la
+    etiqueta pueda seguir decidiendo con un ``or`` qué texto de relleno pone.
+
+    El texto llega con los saltos de línea del sitio de origen —AnimeAV1 los trae
+    escapados en su payload y ``animeav1.py`` los convierte en saltos de verdad— y
+    ``wraplength`` **no puede deshacer un ``\\n`` explícito**: Tk lo respeta pase lo
+    que pase, así que la sinopsis se quedaba con los renglones del proveedor por
+    ancha que fuera la ventana. Ese era el síntoma.
+
+    La regla es la del HTML: un salto suelto no significa nada y se convierte en
+    espacio; **dos son un párrafo** y se conservan, porque los escribió quien
+    redactó la sinopsis y perderlos es perder información. En la biblioteca de hoy
+    esa distinción se corresponde exactamente con los datos: 18 separaciones dobles
+    frente a 2 sueltas, y las dos sueltas son en realidad un párrafo con un espacio
+    perdido en medio, que esta normalización también arregla.
+
+    Se hace **al pintar y no al raspar**: ``AnimeInfo.synopsis`` sigue siendo el
+    texto íntegro del proveedor —cómo se reparte en renglones es cosa de la GUI— y
+    así también salen bien las filas que ya estaban guardadas en la BD, sin migrar
+    nada.
+    """
+    if not synopsis:
+        return synopsis
+    # Primero los párrafos, a un marcador que no puede aparecer en el texto: si se
+    # colapsaran antes los saltos sueltos, el patrón de párrafo ya no encontraría
+    # nada que conservar.
+    marker = "\x00"
+    text = _PARAGRAPH_BREAK.sub(marker, _CARRIAGE_RETURN.sub("\n", synopsis).strip())
+    text = _SOFT_BREAK.sub(" ", text)
+    return text.replace(marker, "\n\n")
 
 
 def show_anime_info_error(anime_id: Union[str, int]) -> None:
@@ -731,7 +776,8 @@ class AnimeWindowViewer:
 
         self.__synopsis_label = ctk.CTkLabel(
             info,
-            text=self.anime_info.synopsis or "Este proveedor no ha dado sinopsis de este anime.",
+            text=(wrap_synopsis(self.anime_info.synopsis)
+                  or "Este proveedor no ha dado sinopsis de este anime."),
             font=Theme.font(*Theme.T_BODY),
             text_color=Theme.TXT_2,
             justify="left",
@@ -763,17 +809,20 @@ class AnimeWindowViewer:
     def __relayout_text(self, available: int) -> None:
         """Reparte el ancho disponible entre título, sinopsis y fichas de género.
 
-        La sinopsis no ocupa todo lo que hay: el diseño la corta a 74 caracteres
-        (`.syn`: `max-width:74ch`) porque una línea de 1 300 px es incómoda de
-        leer. Un «ch» es lo que mide el cero de la fuente.
+        Los tres usan **todo** el ancho de la columna. El diseño cortaba la
+        sinopsis a 74 caracteres (`.syn`: `max-width:74ch`) por legibilidad, pero
+        ese tope se quitó el 2026-09-02: dejaba la ficha con una franja vacía a la
+        derecha al maximizar, que es justo lo que se estaba arreglando.
+
+        Envolver es cosa de ``wraplength``, y para que sirva de algo el texto no
+        puede traer saltos propios: de eso se encarga ``wrap_synopsis()`` al
+        construir la etiqueta.
         """
         self.__laid_out_width = available
         if self.__title_label is not None:
             self.__title_label.configure(wraplength=available)
         if self.__synopsis_label is not None:
-            body_font = Theme.font(*Theme.T_BODY)
-            self.__synopsis_label.configure(
-                wraplength=min(available, body_font.measure("0") * SYNOPSIS_MAX_CH))
+            self.__synopsis_label.configure(wraplength=available)
         self.__place_genre_tags(available)
 
     def __place_genre_tags(self, available: int) -> None:

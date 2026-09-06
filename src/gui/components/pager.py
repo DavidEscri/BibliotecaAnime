@@ -1,7 +1,7 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "gui.components"
 __module__ = "pager.py"
-__version__ = "0.2"
+__version__ = "0.3"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 """Paginador: «Mostrando A-B de N» a la izquierda y los botones de página a la derecha.
@@ -20,6 +20,9 @@ Hay **dos formas de decirle cuántas páginas hay**, y no son intercambiables:
 - ``set_total(n)`` — la vista tiene la lista **entera** en memoria y el paginador
   la trocea él mismo con ``slice_bounds()``. Es el caso de las cinco vistas de
   biblioteca: los favoritos o los finalizados salen de una consulta a SQLite.
+  ⚠️ Su ``page_size`` **no es constante**: las rejillas lo derivan del número de
+  columnas que quepan (``set_page_size()``), que a su vez depende del ancho de la
+  ventana. A 1440 son los 12 y 10 del diseño; maximizado, 16 y 12.
 - ``set_pages(u, p)`` — quien trocea es **el sitio web**: la búsqueda pide una
   página y el proveedor devuelve esos resultados y cuál es la última página. Aquí
   no hay nada que cortar y el total de resultados **no se sabe**, así que el
@@ -132,6 +135,33 @@ class Pager(ctk.CTkFrame):
         self.__provider_pages = max(1, total_pages)
         self.__total = 0
         self.__page = min(max(1, page), self.__provider_pages)
+        self.__repaint()
+
+    def set_page_size(self, page_size: int) -> None:
+        """Cambia cuántos elementos entran en una página. **No** llama a ``on_page``.
+
+        Existe porque el número de columnas de ``PosterGrid`` depende del ancho de
+        la ventana, y el tamaño de página de las rejillas es «dos filas llenas»
+        (`DISENO.md` §6): al pasar de 6 a 8 columnas la página pasa de 12 a 16.
+
+        Se conserva **el primer elemento que se estaba viendo**, no el número de
+        página: pasar de la página 3 de 12 en 12 a la 3 de 16 en 16 saltaría a un
+        anime que no estaba en pantalla. Con este cálculo, el que abría la página
+        sigue abriéndola.
+
+        Solo tiene sentido en el modo de ``set_total()``. Cuando quien pagina es el
+        proveedor (``set_pages()``) el tamaño de página no corta nada, así que se
+        guarda el valor y se deja la página donde estaba.
+        """
+        page_size = max(1, page_size)
+        if page_size == self.page_size:
+            return
+        if self.__provider_pages is not None:
+            self.page_size = page_size
+            return
+        first_index = (self.__page - 1) * self.page_size
+        self.page_size = page_size
+        self.__page = min(max(1, first_index // page_size + 1), self.total_pages())
         self.__repaint()
 
     # ------------------------------------------------------------------
