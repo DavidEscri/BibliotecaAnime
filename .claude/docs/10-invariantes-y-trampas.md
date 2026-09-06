@@ -2,9 +2,9 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-09-01 · rama `feature/ui-redisign` · último commit **`a0e3f37`** (**abrir la ficha por un episodio**); **sin commitear**, solo esta tanda de documentación |
+| **Fecha** | 2026-09-02 · rama `feature/ui-redisign` · último commit **`9083a32`** (documentación) |
 | **Cubre** | los **31** módulos con contenido de `src/` + `MiBibliotecaAnime.spec` + `requirements.txt` |
-| **Última revisión** | 2026-09-01 (**abrir la ficha por un episodio**): trampa **40** nueva —un `bind()` sin `add="+"` **borra** el manejador que el widget ya tenía, y excluir un botón de un recorrido **no excluye su interior**—, en un apartado propio; es la que explica por qué «Empezar» **nunca** movió un anime a «Viendo». La **37** gana la corrección de por qué `AnimeRow` sigue sin sufrirla. Antes, 2026-09-01 (**ancho de las fichas de género**): trampa **39** nueva —un `CTkButton` no respeta el `width` que se le pide: su rejilla interna propaga tamaño y el ancho *pedido* gana—, en un apartado propio, con la aritmética exacta de lo que reserva por dentro. Antes, 2026-09-01 (**refresco de la banda «Retomar»**): trampa **38** nueva —una fila guardada no refresca sus episodios sola, así que un anime en emisión miente hasta que abres su ficha—, **resuelta solo para las ≤3 tarjetas de la portada** y viva en el resto de la biblioteca. Antes, 2026-09-01 (**hover de la lista de episodios**): trampa **37** nueva —un hijo sin `bind` es una salida de la que no llega ningún `<Leave>`, la complementaria de la **34**—, con la nota de que **no se reproduce moviendo el ratón deprisa**. Antes, 2026-08-31 (**fondo de la pantalla de carga**): trampa **36** nueva —un widget sin `fg_color` sale del gris por defecto de CustomTkinter, no de `Theme`—, con el `minsize` que sobrevive a `grid_forget()` y el GIF transparente como medias trampas; la **33** gana un aviso: el comentario que la anclaba en el código ya no está. Antes, 2026-08-21 (**rediseño de interfaz**): **7 trampas nuevas** (29-35), todas de CustomTkinter y de layout, en un apartado propio; la **33** nace ya resuelta. La trampa **22** queda cerrada: la ficha ya no calcula anchos a mano. Antes, 2026-08-17 (**licencia y empaquetado**): la trampa **18** se subdivide en **a-e** — **18d cerrada** (`datas` ya no lleva datos de usuario; PyInstaller **ignora en silencio las carpetas vacías**) y **18e nueva** (los destinos de `datas` caen dentro de `_internal/`, no junto al `.exe`). Antes, 2026-08-16 (**columna `provider_id`**): **3 trampas nuevas** (26, 27, 28), trampa **21 reescrita** —ahora se puede provocar a voluntad y la ficha la señala en pantalla—, trampas **4** y **13** ampliadas, y anclas de `anime_window.py` (647→1156) y `animesPersistence.py` reubicadas |
+| **Última revisión** | 2026-09-02 (**rejillas adaptables y sinopsis**): **2 trampas nuevas**, las dos con el mismo patrón —un widget que *parece* medir el sitio que tiene y no lo mide—: la **41**, una rejilla colocada con `sticky="w"` mide **su propio contenido**, así que calcular columnas de su ancho es un punto fijo que nunca cambia; y la **42**, `wraplength` **no puede deshacer un `\n`** que traiga el texto, por ancha que sea la ventana. Las dos estuvieron vivas y calladas desde el rediseño. La **32** gana su segunda mitad: los pesos `uniform` de `PosterGrid` también sobreviven a destruir las celdas. Antes, 2026-09-01 (**abrir la ficha por un episodio**): trampa **40** nueva —un `bind()` sin `add="+"` **borra** el manejador que el widget ya tenía, y excluir un botón de un recorrido **no excluye su interior**—, en un apartado propio; es la que explica por qué «Empezar» **nunca** movió un anime a «Viendo». La **37** gana la corrección de por qué `AnimeRow` sigue sin sufrirla. Antes, 2026-09-01 (**ancho de las fichas de género**): trampa **39** nueva —un `CTkButton` no respeta el `width` que se le pide: su rejilla interna propaga tamaño y el ancho *pedido* gana—, en un apartado propio, con la aritmética exacta de lo que reserva por dentro. Antes, 2026-09-01 (**refresco de la banda «Retomar»**): trampa **38** nueva —una fila guardada no refresca sus episodios sola, así que un anime en emisión miente hasta que abres su ficha—, **resuelta solo para las ≤3 tarjetas de la portada** y viva en el resto de la biblioteca. Antes, 2026-09-01 (**hover de la lista de episodios**): trampa **37** nueva —un hijo sin `bind` es una salida de la que no llega ningún `<Leave>`, la complementaria de la **34**—, con la nota de que **no se reproduce moviendo el ratón deprisa**. Antes, 2026-08-31 (**fondo de la pantalla de carga**): trampa **36** nueva —un widget sin `fg_color` sale del gris por defecto de CustomTkinter, no de `Theme`—, con el `minsize` que sobrevive a `grid_forget()` y el GIF transparente como medias trampas; la **33** gana un aviso: el comentario que la anclaba en el código ya no está. Antes, 2026-08-21 (**rediseño de interfaz**): **7 trampas nuevas** (29-35), todas de CustomTkinter y de layout, en un apartado propio; la **33** nace ya resuelta. La trampa **22** queda cerrada: la ficha ya no calcula anchos a mano. Antes, 2026-08-17 (**licencia y empaquetado**): la trampa **18** se subdivide en **a-e** — **18d cerrada** (`datas` ya no lleva datos de usuario; PyInstaller **ignora en silencio las carpetas vacías**) y **18e nueva** (los destinos de `datas` caen dentro de `_internal/`, no junto al `.exe`). Antes, 2026-08-16 (**columna `provider_id`**): **3 trampas nuevas** (26, 27, 28), trampa **21 reescrita** —ahora se puede provocar a voluntad y la ficha la señala en pantalla—, trampas **4** y **13** ampliadas, y anclas de `anime_window.py` (647→1156) y `animesPersistence.py` reubicadas |
 
 Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ sin verificar.
 
@@ -168,7 +168,7 @@ los switches están todos apagados. **Sin ningún mensaje.**
 
 ### 8. Solo se muestran los **25** primeros episodios 📖
 
-`anime_window.py:408` → `self.anime_info.episodes[:25]`. (El comentario de `:447` dice «24»; el
+`anime_window.py:453` → `self.anime_info.episodes[:25]`. (El comentario de `:447` dice «24»; el
 código dice 25.)
 
 **Interactúa con la trampa 4**: ✅ con AnimeAV1 (ascendente) verás los episodios **1-25**; con
@@ -203,13 +203,13 @@ pasaban directamente el resultado de `get_anime_info`, que devuelve `None` cuand
 proveedores. Síntoma: `AttributeError: 'NoneType' object has no attribute 'episodes'`, que Tkinter se
 tragaba — así que el clic simplemente **no hacía nada**, sin ningún mensaje.
 
-**Contrato vigente** (📖 `anime_window.py:30-64`), en tres capas:
+**Contrato vigente** (📖 `anime_window.py:30-65`), en tres capas:
 
 | Capa | Dónde | Qué hace |
 |---|---|---|
-| Aviso al usuario | `show_anime_info_error()` `anime_window.py:30-46` | `print` + `messagebox.showerror` |
-| Guarda en los 6 clics | `favouriteAnimes.py:132-134` y homólogos | `if anime_clicked is None: show_anime_info_error(...); return` |
-| Contrato del constructor | `anime_window.py:77-105` | `None` → `ValueError`; `episodes=None` → `replace(…, episodes=[])` |
+| Aviso al usuario | `show_anime_info_error()` `anime_window.py:200-216` | `print` + `messagebox.showerror` |
+| Guarda en los 6 clics | `favouriteAnimes.py:134-139` y homólogos | `if anime_clicked is None: show_anime_info_error(...); return` |
+| Contrato del constructor | `anime_window.py:78-106` | `None` → `ValueError`; `episodes=None` → `replace(…, episodes=[])` |
 
 **Si lo rompes**: al añadir una vista nueva, olvidar la guarda devuelve el síntoma original. La única
 señal será el `ValueError` en consola, porque Tkinter sigue tragándose la excepción del callback.
@@ -222,7 +222,7 @@ precargado para siempre.
 > **Corrección a la versión anterior de esta trampa**: decía que `recentAnimes.py` «sí lo comprueba
 > antes». Solo a medias — comprobaba el `None` pero luego caía de vuelta al objeto obsoleto, cuyo
 > `.episodes` es precisamente `None`, así que petaba igual por la otra puerta. Ahora muestra el error y
-> no abre la ficha (`recentAnimes.py:90-101`), y además restaura el cursor `watch` antes de cualquier
+> no abre la ficha (`recentAnimes.py:92-107`), y además restaura el cursor `watch` antes de cualquier
 > salida — antes se quedaba clavado si la construcción de la ficha fallaba.
 
 ✅ Verificado el 2026-07-30 simulando la caída total de proveedores sobre el `__on_anime_click` real de
@@ -367,7 +367,7 @@ cuadradito diminuto, **no un error**.
 225×350 conservado.
 
 > En el mismo cambio se añadió `timeout=_REQUEST_TIMEOUT`: era la única petición del módulo sin timeout
-> y corre **en el hilo de UI** (`anime_window.py:173`), así que un servidor de imágenes colgado
+> y corre **en el hilo de UI** (`anime_window.py:218`), así que un servidor de imágenes colgado
 > congelaba la aplicación indefinidamente.
 
 ---
@@ -379,7 +379,7 @@ directorio que no corresponda a un anime de la lista recibida.
 
 **Consecuencias verificadas**:
 
-- ✅ `resources/images/search` se **vacía en cada búsqueda** (`searchAnimes.py:229`).
+- ✅ `resources/images/search` se **vacía en cada búsqueda** (`searchAnimes.py:236`).
 - ✅ `load_image` (`utils.py:181`) deja el fichero **abierto** (PIL perezoso) → `os.remove` lanza
   `PermissionError` en Windows mientras el `CTkImage` viva. Está capturado, así que solo imprime.
 - ✅ En la caché real del usuario hay un huérfano `Chi.` (0 bytes) que `os.listdir` lista pero
@@ -543,7 +543,7 @@ Con la columna `provider_id` hay **tres** formas de partir la identidad, no una:
 | **Migración a medias** | — | imposible hoy: `__confirm_and_migrate` reconstruye la ficha entera al terminar |
 
 La segunda es nueva y es la peligrosa: `open_saved_anime()` **re-localiza el anime por título** en el
-proveedor elegido (`anime_window.py:167-189`), así que `anime_info.id` es directamente el slug de otro
+proveedor elegido (`anime_window.py:212-234`), así que `anime_info.id` es directamente el slug de otro
 sitio.
 
 > 🔴 **Esto reintrodujo el bug una vez, durante la propia fase 4.** `open_saved_anime()` construía el
@@ -712,7 +712,7 @@ AnimeAV1 (`one-piece`) porque en su día lo añadiste dos veces; migras el prime
 
 | Capa | Línea | Qué hace |
 |---|---|---|
-| GUI | `anime_window.py:625-635` | Comprueba antes y lo **explica** con un diálogo: «ya hay otra entrada de este anime en X» |
+| GUI | `anime_window.py:670-680` | Comprueba antes y lo **explica** con un diálogo: «ya hay otra entrada de este anime en X» |
 | Persistencia | `animesPersistence.py:478-481` | Vuelve a comprobarlo y devuelve `False` |
 
 La segunda no es redundante: `migrate_anime_identity` es pública y no puede fiarse de que quien la
@@ -794,6 +794,14 @@ la pantalla en blanco.
 
 **Invariante**: toda vista que reparta peso entre varias columnas o filas **tiene que devolverlo a
 cero al salir**. Hoy solo la ficha reparte; si otra lo hace, hereda la obligación.
+
+> 🆕 **Segunda mitad, 2026-09-02**: lo mismo pasa **dentro** de un componente. Desde que
+> `PosterGrid` calcula sus columnas del ancho, le da `weight=1` y un grupo `uniform` a cada una — y
+> esos pesos sobreviven a destruir las celdas igual que los del `content_frame`. Al pasar de 8
+> columnas a 3, las cinco que sobran seguirían reclamando su parte del ancho y los tres pósters
+> saldrían apiñados a la izquierda de una fila vacía. Por eso `__configure_columns()` no solo pone
+> peso: **se lo quita** a `range(columnas, self.__weighted_columns)`. Quien añada otro componente que
+> configure columnas según los datos hereda la obligación de destejerlo.
 
 ---
 
@@ -941,7 +949,7 @@ ratón se haya ido; ésta, que **hay salidas de las que no llega ningún `<Leave
    `<Leave>` al entrar el puntero en ese hijo, y lo ignoró por la trampa 34— **no recibe ninguno
    más**. Nadie apaga la fila.
 
-Le pasaba a `EpisodeRow` (`anime_window.py:266-424`), que ataba el hover a la fila y a sus dos
+Le pasaba a `EpisodeRow` (`anime_window.py:311-469`), que ataba el hover a la fila y a sus dos
 etiquetas y dejaba fuera **el interruptor «Visto» y el separador de 1 px**. El separador va con
 `place(rely=1.0, relwidth=1.0)`: ocupa **toda la última fila de píxeles** de cada episodio, así que
 bajar de un episodio al siguiente **obliga a cruzarlo**.
@@ -955,10 +963,10 @@ parece correcto. Hace falta el paso de **1 px** —un ratón lento de verdad— 
 
 **Invariante**: el **hover se ata a todos los hijos** del widget que se resalta; el **clic**, solo a
 los que deban responder a él. En `EpisodeRow` son dos bucles distintos y a propósito
-(`anime_window.py:375-390`): el interruptor recibe `<Enter>` / `<Leave>` pero **no** `<Button-1>`,
+(`anime_window.py:420-435`): el interruptor recibe `<Enter>` / `<Leave>` pero **no** `<Button-1>`,
 porque tiene su propio comando y marcar un episodio no debe abrir sus servidores.
 
-**Y un cinturón además de los tirantes**: `EpisodeRow.__hovered` (`anime_window.py:280`) es un
+**Y un cinturón además de los tirantes**: `EpisodeRow.__hovered` (`anime_window.py:325`) es un
 atributo **de clase** con la fila resaltada; la que se enciende apaga a la anterior
 (`__handle_enter` → `__release_hover`). Aunque en el futuro se pierda un `<Leave>`, **no puede haber
 dos filas encendidas a la vez**.
@@ -981,7 +989,7 @@ pegada exactamente en el píxel del separador.
 
 **Hermana, del mismo arreglo**: al **plegar** los servidores, `set_expanded(False)` devolvía la fila
 a `TRANSPARENT` aunque el puntero siguiera encima — el resaltado se apagaba justo debajo del ratón.
-Ahora consulta `__pointer_inside()` (`anime_window.py:363-370`).
+Ahora consulta `__pointer_inside()` (`anime_window.py:489-496`).
 
 ---
 
@@ -991,7 +999,7 @@ Ahora consulta `__pointer_inside()` (`anime_window.py:363-370`).
 
 `ANIMES.episodes` es una **foto del día en que abriste la ficha de ese anime**, no «los episodios que
 hay». Durante mucho tiempo el **único** sitio que la reescribía fue `__load_anime_status()`
-(`anime_window.py:602-603`), y solo al abrir la ficha.
+(`anime_window.py:647-648`), y solo al abrir la ficha.
 
 **Síntoma observable**: un anime **en emisión** miente cuando sale un capítulo nuevo. El caso real que
 la destapó: «One Piece» y «Mushoku Tensei III» estrenan los domingos; abriendo la aplicación ese mismo
@@ -1003,7 +1011,7 @@ Ningún error por consola: el dato es coherente, solo viejo.
 10 → tarjeta «Lo has visto entero · 9 episodios», barra al 100 %.
 
 **Resuelta a medias.** Desde `4ffc2ef`, `RecentAnimeButton.__refresh_resume_episodes()`
-(`recentAnimes.py:131-180`) relee los episodios **de las ≤3 filas de la banda** al entrar en la
+(`recentAnimes.py:137-186`) relee los episodios **de las ≤3 filas de la banda** al entrar en la
 portada ([03 §11](03-flujos-de-ejecucion.md)). Lo que **sigue mintiendo**, con el mismo síntoma:
 
 | Dónde | Qué enseña de más |
@@ -1084,7 +1092,7 @@ volver a medir es esto: el síntoma no da error y no lo detecta ningún `grep`.
 su `height`). Las tres son la misma idea — **en CustomTkinter, `width` y `height` son una petición, no
 un contrato**.
 
-⚠️ **La ficha de detalle se libra por otro camino**: `__place_genre_tags()` (`anime_window.py:736-801`)
+⚠️ **La ficha de detalle se libra por otro camino**: `__place_genre_tags()` (`anime_window.py:828-893`)
 también envuelve fichas con `place()`, pero las suyas son `CTkFrame` con la etiqueta **dentro**, y un
 hijo colocado con `place()` **no** propaga tamaño al padre. Por eso ahí el `width=` sí se respeta.
 
@@ -1148,15 +1156,107 @@ el subárbol fuera del clic.
 que CustomTkinter monta en el canvas y la etiqueta, así que la píldora nunca se pintó con su
 `hover_color`. Nadie lo había notado porque la fila entera se resalta al mismo tiempo.
 
-**Los otros cinco sitios que atan clics están bien**, y por la misma razón: `poster_grid.py:232`,
+**Los otros cinco sitios que atan clics están bien**, y por la misma razón: `poster_grid.py:394`,
 `resume_card.py:138`, `sidebar.py:145`, `side_panel.py:174` y `EpisodeRow`
-(`anime_window.py:401-409`) atan a **listas explícitas** de marcos y etiquetas y no entran en ningún
+(`anime_window.py:446-454`) atan a **listas explícitas** de marcos y etiquetas y no entran en ningún
 botón. `AnimeRow` era el único que recorría en profundidad. Y `SidePanel` deja el botón fuera **a
 mano** y con un comentario que lo dice — por eso «Seguir por el N» fue el único de los tres que
 funcionó a la primera.
 
 **Cómo comprobarlo**: [09 §6e](09-verificacion-y-pruebas.md#6e-pulsar-de-verdad-un-botón-que-vive-dentro-de-otro-widget-2026-09-01). No basta con leer el código; se pulsa
 el interior de la píldora y se cuenta **cuál de los dos manejadores ha corrido**.
+
+---
+
+## Medir el sitio que tienes *(añadida 2026-09-02)*
+
+Las dos de este apartado son el mismo error visto desde dos capas: **un widget que parece que se
+adapta al espacio disponible y en realidad nunca llega a mirarlo.** Ninguna da error, ninguna se ve
+a 1440 —el tamaño con el que se diseñó y con el que se prueba— y las dos aparecen en cuanto alguien
+maximiza la ventana.
+
+### 41. Una rejilla con `sticky="w"` mide su propio contenido, no el hueco que tiene 🔴 ✅ *(resuelta 2026-09-02)*
+
+**Por qué**: `sticky` no decide solo dónde se pega un widget, decide **cuánto mide**. Con
+`sticky="ew"` la celda de la rejilla lo estira hasta el ancho que le toca; sin la `e` y la `w`, el
+widget se queda con su **tamaño pedido**, que es el de lo que él mismo ha pintado. `winfo_width()`
+devuelve entonces el ancho del contenido, no el del contenedor.
+
+Es inofensivo mientras nadie lo consulte. Deja de serlo en cuanto **el propio widget calcula algo a
+partir de ese número**: `columnas = ancho // (póster + hueco)` sobre un ancho que sale de haber
+pintado esas mismas columnas es un **punto fijo**. La cuenta se hace, sale bien, y siempre devuelve
+lo que ya había.
+
+```
+sticky="w"   ancho = 6 * 196 = 1176  ->  1176 // 196 = 6  ->  pinta 6  ->  ancho = 1176  ...
+sticky="ew"  ancho = 1662 (el de la ventana)  ->  1662 // 196 = 8  ->  pinta 8
+```
+
+**Síntoma observable**: al maximizar, las cuatro vistas de rejilla —Nuevos lanzamientos, Favoritos,
+Finalizados y Buscar— seguían pintando 6 y 5 columnas pegadas a la izquierda, con **casi 500 px de
+fondo vacío a la derecha**. Las de cascada (Viendo, Pendientes) sí se ensanchaban, porque sus filas
+ya iban con `sticky="ew"` — y esa diferencia entre vistas es justo lo que hacía que pareciera un
+descuido de una vista concreta y no una regla que faltaba.
+
+Estuvo así desde el rediseño (2026-08-21) hasta el 2026-09-02. No dio ni un error: una franja de
+fondo del color correcto es indistinguible de una decisión de diseño.
+
+**Invariante**, en dos mitades y las dos obligatorias:
+
+- **Quien mida su contenedor tiene que estar estirado hasta él.** `sticky="ew"` en el widget **y**
+  `weight` en la columna del padre. Si falta cualquiera de las dos, la medida es del contenido.
+- **Lo que sobra del reparto entero hay que repartirlo**, o vuelve la franja vacía —más pequeña, pero
+  vuelve—. `weight=1` + un mismo `uniform` en las columnas en uso y la celda con `sticky="n"`: la
+  celda queda centrada en su columna y el sobrante sale como huecos iguales. Es el equivalente en Tk
+  de `repeat(auto-fill, minmax(póster, 1fr))`.
+  ⚠️ Y hay que **quitar** el peso al encoger: [trampa 32](#32-la-configuración-de-rejilla-del-content_frame-sobrevive-a-clear_frame--).
+
+⚠️ **La fórmula descuenta el margen izquierdo y no el derecho**, y no es un descuido: a 1440 el
+diseño deja el último póster a ~11 px del borde, no a 28. Reservar los 28 por simetría daría **5**
+columnas a 1440 y sería una regresión respecto al propio diseño. El margen derecho lo acaba poniendo
+el reparto del sobrante.
+
+⚠️ **Repintar es caro**: cada celda abre su JPG y lo reescala con PIL, y son ~350 ms para 16 celdas
+**en el hilo de la interfaz**. Por eso `__on_configure()` descarta todo `<Configure>` que no cambie
+el número de columnas —el reparto del sobrante lo hace Tk gratis— y los que quedan pasan por una
+espera de `RELAYOUT_DELAY_MS`, que junta un arrastre entero en un solo repintado.
+
+**Cómo comprobarlo**: [09 §6f](09-verificacion-y-pruebas.md#6f-comprobar-que-una-rejilla-se-adapta-al-ancho-2026-09-02). Leer el código no vale: hay
+que **medir** `winfo_width()` de la rejilla a dos tamaños de ventana y ver que el número cambia.
+
+---
+
+### 42. `wraplength` no puede deshacer un `\n` que traiga el texto 🔴 ✅ *(resuelta 2026-09-02)*
+
+**Por qué**: `wraplength` dice **dónde se puede** partir una línea, no dónde hay que juntarlas. Un
+`\n` dentro del texto es un corte **incondicional**: Tk lo respeta con cualquier `wraplength` y con
+cualquier ancho de ventana. No hay opción de `CTkLabel` que lo desactive.
+
+Y la sinopsis llega con saltos propios del sitio: AnimeAV1 los trae escapados dentro de su payload de
+hidratación y `animeav1.py:206` los convierte en saltos de verdad (`.replace('\\n', '\n')`), que es
+lo correcto — el modelo guarda el texto que escribió su autor.
+
+**Síntoma observable**: la sinopsis de la ficha conservaba los renglones del proveedor **por ancha
+que fuera la ventana**, mientras el título y las fichas de género de al lado sí se reajustaban. ✅ En
+la biblioteca real son **13 de 35** sinopsis: 18 saltos dobles y 2 sueltos.
+
+Lo confuso es que `__relayout_text()` **sí** recalculaba el `wraplength` en cada `<Configure>`, así
+que el código parecía correcto y el fallo parecía de layout. No lo era: era del texto.
+
+**Invariante**: **todo texto que venga de la red y se pinte con `wraplength` pasa por una
+normalización antes de llegar al widget.** Hoy lo hace `wrap_synopsis()` (`anime_window.py`).
+
+⚠️ **Normalizar no es aplastar.** La regla es la del HTML y se eligió mirando los datos: un salto
+suelto es un corte de renglón y se vuelve espacio; **dos son un párrafo y se conservan**, porque los
+puso quien redactó el texto. Colapsarlo todo a un bloque también quita el síntoma, y de paso quita
+información.
+
+⚠️ **Se hace al pintar, no al raspar.** `AnimeInfo.synopsis` sigue siendo el texto íntegro del
+proveedor —cómo se reparte en renglones es cosa de la GUI—, y así salen bien también las filas que ya
+estaban guardadas, sin migrar la BD.
+
+**Cómo comprobarlo**: [09 §6g](09-verificacion-y-pruebas.md#6g-comprobar-la-normalización-de-la-sinopsis-2026-09-02). Se compara `texto.split()`
+antes y después: la normalización no puede perder ni inventar una sola palabra.
 
 ---
 

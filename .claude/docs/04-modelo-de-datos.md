@@ -116,7 +116,7 @@ que acordarse de nada.
 > ⚠️ **No hay conversión de vuelta.** Por eso las vistas de favoritos/finalizados/viendo/pendientes,
 > que tienen `AnimeRecord`, siguen haciendo una petición de red al hacer clic en un anime en vez de
 > reutilizar lo que ya tienen en BD. Lo que sí ha cambiado (2026-08-16) es **a quién** se le pide: las
-> cuatro vistas llaman a `open_saved_anime()` (`anime_window.py:108-193`), que usa el `provider_id` de
+> cuatro vistas llaman a `open_saved_anime()` (`anime_window.py:256-334`), que usa el `provider_id` de
 > la fila en vez de disparar el fallback a ciegas.
 
 ---
@@ -519,7 +519,7 @@ No hubo script de migración de datos. El `provider_id` de las filas antiguas se
 
 | Puerta | Línea | Cuándo dispara |
 |---|---|---|
-| Abrir la ficha | `anime_window.py:341-345` | Cada vez que se abre un anime guardado |
+| Abrir la ficha | `anime_window.py:386-390` | Cada vez que se abre un anime guardado |
 | Marcar un estado | `animesPersistence.py:643-644` (dentro de `_set_status`) | Al pulsar favoritos/viendo/… sobre una fila que ya existía |
 
 La segunda es redundante con la primera en el flujo normal —para pulsar un estado hay que tener la
@@ -560,6 +560,6 @@ estados; el destino ocupado devuelve `False` sin tocar nada. ✅ Y **en producci
 ### `get_all_animes()`
 
 📖 `:319-331`. `SELECT *` sin filtro. Existe para la detección de duplicados por título
-(`find_saved_duplicate`, `anime_window.py:69-105`), que necesita ver **también** las filas sin ningún
+(`find_saved_duplicate`, `anime_window.py:70-106`), que necesita ver **también** las filas sin ningún
 estado activo: siguen ocupando una fila, y si no se miran se acaba creando un duplicado de algo que ya
 está. Es la única consulta de la clase que no filtra por estado ni por id.

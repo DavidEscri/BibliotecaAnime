@@ -155,7 +155,7 @@ def get_anime_info(self, anime_id: Union[str, int]) -> AnimeInfo | None:   # amb
 
 - `typing.List/Optional/Union/Dict/Set/Tuple` — mayoritario.
 - Sintaxis 3.10 (`X | None`) — en `animeflv.py:179`, `animeav1.py:177`, `main_window.py:60,66,70`,
-  `searchAnimes.py:41-42`, `anime_window.py:232-233,258`.
+  `searchAnimes.py:41-42`, `anime_window.py:277-278,258`.
 - `tuple[int, int]` en minúscula — `utils.py:185,198`.
 
 **El proyecto requiere Python 3.10+.** ✅ Entorno verificado: `biblio_anime_env` usa **Python 3.10.6**.
@@ -172,7 +172,7 @@ en Python es una **tupla literal**, no un tipo. No lo copies; usa `Tuple[bool, l
 ```python
 print(f"Error al descargar el poster de {anime.id}: {e}")                 # utils.py:109
 print(f"[{provider.PROVIDER_ID.value}] Fallo en '{method_name}': {exc}")  # animeProviderMgr.py:317
-print(f"{self.anime_info.title} añadido a favoritos.")                    # anime_window.py:836
+print(f"{self.anime_info.title} añadido a favoritos.")                    # anime_window.py:885
 ```
 
 - Errores: `f"Error al <acción>: {excepción}"`.

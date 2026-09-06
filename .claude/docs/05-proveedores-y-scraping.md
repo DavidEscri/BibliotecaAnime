@@ -71,7 +71,7 @@ el proveedor bajo una clave que nadie busca, y el fallo no aparecería hasta el 
    proveedor** (`:31-35`). Quien llama siempre pasa el enum común.
 4. ⚠️ *No escrito en el contrato, pero asumido por la GUI*: en los **listados**, `synopsis`, `genres`
    y `episodes` valen `None`; solo `get_anime_info` los rellena. La precarga de recientes
-   (`main_window.py:296`) y `recentAnimes.py:85` dependen de ello.
+   (`main_window.py:296`) y `recentAnimes.py:87` dependen de ello.
 5. 🆕 **No rellenes `AnimeInfo.provider_id`.** Lo estampa el manager al responder (§5), que es el único
    que sabe cuál de los proveedores acabó contestando cuando entra el fallback. Un proveedor que lo
    rellenara a mano mentiría en cuanto alguien llamara a su método directamente.
@@ -413,7 +413,7 @@ respondiendo cuando entra el fallback, y así los proveedores no tienen que acor
 
 *Consecuencia útil*: un `AnimeInfo` ya sabe de dónde viene, así que quien lo abra no tiene que
 arrastrar el `provider_id` por parámetro. Es lo que permite que `AnimeWindowViewer` caiga a
-`anime_info.provider_id` (`anime_window.py:258`) en vez de asumir el predeterminado — que era lo que
+`anime_info.provider_id` (`anime_window.py:303`) en vez de asumir el predeterminado — que era lo que
 hacía antes al abrir un anime **precargado**, y mentía si lo había servido otro.
 
 ### `strict=True`

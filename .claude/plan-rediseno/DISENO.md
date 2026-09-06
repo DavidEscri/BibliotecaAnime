@@ -79,6 +79,7 @@ CustomTkinter no admite tamaños fraccionarios: todo son enteros.
 | Padding lateral del contenido | 28 |
 | Rejilla de 6 (nuevos, finalizados, buscar) | póster **176 × 264** · hueco 20 × 24 · radio 9 |
 | Rejilla de 5 (favoritos) | póster **216 × 324** · hueco 20 × 24 · radio 9 |
+| 🆕 Columnas de una rejilla *(2026-09-02)* | **no son fijas**: `ancho // (póster + hueco)`. Los 6 y 5 de arriba son lo que sale a 1440; a 1920 son 8 y 7 |
 | Fila de viendo | póster **70 × 100** · alto de fila 132 · padding 16 × 12 |
 | Fila de pendientes | póster **56 × 80** · alto de fila 113 |
 | Tarjeta «Retomar» (nuevos) | 3 en fila · póster 84 × 118 · radio 7 · tarjeta radio 12 |
@@ -136,6 +137,13 @@ reutilizan **sin bifurcarlo**: si una vista necesita una variante, se añade un 
 - **La paginación aparece solo donde hace falta**: nuevos (24), favoritos (12) y buscar (variable).
   Viendo (6), pendientes (7) y finalizados (9) caben de una vez y **no llevan paginador**. El tamaño
   de página es **10** salvo en las rejillas de 6 columnas, que usan **12** para no dejar filas cojas.
+
+  > 🆕 **Generalizado el 2026-09-02.** Esta regla se escribió con las columnas fijas, y con ellas los
+  > números 10 y 12 *eran* la regla. Desde que `PosterGrid` calcula sus columnas del ancho, lo que se
+  > conserva es la **intención** —una página son **dos filas llenas**, nunca una llena y otra coja—:
+  > cada vista declara `ROWS_PER_PAGE = 2` y el tamaño de página sale de `columnas × 2`. A 1440, el
+  > ancho con el que se dibujó este documento, siguen saliendo exactamente 12 y 10.
+  > «Buscar» queda fuera, como siempre: allí trocea el proveedor.
 - **Ningún dato repetido en la misma pantalla.** Los contadores viven en la barra lateral y no se
   repiten en el contenido. En «Viendo» no hay columna de estado ni de último visto.
 - **El proveedor se enseña siempre en las vistas de biblioteca**, porque una fila puede ser de un

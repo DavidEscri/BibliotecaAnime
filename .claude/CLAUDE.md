@@ -18,7 +18,7 @@ internamente lo pedido usando [`.claude/COMO-PEDIR-TAREAS.md`](COMO-PEDIR-TAREAS
    primero que hay que aclarar, y lo que más cambia el tamaño del trabajo.
 3. **Ficheros exactos y frontera de alcance.** Las 4 vistas de estado son casi idénticas línea por
    línea: decide si la tarea afecta a una o a las cuatro.
-4. **¿Es una trampa conocida?** Coteja con `docs/10-invariantes-y-trampas.md` (**40** trampas con su
+4. **¿Es una trampa conocida?** Coteja con `docs/10-invariantes-y-trampas.md` (**42** trampas con su
    síntoma) **antes** de investigar desde cero.
 5. **Nivel de verificación** — ejecutar la GUI · script en el scratchpad · solo lectura. No hay
    tests: si no se ejecuta, se entrega marcado como no verificado.
@@ -314,14 +314,29 @@ catálogo.
 
 **Cómo se ve cada vista** — rejilla donde se mira, cascada donde se decide:
 
-| Vista | Disposición | Paginador |
+| Vista | Disposición | Paginador (a 1440 · maximizado) |
 |---|---|---|
-| Nuevos lanzamientos | banda «Retomar» (**se refresca al entrar**) + rejilla de **6** (176 × 264) | 12 |
-| Favoritos | rejilla de **5** (216 × 324) + calificación en estrellas | 10 |
+| Nuevos lanzamientos | banda «Retomar» (**se refresca al entrar**) + rejilla de **6 · 8** (176 × 264) | 12 · 16 |
+| Favoritos | rejilla de **5 · 7** (216 × 324) + calificación en estrellas | 10 · 14 |
 | Viendo | cascada de `AnimeRow` + panel lateral de 290 px | — |
 | Pendientes | cascada de `AnimeRow`, orden por duración, «Empezar» en hover | — |
-| Finalizados | rejilla de **6** con el sello «vistos / totales» | 12 |
-| Buscar | campo de 620 px + `GenreChips` + rejilla de **6** | del proveedor |
+| Finalizados | rejilla de **6 · 8** con el sello «vistos / totales» | 12 · 16 |
+| Buscar | campo de 620 px + `GenreChips` + rejilla de **6 · 8** | del proveedor |
+
+🔴 **Las columnas salen del ancho, no de una constante** (2026-09-02). `PosterGrid.columns_that_fit()`
+divide su ancho entre `póster + hueco`; el parámetro `columns` quedó como **referencia del diseño**,
+para cuando todavía no hay nada que medir. Y con las columnas se mueve el tamaño de página: cada vista
+declara `ROWS_PER_PAGE = 2` porque la regla del diseño es «dos filas llenas», y esa regla solo se
+sostiene si el número de página acompaña al de columnas. A 1440 salen exactamente los 6, 5, 12 y 10 de
+antes.
+🔴 **Y la vista tiene que colocarla con `sticky="ew"`.** Con `sticky="w"` la rejilla mide **su propio
+contenido**, así que la cuenta se mediría a sí misma y no cambiaría nunca: es exactamente lo que pasó
+entre el rediseño y el 2026-09-02, con casi 500 px de fondo muerto a la derecha al maximizar
+([trampa 41](docs/10-invariantes-y-trampas.md)). El sobrante del reparto entero se distribuye con
+`weight=1` + `uniform` y la celda centrada; al encoger hay que **quitar** ese peso
+([trampa 32](docs/10-invariantes-y-trampas.md)).
+⚠️ «Buscar» es la excepción y no pasa `on_columns_changed`: allí pagina el proveedor, así que su
+última fila puede quedar coja y la rejilla se recoloca sola.
 
 🔴 **«Viendo» y «Pendientes» abren la ficha por un episodio, no por el anime** (2026-09-01). Sus tres
 acciones dicen un episodio en su texto —«Episodio N →», «Seguir por el N» y «Empezar»— y lo cumplen:
@@ -343,7 +358,7 @@ seleccionado tapada por la ficha de al lado, resuelto el 2026-09-01,
 [trampa 39](docs/10-invariantes-y-trampas.md)).
 
 🔴 **«Nuevos lanzamientos» es la única vista que sale a la red por datos que ya tiene guardados.** Al
-entrar, `__refresh_resume_episodes()` (`recentAnimes.py:131-180`) relee los episodios de las **≤3**
+entrar, `__refresh_resume_episodes()` (`recentAnimes.py:137-186`) relee los episodios de las **≤3**
 filas de la banda «Retomar» y reescribe la columna `episodes` si el proveedor sirve más que la
 biblioteca. Sin eso, un anime **en emisión** decía «Lo has visto entero» desde que salía el capítulo
 nuevo hasta que abrías su ficha, que era el único sitio que refrescaba la fila
@@ -364,9 +379,20 @@ arrancar.** Quien cambie un estado tiene que **releerlas** antes de llamar a
 secundario revienta con `invalid command name ...!ctkcanvas` al destruir una vista que tenía un
 `<Configure>` encolado.
 
-**`AnimeWindowViewer`** (`gui/anime_window.py`, 1 734 líneas) no es una ventana: reemplaza el contenido
+**`AnimeWindowViewer`** (`gui/anime_window.py`, 1 924 líneas) no es una ventana: reemplaza el contenido
 de `content_frame`. Muestra el bloque de proveedor + póster de 248 × 372 + sinopsis + géneros, los 4
 botones de estado y la lista de episodios (**los 25 primeros**, `[:25]`).
+
+🔴 **La sinopsis se normaliza al pintar, no al raspar** (2026-09-02). `wraplength` se recalcula en
+cada `<Configure>` desde el rediseño, pero **no puede deshacer un `
+` que traiga el texto**: Tk lo
+respeta siempre, así que la sinopsis conservaba los renglones del proveedor por ancha que fuera la
+ventana —13 de las 35 filas de la biblioteca— mientras el título de al lado sí se reajustaba.
+`wrap_synopsis()` convierte los saltos sueltos en espacio y **conserva los dobles**, que son párrafos
+que escribió alguien ([trampa 42](docs/10-invariantes-y-trampas.md)). `AnimeInfo.synopsis` sigue
+siendo el texto íntegro: cómo se reparte en renglones es cosa de la GUI, y así salen bien también las
+filas ya guardadas sin migrar nada. De paso se quitó el tope de 74 caracteres de ancho, que a pantalla
+completa dejaba media ficha vacía.
 Marcar un episodio como visto es **acumulativo**: marca todos los anteriores hasta ése; desmarcar afecta solo a ese
 episodio. Conserva en BD los episodios posteriores ya vistos.
 
@@ -452,7 +478,7 @@ red, y en esa rama pasa `size=` explícito — sin él `CTkImage` pinta a 20×20
   al arrancar.
 - La versión de la app vive en `APP_VERSION` dentro del `.spec`.
 - `resources/DB/` y las carpetas de pósters están en `.gitignore`: se generan en tiempo de ejecución.
-- Hay **4** `# TODO:` en el código, en dos ficheros: `anime_window.py:134,137` (recomendaciones por
+- Hay **4** `# TODO:` en el código, en dos ficheros: `anime_window.py:147,151` (recomendaciones por
   género; alternar anime/manga) y `jkanime.py:191,264` (buscar en el directorio con texto vacío;
   acotar `get_recent_animes`). El del selector de proveedor se cerró el 2026-07-30 y el de
   `main_window.py:32` —quitar «Anime» de los botones y el título— el 2026-08-20, con la fase 1 del
@@ -525,8 +551,9 @@ Después, sin orden fijado. **El rediseño se llevó por delante buena parte de 
     pestañas salvo la ficha de detalle, con opción de fijar la elección por defecto. La preferencia ya tiene dónde
     guardarse: una fila más en `USER_SETTINGS`, sin migración ([`docs/11 §2c`](docs/11-playbooks.md)).
   - Nuevos lanzamientos a dos columnas (animes / mangas) si se eligen ambos; si no, como ahora.
-  - ✅ ~~Quitar «Anime» del nombre de las pestañas~~ (fase 1) y ✅ ~~paginarlas~~ (fases 2, 5 y 6:
-    favoritos de 10 en 10, las rejillas de 6 de 12 en 12). **Falta** el filtro Animes / Mangas / Ambos.
+  - ✅ ~~Quitar «Anime» del nombre de las pestañas~~ (fase 1) y ✅ ~~paginarlas~~ (fases 2, 5 y 6;
+    desde el 2026-09-02 el tamaño de página es `columnas × 2`, no una constante). **Falta** el filtro
+    Animes / Mangas / Ambos.
   - ✅ ~~En «viendo», resultados en cascada de uno por fila indicando el último capítulo visto~~ — fase 3.
   - ✅ ~~En «favoritos», calificación personal guardada y ordenación por ella~~ — fase 5, columna
     `rating` ([`docs/04 §3b`](docs/04-modelo-de-datos.md)).
@@ -545,6 +572,10 @@ Después, sin orden fijado. **El rediseño se llevó por delante buena parte de 
      de la biblioteca sigue enseñando el recuento del día que abriste su ficha, así que las barras de
      «Viendo» y «Pendientes» y el sello de «Finalizados» siguen mintiendo con los animes en emisión
      ([trampa 38](docs/10-invariantes-y-trampas.md), [`docs/12 §4`](docs/12-deuda-tecnica-y-roadmap.md)).
+  5. **B13**: `PosterGrid` vuelve a leer y reescalar los JPG **en cada repintado**, aunque el tamaño
+     del póster no cambie: ~350 ms para 16 celdas, en el hilo de la interfaz. Se mitiga juntando los
+     `<Configure>`, no cacheando; falta una caché de `CTkImage` por (ruta, tamaño) que serviría igual
+     a `AnimeRow` y a `ResumeCard` ([`docs/12 §4`](docs/12-deuda-tecnica-y-roadmap.md)).
 
 ---
 
@@ -557,7 +588,7 @@ Guía de colaboración (cómo plantear una tarea en este repo, qué asumo por de
 cambian mi comportamiento): [`.claude/COMO-PEDIR-TAREAS.md`](COMO-PEDIR-TAREAS.md).
 
 **Antes de tocar cualquier cosa, lee [`docs/10-invariantes-y-trampas.md`](docs/10-invariantes-y-trampas.md)**
-— **40** trampas con su síntoma observable.
+— **42** trampas con su síntoma observable.
 
 | Documento | Qué responde |
 |---|---|
@@ -571,7 +602,7 @@ cambian mi comportamiento): [`.claude/COMO-PEDIR-TAREAS.md`](COMO-PEDIR-TAREAS.m
 | [docs/07-concurrencia-e-hilos.md](docs/07-concurrencia-e-hilos.md) | Qué corre en qué hilo, reglas y carreras conocidas |
 | [docs/08-convenciones-y-estilo.md](docs/08-convenciones-y-estilo.md) | Cabecera obligatoria, singletons, **plantillas copiables** |
 | [docs/09-verificacion-y-pruebas.md](docs/09-verificacion-y-pruebas.md) | Cómo probar cada capa sin GUI; scripts listos; checklist manual |
-| [docs/10-invariantes-y-trampas.md](docs/10-invariantes-y-trampas.md) | **Empieza por aquí.** **40** trampas con síntoma observable |
+| [docs/10-invariantes-y-trampas.md](docs/10-invariantes-y-trampas.md) | **Empieza por aquí.** **42** trampas con síntoma observable |
 | [docs/11-playbooks.md](docs/11-playbooks.md) | Recetas: añadir vista, columna, proveedor, campo; empaquetar |
 | [docs/12-deuda-tecnica-y-roadmap.md](docs/12-deuda-tecnica-y-roadmap.md) | TODOs con `fichero:línea`, discrepancias, riesgos, roadmap técnico **y licencia/cumplimiento de la distribución (§7)** |
 | [docs/13-selector-de-proveedor.md](docs/13-selector-de-proveedor.md) | Selector de proveedor, `DB_user.db` **y la columna `provider_id`** (§14). **Léelo antes de tocar `animeProviderMgr.py`, `main_window.py` o `anime_window.py`** |
