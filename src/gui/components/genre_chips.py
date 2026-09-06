@@ -4,28 +4,19 @@ __module__ = "genre_chips.py"
 __version__ = "0.2"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
-"""Fichas de género: la fila de filtros que sustituye al acordeón de cuarenta casillas.
+"""Fichas de género: la fila de filtros con lo elegido siempre a la vista.
 
-Lo que resuelve es un problema de lectura, no de estética: hoy los géneros viven
-dentro de un desplegable que hay que abrir para saber por qué estás filtrando, y
-que al abrirse ocupa cuatro filas de diez casillas. Con fichas, **lo elegido está
-siempre a la vista** y el resto se despliega solo si hace falta
-(``DISENO-VISUAL.html#buscar``).
+Tres reglas de comportamiento:
 
-Tres reglas de comportamiento, todas visibles en el diseño:
-
-- las seleccionadas van **delante**, con ``ACCENT_SOFT`` y borde ``ACCENT``, y
+- las seleccionadas van delante, con ``ACCENT_SOFT`` y borde ``ACCENT``, y
   llevan una ✕ para quitarlas de un clic;
 - de las no seleccionadas se ven las primeras (``VISIBLE_GENRES``) y las demás
-  aparecen con la ficha **«Más géneros»**;
-- el ancho no se reparte en columnas fijas: las fichas se **envuelven** midiendo
-  el texto, igual que el ``flex-wrap`` del diseño, porque «Recuentos de la vida»
-  y «Magia» no miden lo mismo ni de lejos.
+  aparecen tras la ficha «Más géneros»;
+- el ancho no se reparte en columnas fijas: las fichas se envuelven midiendo
+  el texto, porque «Recuentos de la vida» y «Magia» no miden lo mismo.
 
 Los dos glifos —la ✕ y el chevrón— se dibujan con PIL en tiempo de ejecución,
-como las estrellas de la calificación, el pin del proveedor y los sellos de
-estado: son dos trazos, salen exactos a cualquier tamaño y **son nuestros**, así
-que no arrastran la deuda B11 de los iconos de origen desconocido.
+como el resto de iconos propios de la interfaz.
 """
 
 from typing import Callable, Dict, List, Optional, Tuple
@@ -122,14 +113,7 @@ def _glyph_image(name: str, color: ColorToken, size: int = _ICON_SIZE) -> ctk.CT
 
 
 class GenreChips(ctk.CTkFrame):
-    """Fila de fichas de género seleccionables.
-
-    Uso típico::
-
-        chips = GenreChips(content, on_change=self.__on_genres_changed)
-        chips.grid(row=1, column=0, sticky="w", padx=Metrics.CONTENT_PAD_X)
-        chips.set_selected([AnimeGenreFilter.ACCIÓN])
-    """
+    """Fila de fichas de género seleccionables."""
 
     #: Alto de una ficha. El radio es la mitad (píldora = alto / 2).
     CHIP_H: int = 29
@@ -148,12 +132,11 @@ class GenreChips(ctk.CTkFrame):
 
     def __init__(self, parent, on_change: Optional[Callable[[List[AnimeGenreFilter]], None]] = None,
                  max_width: Optional[int] = None, **kwargs):
-        """
-        :param parent: normalmente ``main_window.content_frame``.
-        :param on_change: recibe la lista de géneros seleccionados cada vez que
-            cambia. La vista decide qué hacer con ella (aquí, relanzar la
-            búsqueda); las fichas no saben lo que hay debajo.
-        :param max_width: ancho en el que envolver. Si se omite, se mide el
+        """Construye la fila de fichas.
+
+        :param parent: Normalmente main_window.content_frame.
+        :param on_change: Recibe la lista de géneros seleccionados cada vez que cambia.
+        :param max_width: Ancho en el que envolver; si se omite, se mide el
             contenedor al pintar y se re-envuelve cuando cambie de tamaño.
         """
         # height=1 por lo de siempre: un CTkFrame sin hijos conserva su alto por
@@ -276,39 +259,35 @@ class GenreChips(ctk.CTkFrame):
         )
 
     def __chip_width(self, text: str, font: ctk.CTkFont, icon: Optional[ctk.CTkImage]) -> int:
-        """Ancho **real** de una ficha: el que va a medir el ``CTkButton`` al pintarse.
+        """Ancho real de una ficha, tal y como la mide CTkButton al pintarse.
 
-        Un ``CTkButton`` sin ``width`` se queda con los 140 px de la librería, así
-        que la ficha de «Magia» y la de «Recuentos de la vida» saldrían iguales.
+        Sin ``width``, CTkButton se queda con 140 px por defecto: hay que sumar
+        a mano el margen que reserva su rejilla interna, el borde de la etiqueta
+        de texto y, con icono, el hueco y el borde de la etiqueta de imagen.
 
-        Lo que la rejilla reserva, y que hay que sumar:
-
-        - las columnas de los extremos llevan ``minsize =
-          max(corner_radius, border_width + 1, border_spacing)``. En una píldora
-          manda el radio: **14 px** por lado, más que los 12 de ``CHIP_PAD_X``;
-        - la etiqueta del texto añade su borde de 1 px por lado;
-        - con icono, el hueco ``_image_label_spacing`` y el borde de 2 px por lado
-          de la etiqueta de la imagen — y el ancho del ``CTkImage`` ya incluye el
-          ``_ICON_GAP`` transparente, por eso se pregunta por su ``size`` y no se
-          vuelve a sumar.
+        :param text: Texto de la ficha.
+        :param font: Fuente con la que se va a pintar (la seleccionada, en negrita).
+        :param icon: Icono de la ficha, si lleva.
+        :return: Ancho en píxeles que hay que pedir explícitamente.
         """
         # El relleno efectivo es el mayor de los dos: el del diseño y el que el
-        # botón impone por su radio de esquina.
+        # botón impone por su radio de esquina (columnas de extremo = minsize del radio).
         side = max(self.CHIP_PAD_X, Metrics.pill_radius(self.CHIP_H))
         width = 2 * side + font.measure(text) + 2 * _LABEL_BORDER
         if icon is not None:
+            # El CTkImage ya incluye el _ICON_GAP transparente en su size(), no se vuelve a sumar.
             width += _IMAGE_LABEL_SPACING + icon.cget("size")[0] + 2 * _IMAGE_LABEL_BORDER
         return width
 
     def __place_chip(self, chip: ctk.CTkButton, row: int, used: int,
                      available: int) -> Tuple[int, int]:
-        """Coloca una ficha envolviendo por ancho. Devuelve (fila, ancho usado).
+        """Coloca una ficha envolviendo por ancho.
 
-        Se coloca con ``place()`` y no con ``grid()`` a propósito: las columnas de
-        una rejilla son **comunes a todas las filas**, así que la tercera ficha de
-        la primera fila y la tercera de la segunda acabarían compartiendo ancho —
-        el de la más larga— y la fila se abriría en huecos. Envolver texto pide
-        posición absoluta.
+        Usa ``place()`` y no ``grid()``: las columnas de una rejilla son comunes
+        a todas las filas, así que fichas de distinta fila y misma columna
+        compartirían el ancho de la más larga.
+
+        :return: Tupla (fila, ancho usado) tras colocar esta ficha.
         """
         width = chip.cget("width")
         if used and used + width > available:
@@ -343,6 +322,7 @@ class GenreChips(ctk.CTkFrame):
     # Interacción
     # ------------------------------------------------------------------
     def __toggle(self, genre: AnimeGenreFilter) -> None:
+        """Añade o quita un género de la selección, repinta y avisa a on_change."""
         if genre in self.__selected:
             self.__selected.remove(genre)
         else:
@@ -355,5 +335,6 @@ class GenreChips(ctk.CTkFrame):
             self.__on_change(self.selected())
 
     def __toggle_expanded(self) -> None:
+        """Alterna entre mostrar todos los géneros o solo los visibles."""
         self.__expanded = not self.__expanded
         self.show()

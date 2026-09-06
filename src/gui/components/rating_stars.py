@@ -6,10 +6,9 @@ __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __
 
 """Calificación personal: cinco estrellas con medios puntos y su valor en cifra.
 
-Es lo que estrena la pestaña «Favoritos» (`DISENO.md` §7). La escala que se
-guarda es un **entero de 0 a 10** —dos puntos por estrella—, así que el medio
-punto se representa sin decimales y ni SQLite ni la comparación del orden tienen
-que lidiar con flotantes.
+La escala que se guarda es un **entero de 0 a 10** —dos puntos por estrella—,
+así que el medio punto se representa sin decimales y ni SQLite ni la
+comparación del orden tienen que lidiar con flotantes.
 
 Tres decisiones de construcción que conviene no deshacer:
 
@@ -109,11 +108,6 @@ def format_rating(rating: Optional[int]) -> str:
 class RatingStars(ctk.CTkFrame):
     """Fila de cinco estrellas pulsables con la calificación en cifra al lado.
 
-    Uso típico::
-
-        stars = RatingStars(cell, value=anime_record.rating, on_change=self.__on_rate)
-        stars.grid(row=2, column=0)
-
     ``on_change`` recibe la calificación nueva: un entero de 0 a 10, o ``None``
     si el usuario ha borrado la suya. Sin ``on_change`` la fila es solo de
     lectura y no responde al ratón.
@@ -131,11 +125,12 @@ class RatingStars(ctk.CTkFrame):
 
     def __init__(self, parent, value: Optional[int] = None,
                  on_change: Optional[Callable[[Optional[int]], None]] = None, **kwargs):
-        """
-        :param parent: normalmente la celda de ``PosterGrid``.
-        :param value: calificación actual, de 0 a 10, o ``None`` si no la hay.
-        :param on_change: se llama con la calificación nueva **después** de
-            repintar. La vista es quien persiste; el widget no toca la BD.
+        """Construye la fila de estrellas.
+
+        :param parent: Normalmente la celda de PosterGrid.
+        :param value: Calificación actual, de 0 a 10, o None si no la hay.
+        :param on_change: Se llama con la calificación nueva tras repintar; el
+            widget no persiste nada por sí mismo.
         """
         super().__init__(parent, height=1, corner_radius=0, fg_color=Theme.TRANSPARENT, **kwargs)
 

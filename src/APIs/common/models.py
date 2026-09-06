@@ -1,8 +1,6 @@
 """
-Este módulo es la ÚNICA fuente de verdad para las estructuras de datos que devuelven todos los proveedores de anime
-(AnimeFLV, AnimeAV1 y los que vengan después: MonosChinos2, TioAnime, JKAnime...). Ningún proveedor debe redefinir
-estas clases: se importan desde aquí para garantizar que main_window.py, losbotones de la sidebar, etc. reciban siempre
-el mismo tipo de objeto sin importar de qué web viene el dato.
+Estructuras de datos comunes que devuelven todos los proveedores de anime.
+Ningún proveedor debe redefinir estas clases: se importan siempre desde aquí.
 """
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "APIs.models"
@@ -16,15 +14,10 @@ from typing import List, Optional, Union
 
 
 class AnimeProviderId(Enum):
-    """
-    Identificador de cada proveedor de anime registrable.
+    """Identificador de cada proveedor de anime registrable.
 
-    Es un enum y no una cadena suelta para que el proveedor sea un tipo con nombre allá donde viaje: las firmas del
-    manager, el campo AnimeInfo.provider_id y la columna provider_id de la tabla ANIMES. No lleva lógica a propósito:
-    el valor es el identificador corto y estable que se persiste en la base de datos.
-
-    Añadir un proveedor implica añadir aquí su miembro, además de crear su clase en APIs/<sitio>/ y registrarlo en
-    MainWindow (ver .claude/docs/11-playbooks.md §3).
+    Es un enum y no una cadena suelta para que el proveedor sea un tipo con
+    nombre en todo el código; su valor es lo que se persiste en la base de datos.
     """
     ANIMEAV1 = "animeav1"
     JKANIME = "jkanime"
@@ -32,35 +25,27 @@ class AnimeProviderId(Enum):
 
 
 class ProviderType(Enum):
-    """
-    """
+    """Tipo de medio que sirve un proveedor."""
     ANIME = "anime"
     MANGA = "manga"
 
 @dataclass(frozen=True)
 class ProviderInfo:
-    """
-    Ficha de identidad de un proveedor: lo que la interfaz necesita saber de él sin conocer su clase.
+    """Ficha de identidad de un proveedor: lo que la interfaz necesita saber de él.
 
-    Se construye a partir de los atributos de clase del propio proveedor (AnimeProvider.provider_info()), de forma que
-    no exista en ningún sitio una lista paralela de nombres que mantener sincronizada. Es frozen porque describe una
-    constante del código, no un estado que cambie en ejecución.
-
-    Cuando se integren los mangas, el tipo de medio será un campo más de esta clase.
+    Se construye a partir de los atributos de clase del proveedor
+    (AnimeProvider.provider_info()); es frozen porque describe una constante.
     """
     id: AnimeProviderId
     name: str
     base_url: str
-    # type: ProviderType
 
 
 class AnimeGenreFilter(Enum):
-    """
-    Catálogo común de géneros. Un proveedor concreto puede usar slugs distintos
-    en su propia web (p.ej. 'action' en vez de 'accion'); en ese caso, el
-    proveedor es responsable de traducir estos valores a los suyos internamente
-    (ver AnimeProvider para más detalle), de forma que quien consuma la API
-    nunca tenga que conocer los slugs específicos de cada sitio.
+    """Catálogo común de géneros.
+
+    Un proveedor cuyo sitio use slugs distintos es responsable de traducirlos
+    internamente; quien consume la API nunca ve los slugs propios de cada sitio.
     """
     ACCIÓN = "accion"
     ARTES_MARCIALES = "artes-marciales"

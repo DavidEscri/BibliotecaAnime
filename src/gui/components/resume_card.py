@@ -9,20 +9,11 @@ __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __
 Cada tarjeta responde a una sola pregunta —«¿por qué episodio iba?»— y por eso no
 repite ni géneros ni sinopsis ni proveedor: eso está a un clic, en la ficha.
 
-⚠️ **Los episodios de un ``AnimeRecord`` vienen invertidos.** ``to_db_dict()``
-guarda ``list(reversed(episodes))`` y ``from_db_dict()`` no los vuelve a girar, así
-que lo que sale de la BD está en orden descendente y el «siguiente» no es
-``episodes[0]`` ([trampa 2](../../../.claude/docs/10-invariantes-y-trampas.md)).
-``resume_progress()`` los ordena antes de mirar nada, y es el único sitio donde se
-calcula: si una fase futura necesita el mismo dato, que llame aquí.
+Los episodios de un ``AnimeRecord`` vienen en orden descendente, así que el
+«siguiente» no es ``episodes[0]``; ``resume_progress()`` los ordena antes de
+mirar nada y es el único sitio donde se calcula ese dato.
 
-Las tarjetas se pueden **refrescar en caliente** con ``update_record()``: la
-portada vuelve a preguntar por los episodios al entrar, y el dato que cambia es
-justo el que calcula ``resume_progress()``.
-
-La banda **no se pinta si no hay nada que retomar** — ni etiqueta ni hueco. Un
-apartado vacío en la portada de quien acaba de instalar la aplicación es peor que
-no tener apartado.
+La banda no se pinta si no hay nada que retomar: ni etiqueta ni hueco.
 """
 
 from typing import Callable, List, Optional, Tuple
@@ -77,6 +68,11 @@ class ResumeCard(ctk.CTkFrame):
 
     def __init__(self, parent, anime_record: AnimeRecord,
                  on_click: Optional[Callable[[str], None]] = None, **kwargs):
+        """Construye la tarjeta.
+
+        :param anime_record: Fila que se enseña.
+        :param on_click: Se llama con el anime_id al pulsar la tarjeta.
+        """
         super().__init__(
             parent,
             corner_radius=Metrics.RADIUS_CARD,
@@ -157,28 +153,34 @@ class ResumeCard(ctk.CTkFrame):
         self.__progress_bar.set(1.0 if next_episode is None else fraction)
 
     def __handle_click(self, _event=None) -> None:
+        """Delega en on_click con el anime_id de la tarjeta."""
         self.__on_click(self.anime_record.anime_id)
 
     def __handle_enter(self, _event=None) -> None:
+        """Aplica el estilo de hover."""
         self.configure(fg_color=Theme.CARD_HOVER, border_color=Theme.ACCENT)
 
     def __handle_leave(self, _event=None) -> None:
+        """Restaura el estilo normal."""
         self.configure(fg_color=Theme.CARD, border_color=Theme.LINE)
 
 
 class ResumeBand(ctk.CTkFrame):
     """Etiqueta de sección más las tarjetas, en una fila de columnas iguales.
 
-    Uso típico::
-
-        band = ResumeBand(main_window.content_frame, records, on_click=self.__on_anime_click)
-        if band.has_content():
-            band.grid(row=1, column=0, sticky="ew", padx=Metrics.CONTENT_PAD_X)
+    Quien la coloca debe comprobar ``has_content()`` antes de meterla en la
+    rejilla: sin tarjetas no se pinta ni etiqueta ni hueco.
     """
 
     def __init__(self, parent, anime_records: List[AnimeRecord],
                  on_click: Optional[Callable[[str], None]] = None,
                  title: str = "RETOMAR DONDE LO DEJASTE", **kwargs):
+        """Construye la banda.
+
+        :param anime_records: Filas a mostrar, hasta tres.
+        :param on_click: Se llama con el anime_id al pulsar una tarjeta.
+        :param title: Etiqueta de sección, en mayúsculas.
+        """
         super().__init__(parent, height=1, corner_radius=0, fg_color=Theme.TRANSPARENT, **kwargs)
 
         self.__records = list(anime_records)

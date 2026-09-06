@@ -14,34 +14,24 @@ from PIL import Image, ImageDraw
 from io import BytesIO
 import requests
 
-# Número de hilos paralelos para descarga de imágenes.
-# 8 es el equilibrio entre velocidad y no saturar el servidor de AnimeFLV.
+# 8 es el equilibrio entre velocidad de descarga y no saturar el servidor.
 _MAX_DOWNLOAD_WORKERS = 8
 
-# Timeout en segundos para cada petición de imagen.
 _REQUEST_TIMEOUT = 10
 
-# Tamaño al que se GUARDAN los pósters en disco. Es el mayor que pide cualquier
-# vista del rediseño (el de la ficha de detalle): reducir un JPG grande se ve
-# bien, ampliar uno pequeño no. Cada vista sigue pasando su propio `size=` al
-# construir el CTkImage, que es lo que se pinta.
-#
-# Duplica a propósito el valor de `gui.theme.Metrics.POSTER_CACHE_SIZE`, que es
-# la fuente de verdad del diseño: `utils/utils.py` tiene prohibido importar de
-# `gui/**` (docs/01 §2), así que el valor se repite aquí en vez de invertir la
-# dependencia. Si cambia uno, cambia el otro.
+# Tamaño al que se guardan los pósters en disco: el mayor que pide cualquier
+# vista (la ficha de detalle); cada vista reduce con su propio size= al pintar.
+# Duplica a propósito gui.theme.Metrics.POSTER_CACHE_SIZE, porque utils/ tiene
+# prohibido importar de gui/; si cambia uno, cambia el otro.
 POSTER_CACHE_SIZE = (248, 372)
 
 def removeprefix(text: str, prefix_text: str) -> str:
-    """
-    Remove the prefix of a given string if it contains that
-    prefix for compatability with Python >3.9
+    """Quita el prefijo de una cadena si lo tiene, para compatibilidad con Python <3.9.
 
-    :param _str: string to remove prefix from.
-    :param episode: prefix to remove from the string.
-    :rtype: str
+    :param text: Cadena de la que quitar el prefijo.
+    :param prefix_text: Prefijo a quitar.
+    :return: Cadena sin el prefijo, o igual si no lo tenía.
     """
-
     if type(text) is type(prefix_text):
         if text.startswith(prefix_text):
             return text[len(prefix_text):]
@@ -50,18 +40,32 @@ def removeprefix(text: str, prefix_text: str) -> str:
 
 
 def refactor_genre_text(genre_text):
-    """
-    Genera el nombre para mostrar en la interfaz a partir del nombre
+    """Genera el nombre legible de un género a partir de su slug.
+
+    :param genre_text: Slug del género (p.ej. 'ciencia-ficcion').
+    :return: Nombre capitalizado y con separadores como espacio.
     """
     return genre_text.capitalize().replace("-", " ").replace("_", " ")
 
 
 def update_gif(label: tk.Label, gif_frames: list, root: tk.Tk, frame = 0):
+    """Pinta el siguiente frame de un GIF en un Label y se reprograma a los 100 ms.
+
+    :param label: Label donde se pinta el frame actual.
+    :param gif_frames: Frames precargados del GIF.
+    :param root: Ventana raíz, usada para reprogramar el siguiente frame.
+    :param frame: Índice del frame a mostrar.
+    """
     label.config(image=gif_frames[frame])
     frame = (frame + 1) % len(gif_frames)
     root.after(100, update_gif, frame)
 
 def download_anime_poster_by_status(status, anime):
+    """Descarga el póster de un anime y lo guarda en la carpeta de su estado.
+
+    :param status: Estado del anime; determina la carpeta destino.
+    :param anime: Anime cuyo póster se descarga.
+    """
     anime_status_dir = get_resource_path(f"resources/images/{status.name.lower()}")
     if not os.path.exists(anime_status_dir):
         os.makedirs(anime_status_dir)
@@ -71,15 +75,15 @@ def download_anime_poster_by_status(status, anime):
     img_data.save(os.path.join(anime_status_dir, image_name))
 
 def move_anime_poster_by_status(status, old_anime_id, new_anime_id) -> bool:
-    """Renombra el póster cacheado de un anime cuando cambia su ``anime_id``.
+    """Renombra el póster cacheado de un anime cuando cambia su anime_id.
 
-    Los pósters se guardan como ``{anime_id}.jpg``, así que reapuntar una fila de
-    la biblioteca a otro proveedor deja su imagen huérfana con el nombre viejo:
-    la vista buscaría ``{nuevo_id}.jpg``, no lo encontraría y pintaría el
-    placeholder gris. Renombrar evita volver a bajarla.
+    Los pósters se guardan como {anime_id}.jpg; sin renombrar, reapuntar una
+    fila a otro proveedor dejaría la imagen huérfana y forzaría descargarla.
 
-    :return: ``True`` si había imagen y se ha movido; ``False`` si no había nada
-        que mover (quien llama puede entonces descargarla).
+    :param status: Estado del anime; determina la carpeta donde buscar el póster.
+    :param old_anime_id: Id anterior del anime.
+    :param new_anime_id: Id nuevo del anime.
+    :return: True si había imagen y se movió; False si no había nada que mover.
     """
     anime_status_dir = get_resource_path(f"resources/images/{status.name.lower()}")
     old_poster_path = os.path.join(anime_status_dir, f"{old_anime_id}.jpg")
@@ -90,6 +94,11 @@ def move_anime_poster_by_status(status, old_anime_id, new_anime_id) -> bool:
     return True
 
 def remove_anime_poster_by_status(status, anime):
+    """Borra del disco el póster cacheado de un anime para un estado dado.
+
+    :param status: Estado del anime; determina la carpeta donde buscar el póster.
+    :param anime: Anime cuyo póster se borra.
+    """
     anime_status_dir = get_resource_path(f"resources/images/{status.name.lower()}")
     image_name = f"{anime.id}.jpg"
     anime_poster_path = os.path.join(anime_status_dir, image_name)
@@ -99,12 +108,16 @@ def remove_anime_poster_by_status(status, anime):
     os.remove(anime_poster_path)
 
 def download_animes_poster(images_path, animes):
+    """Descarga a images_path los pósters que falten y borra los que sobren.
+
+    :param images_path: Carpeta donde se cachean los pósters.
+    :param animes: Animes cuyos pósters deben quedar en esa carpeta.
+    """
     if not os.path.exists(images_path):
         os.makedirs(images_path)
 
     current_animes_images = set(os.listdir(images_path))
 
-    # Filtrar solo los animes cuya imagen aún no existe en disco
     animes_to_download = [
         anime for anime in animes
         if f"{anime.id}.jpg" not in current_animes_images
@@ -119,12 +132,10 @@ def download_animes_poster(images_path, animes):
         except Exception as e:
             print(f"Error al descargar el poster de {anime.id}: {e}")
 
-    # Descargar en paralelo solo las imágenes que faltan
     if animes_to_download:
         with ThreadPoolExecutor(max_workers=_MAX_DOWNLOAD_WORKERS) as executor:
             executor.map(_download_single, animes_to_download)
 
-    # Eliminar imágenes que ya no corresponden a ningún anime de la lista actual
     anime_ids = {f"{anime.id}.jpg" for anime in animes}
     for image in current_animes_images:
         if image not in anime_ids:
@@ -135,6 +146,16 @@ def download_animes_poster(images_path, animes):
                 continue
 
 def download_images_progress(images_path, recent_animes, progress_bar: ctk.CTkProgressBar, progress_label: ctk.CTkLabel):
+    """Descarga en paralelo los pósters que falten, actualizando una barra de progreso.
+
+    El progreso ocupa el tramo 90-100%, pensado para encadenarse tras la carga
+    inicial de la app.
+
+    :param images_path: Carpeta donde se cachean los pósters.
+    :param recent_animes: Animes recientes cuyos pósters hay que asegurar.
+    :param progress_bar: Barra a actualizar conforme se completan descargas.
+    :param progress_label: Etiqueta de porcentaje asociada a la barra.
+    """
     if not os.path.exists(images_path):
         os.makedirs(images_path)
 
@@ -144,12 +165,11 @@ def download_images_progress(images_path, recent_animes, progress_bar: ctk.CTkPr
 
     current_animes_images = set(os.listdir(images_path))
 
-    # Separar los animes en: ya en caché (progreso inmediato) y los que hay que descargar
     cached = [a for a in recent_animes if f"{a.id}.jpg" in current_animes_images]
     to_download = [a for a in recent_animes if f"{a.id}.jpg" not in current_animes_images]
 
-    # Contador compartido entre workers, protegido con Lock
-    completed_count = [len(cached)]  # los cacheados ya cuentan como completados
+    # Contador compartido entre workers; protegido con Lock para no perder incrementos.
+    completed_count = [len(cached)]
     lock = threading.Lock()
 
     def _update_progress():
@@ -157,7 +177,6 @@ def download_images_progress(images_path, recent_animes, progress_bar: ctk.CTkPr
         progress_bar.set(progress_percentage)
         progress_label.configure(text=f"{int(progress_percentage * 100)} %")
 
-    # Reflejar en la barra el progreso inicial de los ya cacheados
     _update_progress()
 
     def _download_single(anime):
@@ -169,20 +188,16 @@ def download_images_progress(images_path, recent_animes, progress_bar: ctk.CTkPr
         except Exception as e:
             print(f"Error al descargar el poster de {anime.id}: {e}")
         finally:
-            # Actualizar el progreso de forma thread-safe
             with lock:
                 completed_count[0] += 1
                 _update_progress()
 
-    # Descargar en paralelo las imágenes que faltan
     if to_download:
         with ThreadPoolExecutor(max_workers=_MAX_DOWNLOAD_WORKERS) as executor:
             futures = {executor.submit(_download_single, anime): anime for anime in to_download}
-            # Esperar a que todos los futures terminen (as_completed ya gestiona el orden de finalización)
             for future in as_completed(futures):
-                future.result()  # propagar excepciones no capturadas internamente
+                future.result()  # propaga cualquier excepción no capturada dentro del worker
 
-    # Eliminar imágenes de animes que ya no están en la lista de recientes
     anime_ids = {f"{anime.id}.jpg" for anime in recent_animes}
     for image in current_animes_images:
         if image not in anime_ids:
@@ -193,18 +208,17 @@ def download_images_progress(images_path, recent_animes, progress_bar: ctk.CTkPr
                 continue
 
 
-#: Las seis carpetas donde puede estar cacheado el póster de un anime, en el
-#: orden en que se buscan. El mismo anime puede estar en varias (favorito y
-#: viendo a la vez); la primera que lo tenga vale, porque el JPG es el mismo.
+#: Carpetas donde puede estar cacheado el póster de un anime, en el orden en
+#: que se buscan. El mismo anime puede estar en varias; la primera que lo
+#: tenga vale, porque el JPG es el mismo.
 POSTER_FOLDERS = ["favourite", "watching", "finished", "pending", "recent_animes", "search"]
 
 
 def find_cached_poster_path(anime_id) -> str | None:
-    """Devuelve la ruta del póster cacheado de un anime, o ``None`` si no está.
+    """Busca el póster cacheado de un anime sin salir a la red.
 
-    **No sale a la red**, así que se puede llamar desde el hilo de Tkinter. Es lo
-    que necesitan las vistas que pintan filas de la biblioteca: saber si hay
-    imagen antes de decidir si pintan el placeholder.
+    :param anime_id: Id del anime cuyo póster se busca.
+    :return: Ruta del fichero, o None si no hay ninguno cacheado.
     """
     base_dir = get_resource_path("resources/images")
     for subfolder in POSTER_FOLDERS:
@@ -218,37 +232,43 @@ def find_cached_poster_path(anime_id) -> str | None:
 
 
 def get_anime_image(anime, image_size: tuple[int, int] = (195, 275)) -> ctk.CTkImage:
+    """Carga el póster de un anime desde caché, o lo descarga si no está.
+
+    :param anime: Anime cuyo póster se quiere.
+    :param image_size: Tamaño al que se pinta la imagen.
+    :return: Imagen lista para un widget CustomTkinter.
+    """
     image_path = find_cached_poster_path(anime.id)
     if image_path is not None:
         return load_image(image_path, image_size)
-    # ⚠️ El size= explícito no es opcional: sin él CTkImage pinta a 20x20 (trampa 17).
+    # size= no es opcional aquí: sin él, CTkImage pinta a 20x20 por defecto.
     response = requests.get(anime.poster, timeout=_REQUEST_TIMEOUT)
     return ctk.CTkImage(Image.open(BytesIO(response.content)), size=image_size)
 
 def load_image(image_path: str, image_size: tuple[int, int] = (130, 185)):
+    """Carga una imagen del disco al tamaño pedido, o un cuadro gris si no existe.
+
+    :param image_path: Ruta de la imagen.
+    :param image_size: Tamaño al que se pinta.
+    :return: Imagen lista para un widget CustomTkinter.
+    """
     if os.path.exists(image_path):
         return ctk.CTkImage(Image.open(image_path), size=image_size)
-    return ctk.CTkImage(Image.new('RGB', image_size, (200, 200, 200)), size=image_size)  # Placeholder
+    return ctk.CTkImage(Image.new('RGB', image_size, (200, 200, 200)), size=image_size)
 
 
 def load_rounded_image(image_path: str, image_size: tuple[int, int],
                        radius: int = 0) -> ctk.CTkImage:
-    """Carga un póster ya reducido al tamaño pedido y con las esquinas redondeadas.
+    """Carga un póster reducido al tamaño pedido con las esquinas redondeadas.
 
-    Es la variante de ``load_image()`` que usa el rediseño. Dos diferencias, y las
-    dos importan:
+    Reduce con LANCZOS en vez del remuestreo por defecto, para no
+    desperdiciar la calidad de la caché. Redondea con una máscara alfa,
+    porque CustomTkinter no recorta su propia image al corner_radius.
 
-    - **Reduce con LANCZOS**, no con el remuestreo por defecto de ``resize()``. La
-      caché guarda los pósters a 248 x 372 justo para poder bajar de ahí con
-      calidad; hacerlo con el filtro por defecto desperdicia esa decisión.
-    - **Redondea las esquinas** con una máscara alfa (``DISENO.md`` §3: radio 9 en
-      las rejillas, 11 en la ficha). CustomTkinter no sabe redondear una imagen:
-      el ``corner_radius`` de un widget no recorta su ``image``, así que el
-      recorte hay que traerlo hecho desde PIL.
-
-    Si el fichero no existe devuelve un cuadro gris del tamaño pedido, el mismo
-    criterio que ``load_image()``: un póster que falta no debe impedir que la
-    vista se pinte.
+    :param image_path: Ruta del póster.
+    :param image_size: Tamaño al que se reduce.
+    :param radius: Radio de las esquinas redondeadas; 0 para no redondear.
+    :return: Imagen lista para un widget CustomTkinter, o un cuadro gris si el fichero no existe.
     """
     if os.path.exists(image_path):
         image = Image.open(image_path).convert("RGBA").resize(image_size, Image.LANCZOS)
@@ -270,15 +290,16 @@ def load_rounded_image(image_path: str, image_size: tuple[int, int],
 
 def load_dual_image(light_path: str, dark_path: str,
                     image_size: tuple[int, int] = (24, 24)) -> ctk.CTkImage:
-    """Carga un icono con sus dos variantes en un solo ``CTkImage``.
+    """Carga un icono con sus variantes clara y oscura en un solo CTkImage.
 
-    Pasando ``light_image`` y ``dark_image`` a la vez, el cambio de apariencia lo
-    resuelve CustomTkinter: no hay que recorrer los widgets reconfigurando el
-    icono a mano, que es lo que hacía la barra lateral antes del rediseño.
+    Al pasar light_image y dark_image juntas, el cambio de apariencia lo
+    resuelve CustomTkinter sin reconfigurar el icono a mano. Si un fichero no
+    existe, se sustituye por un cuadro gris.
 
-    Si un icono no existe se sustituye por un cuadro gris del tamaño pedido, el
-    mismo criterio que ``load_image()``: un icono que falta no debe impedir que
-    la barra se pinte.
+    :param light_path: Ruta del icono para tema claro.
+    :param dark_path: Ruta del icono para tema oscuro.
+    :param image_size: Tamaño al que se pinta el icono.
+    :return: CTkImage con ambas variantes.
     """
     def _open(path: str) -> Image.Image:
         if os.path.exists(path):
@@ -289,17 +310,17 @@ def load_dual_image(light_path: str, dark_path: str,
 
 
 def get_resource_path(relative_path):
-    """Devuelve la ruta absoluta de los recursos, ya sea que se esté ejecutando
-    como script o como ejecutable empaquetado."""
+    """Devuelve la ruta absoluta de un recurso, tanto en script como empaquetado.
+
+    :param relative_path: Ruta relativa a la raíz del proyecto.
+    :return: Ruta absoluta normalizada.
+    """
     def is_running_as_exe():
-        """Determina si el programa se está ejecutando como un archivo .exe o desde el IDE."""
+        """:return: True si se ejecuta como .exe empaquetado."""
         return getattr(sys, 'frozen', False)
 
     if is_running_as_exe():
-        # Si está empaquetado, _MEIPASS contendrá la ruta temporal donde se extraen los archivos
+        # _MEIPASS es la carpeta temporal donde PyInstaller extrae los recursos.
         return os.path.join(sys._MEIPASS, relative_path)
-    # Cuando se ejecuta como script, calcular la raíz del proyecto a partir
-    # de la ubicación de este módulo (src/utils/utils.py -> project root)
     base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
     return os.path.normpath(os.path.join(base_dir, relative_path))
-    # return os.path.join(os.path.abspath(".."), relative_path)

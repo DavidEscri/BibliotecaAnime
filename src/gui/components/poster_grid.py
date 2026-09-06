@@ -7,51 +7,23 @@ __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __
 """Rejilla de pósters: el componente que comparten nuevos, favoritos, finalizados y buscar.
 
 Una celda son hasta cinco piezas: el póster, un sello opcional superpuesto en la
-esquina, el título a dos líneas, una **fila libre** que construye la vista
-(las estrellas de «Favoritos») y un pie opcional (el proveedor, en las vistas de
+esquina, el título a dos líneas, una fila libre que construye la vista (las
+estrellas de «Favoritos») y un pie opcional (el proveedor, en las vistas de
 biblioteca). El tamaño del póster es un parámetro, así que la rejilla de
-`Nuevos lanzamientos` y la de `Favoritos` son **la misma clase con otros
-argumentos**: si una vista necesita una variante se añade un parámetro, nunca una
-copia (`DISENO.md` §5).
+«Nuevos lanzamientos» y la de «Favoritos» son la misma clase con otros
+argumentos. El sello, igualmente, es de la rejilla y no de ninguna vista: llega
+desde fuera con su texto y su glifo.
 
-El **sello** es de la rejilla, no de ninguna vista: llega desde fuera con su
-texto, su glifo y —si hace falta— sus colores, así que el «12 / 12» de
-finalizados y el «Viendo» de los resultados de búsqueda son el mismo widget con
-otros argumentos. Por defecto se pinta con la superficie oscura de ``BADGE_BG``,
-que es lo que lo hace legible sobre cualquier carátula en los dos temas.
+El número de columnas se calcula del ancho disponible: ``columns_that_fit()``
+divide el ancho de la rejilla entre póster + hueco. Por eso la vista tiene que
+colocarla con ``sticky="ew"`` — con ``sticky="w"`` la rejilla mediría su propio
+contenido y el cálculo no cambiaría nunca de columnas. Las columnas llevan
+``weight=1`` y un ``uniform`` común para repartir el sobrante a partes iguales;
+ese peso sobrevive a destruir las celdas, así que al encoger hay que quitárselo
+a las columnas que dejan de usarse.
 
-🔴 **El número de columnas se calcula del ancho disponible** (desde el
-2026-09-02). Hasta entonces era un número fijo —6 y 5— y la vista la colocaba con
-``sticky="w"``, así que maximizar la ventana no añadía columnas: dejaba una franja
-muerta de casi 500 px a la derecha. Ahora:
-
-- ``columns_that_fit()`` divide el ancho de la rejilla entre ``póster + hueco``.
-  A 1440 devuelve exactamente los 6 y 5 del diseño —la ventana por defecto se ve
-  igual que antes—; a 1920 maximizado devuelve 8 y 7.
-- Las columnas llevan ``weight=1`` y el mismo grupo ``uniform``, y la celda va con
-  ``sticky="n"``: lo que sobra del reparto entero se distribuye a partes iguales
-  entre todas y cada celda queda centrada en la suya. Es el equivalente en Tk de
-  ``repeat(auto-fill, minmax(póster, 1fr))``.
-- 🔴 Por eso **la vista tiene que colocarla con ``sticky="ew"``**. Con ``sticky="w"``
-  la rejilla mide su propio contenido, así que el cálculo sería un punto fijo que
-  nunca cambiaría de columnas y el arreglo entero no haría nada.
-- ⚠️ Los pesos de columna **sobreviven a destruir las celdas** (trampa 32), así que
-  al bajar de 8 a 3 columnas hay que quitarles el peso a las cinco que sobran o
-  seguirían reclamando su parte del ancho.
-- El ``<Configure>`` va con ``add="+"``: ``CTkBaseClass`` ya tiene el suyo atado y
-  un ``bind()`` sin ``add`` lo sustituiría (trampa 40).
-
-Dos decisiones de construcción que conviene no deshacer:
-
-- **Cada celda es un ``CTkFrame`` propio**, y en la rejilla ocupa **una sola fila**.
-  Las vistas de hoy pintan póster y título como dos widgets sueltos en filas
-  ``row*2`` y ``row*2+1`` de la rejilla del contenedor, y las de estado necesitaron
-  una tercera fila para el proveedor: ``row*3``, ``row*3+1``, ``row*3+2``. Con la
-  celda como marco, añadir o quitar una línea no toca ningún índice.
-- ⚠️ El marco de la rejilla nace con ``height=1``. Un ``CTkFrame`` **sin hijos**
-  conserva su alto por defecto (200) como tamaño pedido, así que una rejilla
-  todavía vacía estiraría la fila que la contiene. En cuanto se pinta una celda
-  crece hasta su contenido.
+Cada celda es un ``CTkFrame`` propio que ocupa una sola fila de la rejilla del
+contenedor, así que añadir o quitar una línea de contenido no toca ningún índice.
 """
 
 from dataclasses import dataclass
@@ -71,23 +43,20 @@ class PosterItem:
     :param title: título del anime, a dos líneas.
     :param poster_path: ruta del JPG cacheado. Si no existe, se pinta el
         placeholder gris de ``load_rounded_image()``.
-    :param badge: texto del sello superpuesto (el «12 / 12» de finalizados, el
-        «Ya lo tienes» de la fase 7). ``None`` no pinta nada.
+    :param badge: texto del sello superpuesto (el «12 / 12» de finalizados).
+        ``None`` no pinta nada.
     :param badge_icon: glifo que va delante de ese texto, normalmente el de
         ``StatusPill.icon()``. El hueco que lo separa del texto viene dentro del
         propio dibujo. ``None`` deja el sello con texto solo.
-
-    El sello es **siempre** el del diseño: superficie oscura opaca y texto
-    blanco, con el color del estado únicamente en el glifo. No se puede elegir
-    otro par de colores, y es a propósito: va sobre la carátula, no sobre el
-    fondo de la aplicación, y los pares pastel de ``StatusPill`` no se leen sobre
-    un póster claro. «Favoritos» lo intentó hasta el paso 9.2 y era justo el
-    punto que el repaso de claro/oscuro tenía que corregir.
     :param footer: línea de apoyo bajo el título (el proveedor). ``None`` la omite
         y la celda queda más baja.
     :param data: lo que la vista necesite recuperar en ``extra_builder`` sin
         volver a buscarlo por ``key`` (en «Favoritos», el ``AnimeRecord``). La
         rejilla no lo mira: solo lo transporta.
+
+    El sello siempre usa la superficie oscura opaca de ``BADGE_BG`` y texto
+    blanco, con el color del estado únicamente en el glifo: los pares pastel de
+    ``StatusPill`` no se leen sobre un póster claro.
     """
     key: Any
     title: str
@@ -99,14 +68,7 @@ class PosterItem:
 
 
 class PosterGrid(ctk.CTkFrame):
-    """Rejilla de pósters que ajusta sus columnas al ancho disponible.
-
-    Uso típico::
-
-        grid = PosterGrid(main_window.content_frame, columns=6, on_click=self.__on_click)
-        grid.grid(row=2, column=0, sticky="ew", padx=(PosterGrid.OUTER_PAD_X, 0))
-        grid.show([PosterItem(key=a.id, title=a.title, poster_path=...) for a in animes])
-    """
+    """Rejilla de pósters que ajusta sus columnas al ancho disponible."""
 
     #: Padding izquierdo con el que la vista debe colocar la rejilla para que el
     #: borde del primer póster caiga en los 28 px de margen del diseño. La celda
@@ -147,13 +109,12 @@ class PosterGrid(ctk.CTkFrame):
                                                   Optional[ctk.CTkBaseClass]]] = None,
                  on_columns_changed: Optional[Callable[[int], None]] = None,
                  **kwargs):
-        """
+        """Construye la rejilla.
+
         :param parent: normalmente ``main_window.content_frame``.
-        :param columns: columnas **de referencia**, las que el diseño pide a 1440
-            (6 en nuevos, finalizados y buscar; 5 en favoritos). Ya no fija el
-            número real —ese sale del ancho—, pero se sigue usando mientras la
-            rejilla todavía no se puede medir, y de él sale el tamaño de página
-            inicial de la vista.
+        :param columns: columnas de referencia, usadas mientras la rejilla
+            todavía no se puede medir por ancho; de ahí sale también el tamaño
+            de página inicial de la vista.
         :param poster_size: tamaño **pintado** del póster, y con él la anchura de
             columna a partir de la cual se decide cuántas caben. La caché en disco
             está a 248 x 372 y se reduce desde ahí.
@@ -197,8 +158,7 @@ class PosterGrid(ctk.CTkFrame):
         self.__images: List[ctk.CTkImage] = []
 
         # add="+" y no un bind a secas: CTkBaseClass ya tiene atado su propio
-        # <Configure> (mantiene _current_width / _current_height) y sustituirlo es
-        # la trampa 40.
+        # <Configure> (mantiene _current_width / _current_height) y sustituirlo lo rompería.
         self.bind("<Configure>", self.__on_configure, add="+")
 
         # Se resuelve ya, antes de que la vista siga construyendo: el paginador se
@@ -277,8 +237,8 @@ class PosterGrid(ctk.CTkFrame):
         """Da peso a las columnas en uso y se lo quita a las que dejaron de estarlo."""
         for column in range(columns):
             self.grid_columnconfigure(column, weight=1, uniform=self.UNIFORM_GROUP)
-        # ⚠️ trampa 32: la configuración de rejilla sobrevive a destruir los hijos, y
-        # una columna con peso y sin widgets sigue reclamando su parte del ancho.
+        # La configuración de rejilla sobrevive a destruir los hijos, y una
+        # columna con peso y sin widgets sigue reclamando su parte del ancho.
         for column in range(columns, self.__weighted_columns):
             self.grid_columnconfigure(column, weight=0, uniform="")
         self.__weighted_columns = columns
@@ -312,6 +272,7 @@ class PosterGrid(ctk.CTkFrame):
         self.__images.clear()
 
     def __build_cell(self, item: PosterItem, row: int, column: int) -> None:
+        """Construye y coloca una celda completa: póster, sello, título, fila libre y pie."""
         gap_x = Metrics.GRID_GAP_X // 2
         cell = ctk.CTkFrame(self, fg_color=Theme.TRANSPARENT)
         # sticky="n" y no "nw": con las columnas repartiéndose el ancho sobrante,

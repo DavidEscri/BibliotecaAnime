@@ -31,43 +31,45 @@ from utils.utils import get_resource_path, download_images_progress, download_an
 
 
 class MainWindow(ctk.CTk):
+    """Ventana principal y hub compartido de la aplicación.
+
+    Mantiene el contenido, la barra lateral, las listas de animes cacheadas,
+    la persistencia y el gestor de proveedores; cada vista recibe la instancia
+    y muta ese estado directamente.
+    """
+
     MAIN_WINDOW_ANCHO = 1440
     MAIN_WINDOW_LARGO = 910
 
     def __init__(self):
-        # https://www.youtube.com/watch?v=p3tSLatmGvU&ab_channel=PythonSimplified
         super().__init__()
         self.__config_main_window()
         self.__config_main_frames()
 
         self.animes_persistence: AnimesPersistence = AnimesPersistenceSingleton()
         self.anime_provider_mgr: AnimeProviderManager = AnimeProviderManagerSingleton()
-        # El orden de registro es el orden del fallback. JKAnime va antes que
+        # El orden de registro es el orden del fallback.
         self.anime_provider_mgr.register(AnimeAV1Singleton(), default=True)
         self.anime_provider_mgr.register(JKAnimeSingleton())
-        self.anime_provider_mgr.register(AnimeFLVSingleton()) # AnimeFLV porque este último lleva tiempo sin servir datos utilizables.
+        self.anime_provider_mgr.register(AnimeFLVSingleton())
 
-        # Las preferencias se leen aquí, de forma síncrona, y no en load_animes():
-        # el desplegable de proveedor tiene que nacer ya con el valor guardado, y el
-        # predeterminado tiene que estar aplicado antes del primer get_recent_animes().
-        # Es SQLite local, no red: son milisegundos.
+        # Se leen aquí, de forma síncrona (SQLite local, no red), porque el
+        # desplegable de proveedor y el predeterminado deben estar listos antes
+        # de la primera llamada a get_recent_animes().
         self.user_persistence: UserPersistence = UserPersistenceSingleton()
         self.user_persistence.start()
         # Proveedor fijado con el pin. None = sin preferencia guardada, en cuyo
-        # caso manda el predeterminado del registro (AnimeAV1).
+        # caso manda el predeterminado del registro.
         self.__pinned_provider_id: AnimeProviderId | None = None
-        # Predeterminado del registro ANTES de aplicar ninguna preferencia. Hay que
-        # capturarlo aquí porque __apply_saved_provider_preference() lo pisa con
-        # set_default(): es el último escalón del orden de prioridad y, sin pin, la
-        # referencia contra la que se decide si el desplegable está desviado.
+        # Predeterminado del registro antes de aplicar ninguna preferencia: es la
+        # referencia contra la que se decide si el desplegable está desviado, y
+        # hay que capturarlo antes de que __apply_saved_provider_preference() lo
+        # sobrescriba con set_default().
         self.__registry_default_provider_id: AnimeProviderId | None = self.anime_provider_mgr.get_default_provider_id()
         self.__apply_saved_provider_preference()
 
-        # El desplegable de proveedor, el pin y sus iconos los construye y los
-        # mantiene la barra lateral (gui/components/sidebar.py). Este hub solo le
-        # dice cuándo repintar el pin.
-        # Guarda para que dos cambios seguidos de proveedor no lancen dos hilos que
-        # se pisen al escribir self.recent_animes.
+        # Evita que dos cambios de proveedor seguidos lancen hilos que se pisen
+        # al escribir self.recent_animes.
         self.__reloading_recent_animes: bool = False
         # Se incrementa en cada recarga: la precarga en segundo plano comprueba que
         # su generación sigue vigente antes de escribir en la lista.
@@ -89,11 +91,10 @@ class MainWindow(ctk.CTk):
         self.images_path = get_resource_path("resources/images/recent_animes")
 
         self.load_sidebar_buttons()
-
-        # Inicia mostrando pantalla de carga
         self.show_loading_screen()
 
     def __config_main_window(self):
+        """Configura tamaño, posición e icono de la ventana principal."""
         self.title("Mi Biblioteca")
         pantalla_ancho = self.winfo_screenwidth()
         pantalla_largo = self.winfo_screenheight()
@@ -108,19 +109,21 @@ class MainWindow(ctk.CTk):
         self.grid_rowconfigure((0, 1, 2), weight=1)
 
     def __config_main_frames(self):
-        # La barra lateral se construye más tarde, en load_sidebar_buttons(): necesita
-        # el gestor de proveedores y las preferencias, que todavía no existen aquí. Las
-        # seis vistas se instancian antes que ella y leen este atributo, así que tiene
-        # que estar declarado ya (SidebarButton lo guarda sin usarlo).
+        """Prepara el contenedor de contenido; la barra lateral se construye después.
+
+        sidebar_frame se declara ya a None porque las seis vistas se instancian
+        antes que la barra y guardan una referencia a este atributo.
+        """
         self.sidebar_frame: Sidebar | None = None
         self.content_frame: ctk.CTkScrollableFrame = self.create_content_frame()
 
     def clear_frame(self):
+        """Destruye todos los widgets hijos del content_frame."""
         for widget in self.content_frame.winfo_children():
             widget.destroy()
 
     def create_content_frame(self) -> ctk.CTkScrollableFrame:
-        # Crear una barra de desplazamiento
+        """:return: CTkScrollableFrame compartido por todas las vistas, ya en el grid."""
         main_frame = ctk.CTkScrollableFrame(
             self,
             corner_radius=0,
@@ -128,22 +131,18 @@ class MainWindow(ctk.CTk):
         )
         main_frame.grid(row=0, column=1, rowspan=8, sticky=ctk.NSEW)
 
-        # Establecer grid en el main_frame
-        main_frame.grid_rowconfigure(0, weight=1)  # Permitir que la primera fila se expanda
-        main_frame.grid_columnconfigure(0, weight=1)  # Permitir que la primera columna se expanda
+        main_frame.grid_rowconfigure(0, weight=1)
+        main_frame.grid_columnconfigure(0, weight=1)
         return main_frame
 
     def load_sidebar_buttons(self) -> None:
         """Instancia las seis vistas y construye la barra lateral con ellas.
 
-        El orden de esta lista **es** el orden en que se ven en la barra
-        (`DISENO.md`); no coincide con el que había antes, donde finalizados iba
-        delante de viendo y pendientes.
+        El orden de la lista es el orden en que se ven en la barra.
         """
         icon_path = get_resource_path("resources/images/utils")
-        # row y column ya no significan nada: SidebarButton dejó de pintarse a sí
-        # mismo y ahora solo describe el destino. Se conservan en la firma para no
-        # tocar las seis vistas.
+        # row y column ya no se usan para pintar: SidebarButton solo describe el
+        # destino y se conservan en la firma para no tocar las seis vistas.
         self.__recent_animes_button: RecentAnimeButton = RecentAnimeButton(self, icon_path, 0, 0)
         self.__favourites_animes_button: FavouritesButton = FavouritesButton(self, icon_path, 0, 0)
         self.__watching_animes_button: WatchingAnimeButton = WatchingAnimeButton(self, icon_path, 0, 0)
@@ -159,9 +158,7 @@ class MainWindow(ctk.CTk):
             self.__finished_animes_button,
             self.__search_animes_button,
         ]
-        # Los contadores salen de las listas que ya cachea este hub, no de la BD:
-        # son len() sobre memoria y se pueden refrescar en cada guardado sin coste.
-        # Buscar no lleva contador, así que no figura aquí.
+        # Los contadores salen de las listas cacheadas del hub, no de la BD.
         counter_providers = {
             self.__recent_animes_button.sidebar_text:     lambda: len(self.recent_animes),
             self.__favourites_animes_button.sidebar_text: lambda: len(self.favourite_animes),
@@ -221,8 +218,7 @@ class MainWindow(ctk.CTk):
     # Proveedor de anime
     # ------------------------------------------------------------------
     def __apply_saved_provider_preference(self) -> None:
-        """Aplica el proveedor predeterminado guardado en DB_user.db, si lo hay.
-        """
+        """Aplica el proveedor predeterminado guardado en DB_user.db, si lo hay."""
         saved_value = self.user_persistence.get_default_provider_id()
         if saved_value is None:
             current_provider_id = self.anime_provider_mgr.get_default_provider_id()
@@ -230,17 +226,13 @@ class MainWindow(ctk.CTk):
                   f"{current_provider_id.value if current_provider_id else 'ninguno'}")
             return
         try:
-            # ValueError si el texto guardado ya no corresponde a ningún miembro
-            # del enum; UnknownProviderError si el miembro existe pero no está
-            # registrado. Los dos casos acaban igual: se ignora la preferencia.
+            # ValueError (enum ya no existe) o UnknownProviderError (existe pero no
+            # está registrado) acaban igual: se ignora la preferencia guardada.
             saved_provider_id = AnimeProviderId(saved_value)
             self.anime_provider_mgr.set_default(saved_provider_id)
             self.__pinned_provider_id = saved_provider_id
             print(f"Proveedor fijado por el usuario: {saved_provider_id.value}")
         except Exception as e:
-            # Preferencia obsoleta (p.ej. un proveedor retirado del código): se
-            # deja el predeterminado del registro y el pin sale sin marcar, así
-            # que la siguiente pulsación la reescribe con algo válido.
             print(f"El proveedor fijado ({saved_value}) no es válido: {e}")
 
     def change_anime_provider_event(self, new_provider_name: str) -> None:
@@ -317,20 +309,13 @@ class MainWindow(ctk.CTk):
                                  ) -> Tuple[AnimeProviderId | None, bool]:
         """Decide con qué proveedor abrir un anime de la biblioteca.
 
-        Implementa el orden de prioridad acordado (`docs/13 §8`):
+        Orden de prioridad: 1) la selección del desplegable, si difiere de la
+        de referencia (una desviación deliberada manda); 2) el provider_id de
+        la fila; 3) la de referencia (pin, o predeterminado del registro).
 
-          1. **Selección del desplegable**, si difiere de la de referencia. Que el
-             usuario se haya desviado es una acción deliberada y manda sobre todo
-             lo demás; si no, un anime guardado no podría verse nunca desde otro
-             sitio, que es justo para lo que existe el desplegable.
-          2. **`provider_id` de la fila**, si la fila lo declara.
-          3. La de referencia (pin, o predeterminado del registro).
-
-        :param record_provider_id: proveedor guardado en la fila, o None si la fila
-            no existe o es anterior a la columna.
-        :return: ``(proveedor, hay_desviación)``. La desviación se devuelve porque
-            obliga a **re-resolver el anime por título** (el slug guardado es el de
-            otro sitio), y eso cuesta dos peticiones más.
+        :param record_provider_id: Proveedor guardado en la fila, o None si no lo declara.
+        :return: Tupla (proveedor, hay_desviación). La desviación obliga a
+            re-resolver el anime por título, porque el slug guardado es de otro sitio.
         """
         selected_provider_id = self.anime_provider_mgr.get_default_provider_id()
         reference_provider_id = self.reference_provider_id()
@@ -362,8 +347,9 @@ class MainWindow(ctk.CTk):
         """Parte de red de la recarga. Corre en un hilo daemon: no toca widgets.
 
         El resultado se devuelve al hilo de Tkinter con after(0, ...) en vez de
-        pintar desde aquí, que es lo que hace el arranque y lo que provoca el
-        riesgo descrito en docs/07 (A6/R3).
+        pintar directamente desde aquí.
+
+        :param generation: Generación de recarga con la que se lanzó este hilo.
         """
         recent_animes: List[AnimeInfo] = []
         try:
@@ -400,16 +386,11 @@ class MainWindow(ctk.CTk):
         ).start()
 
     def change_appearance_mode_event(self, new_appearance_mode):
-        """Cambia el tema. Una línea, y no un recorrido de widgets.
-
-        Antes había que recorrer los hijos de la barra reconfigurando fondo,
-        hover, color de texto e icono uno a uno, porque los botones se habían
-        construido con literales. Ahora todo el color sale de ``Theme`` en tuplas
-        ``(claro, oscuro)`` y del cambio se encarga CustomTkinter.
-        """
+        """Cambia el tema claro/oscuro; CustomTkinter repinta todos los widgets."""
         ctk.set_appearance_mode(new_appearance_mode)
 
     def show_loading_screen(self):
+        """Pinta la pantalla de carga (GIF + barra de progreso) y lanza el arranque en un hilo daemon."""
         self.sidebar_frame.grid_forget()
         loading_frame = ctk.CTkFrame(self, corner_radius=0, fg_color=Theme.BG)
         loading_frame.place(relx=0, rely=0, relwidth=1, relheight=1)
@@ -417,7 +398,6 @@ class MainWindow(ctk.CTk):
         loading_content = ctk.CTkFrame(loading_frame, fg_color=Theme.TRANSPARENT)
         loading_content.place(relx=0.5, rely=0.5, anchor=ctk.CENTER)
 
-        # Mostrar el texto de "Cargando biblioteca de anime"
         loading_label = ctk.CTkLabel(
             loading_content,
             text="Cargando biblioteca de anime",
@@ -426,14 +406,12 @@ class MainWindow(ctk.CTk):
         )
         loading_label.pack(pady=20)
 
-        # Cargar y mostrar el GIF con todos los frames
         loading_image_path = get_resource_path("resources/images/utils/loading-image.gif")
         gif_image = Image.open(loading_image_path)
         gif_frames = [ctk.CTkImage(frame.copy(), size=(400, 400)) for frame in ImageSequence.Iterator(gif_image)]
         loading_image_label = ctk.CTkLabel(loading_content, text="")
         loading_image_label.pack(pady=20)
 
-        # Crear y mostrar la barra de progreso
         progress_bar = ctk.CTkProgressBar(
             loading_content,
             width=400,
@@ -454,23 +432,23 @@ class MainWindow(ctk.CTk):
             if not loading_image_label.winfo_exists():
                 return
             loading_image_label.configure(image=gif_frames[frame])
-            frame = (frame + 1) % len(gif_frames)  # Continuar en bucle
-            self.after(100, update_gif, frame)  # Controla la velocidad de cambio de frame (100 ms)
+            frame = (frame + 1) % len(gif_frames)
+            self.after(100, update_gif, frame)
 
-        update_gif()  # Iniciar la animación
+        update_gif()
 
-        # Iniciar la descarga de imágenes en un hilo
         threading.Thread(target=self.download_images_and_show_animes, args=(progress_bar, progress_label, loading_frame, ), daemon=True).start()
 
     def download_images_and_show_animes(self, progress_bar: ctk.CTkProgressBar, progress_label: ctk.CTkLabel,
                                         loading_frame: ctk.CTkFrame):
+        """Completa el arranque: carga BD, pide estrenos, baja pósters y revela la portada.
+
+        Corre en un hilo daemon. Retira la pantalla de carga tanto si hay
+        estrenos como si no, para no dejarla tapando la ventana para siempre.
+        """
         self.load_animes(progress_bar, progress_label)
         self.recent_animes = self.anime_provider_mgr.get_recent_animes()
         if len(self.recent_animes) == 0:
-            # 🔴 La pantalla de carga se retira **también aquí**. Hasta la fase 9
-            # solo se quitaba en la rama de éxito, así que un arranque sin red
-            # dejaba el GIF tapando la portada para siempre y el estado vacío de
-            # «Nuevos lanzamientos» no llegaba a verse nunca.
             loading_frame.destroy()
             messagebox.showwarning("Aviso!",
                                    "La conexión con los proveedores de anime es muy lenta, por lo que no se "
@@ -481,16 +459,16 @@ class MainWindow(ctk.CTk):
             return
         progress_bar.set(0.9)
         progress_label.configure(text="90 %")
-        download_images_progress(self.images_path, self.recent_animes, progress_bar, progress_label)  # Descargar imágenes
-        # `destroy()` y no `place_forget()`: la pantalla de carga no se vuelve a
-        # usar, y mientras siga viva su animación se sigue reprogramando.
+        download_images_progress(self.images_path, self.recent_animes, progress_bar, progress_label)
+        # destroy() y no place_forget(): la pantalla de carga no se reutiliza, y
+        # mientras siga viva su animación se sigue reprogramando con after().
         loading_frame.destroy()
         self.refresh_sidebar_counts()
         self.set_active_sidebar_destination(self.__recent_animes_button)
-        self.__recent_animes_button.show_frame()  # Mostrar animes recientes al finalizar la descarga
+        self.__recent_animes_button.show_frame()
 
-        # Precargar el detalle de cada anime reciente en segundo plano para que
-        # el clic del usuario sea instantáneo en lugar de bloquear la UI.
+        # Precarga el detalle de cada anime en segundo plano para que el clic
+        # del usuario sea instantáneo en vez de bloquear la UI.
         threading.Thread(
             target=self.__preload_recent_animes_info,
             args=(self.__recent_animes_generation,),
@@ -498,17 +476,10 @@ class MainWindow(ctk.CTk):
         ).start()
 
     def __preload_recent_animes_info(self, generation: int):
-        """Rellena synopsis, géneros y episodios de los animes recientes en segundo plano.
+        """Rellena synopsis, géneros y episodios de los animes recientes, en segundo plano.
 
-        Se ejecuta en un hilo daemon tras mostrar la pantalla principal.
-        Escribe cada resultado directamente en self.recent_animes[index]; la
-        asignación de un elemento de lista es atómica en CPython (GIL), por lo
-        que no se necesita Lock.
-
-        ``generation`` es el número de recarga con el que arrancó esta precarga: si
-        el usuario cambia de proveedor por medio, self.recent_animes pasa a ser
-        otra lista y los índices de esta ya no significan nada, así que se aborta
-        en vez de escribir el anime equivocado en la posición equivocada.
+        :param generation: Generación de recarga con la que arrancó esta precarga; si
+            no coincide con la actual, self.recent_animes ya es otra lista y se aborta.
         """
         recent_animes = self.recent_animes
         for index, anime in enumerate(recent_animes):
@@ -516,7 +487,6 @@ class MainWindow(ctk.CTk):
                 print("Precarga de animes recientes abortada: la lista ha cambiado")
                 return
             if anime.synopsis is not None and anime.genres is not None and anime.episodes is not None:
-                # Ya precargado (p.ej. segunda apertura en la misma sesión)
                 continue
             try:
                 anime_info = self.anime_provider_mgr.get_anime_info(anime.id)
@@ -526,6 +496,7 @@ class MainWindow(ctk.CTk):
                 print(f"Error al precargar info del anime {anime.id}: {e}")
 
     def load_animes(self, progress_bar: ctk.CTkProgressBar, progress_label: ctk.CTkLabel):
+        """Carga desde BD las cuatro listas de biblioteca, actualizando la barra de progreso."""
         self.animes_persistence.start()
         self.favourite_animes = self.animes_persistence.get_favourite_animes()
         progress_bar.set(0.1)

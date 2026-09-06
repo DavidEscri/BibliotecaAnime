@@ -26,22 +26,19 @@ from utils.buttons import utilsButtons
 class WatchingAnimeButton(utilsButtons.SidebarButton):
     """«Viendo»: la vista que sirve para seguir por donde ibas.
 
-    Cascada a la izquierda —una ``AnimeRow`` por anime, con progreso— y a la
-    derecha el panel de 290 px con lo último que estabas viendo. **Sin
-    paginador**: son pocos y caben de una vez (`DISENO.md` §6).
+    Cascada a la izquierda —una AnimeRow por anime, con progreso— y a la
+    derecha el panel de 290 px con lo último que estabas viendo. Sin
+    paginador: son pocos y caben de una vez.
 
-    Todo lo que se pinta sale de la biblioteca guardada: la vista **funciona sin
-    conexión**. Lo único que sale a la red es la búsqueda del proveedor, que se
-    **suma** a la local y nunca quita resultados, y abrir una ficha.
+    Todo lo que se pinta sale de la biblioteca guardada: la vista funciona sin
+    conexión. Lo único que sale a la red es la búsqueda del proveedor, que se
+    suma a la local y nunca quita resultados, y abrir una ficha.
     """
 
     def __init__(self, main_window, icon_path, row, column):
-        # ⚠️ `viendo_light.png` y `viendo_dark.png` existen en resources/ y su uso
-        # llevaba comentado desde antes del rediseño. El paso 9.4 lo retiró en vez
-        # de activarlo: **los dos dibujos son de tinta negra sobre transparente**,
-        # así que como par (claro, oscuro) el del tema oscuro sería invisible. El
-        # icono único sí vale porque es bicolor —silueta negra y relleno blanco— y
-        # se lee sobre los dos fondos.
+        # El icono es bicolor (silueta negra, relleno blanco) y se lee sobre los
+        # dos temas; no hay variante clara/oscura porque viendo_light/dark.png
+        # son de tinta negra y una de las dos sería invisible según el tema.
         icon_path_light = icon_path_dark = os.path.join(icon_path, "viendo.png")
         super().__init__(main_window.sidebar_frame, "Viendo", row, column, self.show_watching_animes, icon_path_light, icon_path_dark)
 
@@ -64,9 +61,6 @@ class WatchingAnimeButton(utilsButtons.SidebarButton):
 
     def show_watching_animes(self):
         self.main_window.clear_frame()
-        # Sin `time.sleep(0.1)`: solo existía para que `winfo_width()` devolviera
-        # algo distinto de 1, porque de ahí salía el número de columnas de la
-        # rejilla. Esta vista es una lista y un panel de ancho fijo; no se mide nada.
         self.__show_browser()
 
     # ------------------------------------------------------------------
@@ -173,11 +167,12 @@ class WatchingAnimeButton(utilsButtons.SidebarButton):
     def __side_panel_record(self, watching_animes: List[AnimeRecord]) -> Optional[AnimeRecord]:
         """Qué anime va en el panel de la derecha.
 
-        Manda la preferencia ``last_watched_anime_ids`` (fase 2), que sobrevive al
-        cierre de la aplicación. Se recorren sus tres identificadores y no solo el
-        primero: si el más reciente ya no está en «Viendo» —se marcó como
-        finalizado, por ejemplo— sigue valiendo el siguiente, que también es algo
-        que el usuario estaba viendo. Si ninguno cuadra, el primero de la lista.
+        Recorre los últimos vistos guardados y no solo el más reciente: si ese
+        ya no está en «Viendo», sigue valiendo el siguiente. Si ninguno cuadra,
+        el primero de la lista.
+
+        :param watching_animes: Animes marcados como «Viendo».
+        :return: Fila a mostrar en el panel, o None si la lista está vacía.
         """
         if not watching_animes:
             return None
@@ -254,24 +249,17 @@ class WatchingAnimeButton(utilsButtons.SidebarButton):
         self.__search.search(search_entry.get())
 
     def __on_row_action(self, anime_record: AnimeRecord):
-        """«Episodio N →» y «Seguir por el N»: abren la ficha **por ese episodio**.
+        """Abre la ficha del anime con el próximo episodio ya desplegado.
 
-        Las dos acciones de la vista prometen un episodio concreto en su texto, así
-        que las dos llevan a él: la ficha sale con esa fila desplegada, sus
-        servidores a la vista y la ventana desplazada hasta ella.
+        No fuerza orden ascendente (al revés que «Empezar» en Pendientes): con
+        un anime largo servido de mayor a menor, forzarlo dejaría fuera de los
+        25 primeros el episodio por el que va el usuario.
 
-        El número se vuelve a calcular aquí en vez de arrastrarlo desde el texto
-        del botón: sale del mismo ``resume_progress()`` que lo escribió, que es el
-        único sitio donde se decide por qué episodio ibas. No se toca el orden de
-        la lista —al revés que «Empezar»—: con un anime largo servido de mayor a
-        menor, el episodio por el que vas está entre los 25 que se pintan y
-        forzarlo a ascendente lo dejaría fuera.
+        :param anime_record: Fila cuya ficha se abre.
         """
         next_episode, _episodes, _fraction = resume_progress(anime_record)
         open_saved_anime(self.main_window, anime_record.anime_id, focus_episode=next_episode)
 
     def __on_anime_click(self, anime_id: Union[str, int]):
-        # Es un anime de la biblioteca: el proveedor sale de su fila y la petición
-        # va en un hilo aparte. Ambas cosas viven en open_saved_anime() porque las
-        # cuatro vistas de estado hacen exactamente esto mismo.
+        """Abre la ficha de un anime de «Viendo» por el proveedor de su fila."""
         open_saved_anime(self.main_window, anime_id)

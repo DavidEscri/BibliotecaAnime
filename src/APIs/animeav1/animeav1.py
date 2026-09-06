@@ -1,10 +1,7 @@
 """
-animeav1.com está construido con SvelteKit. Las páginas no se generan con HTML "clásico" navegable por selectores
-estables (como sí ocurre en AnimeFLV), sino que el propio framework inyecta los datos de la página como un objeto JS
-(no JSON estricto) dentro de un <script> que contiene la llamada `kit.start(app, element, {`. Por eso, además de
-BeautifulSoup, aquí se usan expresiones regulares para extraer ese payload y parsear los campos que nos interesan
-(título, sinopsis, nº de episodios, servidores de vídeo, etc.), con fallbacks al DOM por si el formato cambia en un
-futuro despliegue del sitio.
+animeav1.com está construido con SvelteKit: los datos de la página vienen
+incrustados como un objeto JS dentro de un <script> con `kit.start(app, element, {`,
+no como HTML navegable por selectores. Se extraen con regex, con fallback al DOM.
 """
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "APIs.animeav1"
@@ -29,26 +26,16 @@ BASE_URL = "https://animeav1.com"
 CATALOG_URL = f"{BASE_URL}/catalogo"
 MEDIA_URL = f"{BASE_URL}/media"
 
-# Fragmento que identifica el <script> de hidratación de SvelteKit que contiene
-# los datos de la página (título, sinopsis, episodios, servidores, etc.)
+# Fragmento que identifica el <script> de hidratación de SvelteKit con los datos de la página.
 _SVELTE_PAYLOAD_MARKER = "kit.start(app, element, {"
 
 
 def _fetch(url: str, **kwargs) -> requests.Response:
-    """
-    Descarga una página de animeav1.com dejando `response.text` en UTF-8.
-
-    El sitio responde `Content-Type: text/html` **sin `charset`**. Ante esa
-    ausencia, requests aplica el valor por defecto de la RFC 2616 (ISO-8859-1),
-    así que `response.text` sale con mojibake ("tÃ­tulo" en vez de "título") y
-    ese texto acaba en `AnimeInfo.synopsis`, en pantalla y en la BD.
-
-    Se fuerza UTF-8 solo cuando el servidor no declara charset, de forma que si
-    algún día empieza a declararlo, se respeta el suyo.
+    """Descarga una página de animeav1.com forzando UTF-8 si el servidor no declara charset.
 
     :param url: URL a descargar.
-    :param kwargs: Argumentos que se pasan tal cual a `requests.get`.
-    :rtype: requests.Response
+    :param kwargs: Argumentos adicionales para requests.get.
+    :return: Respuesta HTTP con response.text ya en UTF-8.
     """
     response = requests.get(url, **kwargs)
     if "charset" not in response.headers.get("Content-Type", "").lower():
@@ -64,18 +51,12 @@ class AnimeAV1(AnimeProvider):
 
     def search_animes_by_genres_and_order(self, genres: List[AnimeGenreFilter], order: str = None,
                                           page: int = None) -> Tuple[List[AnimeInfo], int]:
-        """
-        Busca animes en animeav1.com filtrando por género y orden.
-
-        AnimeAV1 no expone la puntuación en las tarjetas del listado, así que el
-        orden por AnimeOrderFilter.CALIFICACIÓN no se puede aplicar sin pedir la
-        ficha completa de cada anime (demasiadas peticiones). El orden alfabético
-        sí se puede aplicar del lado del cliente una vez descargado el listado.
+        """Busca animes en animeav1.com filtrando por género y orden.
 
         :param genres: Lista de géneros por los que filtrar.
         :param order: Valor de AnimeOrderFilter.
         :param page: Página del listado a consultar.
-        :rtype: (List[AnimeInfo], int)
+        :return: Tupla (lista de animes, última página).
         """
         genre_values = [genre.value for genre in genres]
 
@@ -95,12 +76,11 @@ class AnimeAV1(AnimeProvider):
         return query_animes, last_page
 
     def search_animes_by_query(self, query: str = None, page: int = None) -> Tuple[List[AnimeInfo], int]:
-        """
-        Busca en animeav1.com por texto libre.
+        """Busca en animeav1.com por texto libre.
 
-        :param query: Texto de búsqueda, como por ejemplo 'Nanatsu no Taizai'.
+        :param query: Texto de búsqueda.
         :param page: Página de la búsqueda a devolver.
-        :rtype: (List[AnimeInfo], int)
+        :return: Tupla (lista de animes, última página).
         """
         if page is not None and not isinstance(page, int):
             raise TypeError
@@ -125,12 +105,11 @@ class AnimeAV1(AnimeProvider):
         return query_animes, last_page
 
     def get_anime_episode_servers(self, anime_id: str, episode_id: int) -> List[ServerInfo]:
-        """
-        Obtiene la lista de servidores de vídeo (subtitulado) de un episodio de un anime.
+        """Obtiene la lista de servidores de vídeo (subtitulado) de un episodio.
 
-        :param anime_id: Identificador (slug) del anime, como por ejemplo 'one-piece'.
+        :param anime_id: Identificador (slug) del anime.
         :param episode_id: Número del episodio.
-        :rtype: List[ServerInfo]
+        :return: Lista de servidores disponibles.
         """
         try:
             response = _fetch(f"{MEDIA_URL}/{anime_id}/{episode_id}", timeout=10)
@@ -159,11 +138,7 @@ class AnimeAV1(AnimeProvider):
         return servers
 
     def get_recent_animes(self) -> List[AnimeInfo]:
-        """
-        Obtiene la lista de los animes recientemente añadidos a animeav1.com (portada).
-
-        :rtype: List[AnimeInfo]
-        """
+        """:return: Animes recientemente añadidos a animeav1.com, según la portada."""
         try:
             response = _fetch(BASE_URL, timeout=10)
             response.raise_for_status()
@@ -175,11 +150,10 @@ class AnimeAV1(AnimeProvider):
         return self.__parse_anime_cards(soup)
 
     def get_anime_info(self, anime_id: Union[str, int]) -> AnimeInfo | None:
-        """
-        Obtiene información sobre un anime específico.
+        """Obtiene la ficha completa de un anime, con reintentos ante fallos de red.
 
-        :param anime_id: Identificador (slug) del anime, como por ejemplo 'one-piece'.
-        :rtype: AnimeInfo
+        :param anime_id: Identificador (slug) del anime.
+        :return: Ficha del anime, o None si fallan todos los intentos.
         """
         attempt = 0
         max_attempts = 3
@@ -249,10 +223,7 @@ class AnimeAV1(AnimeProvider):
 
     @staticmethod
     def __extract_svelte_payload(soup: BeautifulSoup) -> Optional[str]:
-        """
-        Localiza el <script> de hidratación de SvelteKit y devuelve el fragmento
-        que contiene los datos de la página ('data: [...]').
-        """
+        """Localiza el <script> de hidratación de SvelteKit y extrae su payload de datos."""
         for script in soup.find_all("script"):
             content = script.string or script.get_text() or ""
             if _SVELTE_PAYLOAD_MARKER in content:
@@ -263,10 +234,10 @@ class AnimeAV1(AnimeProvider):
 
     @staticmethod
     def __parse_anime_cards(soup: BeautifulSoup) -> List[AnimeInfo]:
-        """
-        Parsea las tarjetas de anime (<article>) presentes tanto en el catálogo/
-        búsqueda como en la portada. Descarta cualquier tarjeta cuyo enlace apunte
-        a un episodio concreto (/media/{slug}/{numero}) en vez de a la ficha del anime.
+        """Parsea las tarjetas de anime del catálogo, búsqueda o portada.
+
+        Descarta cualquier tarjeta cuyo enlace apunte a un episodio concreto
+        en vez de a la ficha del anime.
         """
         animes: List[AnimeInfo] = []
         seen_ids = set()
@@ -299,11 +270,7 @@ class AnimeAV1(AnimeProvider):
 
     @staticmethod
     def __get_last_page(soup: BeautifulSoup) -> int:
-        """
-        Calcula el número de la última página a partir de todos los enlaces de
-        paginación (?page=N) presentes en la página, sin depender de una
-        estructura CSS concreta del paginador.
-        """
+        """Calcula la última página a partir de los enlaces de paginación (?page=N)."""
         last_page = 1
         for link in soup.select("a[href*='page=']"):
             match = re.search(r"[?&]page=(\d+)", link.get("href", ""))
@@ -313,10 +280,7 @@ class AnimeAV1(AnimeProvider):
 
     @staticmethod
     def __extract_genres(soup: BeautifulSoup) -> List[str]:
-        """
-        Extrae los slugs de género (p.ej. 'accion', 'aventura') a partir de los
-        enlaces de género de la ficha del anime, igual que hace animeflv.py.
-        """
+        """Extrae los slugs de género de los enlaces de género de la ficha del anime."""
         genres: List[str] = []
         seen = set()
         for link in soup.select("main a[href*='genre=']"):
@@ -332,10 +296,9 @@ class AnimeAV1(AnimeProvider):
 
     @staticmethod
     def __count_episodes_from_dom(soup: BeautifulSoup, anime_id: Union[str, int]) -> int:
-        """
-        Fallback: si no se pudo leer 'episodesCount' del payload de SvelteKit,
-        cuenta los episodios a partir de los enlaces /media/{anime_id}/{n} listados
-        en la propia ficha del anime.
+        """Cuenta episodios a partir de los enlaces /media/{anime_id}/{n} de la ficha.
+
+        Fallback usado cuando el payload de SvelteKit no trae 'episodesCount'.
         """
         episode_pattern = re.compile(rf"/media/{re.escape(str(anime_id))}/(\d+)$")
         episode_numbers = set()
@@ -347,6 +310,12 @@ class AnimeAV1(AnimeProvider):
 
     @staticmethod
     def __apply_client_side_order(animes: List[AnimeInfo], order: str) -> List[AnimeInfo]:
+        """Ordena en el cliente la lista de animes, ya que el sitio no lo hace por sí mismo.
+
+        :param animes: Animes a ordenar.
+        :param order: Valor de AnimeOrderFilter.
+        :return: Lista ordenada (o sin cambios si el orden no está soportado).
+        """
         if order == AnimeOrderFilter.ALFABÉTICAMENTE.value:
             return sorted(animes, key=lambda anime: anime.title.lower())
         if order == AnimeOrderFilter.CALIFICACIÓN.value:

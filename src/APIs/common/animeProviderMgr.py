@@ -13,7 +13,6 @@ import requests
 
 from APIs.common.models import AnimeGenreFilter, AnimeInfo, AnimeProviderId, ProviderInfo, ServerInfo
 
-# Alias de tipo para no repetir la tupla (lista de animes, última página) en cada firma de método.
 AnimeSearchResult = Tuple[List[AnimeInfo], int]
 
 
@@ -22,36 +21,21 @@ class UnknownProviderError(Exception):
 
 
 class AnimeProvider(ABC):
-    """
-    Contrato que debe cumplir cualquier proveedor de anime (AnimeFLV, AnimeAV1,
-    y en el futuro MonosChinos2, TioAnime, JKAnime, etc.).
+    """Contrato que debe cumplir cualquier proveedor de anime.
 
-    Cada proveedor concreto:
-      1. Define PROVIDER_ID, PROVIDER_NAME y BASE_URL como atributos de clase.
-      2. Implementa los 5 métodos abstractos siempre devolviendo las estructuras
-         de datos comunes definidas en APIs.common.models (AnimeInfo, EpisodeInfo,
-         ServerInfo), nunca tipos propios del sitio.
-      3. Si el sitio usa slugs de género distintos a los de AnimeGenreFilter,
-         el proveedor debe encargarse internamente de traducirlos (por ejemplo,
-         con un diccionario privado {AnimeGenreFilter.ACCIÓN: "action"}), de forma
-         que quien llama a search_animes_by_genres_and_order siga usando siempre
-         el enum común sin preocuparse de las particularidades de cada web.
-
-    De esta forma, AnimeProviderManager (ver provider_manager.py) puede tratar a
-    todos los proveedores de forma intercambiable: elegir uno por defecto, elegir
-    uno puntual para una operación concreta, o hacer fallback automático a otro
-    proveedor si el primero falla o no devuelve resultados.
+    Cada proveedor concreto define PROVIDER_ID, PROVIDER_NAME y BASE_URL como
+    atributos de clase, implementa los métodos abstractos devolviendo siempre
+    las estructuras comunes de APIs.common.models, y traduce internamente
+    cualquier slug de género propio de su sitio a AnimeGenreFilter.
     """
 
-    #: Identificador del proveedor (se usa como clave en el registro de
-    #: AnimeProviderManager). Es un miembro de AnimeProviderId, no una cadena.
+    #: Identificador único del proveedor; debe ser un miembro de AnimeProviderId.
     PROVIDER_ID: AnimeProviderId = NotImplemented
 
-    #: Nombre legible para mostrar en la interfaz. Ej: "AnimeFLV".
+    #: Nombre legible para mostrar en la interfaz.
     PROVIDER_NAME: str = NotImplemented
 
-    #: URL base del sitio, usada tanto para hacer scraping como para el
-    #: chequeo de disponibilidad por defecto (is_available).
+    #: URL base del sitio.
     BASE_URL: str = NotImplemented
 
     def __init_subclass__(cls, **kwargs):
@@ -70,47 +54,66 @@ class AnimeProvider(ABC):
 
     @classmethod
     def provider_info(cls) -> ProviderInfo:
-        """
-        Ficha de identidad del proveedor, construida desde sus atributos de clase.
+        """Ficha de identidad del proveedor, construida desde sus atributos de clase.
 
-        Es lo que consume la interfaz para poblar el desplegable de proveedor, de forma que no haya en la GUI ninguna
-        lista de nombres que mantener a mano.
+        :return: ProviderInfo con id, nombre y URL base.
         """
         return ProviderInfo(id=cls.PROVIDER_ID, name=cls.PROVIDER_NAME, base_url=cls.BASE_URL)
 
     @abstractmethod
     def search_animes_by_genres_and_order(self, genres: List[AnimeGenreFilter], order: str = None,
                                           page: int = None) -> AnimeSearchResult:
-        """Busca animes filtrando por género(s) y devuelve (lista de animes, última página)."""
+        """Busca animes filtrando por uno o varios géneros, con orden y página opcionales.
+
+        :param genres: Géneros por los que filtrar.
+        :param order: Criterio de orden a aplicar, si el proveedor lo soporta.
+        :param page: Página de resultados a obtener.
+        :return: Tupla (lista de animes, última página disponible).
+        """
         raise NotImplementedError
 
     @abstractmethod
     def search_animes_by_query(self, query: str = None, page: int = None) -> AnimeSearchResult:
-        """Busca animes por texto libre y devuelve (lista de animes, última página)."""
+        """Busca animes por texto libre.
+
+        :param query: Texto de búsqueda.
+        :param page: Página de resultados a obtener.
+        :return: Tupla (lista de animes, última página disponible).
+        """
         raise NotImplementedError
 
     @abstractmethod
     def get_anime_episode_servers(self, anime_id: Union[str, int], episode_id: int) -> List[ServerInfo]:
-        """Devuelve los servidores de vídeo disponibles para un episodio concreto."""
+        """Obtiene los servidores de vídeo disponibles para un episodio.
+
+        :param anime_id: Identificador del anime en el proveedor.
+        :param episode_id: Número del episodio.
+        :return: Lista de servidores disponibles.
+        """
         raise NotImplementedError
 
     @abstractmethod
     def get_recent_animes(self) -> List[AnimeInfo]:
-        """Devuelve los animes recientemente añadidos/actualizados en el sitio."""
+        """Obtiene los animes recientemente añadidos o actualizados en el sitio.
+
+        :return: Lista de animes recientes.
+        """
         raise NotImplementedError
 
     @abstractmethod
     def get_anime_info(self, anime_id: Union[str, int]) -> AnimeInfo:
-        """Devuelve la ficha completa de un anime (sinopsis, géneros, episodios...)."""
+        """Obtiene la ficha completa de un anime.
+
+        :param anime_id: Identificador del anime en el proveedor.
+        :return: Ficha completa (sinopsis, géneros, episodios...).
+        """
         raise NotImplementedError
 
     def is_available(self, timeout: float = 5.0) -> bool:
-        """
-        Chequeo de disponibilidad por defecto: comprueba que BASE_URL responde.
-        Los proveedores pueden sobrescribirlo con algo más barato/preciso
-        (p.ej. un endpoint de salud, o una petición HEAD) si lo necesitan.
-        Se usa desde AnimeProviderManager para descartar proveedores caídos
-        antes de intentar operaciones más costosas.
+        """Comprueba si el proveedor responde, haciendo una petición a BASE_URL.
+
+        :param timeout: Tiempo máximo de espera, en segundos.
+        :return: True si el sitio responde correctamente.
         """
         try:
             response = requests.get(self.BASE_URL, timeout=timeout)
@@ -123,41 +126,16 @@ class AnimeProvider(ABC):
 
 
 class AnimeProviderManager:
-    """
-    Registro central de proveedores de anime (AnimeFLV, AnimeAV1, MonosChinos2,
-    TioAnime, JKAnime...). Permite:
+    """Registro central de proveedores de anime.
 
-      - Registrar proveedores y marcar uno como predeterminado.
-      - Obtener un proveedor concreto por su PROVIDER_ID para casos puntuales
-        (p.ej. "quiero buscar SIEMPRE en JKAnime para esta operación").
-      - Ejecutar una operación con fallback automático: si el proveedor
-        solicitado (o el predeterminado) falla o no devuelve resultados, se
-        prueba con el resto de proveedores registrados en orden hasta obtener
-        una respuesta válida.
-
-    Uso típico (tal y como está hoy en main_window.py, al arrancar la aplicación):
-
-        manager = AnimeProviderManagerSingleton()
-        manager.register(AnimeAV1Singleton(), default=True)   # el orden de registro es el del fallback
-        manager.register(JKAnimeSingleton())
-        manager.register(AnimeFLVSingleton())
-        # más adelante: manager.register(MonosChinos2Singleton())
-
-    Y luego, en vez de llamar directamente a AnimeAV1Singleton().get_recent_animes(),
-    cualquier parte de la app puede llamar a:
-
-        manager.get_recent_animes()                                          # predeterminado, con fallback
-        manager.get_recent_animes(provider_id=AnimeProviderId.ANIMEFLV)      # fuerza un proveedor concreto
-
-    El predeterminado no es solo un detalle de arranque: es una **preferencia del
-    usuario** persistida en DB_user.db y aplicada con set_default() antes de la
-    primera petición (ver dataPersistence/userPersistence.py y
-    .claude/docs/13-selector-de-proveedor.md).
+    Permite registrar proveedores, marcar uno como predeterminado, obtener uno
+    concreto por su PROVIDER_ID para una operación puntual, y ejecutar llamadas
+    con fallback automático al resto de proveedores registrados cuando el
+    solicitado (o el predeterminado) falla o no devuelve resultados.
     """
 
-    #: Umbral de similitud de títulos por debajo del cual resolve_anime_in_provider
-    #: considera que el anime NO existe en el proveedor destino. Preferir un falso
-    #: negativo ("no lo encuentro") a abrir un anime equivocado.
+    #: Umbral de similitud de título por debajo del cual resolve_anime_in_provider
+    #: considera que el anime no existe en el proveedor destino.
     TITLE_MATCH_THRESHOLD: float = 0.75
 
     def __init__(self):
@@ -165,30 +143,43 @@ class AnimeProviderManager:
         self._default_provider_id: Optional[AnimeProviderId] = None
 
     def register(self, provider: AnimeProvider, default: bool = False) -> None:
-        """
-        Registra un proveedor. El primero que se registra se convierte en
-        predeterminado automáticamente; para forzar otro predeterminado más
-        adelante, usa default=True o set_default().
+        """Registra un proveedor. El primero registrado queda como predeterminado.
+
+        :param provider: Proveedor a registrar.
+        :param default: Si es True, lo fija como predeterminado aunque ya hubiera otro.
         """
         self._providers[provider.PROVIDER_ID] = provider
         if default or self._default_provider_id is None:
             self._default_provider_id = provider.PROVIDER_ID
 
     def unregister(self, provider_id: AnimeProviderId) -> None:
+        """Elimina un proveedor del registro y reasigna el predeterminado si era él.
+
+        :param provider_id: Proveedor a eliminar.
+        """
         self._providers.pop(provider_id, None)
         if self._default_provider_id == provider_id:
             self._default_provider_id = next(iter(self._providers), None)
 
     def set_default(self, provider_id: AnimeProviderId | None) -> None:
+        """Fija el proveedor predeterminado.
+
+        :param provider_id: Proveedor a marcar como predeterminado; debe estar registrado.
+        """
         if provider_id is None or provider_id not in self._providers:
             raise UnknownProviderError(f"Proveedor desconocido: {provider_id}")
         self._default_provider_id = provider_id
 
     def get_default_provider_id(self) -> Optional[AnimeProviderId]:
+        """:return: Id del proveedor predeterminado, o None si no hay ninguno registrado."""
         return self._default_provider_id
 
     def get(self, provider_id: AnimeProviderId = None) -> AnimeProvider:
-        """Devuelve un proveedor concreto, o el predeterminado si no se indica ninguno."""
+        """Devuelve un proveedor concreto, o el predeterminado si no se indica ninguno.
+
+        :param provider_id: Proveedor solicitado; opcional.
+        :return: Instancia del proveedor.
+        """
         target_id = provider_id or self._default_provider_id
         if target_id is None:
             raise UnknownProviderError("No hay ningún proveedor registrado")
@@ -197,27 +188,27 @@ class AnimeProviderManager:
         return self._providers[target_id]
 
     def list_providers(self) -> List[AnimeProviderId]:
+        """:return: Ids de todos los proveedores registrados."""
         return list(self._providers.keys())
 
     def get_provider_info(self, provider_id: AnimeProviderId) -> Optional[ProviderInfo]:
-        """Ficha de identidad de un proveedor registrado, o ``None`` si no lo está."""
+        """Ficha de identidad de un proveedor registrado.
+
+        :param provider_id: Proveedor consultado.
+        :return: ProviderInfo, o None si no está registrado.
+        """
         provider = self._providers.get(provider_id)
         return provider.provider_info() if provider is not None else None
 
     def list_providers_info(self) -> List[ProviderInfo]:
-        """Devuelve la ficha de todos los proveedores registrados, **en orden de registro**.
-
-        Es la **única** fuente del contenido de los desplegables de proveedor de
-        la interfaz: la GUI no debe construir esa lista a mano. Cuando existan
-        proveedores de manga, el filtrado por tipo de medio se hará aquí.
-        """
+        """:return: Ficha de todos los proveedores registrados, en orden de registro."""
         return [provider.provider_info() for provider in self._providers.values()]
 
     def get_provider_name(self, provider_id: Optional[AnimeProviderId]) -> str:
-        """Nombre legible de un proveedor. Si no está registrado, devuelve su id.
+        """Nombre legible de un proveedor.
 
-        Tolera ``None`` porque quien lo llama suele venir de un ``provider_id``
-        opcional (una ficha servida por nadie, una fila de BD sin proveedor).
+        :param provider_id: Proveedor consultado; admite None.
+        :return: Nombre legible, su propio id si no está registrado, o "desconocido" si es None.
         """
         if provider_id is None:
             return "desconocido"
@@ -225,11 +216,10 @@ class AnimeProviderManager:
         return provider.PROVIDER_NAME if provider is not None else provider_id.value
 
     def get_provider_info_by_name(self, provider_name: str) -> Optional[ProviderInfo]:
-        """Traduce un ``PROVIDER_NAME`` de vuelta a la ficha de su proveedor.
+        """Traduce un PROVIDER_NAME de vuelta a la ficha de su proveedor.
 
-        Los widgets muestran el nombre legible pero el resto del código trabaja
-        con ``AnimeProviderId``; esto cierra ese círculo sin que la GUI mantenga
-        su propio mapa.
+        :param provider_name: Nombre legible del proveedor.
+        :return: ProviderInfo del proveedor, o None si no coincide ninguno.
         """
         for provider in self._providers.values():
             if provider.PROVIDER_NAME == provider_name:
@@ -237,14 +227,14 @@ class AnimeProviderManager:
         return None
 
     def list_available_providers(self) -> List[AnimeProviderId]:
-        """Subconjunto de proveedores registrados que responden ahora mismo (is_available)."""
+        """:return: Ids de los proveedores registrados que responden ahora mismo."""
         return [pid for pid, provider in self._providers.items() if provider.is_available()]
 
     def _ordered_providers(self, provider_id: AnimeProviderId = None) -> List[AnimeProvider]:
-        """
-        Orden en el que se intentan los proveedores para el fallback: primero
-        el solicitado explícitamente (o si no, el predeterminado), y después
-        el resto por orden de registro.
+        """Orden en el que se intentan los proveedores para el fallback.
+
+        :param provider_id: Proveedor a intentar primero; por defecto el predeterminado.
+        :return: Proveedores ordenados: el preferido primero, el resto por orden de registro.
         """
         preferred_id = provider_id or self._default_provider_id
         ordered = []
@@ -255,16 +245,13 @@ class AnimeProviderManager:
 
     @staticmethod
     def __stamp_provider(result: Any, provider_id: AnimeProviderId) -> None:
-        """Marca en cada ``AnimeInfo`` del resultado quién lo ha servido.
+        """Marca en cada AnimeInfo del resultado quién lo ha servido.
 
-        Lo hace el manager y no cada proveedor por dos motivos: es el único que
-        sabe cuál de ellos acabó respondiendo cuando entra el fallback, y así los
-        proveedores no tienen que acordarse de rellenar el campo.
+        Cubre las tres formas en que viaja un AnimeInfo por esta capa: suelto,
+        en lista, o en la tupla (lista, última_página) de las búsquedas.
 
-        Cubre las tres formas en que viaja un AnimeInfo por esta capa: suelto
-        (``get_anime_info``), en lista (``get_recent_animes``) y en la tupla
-        ``(lista, última_página)`` de las búsquedas. Cualquier otro resultado
-        (``ServerInfo``, por ejemplo) se ignora en silencio.
+        :param result: Resultado devuelto por el proveedor.
+        :param provider_id: Proveedor que lo sirvió.
         """
         if isinstance(result, tuple) and len(result) > 0:
             result = result[0]
@@ -275,7 +262,7 @@ class AnimeProviderManager:
 
     @staticmethod
     def __is_empty_result(result: Any) -> bool:
-        """Considera 'sin resultado útil' tanto None como listas vacías o (lista_vacía, ...)."""
+        """:return: True si `result` es None, lista vacía, o (lista_vacía, ...)."""
         if result is None:
             return True
         if isinstance(result, list):
@@ -286,16 +273,16 @@ class AnimeProviderManager:
 
     def call_with_fallback(self, method_name: str, *args, provider_id: AnimeProviderId = None,
                            strict: bool = False, **kwargs) -> Tuple[Any, Optional[AnimeProviderId]]:
-        """
-        Llama a `method_name` sobre el proveedor solicitado (o el predeterminado).
-        Si lanza una excepción, o devuelve un resultado vacío, prueba con el resto
-        de proveedores registrados en orden hasta conseguir un resultado útil.
+        """Llama a un método sobre un proveedor, reintentando con el resto si falla.
 
-        :param strict: si es True, NO hace fallback a otros proveedores: solo se
-            intenta el proveedor solicitado (útil para el caso puntual "quiero
-            esto de JKAnime y de ningún otro sitio").
-        :return: tupla (resultado, provider_id_usado). Si todos los proveedores
-            fallan, devuelve (None, None).
+        Prueba el proveedor solicitado (o el predeterminado); si lanza una
+        excepción o devuelve un resultado vacío, continúa con el resto de
+        proveedores registrados en orden hasta obtener un resultado útil.
+
+        :param method_name: Nombre del método de AnimeProvider a invocar.
+        :param provider_id: Proveedor por el que empezar; por defecto el predeterminado.
+        :param strict: Si es True, no hace fallback a otros proveedores.
+        :return: Tupla (resultado, provider_id que respondió), o (None, None) si todos fallan.
         """
         providers_to_try = self._ordered_providers(provider_id)
         if strict:
@@ -326,48 +313,45 @@ class AnimeProviderManager:
         return None, None
 
     # ------------------------------------------------------------------
-    # Wrappers de conveniencia: mismo nombre/firma que AnimeProvider, más el
-    # parámetro opcional provider_id para forzar un proveedor puntual, y
-    # fallback automático transparente al resto de proveedores registrados.
+    # Wrappers de conveniencia, con fallback automático incorporado
     # ------------------------------------------------------------------
 
     def get_recent_animes(self, provider_id: AnimeProviderId = None, strict: bool = False) -> List[AnimeInfo]:
+        """:return: Animes recientes del proveedor solicitado (o con fallback); [] si ninguno responde."""
         result, _ = self.call_with_fallback("get_recent_animes", provider_id=provider_id, strict=strict)
         return result if result is not None else []
 
     def get_anime_info(self, anime_id, provider_id: AnimeProviderId = None,
                        strict: bool = False) -> Optional[AnimeInfo]:
+        """:return: Ficha del anime, o None si ningún proveedor responde."""
         result, _ = self.call_with_fallback("get_anime_info", anime_id, provider_id=provider_id, strict=strict)
         return result
 
     def get_anime_info_with_provider(self, anime_id, provider_id: AnimeProviderId = None,
                                      strict: bool = False) -> Tuple[Optional[AnimeInfo], Optional[AnimeProviderId]]:
-        """Como ``get_anime_info``, pero devuelve también **quién** sirvió la ficha.
+        """Como get_anime_info, pero indicando también qué proveedor sirvió la ficha.
 
-        El fallback es silencioso por diseño: quien llama pide el predeterminado y
-        puede recibir datos de otro proveedor sin enterarse. La ficha de detalle
-        necesita saberlo para dos cosas: mostrarlo en su selector de proveedor y
-        pedir los servidores de vídeo al proveedor correcto (si no, pediría los
-        servidores de un sitio con el slug de otro).
-
-        :return: ``(AnimeInfo, provider_id)``, o ``(None, None)`` si nadie respondió.
+        :return: Tupla (AnimeInfo, provider_id), o (None, None) si nadie respondió.
         """
         return self.call_with_fallback("get_anime_info", anime_id, provider_id=provider_id, strict=strict)
 
     def search_animes_by_query(self, query: str = None, page: int = None,
                                provider_id: AnimeProviderId = None, strict: bool = False):
+        """:return: Tupla (lista de animes, última página); ([], 1) si ningún proveedor responde."""
         result, _ = self.call_with_fallback("search_animes_by_query", query, page,
                                             provider_id=provider_id, strict=strict)
         return result if result is not None else ([], 1)
 
     def search_animes_by_genres_and_order(self, genres, order: str = None, page: int = None,
                                           provider_id: AnimeProviderId = None, strict: bool = False):
+        """:return: Tupla (lista de animes, última página); ([], 1) si ningún proveedor responde."""
         result, _ = self.call_with_fallback("search_animes_by_genres_and_order", genres, order, page,
                                             provider_id=provider_id, strict=strict)
         return result if result is not None else ([], 1)
 
     def get_anime_episode_servers(self, anime_id, episode_id, provider_id: AnimeProviderId = None,
                                   strict: bool = False) -> List[ServerInfo]:
+        """:return: Servidores de vídeo del episodio; [] si ningún proveedor responde."""
         result, _ = self.call_with_fallback("get_anime_episode_servers", anime_id, episode_id,
                                             provider_id=provider_id, strict=strict)
         return result if result is not None else []
@@ -380,8 +364,10 @@ class AnimeProviderManager:
         """Normaliza un título para poder compararlo entre sitios distintos.
 
         Pasa a minúsculas, quita tildes y reduce cualquier otro carácter a un
-        espacio: "Ataque a los Titanes: Final" y "ataque-a-los-titanes final"
-        acaban siendo la misma cadena.
+        espacio, de forma que variantes de formato del mismo título coincidan.
+
+        :param title: Título a normalizar.
+        :return: Título normalizado.
         """
         if not title:
             return ""
@@ -391,23 +377,16 @@ class AnimeProviderManager:
 
     def resolve_anime_in_provider(self, anime_info: AnimeInfo, provider_id: AnimeProviderId,
                                   threshold: float = None) -> Optional[AnimeInfo]:
-        """Busca el equivalente de un anime en otro proveedor y devuelve su ficha.
+        """Localiza el equivalente de un anime en otro proveedor por similitud de título.
 
-        ``AnimeInfo.id`` es el *slug* del sitio, no un identificador universal: el
-        mismo anime es "one-piece" en AnimeAV1 y "one-piece-tv" en
-        AnimeFLV. Por eso no se puede reutilizar el id al cambiar de proveedor;
-        hay que volver a localizar el anime por su título.
+        El id de un anime es el slug del sitio que lo sirvió, así que no es
+        válido en otro proveedor: se busca por título y se toma la mejor
+        coincidencia por encima del umbral.
 
-        Cuesta **dos peticiones HTTP** (buscar + ficha), así que debe llamarse
-        siempre desde un hilo secundario, nunca desde el hilo de Tkinter.
-
-        Se prefiere un falso negativo a un falso positivo: si la mejor coincidencia
-        no llega al umbral, devuelve ``None`` en vez de abrir otro anime parecido.
-
-        :param anime_info: ficha del anime tal y como se está viendo ahora.
-        :param provider_id: proveedor en el que se quiere localizar.
-        :param threshold: similitud mínima; por defecto ``TITLE_MATCH_THRESHOLD``.
-        :return: ``AnimeInfo`` del proveedor destino, o ``None``. Nunca lanza.
+        :param anime_info: Ficha del anime tal y como se está viendo ahora.
+        :param provider_id: Proveedor en el que se quiere localizar el anime.
+        :param threshold: Similitud mínima aceptada; por defecto TITLE_MATCH_THRESHOLD.
+        :return: Ficha del anime en el proveedor destino, o None si no se encuentra.
         """
         if provider_id not in self._providers:
             print(f"No se puede resolver el anime: proveedor no registrado {provider_id}")

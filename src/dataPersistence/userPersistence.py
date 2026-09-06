@@ -45,13 +45,12 @@ class UserSettingKey(Enum):
     """
     #: PROVIDER_ID del proveedor de anime predeterminado ("animeav1", "animeflv"...).
     DEFAULT_ANIME_PROVIDER = "default_anime_provider"
-    #: Barra lateral plegada ("1") o desplegada ("0"). Rediseño, fase 1.
+    #: Barra lateral plegada ("1") o desplegada ("0").
     SIDEBAR_COLLAPSED = "sidebar_collapsed"
     #: Los últimos animes cuyos episodios se han marcado como vistos, separados
-    #: por comas y el más reciente primero. Rediseño, fase 2.
+    #: por comas y el más reciente primero.
     LAST_WATCHED_ANIME_IDS = "last_watched_anime_ids"
     #: Criterio de orden de la pestaña «Favoritos»: "rating" o "title".
-    #: Rediseño, fase 5.
     FAVOURITES_ORDER = "favourites_order"
     # Reservada para cuando se integren los mangas:
     # DEFAULT_MANGA_PROVIDER = "default_manga_provider"
@@ -87,8 +86,7 @@ class UserPersistence(ServiceDB):
     FIELD_TYPES = [f.sql_type for f in UserSettingField]
     PRIMARY_KEY = UserSettingField.SETTING_KEY.column
 
-    #: Cuántos animes recuerda la banda «Retomar donde lo dejaste». Son las tres
-    #: tarjetas que caben en una fila de la portada (`DISENO.md` §3).
+    #: Cuántos animes recuerda la banda «Retomar donde lo dejaste».
     MAX_LAST_WATCHED = 3
 
     #: Valores admitidos para FAVOURITES_ORDER. Son los que se **persisten**; el
@@ -288,13 +286,10 @@ class UserPersistence(ServiceDB):
     def get_favourites_order(self) -> str:
         """Devuelve el criterio de orden de «Favoritos»: ``"rating"`` o ``"title"``.
 
-        Por defecto ``"rating"``: la calificación es lo que la pestaña estrena y
-        lo que la hace distinta de las otras dos rejillas; abrirla ordenada
-        alfabéticamente escondería justo el dato nuevo.
+        Por defecto ``"rating"``. Un valor guardado que no se reconozca se
+        trata como si no hubiera preferencia.
 
-        Un valor guardado que no reconozca —de una versión anterior o escrito a
-        mano— se trata como si no hubiera preferencia, igual que hace
-        ``_provider_id_from_db()`` con un proveedor desconocido.
+        :return: Criterio de orden guardado, o ``FAVOURITES_ORDER_RATING`` por defecto.
         """
         value = self.get_setting(UserSettingKey.FAVOURITES_ORDER, self.FAVOURITES_ORDER_RATING)
         if value not in self.FAVOURITES_ORDERS:

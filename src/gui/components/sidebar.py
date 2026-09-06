@@ -7,27 +7,16 @@ __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __
 """Barra lateral del rediseño: navegación, proveedor y apariencia.
 
 Sustituye a los seis ``SidebarButton`` sueltos que se pintaban solos dentro de
-``MainWindow.sidebar_frame`` y a los controles del pie. Los destinos siguen
-siendo las mismas seis vistas: esta clase solo decide **cómo** se ven y cuál está
-activo, nunca qué hacen.
+``MainWindow.sidebar_frame``. Los destinos siguen siendo las mismas seis
+vistas: esta clase solo decide cómo se ven y cuál está activo, nunca qué hacen.
 
-Tres avisos que vienen de cómo era esto antes, o de tropezar con ellos aquí:
-
-- La barra tiene ancho **fijo**: ``grid_propagate(False)`` más un ``minsize`` en
-  la columna 0 del padre. Hacen falta los dos. Antes se declaraba 340 y acababa
-  midiendo unos 220, porque los botones se construían con
-  ``width=parent_frame.winfo_width()``, que vale 1 mientras Tk no ha mapeado el
-  frame; y sin el ``minsize``, la rejilla de ``MainWindow`` le sigue robando
-  píxeles cuando el área de contenido pide más ancho del que cabe.
-- Todos los colores salen de ``Theme`` en tuplas ``(claro, oscuro)``, así que el
-  cambio de apariencia lo resuelve CustomTkinter. **No** hay que recorrer los
-  hijos reconfigurando colores a mano, que es lo que hacía
-  ``change_appearance_mode_event()``.
-- ⚠️ **Un ``CTkFrame`` sin hijos conserva su tamaño por defecto (200 × 200)** como
-  tamaño pedido, y eso estira la fila que lo contiene. Es lo que dejó la barra
-  con los seis destinos en blanco: la barrita de acento de 2 px inflaba la fila a
-  200 y el icono y la etiqueta caían en ``y=86``, fuera de la parte visible. Todo
-  ``CTkFrame`` decorativo o todavía vacío necesita ``height=`` explícito.
+El ancho fijo necesita ``grid_propagate(False)`` *y* un ``minsize`` en la
+columna 0 del padre: sin el segundo, la rejilla de ``MainWindow`` le roba
+píxeles cuando el área de contenido pide más ancho del que cabe. Todos los
+colores salen de ``Theme`` en tuplas (claro, oscuro), así que el cambio de
+apariencia lo resuelve CustomTkinter sin recorrer los hijos a mano. Y todo
+``CTkFrame`` decorativo o todavía vacío necesita ``height=`` explícito: sin
+hijos conserva su alto por defecto (200) como tamaño pedido.
 """
 
 from typing import Callable, Dict, List, Optional
@@ -60,12 +49,9 @@ class _NavItem:
         self.__count: Optional[int] = None
 
         # --- desplegado -------------------------------------------------
-        # El alto se fija con `minsize` en la fila y NO con `height=` +
-        # `grid_propagate(False)`: medido, esa combinación deja el marco a 38 px
-        # por fuera pero su rejilla interna sigue centrando los hijos como si
-        # midiera los 200 por defecto de CTkFrame, y el icono y la etiqueta caen
-        # en y=86, fuera de la parte visible. Con minsize la fila mide 38 de
-        # verdad y el marco se ajusta a ella.
+        # El alto se fija con minsize en la fila y no con height= +
+        # grid_propagate(False): esa combinación deja la rejilla interna
+        # centrando los hijos como si aún midiera el alto por defecto de CTkFrame.
         self.expanded_frame = ctk.CTkFrame(
             parent,
             corner_radius=Metrics.RADIUS_CONTROL,
@@ -75,13 +61,8 @@ class _NavItem:
         self.expanded_frame.grid_rowconfigure(0, minsize=Metrics.NAV_ITEM_H)
 
         # Barra de acento de 2 px. Siempre está; lo que cambia es su color, para
-        # que el texto no se desplace al activarse el ítem.
-        #
-        # ⚠️ El `height` NO es decorativo. Un CTkFrame **sin hijos** conserva su
-        # alto por defecto (200) como tamaño pedido, así que sin esto la barra
-        # infla la fila entera a 200 px: el marco se queda en 38 por fuera pero su
-        # rejilla interna centra el icono y la etiqueta en y=86, fuera de la parte
-        # visible. Síntoma: la barra lateral sale con los seis destinos en blanco.
+        # que el texto no se desplace al activarse el ítem. El height= es
+        # obligatorio: un CTkFrame sin hijos conserva su alto por defecto (200).
         self.accent_bar = ctk.CTkFrame(
             self.expanded_frame, width=2, height=Metrics.NAV_ITEM_H,
             corner_radius=0, fg_color=Theme.TRANSPARENT
@@ -153,6 +134,7 @@ class _NavItem:
     # Eventos
     # ------------------------------------------------------------------
     def __all_widgets(self) -> List[ctk.CTkBaseClass]:
+        """:return: Las piezas del ítem, en las dos variantes (desplegada y plegada)."""
         return [
             self.expanded_frame, self.accent_bar, self.icon_label,
             self.text_label, self.count_label,
@@ -160,15 +142,18 @@ class _NavItem:
         ]
 
     def __handle_click(self, _event=None) -> None:
+        """Delega en on_click con este ítem."""
         self.__on_click(self)
 
     def __handle_enter(self, _event=None) -> None:
+        """Aplica el hover, salvo que el ítem esté activo."""
         if self.__active:
             return
         self.expanded_frame.configure(fg_color=Theme.CARD_HOVER)
         self.collapsed_frame.configure(fg_color=Theme.CARD_HOVER)
 
     def __handle_leave(self, _event=None) -> None:
+        """Restaura el fondo normal, salvo que el ítem esté activo."""
         if self.__active:
             return
         self.expanded_frame.configure(fg_color=Theme.TRANSPARENT)
@@ -178,6 +163,7 @@ class _NavItem:
     # Estado
     # ------------------------------------------------------------------
     def set_active(self, active: bool) -> None:
+        """Marca el ítem como activo o no, y repinta."""
         self.__active = active
         self.__paint()
 
@@ -187,6 +173,7 @@ class _NavItem:
         self.__paint_count()
 
     def __paint(self) -> None:
+        """Repinta fondo, barra de acento y color de texto según el estado activo."""
         background = Theme.CARD if self.__active else Theme.TRANSPARENT
         self.expanded_frame.configure(fg_color=background)
         self.collapsed_frame.configure(fg_color=background)
@@ -195,6 +182,7 @@ class _NavItem:
         self.__paint_count()
 
     def __paint_count(self) -> None:
+        """Repinta el contador de texto y el globo plegado, según haya cuenta o no."""
         if not self.show_counter or self.__count is None:
             self.count_label.configure(text="")
             self.badge_label.place_forget()
@@ -212,10 +200,12 @@ class _NavItem:
     # Disposición
     # ------------------------------------------------------------------
     def grid_expanded(self, row: int) -> None:
+        """Coloca la variante desplegada del ítem en esa fila, y esconde la plegada."""
         self.collapsed_frame.grid_forget()
         self.expanded_frame.grid(row=row, column=0, sticky="ew", padx=10, pady=1)
 
     def grid_collapsed(self, row: int) -> None:
+        """Coloca la variante plegada del ítem en esa fila, y esconde la desplegada."""
         self.expanded_frame.grid_forget()
         self.collapsed_frame.grid(row=row, column=0, pady=3)
 
@@ -234,12 +224,12 @@ class Sidebar(ctk.CTkFrame):
 
     def __init__(self, main_window, destinations: List[SidebarButton],
                  counter_providers: Dict[str, Callable[[], int]]):
-        """
-        :param main_window: el hub. Se usa para el proveedor, las preferencias y
-            para ``after()``; la barra no toca las listas de animes.
-        :param destinations: las seis vistas, **en el orden en que se muestran**.
-        :param counter_providers: contador por etiqueta de destino. Lo que no
-            aparezca aquí se pinta sin número (es el caso de Buscar).
+        """Construye la barra lateral.
+
+        :param main_window: El hub; la barra no toca las listas de animes directamente.
+        :param destinations: Las seis vistas, en el orden en que se muestran.
+        :param counter_providers: Contador por etiqueta de destino; lo que no
+            aparezca aquí se pinta sin número.
         """
         super().__init__(main_window, width=Metrics.SIDEBAR_W, corner_radius=0, fg_color=Theme.PANEL)
 
@@ -274,14 +264,11 @@ class Sidebar(ctk.CTkFrame):
     # Construcción
     # ------------------------------------------------------------------
     def __build_header(self) -> None:
+        """Construye el título y el botón de plegado."""
         self.__header_frame = ctk.CTkFrame(self, fg_color=Theme.TRANSPARENT, height=64)
         self.__header_frame.grid(row=0, column=0, sticky="ew", padx=10, pady=(16, 12))
         self.__header_frame.grid_columnconfigure(0, weight=1)
 
-        # Sin la palabra "Anime": cierra la tarea que anotaba main_window.py:32.
-        # El inventario de tareas pendientes se hace por grep, así que este
-        # comentario evita a propósito la palabra con la que se marcan: hablar de
-        # una ya cerrada falsearía la cuenta.
         self.__title_label = ctk.CTkLabel(
             self.__header_frame,
             text="Mi Biblioteca",
@@ -306,6 +293,7 @@ class Sidebar(ctk.CTkFrame):
         self.__collapse_button.grid(row=0, column=1, sticky="e")
 
     def __build_provider_block(self) -> None:
+        """Construye el desplegable de proveedor y su botón de pin."""
         self.__provider_label = ctk.CTkLabel(
             self,
             text="PROVEEDOR",
@@ -366,6 +354,7 @@ class Sidebar(ctk.CTkFrame):
         self.pin_provider_button.grid(row=0, column=1, padx=(6, 0))
 
     def __build_appearance_block(self) -> None:
+        """Construye el desplegable de apariencia (claro/oscuro/sistema)."""
         self.__appearance_label = ctk.CTkLabel(
             self,
             text="APARIENCIA",
@@ -395,6 +384,7 @@ class Sidebar(ctk.CTkFrame):
     # Plegado
     # ------------------------------------------------------------------
     def is_collapsed(self) -> bool:
+        """:return: True si la barra está plegada."""
         return self.__collapsed
 
     def toggle_collapsed(self) -> None:
@@ -410,11 +400,10 @@ class Sidebar(ctk.CTkFrame):
         """Rehace la disposición según el estado plegado. Es idempotente."""
         width = Metrics.SIDEBAR_COLLAPSED_W if self.__collapsed else Metrics.SIDEBAR_W
         self.configure(width=width)
-        # `grid_propagate(False)` evita que la barra encoja por su contenido, pero
-        # NO evita que la rejilla del padre le robe píxeles cuando el área de
-        # contenido pide más ancho del que cabe en la ventana: medido, se queda en
-        # 219 en vez de 224. El minsize de la columna es lo que lo impide, y hay
-        # que rehacerlo en cada plegado porque el ancho cambia.
+        # grid_propagate(False) evita que la barra encoja por su contenido, pero no
+        # evita que la rejilla del padre le robe píxeles cuando el contenido pide
+        # más ancho del que cabe; el minsize de la columna es lo que lo impide, y
+        # hay que rehacerlo en cada plegado porque el ancho cambia.
         self.__main_window.grid_columnconfigure(0, weight=0, minsize=width)
         self.__collapse_button.configure(text="»" if self.__collapsed else "«")
 
@@ -455,6 +444,7 @@ class Sidebar(ctk.CTkFrame):
     # Navegación
     # ------------------------------------------------------------------
     def __on_item_click(self, item: _NavItem) -> None:
+        """Activa el ítem pulsado y ejecuta el comando de su destino."""
         self.set_active(item.destination)
         item.destination.sidebar_command()
 
@@ -469,16 +459,13 @@ class Sidebar(ctk.CTkFrame):
             item.set_active(is_active)
 
     def navigate_to(self, sidebar_text: str) -> bool:
-        """Cambia de vista **como si se hubiera pulsado su ítem**: activo y pintado.
+        """Cambia de vista como si se hubiera pulsado su ítem: activo y pintado.
 
-        Existe desde los estados vacíos de la fase 9: «Ir a Pendientes» tiene que
-        dejar la barra señalando Pendientes, no la pestaña de la que se venía.
-        Se busca por la etiqueta y no por la clase porque las etiquetas ya son la
-        clave de ``counter_providers`` y viven en cada vista, no aquí.
+        Se busca por la etiqueta y no por la clase porque las etiquetas ya son
+        la clave de ``counter_providers`` y viven en cada vista, no aquí.
 
-        :param sidebar_text: etiqueta del destino («Viendo», «Buscar»…).
-        :return: ``False`` si esa etiqueta no es ningún destino. No lanza: un
-            estado vacío no puede tumbar la aplicación por una cadena mal escrita.
+        :param sidebar_text: Etiqueta del destino («Viendo», «Buscar»…).
+        :return: False si esa etiqueta no es ningún destino; no lanza.
         """
         for item in self.__items:
             if item.destination.sidebar_text == sidebar_text:

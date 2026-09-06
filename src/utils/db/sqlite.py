@@ -18,11 +18,11 @@ from typing import Any, Dict, List, Optional, Tuple
 def sqlite_affinity(declared_type: str) -> str:
     """Devuelve la afinidad SQLite de un tipo declarado.
 
-    Implementa las 5 reglas de determinación de afinidad de SQLite
-    (https://sqlite.org/datatype3.html#determination_of_column_affinity).
-    Se usa para comparar esquemas: ``VARCHAR(100)`` y ``VARCHAR(200)`` tienen
-    la misma afinidad (TEXT) y por tanto son equivalentes, mientras que
-    ``INTEGER`` y ``VARCHAR(100)`` no lo son.
+    Se usa para comparar esquemas: VARCHAR(100) y VARCHAR(200) tienen la
+    misma afinidad (TEXT) y por tanto son equivalentes.
+
+    :param declared_type: Tipo tal y como aparece en la declaración de columna.
+    :return: Una de INTEGER, TEXT, BLOB, REAL o NUMERIC.
     """
     upper = (declared_type or "").upper()
     if "INT" in upper:
@@ -43,12 +43,10 @@ def sqlite_affinity(declared_type: str) -> str:
 class TableSchema:
     """Esquema declarativo de una tabla: la fuente de verdad en código.
 
-    ``fields`` es una lista ordenada de ``(columna, tipo_sqlite)``. El orden
-    importa: ``SqlUtils.query_sql`` empareja fila y campos **por posición**.
-
-    ``defaults`` permite fijar el valor por defecto (expresión SQL literal) de
-    columnas concretas; se aplica tanto al crear la tabla como al añadir una
-    columna nueva a una tabla ya existente.
+    fields es una lista ordenada de (columna, tipo_sqlite); el orden importa
+    porque SqlUtils.query_sql empareja fila y campos por posición. defaults
+    fija el valor por defecto de columnas concretas, tanto al crear la tabla
+    como al añadirle una columna nueva.
     """
     name:        str
     fields:      List[Tuple[str, str]]
@@ -83,11 +81,22 @@ class TableSchema:
 
 
 class SqlUtils:
+    """Capa mínima de acceso a SQLite: abre y cierra una conexión por operación.
+
+    Los errores se capturan y se imprimen, nunca se propagan; los métodos
+    devuelven bool (o una tupla con el resultado) en vez de lanzar.
+    """
 
     def __init__(self, path: str):
         self._path = path
 
     def insert_sql(self, sql: str, params: tuple) -> bool:
+        """Ejecuta un INSERT.
+
+        :param sql: Sentencia SQL parametrizada.
+        :param params: Valores para los placeholders de la sentencia.
+        :return: True si se ejecutó y confirmó correctamente.
+        """
         connection: Connection = None
         check: bool = False
         try:
@@ -104,6 +113,12 @@ class SqlUtils:
         return check
 
     def update_sql(self, sql: str, params: tuple) -> bool:
+        """Ejecuta un UPDATE.
+
+        :param sql: Sentencia SQL parametrizada.
+        :param params: Valores para los placeholders de la sentencia.
+        :return: True si se ejecutó y confirmó correctamente.
+        """
         connection: Connection = None
         check: bool = False
         try:
@@ -120,6 +135,16 @@ class SqlUtils:
         return check
 
     def query_sql(self, sql: str, params: tuple, list_field: list) -> (bool, list):
+        """Ejecuta un SELECT y mapea cada fila a un diccionario por posición de columna.
+
+        El orden de list_field debe coincidir con el de las columnas
+        devueltas: cada valor se asigna al nombre de campo en esa posición.
+
+        :param sql: Sentencia SQL parametrizada.
+        :param params: Valores para los placeholders de la sentencia.
+        :param list_field: Nombres de campo, en el mismo orden que las columnas devueltas.
+        :return: Tupla (éxito, lista de filas como diccionarios).
+        """
         connection: Connection = None
         check = [False, None]
         list_res: list = []
@@ -144,6 +169,11 @@ class SqlUtils:
         return check[0], check[1]
 
     def create_db(self, sql: str) -> bool:
+        """Ejecuta una sentencia DDL (p.ej. CREATE TABLE).
+
+        :param sql: Sentencia SQL a ejecutar.
+        :return: True si se ejecutó y confirmó correctamente.
+        """
         check = False
         connection: Connection = None
         try:
@@ -170,8 +200,8 @@ class SqlUtils:
         check: bool = False
         try:
             connection = sqlite3.connect(self._path)
-            # isolation_level=None desactivaría el manejo implícito; aquí
-            # dejamos que sqlite3 abra la transacción con el primer DML.
+            # Se deja el isolation_level por defecto de sqlite3: abre la
+            # transacción implícitamente con el primer DML, no con BEGIN.
             cursor = connection.cursor()
             cursor.execute("PRAGMA foreign_keys = OFF")
             cursor.execute("BEGIN")
@@ -225,11 +255,15 @@ class SqlUtils:
         return columns
 
     def get_conn(self) -> Connection:
+        """:return: Nueva conexión abierta a la base de datos."""
         return sqlite3.connect(self._path)
 
 
 class ServiceDB:
+    """Base de una base de datos SQLite propia: crea el fichero/carpeta y expone SqlUtils."""
+
     def __init__(self, db_path: str):
+        """:param db_path: Ruta del fichero .db a abrir o crear."""
         dir_path = os.path.dirname(db_path)
         if not os.path.exists(dir_path):
             os.makedirs(dir_path)
@@ -237,6 +271,14 @@ class ServiceDB:
         self._db = SqlUtils(self.path_db)
 
     def create_table(self, table_name: str, list_fields: list, list_fields_type: list, primary_key: str) -> bool:
+        """Crea una tabla si no existe, a partir de listas paralelas de columnas y tipos.
+
+        :param table_name: Nombre de la tabla.
+        :param list_fields: Nombres de columna.
+        :param list_fields_type: Tipo SQLite de cada columna, en el mismo orden.
+        :param primary_key: Columna que actúa como clave primaria.
+        :return: True si la tabla quedó creada.
+        """
         fields: list = list()
         for i in range(0, len(list_fields)):
             fields.append(f"{list_fields[i]} {list_fields_type[i]}")
@@ -253,18 +295,15 @@ class ServiceDB:
     # Migraciones de esquema
     # ------------------------------------------------------------------
     def validate_schema(self, schemas: List[TableSchema], backup: bool = True) -> bool:
-        """Compara el esquema físico de la BD con el declarado y lo corrige.
+        """Compara el esquema físico de la BD con el declarado y aplica la corrección mínima.
 
-        Para cada tabla de ``schemas`` decide la acción mínima necesaria:
+        Según la tabla: si no existe la crea; si solo faltan columnas al
+        final las añade con ALTER TABLE; cualquier otra diferencia
+        reconstruye la tabla en una transacción, copiando por nombre de columna.
 
-        - la tabla no existe            → ``CREATE TABLE``
-        - solo faltan columnas al final → ``ALTER TABLE ADD COLUMN`` (sin mover datos)
-        - cualquier otra diferencia     → reconstrucción de la tabla en una
-          transacción, copiando por **nombre de columna** los datos existentes
-
-        Se hace una copia de seguridad del fichero ``.db`` antes de la primera
-        modificación (salvo ``backup=False``). Devuelve ``True`` si al terminar
-        la BD concuerda con lo declarado.
+        :param schemas: Esquemas declarados a comprobar.
+        :param backup: Si es True, copia el fichero .db antes de la primera modificación.
+        :return: True si al terminar la BD concuerda con lo declarado.
         """
         if not schemas:
             return True
@@ -285,7 +324,6 @@ class ServiceDB:
             if not self.apply_table_migration(schema, diff):
                 all_ok = False
                 continue
-            # Verificación posterior: la tabla debe concordar ya con lo declarado.
             if self.diff_table(schema)["needs_migration"]:
                 print(f"La tabla {schema.name} sigue sin concordar con el esquema declarado")
                 all_ok = False
@@ -294,11 +332,8 @@ class ServiceDB:
     def diff_table(self, schema: TableSchema) -> Dict[str, Any]:
         """Compara una tabla física con su esquema declarado.
 
-        Devuelve un diccionario con las diferencias encontradas:
-        ``exists``, ``missing`` (columnas declaradas que no están),
-        ``extra`` (columnas en BD no declaradas), ``retyped`` (columnas cuya
-        afinidad no coincide), ``reordered`` (el orden físico no coincide) y
-        ``needs_migration``.
+        :param schema: Esquema declarado con el que comparar.
+        :return: Dict con exists, missing, extra, retyped, reordered y needs_migration.
         """
         current = self._db.get_table_columns(schema.name)
         if not current:
@@ -330,14 +365,18 @@ class ServiceDB:
         }
 
     def apply_table_migration(self, schema: TableSchema, diff: Dict[str, Any]) -> bool:
-        """Aplica la corrección mínima que resuelve el ``diff`` de una tabla."""
+        """Aplica la corrección mínima que resuelve el diff de una tabla.
+
+        :param schema: Esquema declarado de la tabla.
+        :param diff: Resultado de diff_table() para esa tabla.
+        :return: True si la migración se aplicó correctamente.
+        """
         if not diff["exists"]:
             print(f"Migración: la tabla {schema.name} no existe, se crea")
             return self._db.create_db(schema.create_sql())
 
-        # Caso barato: solo faltan columnas y las que hay están en orden. Al
-        # añadirlas SQLite las coloca al final, que es justo donde el esquema
-        # declarado las espera.
+        # Caso barato: solo faltan columnas al final, así que SQLite las coloca
+        # justo donde el esquema declarado las espera al añadirlas con ALTER TABLE.
         only_appends = (
             diff["missing"] and not diff["extra"]
             and not diff["retyped"] and not diff["reordered"]
@@ -359,13 +398,14 @@ class ServiceDB:
     def __rebuild_table(self, schema: TableSchema, diff: Dict[str, Any]) -> bool:
         """Reconstruye una tabla con el esquema declarado, conservando los datos.
 
-        Crea una tabla temporal con el esquema correcto, copia los datos
-        emparejando **por nombre de columna** (no por posición), borra la
-        original y renombra. Todo en una transacción.
+        Copia los datos a una tabla temporal emparejando por nombre de
+        columna (no por posición), borra la original y renombra, todo en una
+        transacción. Las columnas no declaradas en el esquema se pierden
+        (quedan en la copia de seguridad).
 
-        Las columnas presentes en la BD pero no declaradas en el esquema **se
-        pierden en la tabla resultante** (siguen en la copia de seguridad); se
-        avisa por consola.
+        :param schema: Esquema declarado de la tabla.
+        :param diff: Resultado de diff_table() para esa tabla.
+        :return: True si la reconstrucción se completó.
         """
         reasons = []
         if diff["missing"]:   reasons.append(f"faltan columnas {diff['missing']}")
@@ -394,7 +434,7 @@ class ServiceDB:
         ])
 
     def backup_db(self) -> bool:
-        """Copia el fichero ``.db`` a ``backups/<nombre>_<timestamp>.db``."""
+        """:return: True si el fichero .db se copió a backups/<nombre>_<timestamp>.db."""
         try:
             backups_dir = os.path.join(os.path.dirname(self.path_db), "backups")
             os.makedirs(backups_dir, exist_ok=True)
@@ -418,14 +458,21 @@ class ServiceDB:
 
     @staticmethod
     def validate_record(list_fields: list, record: dict) -> bool:
+        """:return: True si todas las claves de record son columnas de list_fields."""
         if not all(item in list_fields for item in list(record.keys())):
             return False
         else:
             return True
 
     def insert_record_db(self, table_name: str, list_fields: list, record: dict) -> (bool, int):
-        """
-        Método abstracto para insertar un registro en la DB
+        """Inserta un registro genérico, validando que sus claves sean columnas conocidas.
+
+        El valor literal "NULL" se inserta como NULL SQL; el resto se parametriza.
+
+        :param table_name: Tabla destino.
+        :param list_fields: Columnas válidas para esta tabla.
+        :param record: Valores a insertar, indexados por nombre de columna.
+        :return: Si la validación falla, (False, 0); si no, el resultado de insert_sql.
         """
         if not self.validate_record(list_fields, record):
             print(f"Parámetros de entrada en el insert de {table_name} no son correctos")

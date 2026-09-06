@@ -6,33 +6,16 @@ __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __
 
 """Estado vacío de una vista: icono, una frase y una acción.
 
-Sustituye al ``CTkLabel`` suelto que cada vista pintaba por su cuenta. Aparte de
-unificar el aspecto, resuelve lo que le faltaba a aquellos mensajes: se quedaban
-en describir el hueco («Todavía no tienes favoritos») sin ofrecer la salida, así
-que la única forma de llenar la pestaña era adivinar por dónde se empieza.
+Un estado vacío no debe confundir causas: una biblioteca vacía se llena usando
+la aplicación, pero un proveedor que no ha respondido no se arregla marcando
+animes — de ahí que cada causa tenga su propio texto, icono y acción («reintentar»
+en vez de «marca algo»). Tampoco debe prometer una salida que no existe: si una
+búsqueda sale vacía es que ningún proveedor lo tiene, ya que el fallback los
+prueba todos, así que «Buscar» solo propone soltar lo que estreche la consulta.
 
-🔴 **Un estado vacío no puede mentir sobre su causa.** No es lo mismo una
-biblioteca vacía —que es normal y se llena usando la aplicación— que un proveedor
-que no ha respondido, que no es culpa de nadie y no se arregla marcando animes.
-De ahí que la portada tenga su propio texto y su propio icono, y que su acción
-sea **reintentar** y no «ve a marcar algo».
-
-⚠️ **Y tampoco puede prometer una salida que no existe.** «Prueba con otro
-proveedor» sería lo natural cuando una búsqueda no devuelve nada, pero en esta
-aplicación el gestor de proveedores **ya los ha probado todos**:
-``call_with_fallback()`` recorre el resto del registro cuando el elegido falla *o
-devuelve vacío*. Si la rejilla sale vacía es que ninguno lo tiene, y un botón que
-repite lo que la aplicación acaba de hacer sola es peor que ningún botón. Por eso
-«Buscar» propone lo único que sí cambia el resultado: soltar lo que estreche la
-consulta.
-
-El icono se dibuja con PIL en tiempo de ejecución, como las estrellas de la
-calificación, el pin del proveedor y los glifos de ``StatusPill``: no depende de
-que el sistema tenga una fuente concreta, sale exacto a cualquier tamaño y
-—a diferencia de los iconos de la barra lateral— **es nuestro**, así que no
-arrastra la deuda B11. Las cuatro vistas de biblioteca no necesitan dibujo nuevo:
-reutilizan el glifo de su propio estado (``StatusPill.icon()``), que es además el
-que ya llevan sus sellos.
+El icono se dibuja con PIL en tiempo de ejecución, como el resto de glifos de la
+interfaz; las cuatro vistas de biblioteca reutilizan el de su propio estado
+(``StatusPill.icon()``) en vez de dibujar uno nuevo.
 """
 
 from typing import Callable, Dict, Optional, Tuple
@@ -146,20 +129,7 @@ def _draw(draw_glyph: Callable[[ImageDraw.ImageDraw, float, str], None],
 class EmptyState(ctk.CTkFrame):
     """El hueco de una vista, explicado y con una salida.
 
-    Uso típico desde una vista::
-
-        empty = EmptyState(
-            content,
-            "No tienes nada en la cola",
-            icon=StatusPill.icon(AnimeStatus.PENDING, ICON_SIZE, Theme.TXT_3, gap=0),
-            hint="Marca un anime como «Pendiente» desde su ficha y aparecerá aquí.",
-            action_text="Buscar un anime",
-            on_action=lambda: main_window.navigate_to("Buscar")
-        )
-        empty.grid(row=1, column=0, pady=(60, 0))
-
-    Se coloca centrado porque la columna 0 del ``content_frame`` lleva peso, que
-    es como iba el ``CTkLabel`` al que sustituye.
+    Se coloca centrado porque la columna 0 del ``content_frame`` lleva peso.
     """
 
     #: Alto del botón de acción. Es el de un control de una línea, no el de los
@@ -172,15 +142,13 @@ class EmptyState(ctk.CTkFrame):
                  action_text: Optional[str] = None,
                  on_action: Optional[Callable[[], None]] = None,
                  **kwargs):
-        """
-        :param message: la frase. Dice **qué** pasa, en una línea.
-        :param icon: icono ya construido, de ``glyph()`` o de ``StatusPill.icon()``.
-            ``None`` lo omite.
-        :param hint: línea de apoyo opcional, en ``TXT_3``. Dice **por qué** pasa
-            o **cómo** se llena el hueco.
-        :param action_text: texto del botón. Sin él —o sin ``on_action``— no hay
-            botón: es preferible a uno que no lleve a ninguna parte.
-        :param on_action: qué hace el botón.
+        """Construye el estado vacío.
+
+        :param message: La frase principal; dice qué pasa, en una línea.
+        :param icon: Icono ya construido, de glyph() o de StatusPill.icon(); None lo omite.
+        :param hint: Línea de apoyo opcional; dice por qué pasa o cómo se llena el hueco.
+        :param action_text: Texto del botón. Sin él, o sin on_action, no hay botón.
+        :param on_action: Qué hace el botón.
         """
         super().__init__(parent, corner_radius=0, fg_color=Theme.TRANSPARENT, **kwargs)
         self.grid_columnconfigure(0, weight=1)

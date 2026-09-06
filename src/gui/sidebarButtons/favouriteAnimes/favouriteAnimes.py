@@ -6,25 +6,17 @@ __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __
 
 """«Favoritos»: rejilla de cinco con la calificación personal debajo de cada título.
 
-Rejilla y no cascada porque a favoritos se entra **a mirar**, y la carátula es
-media razón por la que un anime está aquí: el póster es de 216 x 324, el más
-grande de las tres rejillas (`DISENO.md` §3 y §6).
+Rejilla y no cascada porque a favoritos se entra a mirar, con el póster más
+grande de las tres rejillas. La calificación (estrellas con medios puntos) se
+guarda en la columna rating de ANIMES y se puede ordenar por ella.
 
-Lo que estrena la pestaña es la **calificación personal** (`DISENO.md` §7): cinco
-estrellas con medios puntos que se guardan en la columna `rating` de `ANIMES`, y
-un orden por ellas que se recuerda entre sesiones. Dos reglas que no son obvias:
+Sin calificar no es cero: esas filas van al final del orden por calificación,
+nunca las primeras. Y calificar no reordena la rejilla al vuelo: el orden se
+aplica al pintar la vista o al cambiar el criterio, no en cada clic.
 
-- **Sin calificar no es cero.** Las filas sin calificación van **al final** del
-  orden por calificación, nunca las primeras; y ordenar por ellas no las mueve al
-  mismo sitio que un anime al que le has puesto media estrella.
-- **Calificar no reordena la rejilla.** La celda se actualiza sola y el anime se
-  queda donde estaba: si la lista se recolocara bajo el cursor, la segunda
-  estrella se pulsaría sobre otro anime. El orden se aplica al pintar la vista y
-  al cambiar el criterio, no en cada clic.
-
-Todo lo que se ve sale de la biblioteca guardada, así que la pestaña **funciona
-sin conexión**. Solo salen a la red la búsqueda del proveedor —que se **suma** a
-la local— y abrir una ficha.
+Todo sale de la biblioteca guardada, así que la pestaña funciona sin conexión;
+solo salen a la red la búsqueda del proveedor (que se suma a la local) y abrir
+una ficha.
 """
 
 import os
@@ -47,9 +39,8 @@ from gui.theme import Metrics, Theme
 from utils.buttons import utilsButtons
 from utils.utils import find_cached_poster_path
 
-#: Texto de cada criterio de orden en el desplegable. La **clave** es lo que se
-#: persiste (`UserSettingKey.FAVOURITES_ORDER`) y el valor lo que se lee: así
-#: renombrar una opción no invalida la preferencia guardada.
+#: Texto de cada criterio de orden en el desplegable. La clave es lo que se
+#: persiste; así renombrar una opción no invalida la preferencia guardada.
 ORDER_LABELS: Dict[str, str] = {
     UserPersistence.FAVOURITES_ORDER_RATING: "Mi calificación",
     UserPersistence.FAVOURITES_ORDER_TITLE:  "Título (A-Z)",
@@ -59,10 +50,8 @@ ORDER_LABELS: Dict[str, str] = {
 class FavouritesButton(utilsButtons.SidebarButton):
     """La estantería de lo que más te gusta, ordenada por lo que tú le has puesto."""
 
-    #: Filas por página. El tamaño de página **no es un número fijo**: sale de
-    #: multiplicar esto por las columnas que quepan, así que una página es siempre
-    #: dos filas llenas (`DISENO.md` §6). A 1440 son los 10 de siempre; con la
-    #: ventana maximizada, 12.
+    #: Filas por página. El tamaño de página sale de multiplicar esto por las
+    #: columnas que quepan, así que una página es siempre dos filas llenas.
     ROWS_PER_PAGE: int = 2
 
     def __init__(self, main_window, icon_path, row, column):
@@ -75,13 +64,13 @@ class FavouritesButton(utilsButtons.SidebarButton):
         self.__poster_grid: Optional[PosterGrid] = None
         self.__pager: Optional[Pager] = None
         self.__message_label: Optional[ctk.CTkLabel] = None
-        #: Última lista recibida, **sin ordenar**: cambiar el orden reordena lo
-        #: que hay en pantalla sin deshacer la búsqueda.
+        #: Última lista recibida, sin ordenar: cambiar el orden reordena lo que
+        #: hay en pantalla sin deshacer la búsqueda.
         self.__displayed_animes: List[AnimeRecord] = []
         #: Esa misma lista ya ordenada. Es de donde corta el paginador, así que
         #: página y orden no pueden discrepar.
         self.__sorted_animes: List[AnimeRecord] = []
-        #: Criterio elegido. Éste **sí** se persiste (`DISENO.md` §8).
+        #: Criterio elegido; se persiste entre sesiones.
         self.__order: str = UserPersistence.FAVOURITES_ORDER_RATING
         # Buscador de la pestaña: coincidencias locales al instante, completadas
         # después con lo que encuentre el proveedor seleccionado.
@@ -98,9 +87,6 @@ class FavouritesButton(utilsButtons.SidebarButton):
 
     def show_favourite_animes(self):
         self.main_window.clear_frame()
-        # Sin `time.sleep(0.1)`: solo existía para que `winfo_width()` devolviera
-        # algo distinto de 1, porque de ahí salía el número de columnas. Ahora
-        # son cinco fijas y no se mide nada.
         self.__show_browser()
 
     # ------------------------------------------------------------------
@@ -134,7 +120,7 @@ class FavouritesButton(utilsButtons.SidebarButton):
                                         extra_builder=self.__build_rating,
                                         on_columns_changed=self.__on_columns_changed)
         # sticky="ew" y no "w": es lo que da a la rejilla el ancho de la ventana
-        # para que decida cuántas columnas caben (`poster_grid.py`).
+        # para que decida cuántas columnas caben.
         self.__poster_grid.grid(row=1, column=0, sticky="ew", padx=(PosterGrid.OUTER_PAD_X, 0))
 
         # Mensaje de «la búsqueda no encontró nada». Nace escondido: aparece y
@@ -233,15 +219,14 @@ class FavouritesButton(utilsButtons.SidebarButton):
         self.__display_animes(self.__displayed_animes)
 
     def __sort_animes(self, favourite_animes: List[AnimeRecord]) -> List[AnimeRecord]:
-        """Aplica el criterio elegido.
+        """Ordena por el criterio elegido.
 
-        ⚠️ **Sin calificar no es cero**: una fila con ``rating`` a ``None`` va al
-        final, detrás incluso de la que tiene media estrella. Poner lo que no has
-        valorado a la cabeza de «Mi calificación» sería justo lo contrario de lo
-        que se pide.
+        Sin calificar no es cero: una fila con rating a None va al final,
+        detrás incluso de la que tiene media estrella. A igualdad de
+        calificación desempata el título.
 
-        A igualdad de calificación desempata el título, para que dos repintados
-        seguidos den siempre el mismo orden.
+        :param favourite_animes: Favoritos a ordenar.
+        :return: Lista ordenada.
         """
         by_title = lambda record: AnimeProviderManager.normalize_title(record.title)
         if self.__order == UserPersistence.FAVOURITES_ORDER_TITLE:
@@ -298,18 +283,12 @@ class FavouritesButton(utilsButtons.SidebarButton):
 
     def __poster_item(self, anime_record: AnimeRecord) -> PosterItem:
         """Traduce una fila de la biblioteca a una celda de la rejilla."""
-        # El sello dice qué **más** es este anime: aquí todos son favoritos, y
-        # repetirlo en las diez celdas sería el dato duplicado que prohíbe
-        # `DISENO.md` §6. Que además lo estés viendo, no.
+        # El sello dice qué más es este anime aparte de favorito, para no
+        # repetir el mismo dato en las diez celdas.
         status = StatusPill.other_status(anime_record)
-        # ⚠️ El sello va con los colores **por defecto** de `PosterGrid` —fondo
-        # oscuro opaco y texto blanco, con el color del estado solo en el glifo—
-        # y no con el par pastel de la píldora, que es lo que hacía esta vista
-        # hasta el paso 9.2. Un `FAV_BG` —que es un rosa muy claro— sobre una
-        # carátula blanca no
-        # se lee, y desde la fase 6 el sello está además en la esquina más
-        # brillante del póster. Es la misma decisión que ya tomaron Finalizados y
-        # Buscar; aquí solo faltaba aplicarla.
+        # Colores por defecto de PosterGrid (fondo oscuro opaco, texto blanco,
+        # color del estado solo en el glifo): el par pastel de la píldora no se
+        # lee bien sobre una carátula clara.
         return PosterItem(
             key=anime_record.anime_id,
             title=anime_record.title,
@@ -362,7 +341,5 @@ class FavouritesButton(utilsButtons.SidebarButton):
         self.__search.search(search_entry.get())
 
     def __on_anime_click(self, anime_id: Union[str, int]):
-        # Es un anime de la biblioteca: el proveedor sale de su fila y la petición
-        # va en un hilo aparte. Ambas cosas viven en open_saved_anime() porque las
-        # cuatro vistas de estado hacen exactamente esto mismo.
+        """Abre la ficha de un favorito por el proveedor de su fila."""
         open_saved_anime(self.main_window, anime_id)
