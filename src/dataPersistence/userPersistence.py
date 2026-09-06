@@ -1,7 +1,7 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "DataPersistence"
 __module__ = "userPersistence.py"
-__version__ = "0.2"
+__version__ = "0.3"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 import os
@@ -45,6 +45,13 @@ class UserSettingKey(Enum):
     """
     #: PROVIDER_ID del proveedor de anime predeterminado ("animeav1", "animeflv"...).
     DEFAULT_ANIME_PROVIDER = "default_anime_provider"
+    #: Barra lateral plegada ("1") o desplegada ("0").
+    SIDEBAR_COLLAPSED = "sidebar_collapsed"
+    #: Los últimos animes cuyos episodios se han marcado como vistos, separados
+    #: por comas y el más reciente primero.
+    LAST_WATCHED_ANIME_IDS = "last_watched_anime_ids"
+    #: Criterio de orden de la pestaña «Favoritos»: "rating" o "title".
+    FAVOURITES_ORDER = "favourites_order"
     # Reservada para cuando se integren los mangas:
     # DEFAULT_MANGA_PROVIDER = "default_manga_provider"
 
@@ -78,6 +85,16 @@ class UserPersistence(ServiceDB):
     FIELDS      = [f.column   for f in UserSettingField]
     FIELD_TYPES = [f.sql_type for f in UserSettingField]
     PRIMARY_KEY = UserSettingField.SETTING_KEY.column
+
+    #: Cuántos animes recuerda la banda «Retomar donde lo dejaste».
+    MAX_LAST_WATCHED = 3
+
+    #: Valores admitidos para FAVOURITES_ORDER. Son los que se **persisten**; el
+    #: texto que se lee en el desplegable vive en la vista, porque es de la
+    #: interfaz y puede cambiar sin invalidar lo guardado.
+    FAVOURITES_ORDER_RATING = "rating"
+    FAVOURITES_ORDER_TITLE  = "title"
+    FAVOURITES_ORDERS = (FAVOURITES_ORDER_RATING, FAVOURITES_ORDER_TITLE)
 
     # Esquema declarado de la BD: **la fuente de verdad**. Toda tabla de
     # DB_user.db debe figurar aquí; validate_db_integrity() la creará o la
@@ -213,6 +230,78 @@ class UserPersistence(ServiceDB):
         GUI interpreta como «usar el predeterminado del registro».
         """
         return self.set_setting(UserSettingKey.DEFAULT_ANIME_PROVIDER, provider_id)
+
+    def get_sidebar_collapsed(self) -> bool:
+        """Devuelve si la barra lateral quedó plegada la última vez.
+
+        Sin preferencia guardada —o con la BD no disponible— devuelve ``False``:
+        desplegada es el estado que enseña qué hace cada icono, así que es el
+        que menos sorprende a quien abre la aplicación por primera vez.
+        """
+        return self.get_setting(UserSettingKey.SIDEBAR_COLLAPSED, "0") == "1"
+
+    def set_sidebar_collapsed(self, collapsed: bool) -> bool:
+        """Guarda si la barra lateral queda plegada.
+
+        Se persiste como ``"1"`` / ``"0"`` y no como ``"True"`` / ``"False"``:
+        la columna es TEXT y conviene que el valor sobreviva a leerlo desde
+        cualquier sitio sin depender del ``repr`` de Python.
+        """
+        return self.set_setting(UserSettingKey.SIDEBAR_COLLAPSED, "1" if collapsed else "0")
+
+    def get_last_watched_ids(self) -> List[str]:
+        """Devuelve los últimos animes vistos, del más reciente al más antiguo.
+
+        Son ``anime_id`` de la tabla ``ANIMES``, es decir, el *slug* del proveedor
+        que guardó cada fila. Puede contener animes que ya no estén en la
+        biblioteca (el usuario los quitó después de verlos): quien los pinte debe
+        tolerar que ``get_anime_by_anime_id()`` devuelva ``None``.
+        """
+        raw = self.get_setting(UserSettingKey.LAST_WATCHED_ANIME_IDS, "")
+        if not raw:
+            return []
+        # Los slugs no llevan comas, así que la coma vale de separador sin
+        # necesidad de JSON. El filtro descarta cadenas vacías por si la
+        # preferencia quedó con comas de más.
+        return [anime_id for anime_id in (part.strip() for part in raw.split(",")) if anime_id]
+
+    def push_last_watched_id(self, anime_id: str) -> bool:
+        """Pone un anime el primero de la lista de «últimos vistos».
+
+        Si ya estaba, **sube** en vez de duplicarse; la lista se recorta a
+        ``MAX_LAST_WATCHED``. Se llama al marcar un episodio como visto, así que
+        pasa muchas veces con el mismo identificador: si el anime ya era el
+        primero no se escribe nada en la BD.
+        """
+        anime_id = str(anime_id)
+        current = self.get_last_watched_ids()
+        if current[:1] == [anime_id]:
+            return True
+        updated = [anime_id] + [saved for saved in current if saved != anime_id]
+        return self.set_setting(
+            UserSettingKey.LAST_WATCHED_ANIME_IDS,
+            ",".join(updated[:self.MAX_LAST_WATCHED])
+        )
+
+    def get_favourites_order(self) -> str:
+        """Devuelve el criterio de orden de «Favoritos»: ``"rating"`` o ``"title"``.
+
+        Por defecto ``"rating"``. Un valor guardado que no se reconozca se
+        trata como si no hubiera preferencia.
+
+        :return: Criterio de orden guardado, o ``FAVOURITES_ORDER_RATING`` por defecto.
+        """
+        value = self.get_setting(UserSettingKey.FAVOURITES_ORDER, self.FAVOURITES_ORDER_RATING)
+        if value not in self.FAVOURITES_ORDERS:
+            return self.FAVOURITES_ORDER_RATING
+        return value
+
+    def set_favourites_order(self, order: str) -> bool:
+        """Guarda el criterio de orden de «Favoritos». Ignora valores desconocidos."""
+        if order not in self.FAVOURITES_ORDERS:
+            print(f"Criterio de orden de favoritos desconocido: {order!r}")
+            return False
+        return self.set_setting(UserSettingKey.FAVOURITES_ORDER, order)
 
     # ------------------------------------------------------------------
     # Métodos privados de apoyo
