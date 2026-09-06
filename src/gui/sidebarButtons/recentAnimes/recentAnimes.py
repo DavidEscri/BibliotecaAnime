@@ -31,10 +31,8 @@ class RecentAnimeButton(utilsButtons.SidebarButton):
     decide qué datos van en cada una.
     """
 
-    #: Filas por página. El tamaño de página **no es un número fijo**: sale de
-    #: multiplicar esto por las columnas que quepan, así que una página es siempre
-    #: dos filas llenas y nunca una llena y otra coja (`DISENO.md` §6). A 1440 son
-    #: los 12 de siempre; con la ventana maximizada, 16.
+    #: Filas por página. El tamaño de página sale de multiplicar esto por las
+    #: columnas que quepan, así que una página es siempre dos filas llenas.
     ROWS_PER_PAGE = 2
 
     def __init__(self, main_window, icon_path: str, row: int, column: int):
@@ -47,7 +45,7 @@ class RecentAnimeButton(utilsButtons.SidebarButton):
         self.__pager: Pager | None = None
 
     def show_frame(self):
-        # Mostrar el sidebar ahora que ha terminado la descarga
+        """Revela la barra lateral (oculta durante la carga) y pinta esta vista."""
         self.main_window.sidebar_frame.grid(row=0, column=0, rowspan=8, sticky="nsew")
 
         self.main_window.clear_frame()
@@ -58,10 +56,6 @@ class RecentAnimeButton(utilsButtons.SidebarButton):
     # ------------------------------------------------------------------
     def __show_animes_recientes(self):
         self.main_window.clear_frame()
-        # Ya no hace falta el time.sleep(0.1) que llevaba aquí desde siempre: solo
-        # estaba para dejar que Tk mapeara el frame y `winfo_width()` devolviera
-        # algo distinto de 1, porque el número de columnas se calculaba de ahí.
-        # Ahora son seis fijas y no se mide nada.
         content = self.main_window.content_frame
         content.grid_columnconfigure(0, weight=1)
 
@@ -70,10 +64,8 @@ class RecentAnimeButton(utilsButtons.SidebarButton):
 
         recent_animes = self.main_window.recent_animes
         if not recent_animes:
-            # ⚠️ Aquí el hueco **no** significa «no tienes nada»: el catálogo no es
-            # del usuario. Si esta lista sale vacía es que ningún proveedor ha
-            # respondido, así que el texto habla de la red y la salida es
-            # reintentar, no ir a marcar animes (`fases/9-cohesion.md`, paso 9.1).
+            # El hueco no significa "no tienes nada": el catálogo no es del
+            # usuario, así que una lista vacía es que ningún proveedor respondió.
             empty_state = EmptyState(
                 content,
                 "No se han podido cargar los estrenos",
@@ -97,7 +89,7 @@ class RecentAnimeButton(utilsButtons.SidebarButton):
                                         on_click=self.__on_anime_click,
                                         on_columns_changed=self.__on_columns_changed)
         # sticky="ew" y no "w": es lo que da a la rejilla el ancho de la ventana
-        # para que decida cuántas columnas caben (`poster_grid.py`).
+        # para que decida cuántas columnas caben.
         self.__poster_grid.grid(row=2, column=0, sticky="ew", padx=(PosterGrid.OUTER_PAD_X, 0))
 
         self.__pager = Pager(content, page_size=self.__poster_grid.columns * self.ROWS_PER_PAGE,
@@ -135,17 +127,14 @@ class RecentAnimeButton(utilsButtons.SidebarButton):
     # Refresco de la banda «Retomar»
     # ------------------------------------------------------------------
     def __refresh_resume_episodes(self, resume_band: ResumeBand, anime_records: List[AnimeRecord]) -> None:
-        """Vuelve a preguntar por los episodios de lo que hay en la banda.
+        """Vuelve a preguntar por los episodios de lo que hay en la banda «Retomar».
 
-        La columna ``episodes`` de una fila solo se reescribía al abrir su ficha
-        (`anime_window.py`, ``__load_anime_status()``), así que un anime **en
-        emisión** mentía en la portada hasta que entrabas en él: el episodio que
-        salió el domingo no existía todavía para la biblioteca, y la tarjeta decía
-        «lo has visto entero» estando a uno de distancia.
+        Sin esto, un anime en emisión seguiría mostrando el recuento de
+        episodios del día que se abrió su ficha por última vez. Se hace al
+        entrar en la portada, en un hilo aparte, para no retrasar el arranque.
 
-        Se pregunta **al entrar en la portada**, no al arrancar: es donde se ve el
-        dato, cuesta como mucho tres peticiones y no retrasa el arranque porque va
-        en un hilo aparte.
+        :param resume_band: Banda a repintar si cambia algún recuento.
+        :param anime_records: Filas de la banda a comprobar.
         """
         if not anime_records:
             return
@@ -215,14 +204,12 @@ class RecentAnimeButton(utilsButtons.SidebarButton):
     # Navegación
     # ------------------------------------------------------------------
     def __on_saved_anime_click(self, anime_id: Union[str, int]):
-        # Las tarjetas de «Retomar» son animes de la biblioteca: el proveedor sale
-        # de su fila y la petición va en un hilo aparte, igual que en las cuatro
-        # vistas de estado.
+        """Abre la ficha de un anime de la banda «Retomar» por su proveedor de fila."""
         open_saved_anime(self.main_window, anime_id)
 
     def __on_anime_click(self, anime_id: Union[str, int]):
+        """Abre la ficha de un anime del catálogo, completando sus datos si faltan."""
         index = next(idx for idx, recent_anime in enumerate(self.main_window.recent_animes) if recent_anime.id == anime_id)
-        # Reemplazar el anime en la lista
         anime_clicked = self.main_window.recent_animes[index]
         if anime_clicked.synopsis is None or anime_clicked.genres is None or anime_clicked.episodes is None:
             self.main_window.configure(cursor="watch")
@@ -231,10 +218,9 @@ class RecentAnimeButton(utilsButtons.SidebarButton):
             def _show(anime_info, provider_id):
                 if not self.main_window.winfo_exists():
                     return
-                # Restaurar el cursor antes de cualquier salida, incluida la de error.
                 self.main_window.configure(cursor="")
                 if anime_info is None:
-                    # No se puede caer de vuelta a `anime_clicked`: su falta de episodios/sinopsis es justo lo que nos ha traído hasta aquí.
+                    # No se cae de vuelta a anime_clicked: su falta de datos es justo lo que trajo hasta aquí.
                     show_anime_info_error(anime_id)
                     return
                 self.main_window.recent_animes[index] = anime_info
@@ -242,11 +228,9 @@ class RecentAnimeButton(utilsButtons.SidebarButton):
                 anime_viewer.display_anime_info()
 
             def _load_and_show():
-                # La ficha necesita saber quién sirvió los datos  para pedir los servidores de vídeo al sitio correcto.
                 anime_info, provider_id = self.anime_provider_mgr.get_anime_info_with_provider(anime_id, provider_id=anime_clicked.provider_id)
                 self.main_window.after(0, _show, anime_info, provider_id)
 
-            # Ejecutar en hilo secundario para no congelar la UI durante la petición HTTP
             threading.Thread(
                 target=_load_and_show,
                 daemon=True

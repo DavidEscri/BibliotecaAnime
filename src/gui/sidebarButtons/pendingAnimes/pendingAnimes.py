@@ -6,21 +6,14 @@ __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __
 
 """«Pendientes»: la cola de lo que todavía no has empezado.
 
-Es la misma cascada que «Viendo» con dos diferencias, y las dos vienen de que
-aquí no hay progreso que enseñar (`DISENO.md` §3 y §7):
+Es la misma cascada que «Viendo», sin progreso que enseñar: la fila es más
+baja y sin barra de progreso, con «N episodios · Proveedor» en su lugar. La
+cabecera lleva orden por duración, y la fila una acción «Empezar» que mueve
+el anime a «Viendo» y abre su ficha por el primer episodio.
 
-- la fila es más baja —póster 56 x 80, 113 px— y **sin barra de progreso**; el
-  hueco que deja lo ocupa «N episodios · Proveedor», que es el dato con el que
-  se elige: siete animes de 12 episodios no son lo mismo que uno de 55;
-- la cabecera lleva un **orden por duración**, y la fila una acción «Empezar»
-  que mueve el anime a «Viendo» y abre su ficha **por el primer episodio**, en
-  orden ascendente y con los servidores ya desplegados: de la cola a elegir
-  servidor en un solo clic.
-
-Todo lo que se pinta sale de la biblioteca guardada: la vista **funciona sin
-conexión**. Solo salen a la red la búsqueda del proveedor —que se **suma** a la
-local y nunca quita resultados—, abrir una ficha y cachear el póster tras
-«Empezar».
+Todo lo que se pinta sale de la biblioteca guardada: la vista funciona sin
+conexión. Solo salen a la red la búsqueda del proveedor (que se suma a la
+local), abrir una ficha y cachear el póster tras «Empezar».
 """
 
 import os
@@ -59,9 +52,8 @@ class PendingAnimeButton(utilsButtons.SidebarButton):
     TITLE_W: int = 660
 
     def __init__(self, main_window, icon_path, row, column):
-        # Mismo caso que en «Viendo»: `pendientes_light/dark.png` son los dos de
-        # tinta negra, así que no sirven como par (claro, oscuro). Ver el comentario
-        # de watchingAnimes.py.
+        # pendientes_light/dark.png son los dos de tinta negra, así que no sirven
+        # como par (claro, oscuro); se usa el icono único, que es bicolor.
         icon_path_light = icon_path_dark = os.path.join(icon_path, "pendientes.png")
         super().__init__(main_window.sidebar_frame, "Pendientes", row, column, self.show_pending_animes, icon_path_light, icon_path_dark)
 
@@ -69,8 +61,7 @@ class PendingAnimeButton(utilsButtons.SidebarButton):
         self.anime_provider_mgr: AnimeProviderManager = AnimeProviderManagerSingleton()
         self.animes_persistence: AnimesPersistence = AnimesPersistenceSingleton()
         self.__list_frame: Optional[ctk.CTkFrame] = None
-        #: Orden elegido en la cabecera. Vive en memoria a propósito: no está
-        #: entre las preferencias que `DISENO.md` §8 manda persistir.
+        #: Orden elegido en la cabecera. Vive en memoria a propósito: no se persiste.
         self.__order: str = ORDER_SHORTEST
         #: Última lista pintada, sin ordenar. Hace falta para que cambiar el
         #: orden reordene **lo que hay en pantalla** y no deshaga la búsqueda.
@@ -90,9 +81,6 @@ class PendingAnimeButton(utilsButtons.SidebarButton):
 
     def show_pending_animes(self):
         self.main_window.clear_frame()
-        # Sin `time.sleep(0.1)`: solo existía para que `winfo_width()` devolviera
-        # algo distinto de 1, porque de ahí salía el número de columnas de la
-        # rejilla. Esta vista es una lista; no se mide nada.
         self.__show_browser()
 
     # ------------------------------------------------------------------
@@ -226,12 +214,13 @@ class PendingAnimeButton(utilsButtons.SidebarButton):
         self.__display_animes(self.__displayed_animes)
 
     def __sort_animes(self, pending_animes: List[AnimeRecord]) -> List[AnimeRecord]:
-        """Aplica el criterio elegido en la cabecera.
+        """Ordena por el criterio elegido en la cabecera.
 
-        ⚠️ Una fila **sin lista de episodios** (guardada sin llegar a abrir su
-        ficha) no es «corta»: es desconocida. Va al final en los dos sentidos de
-        la duración, porque encabezar «más cortos primero» con lo que no se sabe
-        cuánto dura es justo lo contrario de lo que se ha pedido.
+        Una fila sin lista de episodios no es "corta", es desconocida: va al
+        final en los dos sentidos de la duración.
+
+        :param pending_animes: Pendientes a ordenar.
+        :return: Lista ordenada.
         """
         if self.__order == ORDER_TITLE:
             return sorted(pending_animes, key=lambda record: AnimeProviderManager.normalize_title(record.title))
@@ -290,18 +279,13 @@ class PendingAnimeButton(utilsButtons.SidebarButton):
         self.__search.search(search_entry.get())
 
     def __on_start_watching(self, anime_record: AnimeRecord):
-        """«Empezar»: saca el anime de la cola y lo abre.
+        """«Empezar»: mueve el anime a «Viendo» y abre su ficha por el primer episodio.
 
-        Encadena lo que ya existía, en este orden y no en otro: primero la BD
-        —``update_anime_to_watching`` apaga finalizado y pendiente él solo—,
-        luego los contadores, y la ficha al final, que es lo que cambia de vista,
-        y que se abre **por el primer episodio**: en orden ascendente y con sus
-        servidores desplegados, que es a lo que se le da a «Empezar».
+        El AnimeInfo se construye desde la fila guardada, no desde datos del
+        proveedor: su anime_id es el slug del sitio que la guardó, y usar otro
+        insertaría una fila nueva en vez de mover ésta.
 
-        ⚠️ El ``AnimeInfo`` se construye desde la **fila guardada**
-        ([trampa 21](.claude/docs/10-invariantes-y-trampas.md)): su ``anime_id``
-        es el slug del proveedor que la guardó, y persistir con otro insertaría
-        una fila nueva en vez de mover ésta.
+        :param anime_record: Fila a mover de pendientes a viendo.
         """
         anime_info = AnimeInfo(
             id=anime_record.anime_id,
@@ -318,11 +302,10 @@ class PendingAnimeButton(utilsButtons.SidebarButton):
 
         self.__cache_poster_async(anime_info)
         self.__refresh_library_counts()
-        # El episodio sale de `resume_progress()` y no de un 1 a pelo: en un
-        # pendiente sin nada visto son lo mismo, pero si el anime volvió a la cola
-        # a medias, «empezar» es seguir por donde se dejó, no repetir el piloto.
-        # `force_ascending` es lo que garantiza que detrás vayan el 2 y el 3 aunque
-        # el proveedor sirva la lista al revés.
+        # El episodio sale de resume_progress() y no de un 1 fijo: si el anime
+        # volvió a la cola a medias, "empezar" sigue por donde se dejó.
+        # force_ascending garantiza que detrás vayan el 2 y el 3 aunque el
+        # proveedor sirva la lista al revés.
         next_episode, _episodes, _fraction = resume_progress(anime_record)
         open_saved_anime(self.main_window, anime_record.anime_id,
                          focus_episode=next_episode, force_ascending=True)
@@ -355,7 +338,5 @@ class PendingAnimeButton(utilsButtons.SidebarButton):
         self.main_window.refresh_sidebar_counts()
 
     def __on_anime_click(self, anime_id: Union[str, int]):
-        # Es un anime de la biblioteca: el proveedor sale de su fila y la petición
-        # va en un hilo aparte. Ambas cosas viven en open_saved_anime() porque las
-        # cuatro vistas de estado hacen exactamente esto mismo.
+        """Abre la ficha de un pendiente por el proveedor de su fila."""
         open_saved_anime(self.main_window, anime_id)

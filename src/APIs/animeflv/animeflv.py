@@ -32,9 +32,15 @@ class AnimeFLV(AnimeProvider):
 
     def search_animes_by_genres_and_order(self, genres: List[AnimeGenreFilter], order: str = None,
                                           page: int = None) -> Tuple[List[AnimeInfo], int]:
+        """Busca animes en animeflv.net filtrando por género y orden.
+
+        :param genres: Lista de géneros por los que filtrar.
+        :param order: Valor de AnimeOrderFilter.
+        :param page: Página del listado a consultar.
+        :return: Tupla (lista de animes, última página).
+        """
         genre_values = [genre.value for genre in genres]
 
-        # Generar la query string
         query_string = urlencode([("genre[]", genre) for genre in genre_values])
         order_param = f"&order={order}" if order is not None else ""
         page_param = f"&page={page}" if page is not None else ""
@@ -53,7 +59,7 @@ class AnimeFLV(AnimeProvider):
         if pages is not None:
             for page in pages:
                 link = page.find("a")
-                if link and link.text.isdigit():  # Verificamos si es un número de página
+                if link and link.text.isdigit():
                     last_page = int(link.text)
 
         query_animes: List[AnimeInfo] = []
@@ -68,13 +74,12 @@ class AnimeFLV(AnimeProvider):
         return query_animes, last_page
 
     def search_animes_by_query(self, query: str = None, page: int = None) -> Tuple[List[AnimeInfo], int]:
-        """
-        Search in animeflv.net by query.
-        :param query: Query information like: 'Nanatsu no Taizai'.
-        :param page: Page of the information return.
-        :rtype: list[AnimeInfo]
-        """
+        """Busca en animeflv.net por texto libre.
 
+        :param query: Texto de búsqueda.
+        :param page: Página de la búsqueda a devolver.
+        :return: Tupla (lista de animes, última página).
+        """
         if page is not None and not isinstance(page, int):
             raise TypeError
 
@@ -103,7 +108,7 @@ class AnimeFLV(AnimeProvider):
         if pages is not None:
             for page in pages:
                 link = page.find("a")
-                if link and link.text.isdigit():  # Verificamos si es un número de página
+                if link and link.text.isdigit():
                     last_page = int(link.text)
         query_animes: List[AnimeInfo] = []
         for element in elements:
@@ -117,14 +122,12 @@ class AnimeFLV(AnimeProvider):
         return query_animes, last_page
 
     def get_anime_episode_servers(self, anime_id: str, episode_id: int) -> List[ServerInfo]:
-        """
-        Obtiene una lista de servidores de los videos del episodio solicitado para un anime dado.
+        """Obtiene la lista de servidores de vídeo de un episodio de un anime.
 
-        :param anime_id: Identificador del anime, como por ejemplo 'one-piece-tv'.
-        :param episode_id: Identificador del episodio del anime, como por ejemplo 1.
-        :rtype: List[ServerInfo]
+        :param anime_id: Identificador del anime.
+        :param episode_id: Número del episodio.
+        :return: Lista de servidores disponibles.
         """
-
         response = requests.get(f"{ANIME_VIDEO_URL}{anime_id}-{episode_id}")
         soup = BeautifulSoup(response.text, "html.parser")
         scripts = soup.find_all("script")
@@ -147,11 +150,7 @@ class AnimeFLV(AnimeProvider):
         return servers
 
     def get_recent_animes(self) -> List[AnimeInfo]:
-        """
-        Obtiene lista de los últimos animes añadidos
-
-        :rtype: List[AnimeInfo]
-        """
+        """:return: Animes recientemente añadidos a animeflv.net."""
         try:
             response = requests.get(BASE_URL, timeout=10)
             response.raise_for_status()
@@ -177,18 +176,17 @@ class AnimeFLV(AnimeProvider):
         return recent_animes
 
     def get_anime_info(self, anime_id: Union[str, int]) -> AnimeInfo | None:
-        """
-        Obtiene información sobre un anime específico.
+        """Obtiene la ficha completa de un anime, con reintentos ante fallos de red.
 
-        :param anime_id: Identificador del anime, como por ejemplo 'one-piece-tv'.
-        :rtype: AnimeInfo
+        :param anime_id: Identificador del anime.
+        :return: Ficha del anime, o None si fallan todos los intentos.
         """
         attempt = 0
         max_attemts = 3
         while attempt < max_attemts:
             try:
                 response = requests.get(f"{ANIME_URL}/{anime_id}", timeout=2)
-                response.raise_for_status()  # Lanza excepción si la respuesta no es exitosa (status code 4xx o 5xx)
+                response.raise_for_status()
 
                 soup = BeautifulSoup(response.text, "html.parser")
 
@@ -230,7 +228,7 @@ class AnimeFLV(AnimeProvider):
             except requests.RequestException as e:
                 print(f"Intento {attempt + 1}/{max_attemts} fallido para el anime {anime_id}: {e}")
                 attempt += 1
-                time.sleep(1)  # Espera un segundo entre intentos para evitar sobrecargar el servidor
+                time.sleep(1)
 
         print(f"No se pudo obtener la información del anime {anime_id}")
         return None

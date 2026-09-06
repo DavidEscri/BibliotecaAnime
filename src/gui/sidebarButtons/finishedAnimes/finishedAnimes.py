@@ -6,21 +6,17 @@ __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __
 
 """«Finalizados»: el archivo, en rejilla de seis con el sello de completado sobre la carátula.
 
-Vuelve la rejilla —y no la cascada de «Viendo» o «Pendientes»— porque es la única
-sección donde **no hay ninguna decisión que tomar**: no hay progreso que
-consultar ni cola que ordenar, así que la pantalla puede dedicarse entera a
-enseñar carátulas (`DISENO.md` §6).
+Rejilla y no cascada porque aquí no hay progreso que consultar ni cola que
+ordenar: la pantalla se dedica entera a enseñar carátulas.
 
-Lo que estrena la pestaña es el **sello** superpuesto al póster con el recuento
-«vistos / totales». Dice algo que no está en ninguna otra parte de la pantalla:
-si el anime está completo **de verdad** o solo marcado a mano. Por eso el sello
-enseña siempre los números reales de la fila y no los corrige: un «0 / 12» no es
-un error de la vista, es que ese anime se marcó como terminado sin ir episodio a
-episodio.
+El sello «vistos / totales» dice si el anime está completo de verdad o solo
+marcado a mano, y enseña siempre los números reales sin corregirlos: un
+«0 / 12» no es un error de la vista, es que se marcó como terminado sin ir
+episodio a episodio.
 
-Todo lo que se ve sale de la biblioteca guardada, así que la pestaña **funciona
-sin conexión**. Solo salen a la red la búsqueda del proveedor —que se **suma** a
-la local— y abrir una ficha.
+Todo lo que se ve sale de la biblioteca guardada, así que la pestaña funciona
+sin conexión. Solo salen a la red la búsqueda del proveedor (que se suma a la
+local) y abrir una ficha.
 """
 
 import os
@@ -44,10 +40,8 @@ from utils.utils import find_cached_poster_path
 class FinishedAnimeButton(utilsButtons.SidebarButton):
     """El estante de lo terminado, con el recuento de episodios sobre cada carátula."""
 
-    #: Filas por página. El tamaño de página **no es un número fijo**: sale de
-    #: multiplicar esto por las columnas que quepan, así que una página es siempre
-    #: dos filas llenas y nunca una llena y otra coja (`DISENO.md` §6). A 1440 son
-    #: los 12 de siempre; con la ventana maximizada, 16.
+    #: Filas por página. El tamaño de página sale de multiplicar esto por las
+    #: columnas que quepan, así que una página es siempre dos filas llenas.
     ROWS_PER_PAGE: int = 2
 
     def __init__(self, main_window, icon_path, row, column):
@@ -78,9 +72,6 @@ class FinishedAnimeButton(utilsButtons.SidebarButton):
 
     def show_finished_animes(self):
         self.main_window.clear_frame()
-        # Sin `time.sleep(0.1)`: solo existía para que `winfo_width()` devolviera
-        # algo distinto de 1, porque de ahí salía el número de columnas. Ahora
-        # son seis fijas y no se mide nada.
         self.__show_browser()
 
     # ------------------------------------------------------------------
@@ -112,7 +103,7 @@ class FinishedAnimeButton(utilsButtons.SidebarButton):
                                         on_click=self.__on_anime_click,
                                         on_columns_changed=self.__on_columns_changed)
         # sticky="ew" y no "w": es lo que da a la rejilla el ancho de la ventana
-        # para que decida cuántas columnas caben (`poster_grid.py`).
+        # para que decida cuántas columnas caben.
         self.__poster_grid.grid(row=1, column=0, sticky="ew", padx=(PosterGrid.OUTER_PAD_X, 0))
 
         # Mensaje de «la búsqueda no encontró nada». Nace escondido: aparece y
@@ -136,12 +127,7 @@ class FinishedAnimeButton(utilsButtons.SidebarButton):
         self.__display_animes(finished_animes)
 
     def __build_controls(self, header: ViewHeader) -> None:
-        """Solo el buscador local: aquí no hay nada que ordenar ni que filtrar.
-
-        Sin acordeón de géneros, como en las otras tres vistas de estado: filtrar
-        por género lo que ya es tuyo no aporta, y si el filtrado vuelve el sitio
-        es `GenreChips` (fase 7), no un acordeón por pestaña.
-        """
+        """Solo el buscador local: aquí no hay nada que ordenar ni que filtrar."""
         search_entry = ctk.CTkEntry(
             header.controls_frame,
             placeholder_text="Buscar en finalizados…",
@@ -271,7 +257,5 @@ class FinishedAnimeButton(utilsButtons.SidebarButton):
         self.__search.search(search_entry.get())
 
     def __on_anime_click(self, anime_id: Union[str, int]):
-        # Es un anime de la biblioteca: el proveedor sale de su fila y la petición
-        # va en un hilo aparte. Ambas cosas viven en open_saved_anime() porque las
-        # cuatro vistas de estado hacen exactamente esto mismo.
+        """Abre la ficha de un anime finalizado por el proveedor de su fila."""
         open_saved_anime(self.main_window, anime_id)

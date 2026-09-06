@@ -27,7 +27,7 @@ ColorToken = Tuple[str, str]
 
 
 class Theme:
-    """Paleta y tipografía del rediseño (``.claude/plan-rediseno/DISENO.md`` §1 y §2)."""
+    """Paleta de colores y tipografía de la aplicación."""
 
     # ------------------------------------------------------------------
     # Colores base
@@ -59,7 +59,7 @@ class Theme:
     #: Texto **sobre** ACCENT.
     ACCENT_INK: ColorToken = ("#FFFFFF", "#0C1020")
 
-    #: Identidad partida (el aviso de la ficha). Es el color que ya usaba anime_window.py.
+    #: Identidad partida (el aviso de la ficha).
     WARN: ColorToken = ("#B45309", "#FBBF24")
 
     #: Fondo transparente, para no repetir la cadena suelta por ahí.
@@ -197,10 +197,10 @@ class Theme:
 
 
 class Metrics:
-    """Medidas del rediseño (``.claude/plan-rediseno/DISENO.md`` §3), en píxeles a escala 1.
+    """Medidas de la interfaz, en píxeles a escala 1.
 
-    Viven junto a los colores por el mismo motivo: que un número del diseño no se
-    copie a mano en cinco vistas y luego solo se corrija en tres.
+    Centralizadas para que un número no se copie a mano en varias vistas y
+    luego solo se corrija en algunas.
     """
 
     #: Ventana. Sin cambios respecto a lo que ya había.

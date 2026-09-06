@@ -6,19 +6,13 @@ __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __
 
 """Panel lateral de «Viendo»: la tarjeta grande de lo último que estabas viendo.
 
-Es la contrapartida de la banda «Retomar» de la portada: allí caben tres tarjetas
-pequeñas porque la portada va de novedades; aquí, en la vista que existe para
-seguir viendo, el candidato número uno se enseña en grande y con su acción propia.
+Se alimenta de la misma preferencia que la banda «Retomar» de la portada
+(``UserSettingKey.LAST_WATCHED_ANIME_IDS``) y del mismo cálculo de progreso
+(``resume_card.resume_progress()``).
 
-Se alimenta de la **misma** preferencia que la banda
-(``UserSettingKey.LAST_WATCHED_ANIME_IDS``, fase 2) y del **mismo** cálculo de
-progreso (``resume_card.resume_progress()``), que sigue siendo el único sitio donde
-se decide por qué episodio ibas.
-
-⚠️ El ancho de 290 px del diseño no es un número suelto: son los 248 px a los que
-se guarda el póster en disco (``Metrics.SHEET_POSTER``) más 21 px de aire a cada
-lado. Así el póster se pinta a tamaño natural, sin ampliar un JPG, y sale la
-proporción 2:3 que pide `DISENO.md` §3.
+El ancho de 290 px no es un número suelto: son los 248 px a los que se guarda
+el póster en disco (``Metrics.SHEET_POSTER``) más 21 px de aire a cada lado,
+para pintarlo a tamaño natural sin ampliar el JPG.
 """
 
 from typing import Any, Callable, Optional
@@ -34,14 +28,8 @@ from utils.utils import find_cached_poster_path, load_rounded_image
 class SidePanel(ctk.CTkFrame):
     """Tarjeta grande de retomar, de ancho fijo.
 
-    Uso típico::
-
-        panel = SidePanel(body, anime_record, provider_name="AnimeFLV",
-                          on_action=self.__on_anime_click)
-        panel.grid(row=0, column=1, sticky="n")
-
-    Quien lo coloca decide si hay algo que enseñar: sin ``anime_record`` el panel
-    no se construye, igual que la banda de la portada no se pinta vacía.
+    Quien lo coloca decide si hay algo que enseñar: sin ``anime_record`` el
+    panel no se construye.
     """
 
     #: Aire entre el borde de la tarjeta y su contenido. Ver la nota del módulo:
@@ -55,14 +43,13 @@ class SidePanel(ctk.CTkFrame):
                  on_action: Optional[Callable[[Any], None]] = None,
                  on_click: Optional[Callable[[Any], None]] = None,
                  title: str = "LO ÚLTIMO QUE VEÍAS", **kwargs):
-        """
-        :param anime_record: fila que se enseña. No puede ser ``None``.
-        :param provider_name: nombre legible del proveedor de la fila; se muestra
-            junto al episodio. ``None`` lo omite.
-        :param on_action: qué hace el botón. Recibe el ``anime_id``.
-        :param on_click: qué hace pulsar el póster o el título. Por defecto, lo
-            mismo que el botón.
-        :param title: etiqueta de sección, en mayúsculas.
+        """Construye la tarjeta.
+
+        :param anime_record: Fila que se enseña. No puede ser None.
+        :param provider_name: Nombre legible del proveedor de la fila; None lo omite.
+        :param on_action: Qué hace el botón de acción. Recibe el anime_id.
+        :param on_click: Qué hace pulsar el póster o el título; por defecto, lo mismo que el botón.
+        :param title: Etiqueta de sección, en mayúsculas.
         """
         super().__init__(parent, width=Metrics.SIDE_PANEL_W, height=1,
                          corner_radius=0, fg_color=Theme.TRANSPARENT, **kwargs)
@@ -218,8 +205,10 @@ class SidePanel(ctk.CTkFrame):
     # Interacción
     # ------------------------------------------------------------------
     def __handle_action(self) -> None:
+        """Delega en on_action con el anime_id de la fila."""
         if self.__on_action is not None:
             self.__on_action(self.anime_record.anime_id)
 
     def __handle_click(self, _event=None) -> None:
+        """Delega en on_click con el anime_id de la fila."""
         self.__on_click(self.anime_record.anime_id)

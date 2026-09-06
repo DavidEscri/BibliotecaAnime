@@ -4,24 +4,13 @@ __module__ = "utilsButtons.py"
 __version__ = "0.3"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
-"""Lo que las vistas comparten y no es un componente de ``gui/components/``.
+"""Lo que las vistas comparten y no es un componente de gui/components/.
 
-Quedan **tres piezas**, y ninguna es un botón pese al nombre del módulo:
-
-- ``filter_animes_by_title()`` y ``match_animes_from_search()``, el cruce por
-  título con el que las cuatro vistas de estado buscan **en local**;
-- ``SavedAnimeSearch``, que lo orquesta y le **suma** encima lo que encuentre el
-  proveedor;
-- ``SidebarButton``, que desde la fase 1 ya no es un widget: solo describe un
-  destino (etiqueta, iconos y comando) para que lo pinte ``gui.components.sidebar``.
-
-⚠️ **El nombre del fichero es lo único que queda de lo que fue.** Hasta la fase 9
-vivían aquí cinco clases más —``BaseButton``, ``EpisodeButton``, ``SearchButton``,
-``ApplyFiltersButton`` y ``AccordionFilterButton``—, todas ``CTkButton`` con
-colores y tamaños literales. Las fueron sustituyendo los componentes del
-rediseño (``EpisodeRow``, ``GenreChips``, las cabeceras de cada vista) y el paso
-9.4 las retiró: ya no las usaba nadie. Renombrar el módulo se dejó fuera del plan
-porque es solo interfaz y esto es `utils/`.
+Quedan tres piezas, ninguna un botón pese al nombre del módulo:
+filter_animes_by_title() y match_animes_from_search(), el cruce por título con
+el que las vistas de estado buscan en local; SavedAnimeSearch, que lo orquesta
+y suma encima lo que encuentre el proveedor; y SidebarButton, que solo
+describe un destino de la barra lateral (etiqueta, iconos y comando).
 """
 
 import difflib
@@ -34,27 +23,22 @@ from dataPersistence.animesPersistence import AnimeRecord
 from utils.utils import load_dual_image
 import customtkinter as ctk
 
-#: Parecido mínimo para dar por buena una coincidencia que NO es subcadena. Solo
-#: sirve para tolerar erratas ("dandandan" → "Dandadan"); lo demás ya lo pilla la
-#: subcadena, así que se pone alto para no devolver animes que no vienen a cuento.
+#: Parecido mínimo para dar por buena una coincidencia que no es subcadena
+#: (tolera erratas tipo "dandandan" → "Dandadan"); alto a propósito para no
+#: devolver animes que no vienen a cuento.
 TITLE_SEARCH_THRESHOLD = 0.8
 
 
 def filter_animes_by_title(anime_records: List[AnimeRecord], query: str) -> List[AnimeRecord]:
-    """Filtra animes **ya guardados** por su título, sin red y sin mirar el proveedor.
+    """Filtra animes ya guardados por su título, sin red y sin mirar el proveedor.
 
-    Buscar dentro de la biblioteca no puede depender de qué sitio esté
-    seleccionado.
+    Compara sobre el título normalizado; coincide si la consulta aparece
+    dentro del título (así "One Piece" también encuentra "One Piece Film:
+    Red") o si el parecido supera el umbral, para tolerar erratas.
 
-    Se compara sobre el título normalizado (minúsculas, sin tildes, sin signos),
-    con la misma normalización que se usa para reconocer un anime entre sitios
-    distintos. Coincide si la consulta aparece **dentro** del título —así "One
-    Piece" devuelve también "One Piece Film: Red"— y, si no, se admite un parecido
-    alto para tolerar erratas.
-
-    :param anime_records: filas ya filtradas por estado (favoritos, viendo, …).
-    :param query: texto tal cual lo escribió el usuario. Vacío devuelve todo.
-    :return: las filas que coinciden, en el mismo orden en que llegaron.
+    :param anime_records: Filas ya filtradas por estado (favoritos, viendo...).
+    :param query: Texto tal cual lo escribió el usuario; vacío devuelve todo.
+    :return: Filas que coinciden, en el mismo orden en que llegaron.
     """
     normalized_query = AnimeProviderManager.normalize_title(query)
     if not normalized_query:
@@ -73,19 +57,15 @@ def filter_animes_by_title(anime_records: List[AnimeRecord], query: str) -> List
 
 def match_animes_from_search(anime_records: List[AnimeRecord],
                              search_results: List[AnimeInfo]) -> List[AnimeRecord]:
-    """Traduce resultados de una búsqueda web a los animes guardados que les corresponden.
+    """Traduce resultados de una búsqueda web a los animes guardados que corresponden.
 
-    Empareja primero por *slug* y, si no, por título normalizado. Hacen falta las
-    dos vías: el slug solo coincide cuando la fila la guardó el mismo proveedor
-    que acaba de responder, mientras que el título vale entre sitios distintos —es
-    el mismo criterio con el que ``resolve_anime_in_provider`` reconoce un anime
-    en otro proveedor, y se usa su mismo umbral—.
+    Empareja primero por slug y, si no, por título normalizado (mismo criterio
+    y umbral que resolve_anime_in_provider), porque el slug solo coincide si
+    la fila la guardó el mismo proveedor que acaba de responder.
 
-    :param anime_records: filas guardadas de la pestaña (ya filtradas por estado).
-    :param search_results: lo que ha devuelto el proveedor.
-    :return: las filas guardadas que corresponden, sin repetidos y en el orden en
-        que las devolvió el proveedor. Los resultados que no estén guardados se
-        descartan: estas pestañas muestran la biblioteca, no el catálogo.
+    :param anime_records: Filas guardadas de la pestaña, ya filtradas por estado.
+    :param search_results: Resultados devueltos por el proveedor.
+    :return: Filas guardadas que corresponden, sin repetidos, en el orden del proveedor.
     """
     if not search_results:
         return []
@@ -112,21 +92,12 @@ def match_animes_from_search(anime_records: List[AnimeRecord],
 class SavedAnimeSearch:
     """Buscador de una pestaña de la biblioteca: local al instante, web al llegar.
 
-    Las dos búsquedas resuelven cosas distintas y por eso se suman en vez de
-    elegir una:
-
-    - La **local** compara con los títulos ya guardados. Es instantánea, funciona
-      sin conexión y no depende del proveedor seleccionado, que es lo que impedía
-      encontrar One Piece por estar guardado con el slug de AnimeFLV.
-    - La **web** pregunta al proveedor y encuentra lo que un título guardado no
-      puede saber: que "Solo Leveling" es "Ore dake Level Up na Ken".
-
-    La búsqueda web va **sin fallback** (``strict=True``): manda el proveedor
-    seleccionado en ese momento y, si no encuentra nada, no se disimula con otro.
-
-    Lo local se pinta antes de salir a la red y lo de la web se añade después, ya
-    en el hilo de Tkinter: así el buscador responde al instante y **nunca quita**
-    resultados, solo puede añadirlos.
+    La búsqueda local compara títulos ya guardados: es instantánea, funciona
+    sin conexión y no depende del proveedor seleccionado. La web pregunta al
+    proveedor seleccionado (sin fallback) y encuentra lo que un título
+    guardado no puede saber, como que "Solo Leveling" es "Ore dake Level Up
+    na Ken". Lo local se pinta antes de salir a la red; lo de la web se suma
+    después sin quitar nunca resultados.
     """
 
     def __init__(self, main_window, anime_provider_mgr: AnimeProviderManager,
@@ -134,11 +105,11 @@ class SavedAnimeSearch:
                  display_animes: Callable[[List[AnimeRecord]], None],
                  is_still_visible: Callable[[], bool]):
         """
-        :param main_window: hub, solo para devolver el resultado con ``after()``.
-        :param get_saved_animes: devuelve las filas de esta pestaña (ya por estado).
-        :param display_animes: repinta la rejilla con la lista que se le pase.
-        :param is_still_visible: si la pestaña sigue en pantalla. Sin esto, una
-            búsqueda lenta repintaría encima de la vista a la que ya has cambiado.
+        :param main_window: Hub, solo para devolver el resultado con after().
+        :param get_saved_animes: Devuelve las filas de esta pestaña, ya por estado.
+        :param display_animes: Repinta la rejilla con la lista que se le pase.
+        :param is_still_visible: Si la pestaña sigue en pantalla; evita que una
+            búsqueda lenta repinte encima de la vista a la que ya se cambió.
         """
         self.__main_window = main_window
         self.__anime_provider_mgr = anime_provider_mgr
@@ -148,6 +119,10 @@ class SavedAnimeSearch:
         self.__generation = 0
 
     def search(self, search_text: str) -> None:
+        """Muestra al instante las coincidencias locales y suma en segundo plano las de la web.
+
+        :param search_text: Texto de búsqueda escrito por el usuario.
+        """
         saved_animes = self.__get_saved_animes()
         local_matches = filter_animes_by_title(saved_animes, search_text)
         self.__display_animes(local_matches)
@@ -177,27 +152,12 @@ class SavedAnimeSearch:
 
 
 class SidebarButton:
-    """Descriptor de un destino de la barra lateral. **Ya no es un widget.**
+    """Descriptor de un destino de la barra lateral. No es un widget.
 
-    Hasta el rediseño era un ``CTkButton`` que se pintaba a sí mismo dentro de
-    ``main_window.sidebar_frame``, y por eso arrastraba dos problemas:
-
-    - se construía con ``width=parent_frame.winfo_width()``, que vale **1** antes
-      de que Tk mapee el frame, así que la barra acababa midiendo lo que midiera
-      su contenido y no los 340 declarados;
-    - sus colores eran literales (``text_color="black"``, ``hover_color="white"``),
-      lo que obligaba a ``MainWindow.change_appearance_mode_event()`` a
-      recorrerlos y reconfigurarlos a mano en cada cambio de apariencia.
-
-    Ahora el que pinta es ``gui.components.sidebar.Sidebar``, y esta clase solo
-    guarda **qué** hay que pintar: etiqueta, iconos y a qué llamar al pulsar. La
-    firma del constructor no cambia para que las seis vistas sigan heredando de
-    ella sin tocar una línea; ``parent_frame``, ``row`` y ``column`` se conservan
-    por compatibilidad y ya no se usan.
-
-    El icono se construye como un único ``CTkImage`` con ``light_image`` y
-    ``dark_image``: así el cambio de apariencia lo resuelve CustomTkinter y
-    ``update_icon()`` deja de hacer falta.
+    Solo guarda qué hay que pintar (etiqueta, iconos, comando); quien lo
+    pinta es gui.components.sidebar.Sidebar. La firma del constructor
+    conserva parent_frame, row y column por compatibilidad, aunque ya no se
+    usan, para que las vistas sigan heredando de ella sin cambios.
     """
 
     def __init__(self, parent_frame, text, row, column, command, icon_path_light, icon_path_dark):
@@ -215,10 +175,14 @@ class SidebarButton:
     def sidebar_icon(self, image_size: tuple) -> ctk.CTkImage:
         """Construye el icono del destino al tamaño pedido.
 
-        No se cachea a propósito: la barra lateral pide dos tamaños distintos
-        (desplegada y plegada) y un mismo ``CTkImage`` solo tiene un ``size``.
+        No se cachea a propósito: la barra pide dos tamaños distintos
+        (desplegada y plegada) y un mismo CTkImage solo admite un tamaño.
+
+        :param image_size: Tamaño (ancho, alto) del icono a construir.
+        :return: Icono con variante clara y oscura.
         """
         return load_dual_image(self.icon_path_light, self.icon_path_dark, image_size)
 
     def show_frame(self):
+        """Pinta esta vista en el frame de contenido; cada subclase debe implementarlo."""
         raise NotImplementedError("Subclasses must implement this method")

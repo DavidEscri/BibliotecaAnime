@@ -6,26 +6,16 @@ __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __
 
 """Píldora de estado: «Viendo», «Pendiente», «Finalizado» o «Favorito».
 
-Los cuatro pares de color de `DISENO.md` §1 en un solo sitio, para que ninguna
-vista vuelva a decidir de qué color va un estado. Se usa de dos formas:
+Los cuatro pares de color en un solo sitio, para que ninguna vista decida por su
+cuenta de qué color va un estado. Se usa como widget completo, o como par de
+colores con ``colors()`` y ``text()`` cuando quien pinta es otro componente
+(p.ej. el sello superpuesto de ``PosterGrid``).
 
-- como **widget**, cuando la píldora es una pieza más del layout;
-- como **par de colores**, con ``colors()`` y ``text()``, cuando quien pinta es
-  otro componente. Es lo que hace la rejilla de «Favoritos»: el sello superpuesto
-  al póster ya lo sabe pintar ``PosterGrid`` (`badge` + `badge_colors`), así que
-  la píldora solo aporta el texto y los colores.
+``other_status()`` responde a "¿qué más es este anime, aparte de estar en esta
+pestaña?": un favorito puede estar a la vez en curso, en la cola o terminado.
 
-``other_status()`` responde a la pregunta que hace falta en la biblioteca: además
-de estar donde está, **¿qué más es este anime?** Un favorito puede estar a la vez
-en curso, en la cola o terminado, y ese es el dato que no se ve en ninguna otra
-parte de la pantalla.
-
-``icon()`` completa el juego con el **glifo** de cada estado, que es lo que el
-sello del diseño pone delante del texto. Se dibuja con PIL en tiempo de
-ejecución, igual que las estrellas de la calificación y el pin del proveedor: son
-tres formas de dos trazos, no dependen de que el sistema tenga un glifo concreto,
-salen exactas a cualquier tamaño y —a diferencia de los iconos de la barra
-lateral— **son nuestros**, así que no arrastran la deuda B11.
+``icon()`` dibuja el glifo de cada estado con PIL en tiempo de ejecución, como
+el resto de iconos propios de la interfaz.
 """
 
 from typing import Callable, Dict, Optional, Tuple
@@ -104,16 +94,8 @@ def _heart_glyph(draw: ImageDraw.ImageDraw, size: float, color: str) -> None:
     draw.polygon([(size * 0.02, top), (size * 0.98, top), (size * 0.5, size * 0.94)], fill=color)
 
 
-#: Cómo se dibuja el glifo de cada estado. Están **los cuatro**: los tres
-#: excluyentes, que son los que puede devolver ``other_status()``, y «Favorito»,
-#: que hace falta desde la fase 8 en los botones de estado de la ficha.
-#:
-#: ⚠️ Hasta entonces «Favorito» devolvía ``None`` a propósito, porque la pestaña
-#: de favoritos no se sella a sí misma (`DISENO.md` §6: ningún dato repetido).
-#: Eso lo sigue garantizando ``other_status()``, que nunca lo devuelve; lo que
-#: cambia es que el sello «Favorito» de **Buscar** —el único sitio que sí lo
-#: pinta, cuando un resultado está guardado solo como favorito— pasa a llevar su
-#: corazón como los otros tres llevan el suyo.
+#: Cómo se dibuja el glifo de cada estado: los tres excluyentes que puede
+#: devolver ``other_status()``, más «Favorito» para el sello de «Buscar».
 _GLYPHS: Dict[AnimeStatus, Callable[[ImageDraw.ImageDraw, float, str], None]] = {
     AnimeStatus.FAVOURITE: _heart_glyph,
     AnimeStatus.WATCHING:  _eye_glyph,
@@ -128,22 +110,17 @@ _ICON_CACHE: Dict[Tuple[AnimeStatus, int, Optional[ColorToken], int], ctk.CTkIma
 
 
 class StatusPill(ctk.CTkLabel):
-    """Píldora de un estado de la biblioteca.
+    """Píldora de un estado de la biblioteca."""
 
-    Uso típico::
-
-        pill = StatusPill(parent, AnimeStatus.WATCHING)
-        pill.grid(row=0, column=1)
-    """
-
-    #: Alto de la píldora. El radio es la mitad (`DISENO.md` §3: píldora = alto / 2).
+    #: Alto de la píldora. El radio es la mitad.
     HEIGHT: int = 20
 
     def __init__(self, parent, status: AnimeStatus, text: Optional[str] = None, **kwargs):
-        """
-        :param status: estado que representa; de él salen texto y colores.
-        :param text: texto alternativo, para cuando el estado se acompaña de un
-            dato («12 / 12» en finalizados). Por defecto, el nombre del estado.
+        """Construye la píldora.
+
+        :param status: Estado que representa; de él salen texto y colores.
+        :param text: Texto alternativo, para cuando el estado se acompaña de un
+            dato («12 / 12» en finalizados); por defecto, el nombre del estado.
         """
         text_color, fg_color = self.colors(status)
         super().__init__(
@@ -177,34 +154,16 @@ class StatusPill(ctk.CTkLabel):
              gap: int = _ICON_GAP) -> Optional[ctk.CTkImage]:
         """Glifo del estado, listo para ponerlo delante de un texto.
 
-        Devuelve ``None`` para los estados sin glifo. Hoy los tiene los cuatro,
-        pero quien lo pinte tiene que seguir tolerándolo: una etiqueta sin
-        ``image`` sale con el texto solo, que es exactamente lo que se quiere.
+        Sin ``color``, se tiñe con la variante oscura del color del estado en
+        los dos temas: es lo que necesita un sello sobre ``Theme.BADGE_BG``,
+        una superficie siempre oscura. Con ``color``, se dibuja una vez por
+        tema y CustomTkinter resuelve el cambio de apariencia.
 
-        ⚠️ **Sin ``color``, se tiñe con la variante oscura del color del estado
-        en los dos temas.** Es lo que necesita un **sello**, que va sobre
-        ``Theme.BADGE_BG``: una superficie oscura tanto en claro como en oscuro,
-        porque se superpone a la carátula y no al fondo de la aplicación. Usar
-        ahí la variante clara (``FIN_TXT[0]`` es un verde oscuro) dejaría el
-        glifo casi invisible justo en el tema en el que el diseño pide comprobar
-        la legibilidad.
-
-        Con ``color``, el glifo se dibuja **dos veces**, una por tema, y el
-        cambio de apariencia lo resuelve CustomTkinter. Es lo que hace falta
-        cuando el glifo va sobre el fondo de la aplicación y no sobre una
-        carátula: los botones de estado de la ficha, que lo pintan del color del
-        estado cuando están encendidos y de ``TXT_2`` cuando no.
-
-        :param status: estado del que se quiere el glifo.
-        :param size: lado del dibujo. El ancho de la imagen es ``size`` más el
-            hueco que la separa del texto.
-        :param color: par ``(claro, oscuro)`` con el que teñirlo.
-        :param gap: hueco transparente reservado a la derecha. Por defecto, el
-            que necesita un glifo pegado a un texto. **Con ``gap=0`` el dibujo
-            sale cuadrado**, que es lo que hace falta cuando el glifo va solo y
-            centrado: es el caso del ``EmptyState`` de las cuatro vistas de
-            biblioteca, donde los cinco píxeles sobrantes descolocarían el icono
-            respecto de la frase de debajo.
+        :param status: Estado del que se quiere el glifo.
+        :param size: Lado del dibujo.
+        :param color: Par (claro, oscuro) con el que teñirlo; None usa la variante oscura del estado.
+        :param gap: Hueco transparente a la derecha; 0 para un dibujo cuadrado y centrado.
+        :return: El icono, o None si el estado no tiene glifo.
         """
         draw_glyph = _GLYPHS.get(status)
         if draw_glyph is None:

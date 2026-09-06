@@ -164,11 +164,11 @@ class AnimeRecord:
     def _rating_from_db(cls, raw_value: Any) -> Optional[int]:
         """Normaliza la columna ``rating`` al entero de la escala, o a ``None``.
 
-        Es la frontera de la calificación, y se comporta como la del proveedor:
-        **nunca lanza**. La columna llega a ``NULL`` en todas las filas anteriores
-        a la migración, y un valor fuera de escala (o que no sea un número) se
-        trata igual que si no hubiera calificación: mejor una estrella menos que
-        una biblioteca que no se puede leer.
+        Nunca lanza: un valor ``NULL``, no numérico o fuera de escala se
+        trata igual, como «sin calificar».
+
+        :param raw_value: Valor crudo leído de la columna ``rating``.
+        :return: Calificación válida, o ``None``.
         """
         if raw_value is None:
             return None
@@ -184,15 +184,13 @@ class AnimeRecord:
 
     @staticmethod
     def _provider_id_from_db(raw_value: Optional[str]) -> Optional[AnimeProviderId]:
-        """Convierte el texto de la columna ``provider_id`` al enum.
+        """Convierte el texto de la columna ``provider_id`` al enum, o a ``None``.
 
-        Es una de las dos fronteras donde el proveedor deja de ser un
-        ``AnimeProviderId`` y pasa a ser texto (la otra es ``DB_user.db``).
+        Trata igual una columna a ``NULL`` que un proveedor que ya no existe
+        en el código: nunca lanza, para no bloquear la lectura de la fila.
 
-        Devuelve ``None`` en los dos casos en los que no se sabe de quién es la
-        fila, que se tratan igual: la columna está a ``NULL`` (fila anterior a la
-        migración), o guarda un proveedor que ya no existe en el código. Nunca
-        lanza: un valor raro en una fila no puede impedir leer la biblioteca.
+        :param raw_value: Valor crudo leído de la columna ``provider_id``.
+        :return: ``AnimeProviderId`` correspondiente, o ``None``.
         """
         if not raw_value:
             return None
@@ -276,10 +274,8 @@ class AnimesPersistence(ServiceDB):
     FIELD_TYPES = [f.sql_type for f in AnimeField]
     PRIMARY_KEY = f"{AnimeField.ID.column} AUTOINCREMENT"
 
-    # Esquema declarado de la BD: **la fuente de verdad**. Toda tabla de
-    # DB_Animes.db debe figurar aquí; para añadir una tabla nueva basta con
-    # añadir su TableSchema a esta lista — validate_db_integrity() la creará
-    # en el siguiente arranque, también en instalaciones con datos previos.
+    # Esquema declarado de la BD: la fuente de verdad. validate_db_integrity()
+    # lo aplica en cada arranque, también en instalaciones con datos previos.
     SCHEMA: List[TableSchema] = [
         TableSchema(
             name        = TABLE_NAME,
@@ -312,23 +308,10 @@ class AnimesPersistence(ServiceDB):
     def validate_db_integrity(self) -> bool:
         """Verifica que la BD física concuerda con ``SCHEMA`` y la corrige si no.
 
-        Se llama desde ``start()`` justo después de comprobar o crear el fichero
-        de la BD. Cubre los tres escenarios de evolución del esquema:
-
-        - **columna nueva** en ``AnimeField`` → se añade con ``ALTER TABLE``
-          (los registros existentes la reciben a ``NULL`` o a su default).
-        - **cambio de orden o de tipo** de las columnas → se reconstruye la
-          tabla copiando los datos por nombre de columna.
-        - **tabla nueva** añadida a ``SCHEMA`` → se crea.
-
-        Es idempotente: si no hay diferencias no toca la BD ni crea copias. Antes
-        de cualquier modificación se guarda una copia del ``.db`` en
-        ``resources/DB/backups/``.
-
-        Esto es lo que evita el fallo silencioso de las instalaciones con datos
-        previos: ``query_sql`` empareja fila y ``FIELDS`` **por posición**, así
-        que una BD antigua con menos columnas devolvería los valores desplazados
-        sin lanzar ningún error.
+        Cubre columna nueva (``ALTER TABLE``), cambio de orden o tipo
+        (reconstruye copiando por nombre de columna) y tabla nueva
+        (``CREATE TABLE``); es idempotente y copia la BD a
+        ``resources/DB/backups/`` antes de modificarla.
 
         :return: ``True`` si al terminar la BD concuerda con el esquema.
         """
@@ -452,16 +435,13 @@ class AnimesPersistence(ServiceDB):
     def update_anime_provider_id(self, anime_id: str, provider_id: Optional[AnimeProviderId]) -> bool:
         """Deja constancia de qué proveedor sirve el ``anime_id`` de una fila.
 
-        Se usa para dos cosas distintas:
+        Se usa tanto para rellenar el proveedor de una fila que lo tiene a
+        ``None`` como para corregirlo cuando el anime se re-resuelve en otro
+        proveedor.
 
-        - **rellenar** el proveedor de una fila que lo tiene a ``NULL`` (todas las
-          anteriores a esta columna) la primera vez que se abre ese anime y se
-          sabe quién lo ha servido;
-        - **corregirlo** cuando el anime se re-resuelve en otro proveedor.
-
-        Devuelve ``False`` si el anime no está en BD, para no dar por guardado un
-        UPDATE que no ha tocado ninguna fila (``SqlUtils.update_sql`` no mira el
-        ``rowcount``).
+        :param anime_id: Identificador del anime en la fila.
+        :param provider_id: Proveedor a anotar, o ``None``.
+        :return: ``True`` si la fila existía y se ha actualizado.
         """
         if self.get_anime_by_anime_id(anime_id) is None:
             return False
@@ -475,16 +455,13 @@ class AnimesPersistence(ServiceDB):
     def update_anime_rating(self, anime_id: str, rating: Optional[int]) -> bool:
         """Guarda la calificación personal de un anime, o la borra con ``None``.
 
-        La escala es un entero de 0 a ``AnimeRecord.RATING_MAX`` (10), en el que
-        cada estrella vale 2 puntos: el medio punto se representa sin decimales,
-        que es lo que evita flotantes en SQLite y en la comparación del orden.
-
         ``None`` es «sin calificar» y **no** es lo mismo que 0: el orden por
         calificación manda las filas sin calificar al final, no al principio.
+        No inserta: para eso está ``_set_status``.
 
-        Devuelve ``False`` si el anime no está en BD —no se califica lo que no se
-        ha guardado— o si la calificación se sale de la escala. No inserta: para
-        eso está ``_set_status``.
+        :param anime_id: Identificador del anime.
+        :param rating: Calificación a guardar (0 a ``AnimeRecord.RATING_MAX``), o ``None`` para borrarla.
+        :return: ``True`` si se ha actualizado; ``False`` si el anime no existe o el valor está fuera de escala.
         """
         if rating is not None and not 0 <= rating <= AnimeRecord.RATING_MAX:
             print(f"Calificación fuera de escala para {anime_id}: {rating}")
@@ -500,33 +477,15 @@ class AnimesPersistence(ServiceDB):
 
     def migrate_anime_identity(self, current_anime_id: str, anime_info: AnimeInfo,
                                provider_id: Optional[AnimeProviderId] = None) -> bool:
-        """Reapunta una fila ya guardada al anime de **otro proveedor**.
+        """Reapunta una fila guardada al anime equivalente de otro proveedor.
 
-        Es la única operación que reescribe la identidad de una fila existente
-        (``anime_id`` y ``provider_id``), y existe porque un *slug* no es
-        universal ni eterno: el mismo anime es "one-piece" en AnimeAV1 y
-        "one-piece-tv" en AnimeFLV, y hay slugs guardados que su proveedor
-        original ya no sirve. Sin esto, la única salida sería borrar el anime y
-        volver a añadirlo, perdiendo los episodios vistos.
-
-        **Lo que se conserva** es justamente lo que el usuario ha construido y no
-        se puede recuperar de la red: ``watched_episodes``,
-        ``last_watched_episode``, los cuatro estados y la calificación personal
-        (la sentencia no toca esas columnas). Se sobrescribe el resto
-        (título, póster, sinopsis, géneros y episodios), porque a partir de ahora
-        la fila *es* la del proveedor nuevo y dejar datos del anterior la
-        volvería incoherente consigo misma.
-
-        Se niega a migrar si el ``anime_id`` destino ya lo ocupa otra fila: la
-        tabla no tiene UNIQUE sobre esa columna, así que el UPDATE pasaría sin
-        error y dejaría **dos filas del mismo anime** —cada una con sus propios
-        episodios vistos— que ninguna consulta sabría desempatar.
+        Conserva ``watched_episodes``, ``last_watched_episode``, los cuatro
+        estados y la calificación; sobrescribe título, póster, sinopsis,
+        géneros y episodios con los del proveedor destino.
 
         :param current_anime_id: ``anime_id`` actual de la fila.
-        :param anime_info: ficha del proveedor destino; su ``id`` pasa a ser el
-            nuevo ``anime_id``.
-        :param provider_id: proveedor destino. Si se omite se usa el que traiga
-            ``anime_info``.
+        :param anime_info: Ficha del proveedor destino; su ``id`` pasa a ser el nuevo ``anime_id``.
+        :param provider_id: Proveedor destino; si se omite, se usa el de ``anime_info``.
         :return: ``True`` si la fila se ha actualizado.
         """
         record = self.get_anime_by_anime_id(current_anime_id)
@@ -536,14 +495,15 @@ class AnimesPersistence(ServiceDB):
 
         new_anime_id = str(anime_info.id)
         if new_anime_id != str(current_anime_id) and self.get_anime_by_anime_id(new_anime_id) is not None:
+            # La tabla no tiene UNIQUE sobre anime_id: sin este chequeo, el UPDATE
+            # dejaría dos filas del mismo anime sin lanzar ningún error.
             print(f"No se puede migrar {current_anime_id} a {new_anime_id}: "
                   f"ya hay otra fila con ese identificador")
             return False
 
         new_provider_id = provider_id if provider_id is not None else anime_info.provider_id
-        # Los episodios se guardan invertidos, pero `record.episodes` ya viene tal
-        # cual está en la BD: si hay que conservarlos, se vuelven a escribir sin
-        # invertir. Invertirlos otra vez los dejaría al revés.
+        # record.episodes ya viene invertido tal cual está en BD: si no hay
+        # episodios nuevos que invertir, se reescribe sin volver a invertirlo.
         new_episode_ids = [ep.id for ep in (anime_info.episodes or [])]
         episodes_json = json.dumps(new_episode_ids[::-1] if new_episode_ids else record.episodes)
 
@@ -695,11 +655,7 @@ class AnimesPersistence(ServiceDB):
             )
             return self._insert_anime(new_record)
 
-        # La fila ya existe. Si venía sin proveedor (guardada antes de que la
-        # columna existiera) y ahora sabemos de quién es su slug, se anota de
-        # paso. La ficha ya hace este mismo autorrelleno al abrirse; repetirlo
-        # aquí es lo que hace que el invariante «una fila tocada sabe de dónde
-        # viene» no dependa de por qué puerta se haya entrado.
+        # Si la fila no tenía proveedor y ahora se sabe de quién es su slug, se anota de paso.
         if record.provider_id is None and anime_info.provider_id is not None:
             self.update_anime_provider_id(str(anime_info.id), anime_info.provider_id)
 

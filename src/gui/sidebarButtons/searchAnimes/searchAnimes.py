@@ -6,26 +6,17 @@ __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __
 
 """«Buscar»: la única pestaña que trae cosas de fuera, y la única que puede duplicarte la biblioteca.
 
-De ahí salen sus tres piezas propias (`DISENO-VISUAL.html#buscar`):
+Tres piezas propias: el campo grande de arriba (hace de cabecera); las fichas
+de género (GenreChips), que muestran el filtro activo sin abrir nada; y el
+sello «ya lo tienes» sobre cada resultado guardado.
 
-- el **campo grande** de arriba, que es la cabecera de esta vista: aquí no hace
-  falta un título que diga «Buscar» porque lo que se ve es justo eso;
-- las **fichas de género** (`GenreChips`), que sustituyen al acordeón de cuarenta
-  casillas: lo que estás filtrando se ve sin abrir nada;
-- el **sello «ya lo tienes»** sobre cada resultado que esté en tu biblioteca. Es
-  lo que más trabajo ahorra: hasta ahora el duplicado solo se detectaba al pulsar
-  guardar, con la ficha ya abierta.
+El sello se resuelve en local y sin petición extra: la biblioteca entera cabe
+en memoria y se cruza por slug y, si no, por título normalizado, porque el
+slug solo coincide cuando la fila la guardó el mismo proveedor que responde.
 
-El sello se resuelve **en local y sin una sola petición extra**: la biblioteca
-entera cabe en memoria y se cruza por *slug* y, si no, por título normalizado.
-Hacen falta las dos vías porque el slug solo coincide cuando la fila la guardó el
-mismo proveedor que acaba de responder, y el mismo anime es ``one-piece`` en un
-sitio y ``one-piece-tv`` en otro.
-
-⚠️ La paginación aquí **no es la de las otras vistas**: quien trocea es el sitio
-web, no el paginador. Cada página es una petición nueva, y del contrato solo se
-sabe cuál es la última página —no cuántos resultados hay en total—, así que el pie
-dice «Página 2 de 5» y no «Mostrando 13-24 de 58» (ver ``Pager.set_pages()``).
+La paginación aquí no es la de las otras vistas: quien trocea es el sitio
+web, no el paginador. Cada página es una petición nueva, y solo se sabe cuál
+es la última, no cuántos resultados hay en total.
 """
 
 import os
@@ -78,7 +69,7 @@ class AnimeSearch:
 class SearchButton(utilsButtons.SidebarButton):
     """El buscador: catálogo del proveedor, con aviso de lo que ya es tuyo."""
 
-    #: Ancho del campo de búsqueda (`DISENO-VISUAL` `.qbox`: `max-width:620px`).
+    #: Ancho del campo de búsqueda.
     QUERY_W: int = 620
     #: Alto del campo de búsqueda.
     QUERY_H: int = 46
@@ -125,9 +116,6 @@ class SearchButton(utilsButtons.SidebarButton):
     # ------------------------------------------------------------------
     def show_frame(self):
         self.main_window.clear_frame()
-        # Sin `time.sleep(0.1)` en el hilo de la interfaz: era para que
-        # `winfo_width()` no valiera 1 al calcular columnas, y la rejilla ya no
-        # las calcula. Van seis de seis vistas.
         self.__show_browser()
 
     def __show_browser(self):
@@ -147,15 +135,11 @@ class SearchButton(utilsButtons.SidebarButton):
         self.__results_label.grid(row=2, column=0, sticky="w",
                                   padx=Metrics.CONTENT_PAD_X, pady=(16, 14))
 
+        # Sin on_columns_changed, al revés que las vistas de rejilla paginadas:
+        # aquí el contenido de una página lo decide el proveedor, no el ancho,
+        # así que la rejilla solo se recoloca con los resultados que ya tiene.
         self.__poster_grid = PosterGrid(content, columns=6, poster_size=Metrics.GRID6_POSTER,
                                         on_click=self.__on_anime_click)
-        # sticky="ew" y no "w": es lo que da a la rejilla el ancho de la ventana
-        # para que decida cuántas columnas caben (`poster_grid.py`).
-        #
-        # Sin `on_columns_changed`, al revés que las tres vistas de rejilla
-        # paginadas: aquí el contenido de una página lo decide el proveedor y no
-        # el ancho, así que al ensanchar la ventana no hay nada que volver a
-        # pedirle. La rejilla se recoloca sola con los resultados que ya tiene.
         self.__poster_grid.grid(row=3, column=0, sticky="ew", padx=(PosterGrid.OUTER_PAD_X, 0))
 
         # La fila 4 la ocupa el estado vacío cuando hace falta; el paginador baja
@@ -313,6 +297,7 @@ class SearchButton(utilsButtons.SidebarButton):
         self.__launch_search(page=1)
 
     def __on_order_changed(self, label: str) -> None:
+        """Cambia el criterio de orden y relanza la búsqueda por género."""
         for order_value, order_label in ORDER_LABELS.items():
             if order_label == label:
                 self.__order = order_value
@@ -404,9 +389,7 @@ class SearchButton(utilsButtons.SidebarButton):
         entra el fallback la línea dice el sitio de verdad y no el que se pidió.
         """
         if not animes:
-            # Sin resultados quien habla es el estado vacío, que lo dice con su
-            # icono, su frase y su salida. Repetirlo aquí arriba sería el dato
-            # duplicado que prohíbe `DISENO.md` §6.
+            # Sin resultados quien habla es el estado vacío; repetirlo aquí sería dato duplicado.
             return ""
 
         provider_name = self.__serving_provider_name(animes)
@@ -448,11 +431,10 @@ class SearchButton(utilsButtons.SidebarButton):
         if animes:
             return
 
-        # ⚠️ El paso 9.1 pedía ofrecer aquí «probar con otro proveedor», y sería
-        # mentira: `call_with_fallback()` recorre el registro entero cuando el
-        # elegido devuelve vacío, así que llegar aquí significa que **ya se han
-        # probado todos**. Lo que sí puede cambiar el resultado es soltar lo que
-        # estrecha la consulta, y eso es lo que ofrece el botón.
+        # No se ofrece "probar con otro proveedor": call_with_fallback() ya
+        # recorrió el registro entero, así que llegar aquí significa que todos
+        # han respondido vacío. Lo único que puede cambiar el resultado es
+        # soltar lo que estrecha la consulta.
         if self.__query:
             message = f"Sin resultados para «{self.__query}»"
             action_text = "Borrar la búsqueda"
@@ -546,10 +528,8 @@ class SearchButton(utilsButtons.SidebarButton):
     def __saved_status(anime_record: Optional[AnimeRecord]) -> Optional[AnimeStatus]:
         """Qué dice el sello: el estado excluyente de la fila y, si no tiene, «Favorito».
 
-        Un anime puede estar guardado solo como favorito, sin estar en ninguna de
-        las otras tres listas; ahí el sello sí dice «Favorito», al revés que en la
-        pestaña de favoritos, donde sería el dato repetido que prohíbe
-        `DISENO.md` §6.
+        :param anime_record: Fila guardada del resultado, o None si no está en la biblioteca.
+        :return: Estado a mostrar, o None si no está guardado.
         """
         if anime_record is None:
             return None
@@ -572,16 +552,12 @@ class SearchButton(utilsButtons.SidebarButton):
     def __on_anime_click(self, key: Union[str, int]):
         """Abre la ficha de un resultado de búsqueda.
 
-        No usa `open_saved_anime()` porque un resultado de búsqueda no tiene por
-        qué estar en la biblioteca: aquí el proveedor no se decide, ya se sabe —es
-        el que sirvió la búsqueda—, así que se pasa tal cual y el fallback solo
-        entra si ese sitio falla.
+        No usa open_saved_anime(): aquí el proveedor ya se sabe, es el que
+        sirvió la búsqueda. Cuando el resultado ya está guardado se pasa
+        también su anime_record, para que la ficha use la identidad de la
+        fila y no cree una duplicada si el slug del resultado es de otro sitio.
 
-        🔴 Lo que sí se pasa, y antes no, es el **`anime_record`** cuando el
-        resultado ya está guardado: sin él la ficha da por hecho que el slug que
-        se está viendo es el de la fila, y con el mismo anime guardado desde otro
-        proveedor un clic en un estado crearía una fila duplicada (trampa 21). El
-        sello y la identidad de persistencia salen ahora del mismo cruce.
+        :param key: Clave de la celda pulsada, tal y como se guardó en __displayed.
         """
         anime, anime_record = self.__displayed.get(str(key), (None, None))
         if anime is None:

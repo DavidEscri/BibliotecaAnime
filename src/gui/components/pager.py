@@ -6,28 +6,17 @@ __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __
 
 """Paginador: «Mostrando A-B de N» a la izquierda y los botones de página a la derecha.
 
-Regla del diseño (``DISENO.md`` §6): **se muestra solo si hace falta**. Con
-``total <= page_size`` el paginador se esconde él solo, sin que la vista tenga que
-acordarse; así una pestaña con seis animes no enseña un «página 1 de 1» que no
-lleva a ninguna parte.
+Se muestra solo si hace falta: con ``total <= page_size`` se esconde él solo
+con ``grid_remove()`` (no ``destroy()``, para conservar las opciones de grid).
 
-Esconderse es ``grid_remove()`` y no ``destroy()``: conserva las opciones de
-``grid`` con las que lo colocó la vista, así que volver a aparecer es un ``grid()``
-sin argumentos cuando la lista crece.
+Hay dos formas de decirle cuántas páginas hay, y no son intercambiables:
 
-Hay **dos formas de decirle cuántas páginas hay**, y no son intercambiables:
-
-- ``set_total(n)`` — la vista tiene la lista **entera** en memoria y el paginador
-  la trocea él mismo con ``slice_bounds()``. Es el caso de las cinco vistas de
-  biblioteca: los favoritos o los finalizados salen de una consulta a SQLite.
-  ⚠️ Su ``page_size`` **no es constante**: las rejillas lo derivan del número de
-  columnas que quepan (``set_page_size()``), que a su vez depende del ancho de la
-  ventana. A 1440 son los 12 y 10 del diseño; maximizado, 16 y 12.
-- ``set_pages(u, p)`` — quien trocea es **el sitio web**: la búsqueda pide una
-  página y el proveedor devuelve esos resultados y cuál es la última página. Aquí
-  no hay nada que cortar y el total de resultados **no se sabe**, así que el
-  paginador dice «Página 2 de 5» en vez de «Mostrando 13-24 de 58», que sería
-  inventárselo (`fases/7-buscar.md`, paso 7.3).
+- ``set_total(n)`` — la vista tiene la lista entera en memoria y el paginador
+  la trocea él mismo con ``slice_bounds()``. Su ``page_size`` no es constante:
+  las rejillas lo derivan del número de columnas que quepan (``set_page_size()``).
+- ``set_pages(u, p)`` — quien trocea es el proveedor: la búsqueda pide una
+  página y el sitio devuelve esos resultados y cuál es la última página. El
+  total no se conoce, así que el texto pasa a ser «Página P de U».
 """
 
 from typing import Callable, List, Optional, Tuple
@@ -38,25 +27,18 @@ from gui.theme import Metrics, Theme
 
 
 class Pager(ctk.CTkFrame):
-    """Paginador de una vista.
-
-    Uso típico::
-
-        pager = Pager(main_window.content_frame, page_size=12, on_page=self.__go_to_page)
-        pager.grid(row=3, column=0, sticky="ew", padx=Metrics.CONTENT_PAD_X)
-        pager.set_total(len(animes), page=1)
-    """
+    """Paginador de una vista."""
 
     #: Cuántos botones numerados caben antes de empezar a resumir con puntos
     #: suspensivos. Impar a propósito: así la página actual queda centrada.
     __MAX_PAGE_BUTTONS = 7
 
     def __init__(self, parent, page_size: int, on_page: Callable[[int], None], **kwargs):
-        """
-        :param page_size: elementos por página. **12** en las rejillas de 6
-            columnas y 10 en el resto (``DISENO.md`` §6).
-        :param on_page: recibe el número de página pedido, empezando en 1. La
-            vista es quien repinta; el paginador no sabe qué hay debajo.
+        """Construye el paginador.
+
+        :param page_size: Elementos por página.
+        :param on_page: Recibe el número de página pedido, empezando en 1; la
+            vista es quien repinta, el paginador no sabe qué hay debajo.
         """
         super().__init__(parent, height=1, corner_radius=0, fg_color=Theme.TRANSPARENT, **kwargs)
 
@@ -94,6 +76,7 @@ class Pager(ctk.CTkFrame):
         return self.__page
 
     def total_pages(self) -> int:
+        """:return: Número total de páginas en el modo actual."""
         if self.__provider_pages is not None:
             return self.__provider_pages
         if self.__total <= 0:
@@ -111,10 +94,12 @@ class Pager(ctk.CTkFrame):
         return start, min(start + self.page_size, self.__total)
 
     def set_total(self, total: int, page: int = 1) -> None:
-        """Fija cuántos elementos hay y en qué página estamos. **No** llama a ``on_page``.
+        """Fija cuántos elementos hay y en qué página estamos; no llama a on_page.
 
-        Modo normal: la vista tiene la lista entera y el corte lo hace
-        ``slice_bounds()``.
+        Modo normal: la vista tiene la lista entera y el corte lo hace slice_bounds().
+
+        :param total: Número total de elementos.
+        :param page: Página a mostrar.
         """
         self.__provider_pages = None
         self.__total = max(0, total)
@@ -122,15 +107,13 @@ class Pager(ctk.CTkFrame):
         self.__repaint()
 
     def set_pages(self, total_pages: int, page: int = 1) -> None:
-        """Fija las páginas cuando **las cuenta el proveedor**. **No** llama a ``on_page``.
+        """Fija las páginas cuando las cuenta el proveedor; no llama a on_page.
 
-        Lo usa «Buscar»: cada página es una petición al sitio, así que aquí no hay
-        lista que trocear y ``slice_bounds()`` no pinta nada. El total de
-        resultados no se conoce —el contrato devuelve la última página, no cuántos
-        hay—, de modo que el texto de la izquierda pasa a ser «Página P de U».
+        Lo usa «Buscar»: cada página es una petición al sitio, así que aquí no
+        hay lista que trocear y el total de resultados no se conoce.
 
-        :param total_pages: última página que dice el proveedor.
-        :param page: página que se está viendo.
+        :param total_pages: Última página que dice el proveedor.
+        :param page: Página que se está viendo.
         """
         self.__provider_pages = max(1, total_pages)
         self.__total = 0
@@ -138,20 +121,13 @@ class Pager(ctk.CTkFrame):
         self.__repaint()
 
     def set_page_size(self, page_size: int) -> None:
-        """Cambia cuántos elementos entran en una página. **No** llama a ``on_page``.
+        """Cambia cuántos elementos entran en una página; no llama a on_page.
 
-        Existe porque el número de columnas de ``PosterGrid`` depende del ancho de
-        la ventana, y el tamaño de página de las rejillas es «dos filas llenas»
-        (`DISENO.md` §6): al pasar de 6 a 8 columnas la página pasa de 12 a 16.
+        Se conserva el primer elemento que se estaba viendo, no el número de
+        página, para no saltar a un anime que no estaba en pantalla. Solo
+        tiene efecto en el modo set_total(); en set_pages() solo guarda el valor.
 
-        Se conserva **el primer elemento que se estaba viendo**, no el número de
-        página: pasar de la página 3 de 12 en 12 a la 3 de 16 en 16 saltaría a un
-        anime que no estaba en pantalla. Con este cálculo, el que abría la página
-        sigue abriéndola.
-
-        Solo tiene sentido en el modo de ``set_total()``. Cuando quien pagina es el
-        proveedor (``set_pages()``) el tamaño de página no corta nada, así que se
-        guarda el valor y se deja la página donde estaba.
+        :param page_size: Nuevos elementos por página.
         """
         page_size = max(1, page_size)
         if page_size == self.page_size:
@@ -216,6 +192,7 @@ class Pager(ctk.CTkFrame):
         return numbers
 
     def __add_page_button(self, page_number: int, column: int) -> int:
+        """Pinta el botón de una página numerada y devuelve la siguiente columna libre."""
         is_current = page_number == self.__page
         button = ctk.CTkButton(
             self.__buttons_frame,
@@ -236,6 +213,7 @@ class Pager(ctk.CTkFrame):
         return column + 1
 
     def __add_arrow(self, text: str, target_page: int, enabled: bool, column: int) -> int:
+        """Pinta la flecha de anterior/siguiente y devuelve la siguiente columna libre."""
         button = ctk.CTkButton(
             self.__buttons_frame,
             text=text,
@@ -256,6 +234,7 @@ class Pager(ctk.CTkFrame):
         return column + 1
 
     def __add_ellipsis(self, column: int) -> int:
+        """Pinta los puntos suspensivos y devuelve la siguiente columna libre."""
         label = ctk.CTkLabel(
             self.__buttons_frame,
             text="…",
@@ -268,6 +247,7 @@ class Pager(ctk.CTkFrame):
         return column + 1
 
     def __go(self, page_number: int) -> None:
+        """Cambia de página, repinta y avisa a on_page."""
         page_number = min(max(1, page_number), self.total_pages())
         if page_number == self.__page:
             return

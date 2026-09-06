@@ -11,9 +11,8 @@ título, géneros, progreso de episodios y de qué proveedor es la fila. Al pasa
 ratón aparece una acción a la derecha —«Episodio N →» en Viendo, «Empezar» en
 Pendientes— para saltar sin dar el rodeo por la ficha.
 
-**Rejilla donde se mira, cascada donde se decide** (`DISENO.md` §6): estas dos
-vistas son las que sirven para elegir qué ver ahora, y por eso enseñan progreso en
-vez de una miniatura más grande.
+Estas dos vistas son las que sirven para elegir qué ver ahora, y por eso
+enseñan progreso en vez de una miniatura más grande.
 
 Dos cosas que conviene no deshacer:
 
@@ -49,14 +48,6 @@ class RowAction:
 
 class AnimeRow(ctk.CTkFrame):
     """Una fila de la cascada.
-
-    Uso típico::
-
-        row = AnimeRow(list_frame, anime_record,
-                       provider_name="AnimeAV1",
-                       action=RowAction("Episodio 13 →", self.__on_action),
-                       on_click=self.__on_anime_click)
-        row.grid(row=index, column=0, sticky="ew")
 
     «Pendientes» la reutiliza con ``poster_size=Metrics.ROW_PENDING_POSTER``,
     ``show_progress=False`` —un anime pendiente no tiene progreso que enseñar— y
@@ -94,7 +85,8 @@ class AnimeRow(ctk.CTkFrame):
                  text_width: Optional[int] = None,
                  show_separator: bool = True,
                  **kwargs):
-        """
+        """Construye la fila.
+
         :param anime_record: fila de la biblioteca. Todo lo que se pinta sale de
             aquí; la fila no consulta la BD ni la red.
         :param poster_size: 70 x 100 en Viendo, 56 x 80 en Pendientes.
@@ -162,7 +154,7 @@ class AnimeRow(ctk.CTkFrame):
         title_label = ctk.CTkLabel(
             middle,
             # Una sola línea: en una cascada el título compite con el progreso y
-            # dos líneas descuadran la fila entera (`DISENO-VISUAL.html#viendo`).
+            # dos líneas descuadran la fila entera.
             text=Theme.ellipsize(self.anime_record.title, title_font, self.__text_width, 1),
             font=title_font,
             text_color=Theme.TXT,
@@ -276,29 +268,11 @@ class AnimeRow(ctk.CTkFrame):
     # Interacción
     # ------------------------------------------------------------------
     def __bind_interactions(self) -> None:
-        """Ata hover y clic a la fila y a todos sus hijos.
+        """Ata hover y clic a la fila y a todos sus hijos, ya que los eventos de Tk no burbujean.
 
-        Los eventos de Tk no burbujean: sin recorrer los descendientes, pulsar
-        justo encima del título no haría nada.
-
-        1. La píldora queda fuera del clic **con todo su interior**. Un
-           ``CTkButton`` es un marco con un ``CTkCanvas`` y un ``Label`` dentro, y
-           esos dos hijos **no son** el botón: excluir solo el botón dejaba el
-           clic de la fila atado justo donde se pulsa.
-        2. Lo que se le ata a la píldora va con ``add="+"``. ``bind()`` sin él
-           **sustituye** el manejador que ya hubiera, y CustomTkinter monta ahí
-           dentro los suyos: ``_clicked`` en ``<Button-1>`` y su hover en
-           ``<Enter>`` / ``<Leave>``. Pisarlos dejaba la píldora sin ``command`` y
-           sin color de hover.
-
-        Juntas explican por qué «Episodio N →» y «Empezar» abrían la ficha pero
-        no hacían **su** trabajo: no se ejecutaba su acción, sino el ``on_click``
-        de la fila. Como los dos abrían la misma ficha, no se notó hasta que
-        dejaron de hacer lo mismo.
-
-        El hover sí llega a la píldora entera, y tiene que seguir llegando: si un
-        hijo suyo se queda sin ``<Leave>``, salir de la fila por ahí deja el
-        resaltado encendido para siempre — la trampa 37, la de ``EpisodeRow``.
+        La píldora de acción queda fuera del clic, incluidos su canvas y su
+        label internos (que no son el botón). Todo lo que se ata a la píldora
+        usa ``add="+"`` para no pisar los manejadores propios de CustomTkinter.
         """
         action_widgets = (self.__descendants(self.__action_button)
                           if self.__action_button is not None else [])
@@ -312,18 +286,22 @@ class AnimeRow(ctk.CTkFrame):
                 widget.configure(cursor="hand2")
 
     def __descendants(self, widget) -> List[Any]:
+        """:return: El widget y todos sus descendientes, recursivamente."""
         found = [widget]
         for child in widget.winfo_children():
             found.extend(self.__descendants(child))
         return found
 
     def __handle_click(self, _event=None) -> None:
+        """Delega en on_click con el anime_id de la fila."""
         self.__on_click(self.anime_record.anime_id)
 
     def __handle_action(self) -> None:
+        """Ejecuta el command de la acción con el anime_record de la fila."""
         self.__action.command(self.anime_record)
 
     def __handle_enter(self, _event=None) -> None:
+        """Resalta la fila y muestra la píldora de acción."""
         self.__body.configure(fg_color=Theme.CARD_HOVER)
         if self.__action_button is not None:
             self.__action_button.grid()

@@ -6,27 +6,14 @@ __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __
 
 """Ficha de detalle de un anime: la pantalla desde la que se ve un episodio.
 
-Rediseñada en la fase 8 del plan (`.claude/plan-rediseno/fases/8-ficha.md`). Lo
-que cambia es **la disposición y los estados visibles**, no la lógica:
+Los cuatro botones de estado se encienden y se apagan en vez de cambiar de
+texto, y las filas de episodio muestran solo «Episodio N» con su línea de
+estado al lado. La ficha se puede abrir **por un episodio** (``focus_episode``):
+sale con esa fila desplegada, sus servidores a la vista y la ventana desplazada
+hasta ella.
 
-- los cuatro botones de estado dejan de cambiar de texto («Añadir a» / «Eliminar
-  de») y pasan a **encenderse y apagarse**, así que el estado entero del anime se
-  lee de un golpe;
-- las filas de episodio dejan de repetir el título del anime veinticinco veces y
-  dicen «Episodio N» con su línea de estado al lado;
-- se estrena la **barra de vistos**, el único añadido real: sale de
-  ``get_watched_episodes()`` sin tocar la persistencia.
-
-La ficha se puede abrir **por un episodio**
-(``focus_episode``): sale con esa fila desplegada, sus servidores a la vista y la
-ventana desplazada hasta ella. Es lo que hacen «Episodio N →» y «Seguir por el N»
-en «Viendo» y «Empezar» en «Pendientes», que antes solo llevaban al anime y
-dejaban al usuario buscando la fila.
-
-Lo estructural —la identidad congelada, el aviso de identidad partida, el aviso
-de duplicado y el marcado acumulativo— ya estaba resuelto y aquí **solo se
-recoloca**. Es el fichero donde un error cuesta filas duplicadas en la biblioteca
-real: ver las trampas 21 y 22 de `.claude/docs/10-invariantes-y-trampas.md`.
+Es el fichero donde confundir la identidad de visualización con la de
+persistencia (ver ``AnimeWindowViewer``) duplica filas en la biblioteca real.
 """
 
 import difflib
@@ -48,17 +35,15 @@ from utils.utils import refactor_genre_text, get_anime_image, find_cached_poster
     load_rounded_image, download_anime_poster_by_status, move_anime_poster_by_status, \
     remove_anime_poster_by_status
 
-#: Similitud mínima entre títulos para dar por hecho que un anime que se va a
-#: guardar es el mismo que otro que ya está en la biblioteca. Va **muy por
-#: encima** del umbral con el que se busca (0.75-0.8) a propósito: aquí un falso
-#: positivo interrumpe al usuario con un diálogo por dos animes distintos de la
-#: misma saga ("One Piece" y "One Piece Film: Red"), mientras que un falso
-#: negativo solo deja pasar el duplicado que ya se colaba antes.
+#: Similitud mínima entre títulos para avisar de que un anime que se va a
+#: guardar puede ser el mismo que otro ya guardado. Por encima del umbral con el
+#: que se busca (0.75-0.8) a propósito: aquí un falso positivo interrumpe al
+#: usuario por dos animes distintos de la misma saga, mientras que un falso
+#: negativo solo deja pasar el duplicado.
 DUPLICATE_TITLE_THRESHOLD = 0.9
 
-#: Cómo se llama cada estado de cara al usuario. En los diálogos hay que nombrar
-#: la sección concreta ("tu Biblioteca de Favoritos") y no "tu biblioteca" a
-#: secas: es la que el usuario acaba de pulsar y la que va a mirar después.
+#: Cómo se llama cada estado de cara al usuario, para nombrar la sección
+#: concreta en los diálogos ("tu Biblioteca de Favoritos").
 STATUS_SECTION_NAMES = {
     AnimeStatus.FAVOURITE: "Favoritos",
     AnimeStatus.WATCHING:  "Viendo",
@@ -66,9 +51,8 @@ STATUS_SECTION_NAMES = {
     AnimeStatus.PENDING:   "Pendientes",
 }
 
-#: En qué orden salen los cuatro botones de estado, de izquierda a derecha
-#: (`DISENO-VISUAL.html#ficha`). El texto y los colores de cada uno los pone
-#: ``StatusPill``, que es quien sabe de qué color va un estado.
+#: Orden de los cuatro botones de estado, de izquierda a derecha. El texto y
+#: los colores de cada uno los pone ``StatusPill``.
 STATUS_ORDER: Tuple[AnimeStatus, ...] = (
     AnimeStatus.FAVOURITE,
     AnimeStatus.WATCHING,
@@ -77,7 +61,7 @@ STATUS_ORDER: Tuple[AnimeStatus, ...] = (
 )
 
 #: Los tres que se apagan entre sí. ``FAVOURITE`` no está: es independiente y se
-#: puede tener a la vez que cualquiera de estos (`_set_status`).
+#: puede tener a la vez que cualquiera de estos.
 EXCLUSIVE_STATUSES: Tuple[AnimeStatus, ...] = (
     AnimeStatus.WATCHING,
     AnimeStatus.PENDING,
@@ -85,8 +69,6 @@ EXCLUSIVE_STATUSES: Tuple[AnimeStatus, ...] = (
 )
 
 #: Qué método llama cada botón, según esté apagado o encendido: (añadir, quitar).
-#: Los seis métodos públicos siguen siendo los de siempre; lo único que cambia es
-#: que ahora el botón no cambia de texto para decir cuál de los dos toca.
 STATUS_ACTIONS: Dict[AnimeStatus, Tuple[str, str]] = {
     AnimeStatus.FAVOURITE: ("add_to_favorites", "remove_from_favorites"),
     AnimeStatus.WATCHING:  ("add_to_watching",  "remove_from_watching"),
@@ -94,12 +76,12 @@ STATUS_ACTIONS: Dict[AnimeStatus, Tuple[str, str]] = {
     AnimeStatus.FINISHED:  ("add_to_finished",  "remove_from_finished"),
 }
 
-#: Cuántos episodios se pintan. Sigue siendo un corte duro y sigue siendo la
-#: trampa 8: con AnimeAV1 (orden ascendente) son los 25 **primeros** y con
-#: AnimeFLV los 25 **más recientes**. Para llegar a otro está el buscador.
+#: Cuántos episodios se pintan. Corte duro: con AnimeAV1 (orden ascendente) son
+#: los 25 **primeros** y con AnimeFLV los 25 **más recientes**. Para llegar a
+#: otro está el buscador.
 EPISODES_SHOWN = 25
 
-#: Separación entre el póster y la columna de información (`.sheet`: gap 30).
+#: Separación entre el póster y la columna de información.
 SHEET_GAP = 30
 #: Aire por encima de la ficha y por debajo de la lista de episodios.
 SHEET_PAD_TOP = 26
@@ -108,20 +90,20 @@ SHEET_PAD_BOTTOM = 24
 #: abajo: título, sinopsis, géneros, barra de vistos y botones de estado. El
 #: bloque de proveedor va el primero y no lleva.
 INFO_GAPS = (12, 14, 16, 18, 18)
-#: Ancho máximo del bloque de la barra de vistos (`.seen`: max-width 420).
+#: Ancho máximo del bloque de la barra de vistos.
 SEEN_W = 420
 #: Alto de ese bloque. Un CTkFrame necesita alto explícito o conserva los 200 por
 #: defecto como tamaño pedido y estira la fila que lo contenga.
 SEEN_H = 22
-#: Separación entre la barra y su leyenda (`.seen`: gap 12).
+#: Separación entre la barra y su leyenda.
 SEEN_GAP = 12
-#: Fichas de género (`.tags span`: alto 26, hueco 7, relleno lateral 11).
+#: Fichas de género.
 GENRE_CHIP_H = 26
 GENRE_CHIP_GAP = 7
 GENRE_CHIP_PAD_X = 11
 #: Lado del glifo de los botones de estado.
 STATUS_ICON_SIZE = 14
-#: Alto del botón «Actualizar a …» del bloque de proveedor (`.pv .fix`: alto 30).
+#: Alto del botón «Actualizar a …» del bloque de proveedor.
 FIX_BUTTON_H = 30
 #: Cabecera y filas de la lista de episodios.
 EPISODES_PAD_TOP = 24
@@ -151,9 +133,8 @@ FOCUS_SCROLL_MARGIN = 24
 # TODO: Agregar botón para alternar entre el manga y el anime.
 
 
-#: Fin de línea al estilo Windows o Mac clásico. Se pasa a ``\n`` antes que nada:
-#: ninguno de los dos patrones de abajo lo reconocería, y un ``\r`` suelto que se
-#: cuele en un CTkLabel no se ve pero cuenta como carácter.
+#: Fin de línea al estilo Windows o Mac clásico, normalizado a ``\n`` antes que
+#: nada: ninguno de los dos patrones de abajo lo reconocería.
 _CARRIAGE_RETURN = re.compile(r"\r\n?")
 #: Un salto de línea con espacios o tabuladores alrededor, sin otro salto pegado:
 #: es un corte de renglón del sitio de origen, no una separación de párrafos.
@@ -163,34 +144,20 @@ _PARAGRAPH_BREAK = re.compile(r"[ \t]*\n[ \t\n]*\n[ \t]*")
 
 
 def wrap_synopsis(synopsis: Optional[str]) -> Optional[str]:
-    """Deja la sinopsis en condiciones de envolverse al ancho de la ventana.
+    """Normaliza los saltos de línea de la sinopsis para que envuelva bien al pintarla.
 
-    Deja pasar ``None`` tal cual —hay proveedores que no dan sinopsis— para que la
-    etiqueta pueda seguir decidiendo con un ``or`` qué texto de relleno pone.
+    ``wraplength`` no puede deshacer un ``\\n`` explícito, así que un salto
+    suelto del proveedor se convierte en espacio y dos seguidos (un párrafo) se
+    conservan. Se hace al pintar, no al raspar, para que también beneficie a las
+    filas ya guardadas en BD sin migrar nada.
 
-    El texto llega con los saltos de línea del sitio de origen —AnimeAV1 los trae
-    escapados en su payload y ``animeav1.py`` los convierte en saltos de verdad— y
-    ``wraplength`` **no puede deshacer un ``\\n`` explícito**: Tk lo respeta pase lo
-    que pase, así que la sinopsis se quedaba con los renglones del proveedor por
-    ancha que fuera la ventana. Ese era el síntoma.
-
-    La regla es la del HTML: un salto suelto no significa nada y se convierte en
-    espacio; **dos son un párrafo** y se conservan, porque los escribió quien
-    redactó la sinopsis y perderlos es perder información. En la biblioteca de hoy
-    esa distinción se corresponde exactamente con los datos: 18 separaciones dobles
-    frente a 2 sueltas, y las dos sueltas son en realidad un párrafo con un espacio
-    perdido en medio, que esta normalización también arregla.
-
-    Se hace **al pintar y no al raspar**: ``AnimeInfo.synopsis`` sigue siendo el
-    texto íntegro del proveedor —cómo se reparte en renglones es cosa de la GUI— y
-    así también salen bien las filas que ya estaban guardadas en la BD, sin migrar
-    nada.
+    :param synopsis: Sinopsis tal como la da el proveedor; admite None.
+    :return: Sinopsis normalizada, o None si no había ninguna.
     """
     if not synopsis:
         return synopsis
-    # Primero los párrafos, a un marcador que no puede aparecer en el texto: si se
-    # colapsaran antes los saltos sueltos, el patrón de párrafo ya no encontraría
-    # nada que conservar.
+    # Primero los párrafos, a un marcador que el texto no puede contener: si se
+    # colapsaran antes los saltos sueltos, el patrón de párrafo no encontraría nada.
     marker = "\x00"
     text = _PARAGRAPH_BREAK.sub(marker, _CARRIAGE_RETURN.sub("\n", synopsis).strip())
     text = _SOFT_BREAK.sub(" ", text)
@@ -256,41 +223,29 @@ def find_saved_duplicate(anime_records: List[AnimeRecord], title: str,
 def open_saved_anime(main_window, anime_id: Union[str, int],
                      focus_episode: Optional[int] = None,
                      force_ascending: bool = False) -> None:
-    """Abre la ficha de un anime **ya guardado** en la biblioteca.
+    """Abre la ficha de un anime ya guardado en la biblioteca.
 
-    Punto de entrada único de las cuatro vistas de estado (favoritos, viendo,
-    finalizados y pendientes), que repetían estas mismas líneas una por una.
+    Punto de entrada único de las cuatro vistas de estado. El fallback sigue
+    activo a propósito: fijar el proveedor de la fila impediría abrir animes
+    cuyo slug ya no responde en el proveedor que los guardó.
 
-    El fallback sigue activo a propósito: la propiedad de un slug caduca (hay
-    animes guardados que AnimeAV1 servía y hoy devuelven 404), así que fijar el
-    proveedor de la fila con ``strict=True`` convertiría un anime que hoy se abre
-    despacio en uno que no se abre.
-
-    En el hilo secundario va **solo la petición**. El repintado vuelve al hilo de
-    Tkinter con ``after(0, ...)``, que es la regla del proyecto y no una
-    formalidad: ``display_anime_info()`` empieza destruyendo los widgets de la
-    vista anterior.
-
-    :param main_window: hub de la aplicación (`MainWindow`).
-    :param anime_id: ``anime_id`` de la fila, es decir, el slug del proveedor que
-        la guardó.
-    :param focus_episode: número de episodio por el que abrir la ficha. La deja
-        con **ese episodio desplegado** y desplazada hasta él, que es lo que
-        esperan las acciones «Episodio N →», «Seguir por el N» y «Empezar»:
-        llevan al episodio, no al anime. ``None`` abre la ficha como siempre.
-    :param force_ascending: ordena la lista de menor a mayor pase lo que pase.
-        Lo usa «Empezar», donde el episodio por el que se entra es el primero y
-        detrás tienen que ir el 2, el 3 y el 4, no el final de la serie.
+    :param main_window: Hub de la aplicación.
+    :param anime_id: anime_id de la fila, el slug del proveedor que la guardó.
+    :param focus_episode: Episodio por el que abrir la ficha, ya desplegado y a
+        la vista; None abre la ficha normal.
+    :param force_ascending: Fuerza el orden ascendente, para que el episodio de
+        entrada quede primero en vez de al final de la lista.
     """
     anime_record: AnimeRecord = main_window.animes_persistence.get_anime_by_anime_id(anime_id)
     provider_id, is_deviation = main_window.provider_for_saved_anime(anime_record.provider_id if anime_record is not None else None)
 
     main_window.configure(cursor="watch")
-    # update_idletasks(): así un segundo clic no puede reentrar aquí y lanzar un segundo hilo.
+    # Evita que un segundo clic reentre aquí y lance un segundo hilo.
     main_window.update_idletasks()
 
     def _show(anime_info, served_by):
-        """Ya en el hilo de Tkinter: aquí se toca la interfaz, y solo aquí."""
+        # Repintar vuelve siempre al hilo de Tkinter: display_anime_info() destruye
+        # los widgets de la vista anterior y eso no es seguro desde el hilo secundario.
         if not main_window.winfo_exists():
             return
         main_window.configure(cursor="")
@@ -335,17 +290,11 @@ def open_saved_anime(main_window, anime_id: Union[str, int],
 
 
 class EpisodeRow(ctk.CTkFrame):
-    """Una fila de la lista de episodios.
+    """Una fila de la lista de episodios: número, línea de estado e interruptor «Visto».
 
-    Sustituyó al ``utilsButtons.EpisodeButton`` —retirado ya en el paso 9.4—, que
-    era un botón de ancho completo con el texto «<título del anime> - Episodio N»
-    repetido veinticinco veces. Ahora la fila dice solo **«Episodio N»** —el título del anime está
-    justo encima, en la cabecera de la ficha— y reparte el resto del ancho entre
-    una línea de estado y el interruptor «Visto» (`DISENO-VISUAL.html#ficha`).
-
-    La fila entera es pulsable y despliega los servidores debajo. El interruptor
-    **no** hereda ese clic: los eventos de Tk no burbujean, así que marcar un
-    episodio no abre sus servidores sin querer.
+    La fila entera es pulsable y despliega los servidores debajo. El
+    interruptor no hereda ese clic: los eventos de Tk no burbujean, así que
+    marcar un episodio no abre sus servidores sin querer.
     """
 
     __hovered: Optional["EpisodeRow"] = None
@@ -444,14 +393,11 @@ class EpisodeRow(ctk.CTkFrame):
     # Interacción
     # ------------------------------------------------------------------
     def __bind_interactions(self) -> None:
-        """
-        Ata hover y clic a la fila y a sus hijos.
+        """Ata hover y clic a la fila y a sus hijos, ya que los eventos de Tk no burbujean.
 
-        Los eventos de Tk no burbujean: sin recorrer los hijos, pulsar justo
-        encima del número no haría nada. El **clic** se queda en la fila y sus dos
-        etiquetas —el interruptor tiene su propio comando y no debe abrir los
-        servidores—, pero el **hover se ata a todos los hijos**, incluidos el
-        interruptor y el separador de 1 px.
+        El clic se queda en la fila y sus dos etiquetas (el interruptor tiene su
+        propio comando); el hover se ata a todos los hijos, interruptor y
+        separador incluidos, para no perder el resaltado al pasar sobre ellos.
         """
         for widget in (self, self.number_label, self.state_label, self.switch, self.__separator):
             widget.bind("<Enter>", self.__handle_enter)
@@ -473,8 +419,7 @@ class EpisodeRow(ctk.CTkFrame):
 
     def __handle_leave(self, _event=None) -> None:
         # Tk manda Leave también al pasar del marco a uno de sus hijos, así que
-        # apagar el resaltado sin mirar dónde está el puntero hace parpadear la
-        # fila (misma trampa que en AnimeRow).
+        # apagar el resaltado sin mirar dónde está el puntero hace parpadear la fila.
         if self.__pointer_inside():
             return
         self.__release_hover()
@@ -500,63 +445,40 @@ class AnimeWindowViewer:
     """Ficha de detalle de un anime. No es una ventana: reemplaza el contenido de
     ``main_window.content_frame``.
 
-    **Maneja dos identidades distintas del mismo anime**, y confundirlas duplica
-    datos en la biblioteca del usuario:
+    Maneja dos identidades del mismo anime, y confundirlas duplica filas en la
+    biblioteca: la de **visualización** (``self.anime_info``, ``self.provider_id``,
+    de donde salen título, sinopsis, episodios y servidores) es la del proveedor
+    que sirvió la ficha; la de **persistencia** (``self.persistence_anime_id``,
+    ``self.persistence_poster_url``, ``self.persistence_provider_id``) es la de la
+    fila guardada, no cambia mientras la ficha está en pantalla, y es la única
+    que debe usarse en operaciones de BD y de póster.
 
-    - *Identidad de visualización* (``self.anime_info``, ``self.provider_id``): la
-      del proveedor que sirvió la ficha, que es el que muestra la etiqueta
-      «Proveedor:». De aquí salen título, sinopsis, géneros, episodios y servidores.
-    - *Identidad de persistencia* (``self.persistence_anime_id``,
-      ``self.persistence_poster_url`` y ``self.persistence_provider_id``): la de la
-      **fila guardada** (el ``anime_record`` del constructor) y, si no está
-      guardado, la del ``AnimeInfo`` con el que se abrió la ficha. **Nunca cambia
-      mientras la ficha está en pantalla.** Es la que se usa en toda operación de
-      BD y en todo fichero de póster.
+    ``AnimeInfo.id`` es el slug del sitio, no un identificador universal: el
+    mismo anime es "one-piece" en AnimeAV1 y "one-piece-tv" en AnimeFLV, así que
+    persistir con el id de visualización en vez de con el de apertura insertaría
+    una fila nueva. Las dos identidades pueden separarse (fallback a otro
+    proveedor, o desplegable desviado de la sidebar); cuando lo hacen, la ficha
+    lo avisa y ofrece reapuntar la fila al proveedor actual
+    (``__repair_to_target_provider``).
 
-    El motivo es que ``AnimeInfo.id`` es el *slug* del sitio, no un identificador
-    universal: el mismo anime es "one-piece" en AnimeAV1 y
-    "one-piece-tv" en AnimeFLV. Si se persistiera con el id del proveedor que sirvió
-    la ficha en vez de con el de apertura, «añadir a favoritos» insertaría una
-    **fila nueva** en ANIMES y el mismo anime aparecería dos veces.
-
-    Las dos identidades **siguen sin poder fundirse** aunque la ficha ya no
-    permita cambiar de proveedor: el fallback puede servirla desde un proveedor
-    distinto al que guardó la fila, y desviarse en el desplegable de la sidebar
-    la abre directamente con el slug de otro sitio.
-
-    Cuando se separan, la ficha lo dice y ofrece juntarlas de la única forma que
-    no pierde datos: reapuntar la fila a otro proveedor
-    (``__repair_to_target_provider``), que también sirve para llevártela al
-    proveedor que estés usando aunque no haya nada partido.
-
-    Ver .claude/docs/13-selector-de-proveedor.md (decisión D5).
-
-    **Disposición** (`DISENO-VISUAL.html#ficha`), dos bloques dentro del
-    ``content_frame``: la *cabecera* —póster de 248 x 372 a la izquierda y, a la
-    derecha, proveedor, título, sinopsis, géneros, barra de vistos y los cuatro
-    botones de estado— y la *lista de episodios*.
+    Se compone de dos bloques dentro del ``content_frame``: la cabecera (póster,
+    proveedor, título, sinopsis, géneros, barra de vistos y botones de estado) y
+    la lista de episodios.
     """
 
     def __init__(self, main_window, anime_info: AnimeInfo, provider_id: AnimeProviderId | None = None,
                  anime_record: AnimeRecord | None = None,
                  focus_episode: Optional[int] = None, force_ascending: bool = False):
-        """
-        :param anime_info: ficha del anime. No puede ser ``None``.
-        :param provider_id: proveedor que sirvió esa ficha. Si se omite se usa el
-            que traiga el propio ``AnimeInfo`` (lo estampa el manager al responder)
-            y, en último caso, el predeterminado.
-        :param anime_record: fila con la que está guardado este anime en la
-            biblioteca, si lo está. **Obligatorio cuando la ficha puede venir de
-            un proveedor distinto al que la guardó**: es de donde sale la
-            identidad de persistencia. Sin él se asume que ``anime_info`` es
-            también lo guardado, que es cierto al abrir desde recientes o desde
-            una búsqueda, pero no al abrir un anime de la biblioteca con el
-            desplegable desviado.
-        :param focus_episode: número de episodio por el que abrir la ficha, ya
-            con sus servidores desplegados y a la vista. Ver
-            ``__focus_on_episode()``.
-        :param force_ascending: fuerza el orden de menor a mayor, sea cual sea el
-            que sirva el proveedor.
+        """Construye la ficha. anime_record es obligatorio cuando la ficha puede
+        venir de un proveedor distinto al que guardó el anime: sin él se asume
+        que anime_info es también lo guardado.
+
+        :param anime_info: Ficha del anime; no puede ser None.
+        :param provider_id: Proveedor que sirvió esa ficha; por defecto el que
+            traiga el propio AnimeInfo, o el predeterminado.
+        :param anime_record: Fila con la que está guardado este anime, si lo está.
+        :param focus_episode: Episodio por el que abrir la ficha, ya desplegado.
+        :param force_ascending: Fuerza el orden ascendente pase lo que pase.
         """
         if anime_info is None:
             raise ValueError("AnimeWindowViewer requiere un AnimeInfo; se recibió None")
@@ -566,13 +488,10 @@ class AnimeWindowViewer:
 
         self.provider_id: AnimeProviderId | None = (provider_id or anime_info.provider_id or self.anime_provider_mgr.get_default_provider_id())
 
-        # Identidad de persistencia: se congela aquí y no se vuelve a tocar.
-        #
-        # Solo se separa de la de visualización cuando el slug que se está viendo
-        # NO es el guardado, es decir, cuando la ficha se ha localizado por título
-        # en otro proveedor. Si los dos slugs coinciden manda el de visualización
-        # aunque haya entrado el fallback: ahí el proveedor que respondió sí sirve
-        # ese slug, y es la respuesta correcta para el autorrelleno de la columna.
+        # Identidad de persistencia: se congela aquí y no se vuelve a tocar. Solo se
+        # separa de la de visualización cuando el slug guardado no es el que se está
+        # viendo (la ficha se localizó por título en otro proveedor); si coinciden,
+        # manda el de visualización aunque haya entrado el fallback.
         is_split_identity = (anime_record is not None and str(anime_record.anime_id) != str(anime_info.id))
         self.persistence_anime_id: str = (str(anime_record.anime_id) if is_split_identity else str(anime_info.id))
         self.persistence_poster_url: str = anime_info.poster
@@ -588,11 +507,9 @@ class AnimeWindowViewer:
         self.__is_saved: bool = False
 
         self.watched_status: Dict[Any, bool] = {episode.id: False for episode in self.anime_info.episodes}
-        #: En qué orden llega la lista del proveedor, que **no es el mismo en
-        #: todos**: AnimeAV1 la sirve ascendente y AnimeFLV descendente. El botón
-        #: de orden decía siempre «Mayor a menor» aunque en pantalla se estuviera
-        #: viendo lo contrario; ahora arranca diciendo lo que hay. La lista no se
-        #: reordena al abrir: el corte de 25 sigue siendo el que era.
+        #: Orden en que llega la lista del proveedor, que no es el mismo en todos
+        #: (AnimeAV1 ascendente, AnimeFLV descendente). La lista no se reordena al
+        #: abrir: el corte de 25 sigue siendo el que era.
         self.sort_descending: bool = self.__incoming_order_is_descending()
         if force_ascending and self.sort_descending:
             self.anime_info = replace(
@@ -694,12 +611,9 @@ class AnimeWindowViewer:
         """Monta los dos bloques de la ficha en el ``content_frame``."""
         content = self.main_window.content_frame
         content.grid_columnconfigure(0, weight=1)
-        # El ``content_frame`` lo comparten las siete vistas y su configuración de
-        # rejilla sobrevive al `clear_frame()`. La ficha anterior repartía peso
-        # entre cuatro columnas y cuatro filas, y ese peso se quedaba puesto al
-        # cambiar de pestaña: una columna con peso y **sin widgets** también
-        # recibe el espacio sobrante, así que la vista siguiente pintaba en una
-        # columna 0 estrecha. Se devuelven a cero.
+        # content_frame lo comparten todas las vistas y su configuración de rejilla
+        # sobrevive a clear_frame(): una columna o fila con peso y sin widgets
+        # también recibe el espacio sobrante, así que hay que devolverlas a cero.
         for column in range(1, 4):
             content.grid_columnconfigure(column, weight=0)
         for row in range(1, 6):
@@ -709,10 +623,9 @@ class AnimeWindowViewer:
         self.__build_episodes(content)
 
         if self.__focus_episode is not None:
-            # Con `after`, no aquí: desplegar los servidores es una petición HTTP y
-            # va en el hilo de Tkinter (deuda conocida). Así la ficha ya está
-            # pintada cuando la ventana se queda esperando, en vez de congelarse a
-            # medio dibujar.
+            # Con after y no aquí: desplegar los servidores es una petición HTTP que
+            # va en el hilo de Tkinter, así que la ficha ya está pintada cuando la
+            # ventana se queda esperando, en vez de congelarse a medio dibujar.
             self.main_window.after(FOCUS_DELAY_MS, self.__focus_on_episode)
 
     def __build_sheet(self, content: ctk.CTkFrame) -> None:
@@ -721,8 +634,8 @@ class AnimeWindowViewer:
         sheet.grid(row=0, column=0, sticky="ew",
                    padx=Metrics.CONTENT_PAD_X, pady=(SHEET_PAD_TOP, 0))
         sheet.grid_columnconfigure(1, weight=1)
-        # El póster fija el alto del bloque: es lo que permite que los botones de
-        # estado queden alineados con su borde inferior (`.acts`: margin-top auto).
+        # El póster fija el alto del bloque, para que los botones de estado queden
+        # alineados con su borde inferior.
         sheet.grid_rowconfigure(0, minsize=Metrics.SHEET_POSTER[1])
 
         poster_label = ctk.CTkLabel(sheet, text="", image=self.__poster_image())
@@ -748,13 +661,10 @@ class AnimeWindowViewer:
     def __poster_image(self) -> ctk.CTkImage:
         """El póster a 248 x 372, con las esquinas redondeadas.
 
-        Se prefiere el fichero cacheado —``load_rounded_image()`` reduce con
-        LANCZOS y recorta las esquinas, que ``CTkImage`` no sabe hacer— y solo se
-        sale a la red cuando el anime todavía no tiene póster en disco, que es
-        exactamente lo que hacía ``get_anime_image()`` hasta ahora.
-
-        ⚠️ La identidad es la de **persistencia**: el fichero en disco se llama
-        como la fila guardada, no como el slug que sirvió esta ficha.
+        Se prefiere el fichero cacheado y solo se sale a la red cuando el anime
+        todavía no tiene póster en disco. La identidad usada es la de
+        persistencia: el fichero se llama como la fila guardada, no como el
+        slug que sirvió esta ficha.
         """
         cached_path = find_cached_poster_path(self.persistence_anime_id)
         if cached_path is not None:
@@ -809,14 +719,9 @@ class AnimeWindowViewer:
     def __relayout_text(self, available: int) -> None:
         """Reparte el ancho disponible entre título, sinopsis y fichas de género.
 
-        Los tres usan **todo** el ancho de la columna. El diseño cortaba la
-        sinopsis a 74 caracteres (`.syn`: `max-width:74ch`) por legibilidad, pero
-        ese tope se quitó el 2026-09-02: dejaba la ficha con una franja vacía a la
-        derecha al maximizar, que es justo lo que se estaba arreglando.
-
-        Envolver es cosa de ``wraplength``, y para que sirva de algo el texto no
-        puede traer saltos propios: de eso se encarga ``wrap_synopsis()`` al
-        construir la etiqueta.
+        Los tres usan todo el ancho de la columna. Envolver es cosa de
+        wraplength, y para que sirva de algo el texto no puede traer saltos
+        propios: de eso se encarga wrap_synopsis() al construir la etiqueta.
         """
         self.__laid_out_width = available
         if self.__title_label is not None:
@@ -848,13 +753,9 @@ class AnimeWindowViewer:
             if used and used + width > available:
                 row, used = row + 1, 0
             y = row * (GENRE_CHIP_H + GENRE_CHIP_GAP)
-            # El borde lo pinta un CTkFrame y el texto va encima: un CTkLabel no
-            # tiene `border_width`, y el contorno es lo que distingue una ficha de
-            # una palabra suelta (`.tags span`: borde LINE, radio 13).
-            #
-            # ⚠️ El relleno es BG y no `transparent`: un CTkFrame transparente no
-            # dibuja su rectángulo, y con él se va **también el borde**. Los
-            # géneros salían como texto suelto, sin contorno, en los dos temas.
+            # El borde lo pinta un CTkFrame y el texto va encima: CTkLabel no tiene
+            # border_width. El relleno es BG y no transparent porque un CTkFrame
+            # transparente no dibuja su rectángulo y se pierde también el borde.
             chip = ctk.CTkFrame(
                 self.__tags_frame,
                 width=width,
@@ -871,10 +772,9 @@ class AnimeWindowViewer:
             label = ctk.CTkLabel(
                 chip,
                 text=text,
-                # Más baja que la ficha a propósito: un CTkLabel transparente
-                # pinta el fondo del padre, y con el alto por defecto (28 > 26)
-                # borraba los tramos rectos del borde y solo quedaban las
-                # esquinas redondeadas.
+                # Más baja que la ficha a propósito: un CTkLabel transparente pinta
+                # el fondo del padre, y a su alto por defecto borraría los tramos
+                # rectos del borde.
                 width=tag_font.measure(text) + 2,
                 height=GENRE_CHIP_H - 8,
                 font=tag_font,
@@ -893,12 +793,7 @@ class AnimeWindowViewer:
         self.__tags_frame.configure(width=available, height=max(1, height))
 
     def __on_info_configure(self, event) -> None:
-        """Re-envuelve el texto cuando la columna cambia de ancho de verdad.
-
-        Pasa al plegar la barra lateral, que es justo el caso que la ficha de la
-        fase señala: sin esto la sinopsis se queda con el ``wraplength`` del ancho
-        anterior y se corta por la derecha (trampa 22).
-        """
+        """Re-envuelve el texto cuando la columna cambia de ancho de verdad (p.ej. al plegar la sidebar)."""
         if abs(event.width - self.__laid_out_width) <= RELAYOUT_THRESHOLD:
             return
         self.__relayout_text(event.width)
@@ -907,11 +802,7 @@ class AnimeWindowViewer:
     # Barra de vistos
     # ------------------------------------------------------------------
     def __build_seen_bar(self, info: ctk.CTkFrame) -> None:
-        """«N de M vistos»: el único añadido real de la fase.
-
-        Sale de ``get_watched_episodes()`` y de la lista de episodios que ya
-        tiene la ficha, sin tocar la persistencia.
-        """
+        """«N de M vistos», calculado sin tocar la persistencia."""
         self.__seen_frame = ctk.CTkFrame(info, height=1, fg_color=Theme.TRANSPARENT)
         self.__seen_frame.grid(row=4, column=0, sticky="w", pady=(INFO_GAPS[3], 0))
         self.__refresh_seen_bar()
@@ -925,17 +816,15 @@ class AnimeWindowViewer:
 
         total = len(self.anime_info.episodes)
         if not total:
-            # Sin lista de episodios no hay total que prometer: mismo criterio que
-            # el sello de «Finalizados» de la fase 6, que ahí dice «Finalizado» en
-            # vez de «0 / 0».
+            # Sin lista de episodios no hay total que prometer.
             return
         watched = sum(1 for episode in self.anime_info.episodes
                       if self.watched_status.get(episode.id, False))
 
         caption_text = f"{watched} de {total} vistos"
         caption_font = Theme.font(*Theme.T_SUB)
-        # El ancho de la barra se calcula, no se estira: el bloque entero mide 420
-        # (`.seen`: max-width 420) y el texto se queda con lo que necesita.
+        # El ancho de la barra se calcula, no se estira: el bloque entero mide
+        # SEEN_W y el texto se queda con lo que necesita.
         bar_width = max(120, SEEN_W - caption_font.measure(caption_text) - SEEN_GAP)
 
         progress = ctk.CTkProgressBar(
@@ -961,20 +850,12 @@ class AnimeWindowViewer:
 
     # ------------------------------------------------------------------
     # Proveedor de la ficha
-    #
-    # Las tres líneas del bloque son un dato distinto cada una y hay que leerlas
-    # juntas: "Proveedor: X" es de dónde vienen los datos que ves, "En tu
-    # biblioteca: Y" es de quién es tu fila, y el botón ofrece juntarlas. El ⚠
-    # ámbar compara las dos primeras (docs/13 §14).
     # ------------------------------------------------------------------
     def __build_provider_block(self, info: ctk.CTkFrame) -> None:
-        """Indica **quién sirvió realmente** esta ficha, no el predeterminado.
+        """Indica quién sirvió realmente esta ficha, quién guarda la fila, y ofrece unificarlas si difieren.
 
-        Es lo único que hace visible el fallback silencioso de
-        ``call_with_fallback``: puedes tener AnimeAV1 seleccionado y estar viendo
-        datos de otro porque el primero falló.
-
-        El proveedor se elige en la sidebar.
+        Hace visible el fallback silencioso: puedes tener un proveedor
+        seleccionado y estar viendo datos de otro porque el primero falló.
         """
         provider_frame = ctk.CTkFrame(info, height=1, fg_color=Theme.TRANSPARENT)
         provider_frame.grid(row=0, column=0, sticky="ew")
@@ -1059,22 +940,14 @@ class AnimeWindowViewer:
                 and self.__saved_provider_id != self.provider_id)
 
     def __repair_target_provider_id(self) -> AnimeProviderId | None:
-        """A qué proveedor se ofrece pasar esta fila, o ``None`` si no hay nada que hacer.
+        """A qué proveedor se ofrece pasar esta fila, o None si no hay nada que hacer.
 
-        Dos orígenes, en este orden:
+        Dos orígenes: quien está sirviendo la ficha, si no es el de la fila
+        (migrar no cuesta ni una petición); o si no, el proveedor seleccionado
+        en la sidebar cuando difiere del de la fila (hay que localizar el
+        anime allí antes de migrar, porque el slug es distinto en cada sitio).
 
-        1. **Quien está sirviendo la ficha**, cuando no es el de la fila. Es lo que
-           tienes delante, así que migrar no cuesta ni una petición.
-        2. **El proveedor seleccionado en la sidebar**, cuando la ficha la sirve el
-           de la fila pero tú estás usando otro. Este es el caso corriente —«tengo
-           One Piece guardado desde AnimeFLV y quiero pasarlo a AnimeAV1»— y hay
-           que localizar el anime allí antes de migrar, porque el slug es distinto
-           en cada sitio.
-
-        Atarlo solo al caso 1, como estaba, dejaba la acción fuera de alcance
-        justo cuando más falta hace: al abrir un anime guardado sin desviar el
-        desplegable lo sirve **el proveedor de su propia fila**, así que nunca
-        había nada "partido" que reparar y el botón no llegaba a aparecer.
+        :return: Proveedor destino, o None si la fila ya coincide con ambos.
         """
         if not self.__is_saved:
             return None
@@ -1243,15 +1116,9 @@ class AnimeWindowViewer:
                       f"en {status.name.lower()}: {e}")
 
     # ------------------------------------------------------------------
-    # Botones de estado
-    #
-    # Dejan de cambiar de texto («Añadir a favoritos» / «Eliminar de favoritos»)
-    # y pasan a **encenderse y apagarse**: los cuatro dicen siempre lo mismo y el
-    # estado entero del anime se lee de un golpe (`DISENO.md` §7).
-    #
-    # Todos usan __persistence_anime_info() y persistence_anime_id, nunca
-    # self.anime_info directamente: si no, cambiar de proveedor y pulsar uno de
-    # estos botones crearía una fila nueva en ANIMES para el mismo anime.
+    # Botones de estado — todos usan __persistence_anime_info() y
+    # persistence_anime_id, nunca self.anime_info: si no, cambiar de proveedor y
+    # pulsar un botón crearía una fila nueva en ANIMES para el mismo anime.
     # ------------------------------------------------------------------
     def __build_status_buttons(self, info: ctk.CTkFrame) -> None:
         """Los cuatro botones, en una fila que reparte el ancho a partes iguales."""
@@ -1283,11 +1150,7 @@ class AnimeWindowViewer:
         """Enciende o apaga cada botón según el estado que tenga la fila.
 
         Encendido: fondo pastel del estado y texto de su color, sin borde.
-        Apagado: fondo de tarjeta, borde ``LINE`` y texto secundario.
-
-        El glifo se pide teñido del mismo color que el texto (``StatusPill.icon``
-        con ``color=``): estos botones van sobre el fondo de la aplicación, no
-        sobre una carátula, así que necesitan las dos variantes de tema.
+        Apagado: fondo de tarjeta, borde y texto secundario.
         """
         for status, button in self.__status_buttons.items():
             if not button.winfo_exists():
@@ -1306,23 +1169,12 @@ class AnimeWindowViewer:
             )
 
     def __toggle_status(self, status: AnimeStatus) -> None:
-        """Alterna el estado pulsado.
-
-        El ``command`` de los botones ya no cambia: es siempre este, y decide
-        entre ``add_to_*`` y ``remove_from_*`` mirando cómo está la fila. Los seis
-        métodos públicos siguen existiendo y haciendo exactamente lo de antes.
-        """
+        """Alterna el estado pulsado, llamando a add_to_* o remove_from_* según cómo esté la fila."""
         actions = STATUS_ACTIONS[status]
         getattr(self, actions[1] if self.__status_state[status] else actions[0])()
 
     def __after_status_change(self) -> None:
-        """Lo que hay que repintar después de tocar un estado.
-
-        Los contadores de la barra lateral salen de las listas cacheadas del hub,
-        y esas listas solo se llenan al arrancar: sin releerlas, la barra seguiría
-        diciendo lo de antes hasta el siguiente arranque. Es la misma receta que
-        usa «Empezar» en la vista de pendientes.
-        """
+        """Repinta los botones y relee las listas cacheadas del hub para refrescar los contadores de la sidebar."""
         self.__refresh_status_buttons()
         animes_persistence = self.main_window.animes_persistence
         self.main_window.favourite_animes = animes_persistence.get_favourite_animes()
@@ -1332,32 +1184,20 @@ class AnimeWindowViewer:
         self.main_window.refresh_sidebar_counts()
 
     def __set_exclusive_status(self, status: Optional[AnimeStatus]) -> None:
-        """Enciende uno de los tres excluyentes y apaga los otros dos.
-
-        En pantalla igual que en BD: ``_set_status`` pone a 0 los otros dos al
-        activar uno, así que dejar dos encendidos sería mentir. ``FAVOURITE`` es
-        independiente y no entra aquí.
-        """
+        """Enciende uno de los tres estados excluyentes y apaga los otros dos. FAVOURITE no entra aquí."""
         for candidate in EXCLUSIVE_STATUSES:
             self.__status_state[candidate] = (candidate == status)
 
     def __confirm_save(self, status: AnimeStatus) -> bool:
-        """Avisa antes de crear una fila nueva de un anime que ya está guardado.
+        """Avisa antes de crear una fila nueva de un anime que ya está guardado con otro slug.
 
-        La comprobación por ``anime_id`` no basta: el mismo anime tiene un slug
-        distinto en cada sitio, así que abrirlo desde otro proveedor y pulsar un
-        estado inserta una **segunda fila** del mismo anime, con sus propios
-        episodios vistos y su propia entrada en las listas. Hasta ahora eso pasaba
-        en silencio.
+        La comprobación por anime_id no basta: el mismo anime tiene un slug
+        distinto en cada sitio. Se consulta la BD en vez de __is_saved porque el
+        usuario puede haber guardado el anime pulsando otro estado en esta misma
+        pantalla.
 
-        Se consulta la BD en vez de mirar ``__is_saved``, que se calculó al pintar
-        la ficha: si el usuario ya ha pulsado otro estado en esta misma pantalla,
-        la fila existe desde entonces y no hay nada que avisar.
-
-        :param status: sección a la que se está añadiendo, para nombrarla en el
-            aviso en vez de hablar de «tu biblioteca» en abstracto.
-        :return: ``True`` si se puede guardar (no hay duplicado, o el usuario lo
-            ha aceptado a sabiendas).
+        :param status: Sección a la que se está añadiendo, para nombrarla en el aviso.
+        :return: True si se puede guardar (no hay duplicado, o el usuario lo acepta).
         """
         animes_persistence = self.main_window.animes_persistence
         if animes_persistence.get_anime_by_anime_id(self.persistence_anime_id) is not None:
@@ -1371,10 +1211,8 @@ class AnimeWindowViewer:
         duplicate_provider = self.anime_provider_mgr.get_provider_name(duplicate.provider_id)
         provider_name = self.anime_provider_mgr.get_provider_name(self.provider_id)
         section_name = STATUS_SECTION_NAMES.get(status, "tu biblioteca")
-        # Dónde está el duplicado se saca de sus propios flags y no de la sección
-        # que se acaba de pulsar: puede estar en otra, o en ninguna si se quitó de
-        # todas. Decir "ya está en Favoritos" cuando está en Pendientes sería
-        # mentir justo en el dato por el que el usuario decide.
+        # Dónde está el duplicado sale de sus propios flags, no de la sección que se
+        # acaba de pulsar: puede estar en otra, o en ninguna.
         duplicate_sections = [name for duplicate_status, name in STATUS_SECTION_NAMES.items()
                               if getattr(duplicate, duplicate_status.value)]
         location = f", en {' y '.join(duplicate_sections)}," if duplicate_sections else ""
@@ -1572,8 +1410,7 @@ class AnimeWindowViewer:
             self.__episode_rows[episode_info.id] = row
 
         if showing_all and len(self.anime_info.episodes) > EPISODES_SHOWN:
-            # El corte de 25 es viejo y sigue en pie (trampa 8). Decirlo aquí es
-            # lo que convierte el buscador de al lado en la salida evidente.
+            # Se anuncia el corte para que el buscador de al lado sea la salida evidente.
             note = ctk.CTkLabel(
                 self.__episodes_body,
                 text=f"Se muestran {EPISODES_SHOWN} de {len(self.anime_info.episodes)} episodios · "
@@ -1595,12 +1432,7 @@ class AnimeWindowViewer:
         return None
 
     def __episode_state_text(self, episode_info: EpisodeInfo, next_episode_id: Optional[Any]) -> str:
-        """La línea de apoyo de una fila.
-
-        Un episodio visto no dice nada: el interruptor de la derecha ya lo cuenta,
-        y repetirlo veinticinco veces es el dato duplicado que prohíbe
-        `DISENO.md` §6.
-        """
+        """La línea de apoyo de una fila. Un episodio visto no dice nada: ya lo cuenta el interruptor."""
         if episode_info.id in self.__servers_frames:
             return "Servidores disponibles"
         if self.watched_status.get(episode_info.id, False):
@@ -1657,27 +1489,12 @@ class AnimeWindowViewer:
         next_button.grid(row=0, column=2, sticky="e")
 
     def __focus_on_episode(self) -> None:
-        """Deja la ficha abierta **por el episodio** con el que se entró.
+        """Deja la ficha abierta por el episodio con el que se entró.
 
-        Es lo que convierte «Episodio N →», «Seguir por el N» y «Empezar» en un
-        solo gesto: antes llevaban a la ficha y el usuario tenía que buscar la
-        fila y pulsarla para que salieran los servidores.
-
-        Tres pasos, y el segundo es el que no es obvio:
-
-        1. si el episodio **no está entre los 25 que se pintan** —el corte de
-           siempre (trampa 8), que con orden descendente deja fuera el episodio 3
-           y con ascendente el 1164— se enseña él solo con sus botones de
-           anterior y siguiente, exactamente igual que al buscarlo a mano. El
-           número se escribe además en «Ir al episodio…»: es el mismo estado, y
-           sin el número puesto parecería que la ficha ha perdido la lista;
-        2. se despliegan sus servidores, que es a lo que se venía;
-        3. se desplaza la ventana hasta la fila, sin lo cual el paso 2 no se ve.
-
-        Se llama **una vez** y consume ``__focus_episode``: es una acción de
-        apertura, no un estado. Que el proveedor no liste ese episodio no es un
-        error —la biblioteca puede ir por delante de lo que hay publicado—, así
-        que se deja la ficha como estaba y se anota en el log.
+        Si el episodio queda fuera del corte de EPISODES_SHOWN, se muestra él
+        solo con navegación anterior/siguiente; después se despliegan sus
+        servidores y se desplaza la ventana hasta la fila. Se llama una vez y
+        consume ``__focus_episode``.
         """
         episode_id, self.__focus_episode = self.__focus_episode, None
         # La ficha puede haberse ido en estos 50 ms: cambiar de pestaña destruye
@@ -1705,19 +1522,11 @@ class AnimeWindowViewer:
         self.__scroll_to_episode(episode_info.id)
 
     def __scroll_to_episode(self, episode_id: Any) -> None:
-        """Desplaza el ``content_frame`` **solo si hace falta** para ver la fila.
+        """Desplaza el content_frame solo si la fila y sus servidores no caben ya en lo que se ve.
 
-        Sin desplazar nada la función no se notaría: la lista arranca por debajo
-        del póster de 372 px, así que a partir de la novena fila el episodio que
-        se acaba de abrir cae fuera de la ventana y la ficha parece no haber hecho
-        nada. Pero desplazar **siempre** es igual de malo por el otro lado: con el
-        episodio 1 —el caso de «Empezar»— la fila ya se ve, y subir la ventana
-        hasta ella solo serviría para tirar fuera el póster, la sinopsis y los
-        botones de estado a cambio de nada.
-
-        Así que se mide: si la fila **y sus servidores** caben enteros en lo que
-        se está viendo, no se toca el desplazamiento. Si no, la fila se lleva
-        arriba con ``FOCUS_SCROLL_MARGIN`` de aire.
+        Desplazar siempre sería igual de malo que no hacerlo nunca: con el
+        primer episodio la fila ya es visible, y subir la ventana solo taparía
+        el póster y los botones de estado sin necesidad.
         """
         row = self.__episode_rows.get(episode_id)
         content = self.main_window.content_frame
@@ -1744,7 +1553,6 @@ class AnimeWindowViewer:
         canvas.yview_moveto(min(max(offset, 0) / total_height, 1.0))
 
     def __toggle_sort_order(self):
-        # Cambiar el estado de orden y actualizar la lista de episodios
         self.sort_descending = not self.sort_descending
         self.anime_info.episodes.sort(
             key=lambda episode: episode.id,
@@ -1754,11 +1562,9 @@ class AnimeWindowViewer:
         self.__display_episodes()
 
     def __search_episodes(self, event=None):
-        # Obtener el valor de búsqueda y filtrar episodios por ID
         query = self.search_entry.get().strip()
         if query.isdigit():
             query_id = int(query)
-            # Filtrar la lista según el ID del episodio
             filtered_episode = next((ep for ep in self.anime_info.episodes if ep.id == query_id), None)
             if filtered_episode is None:
                 self.__display_episodes([])
@@ -1766,14 +1572,11 @@ class AnimeWindowViewer:
                 self.__display_episodes([filtered_episode])
                 self.__display_previous_and_next_episodes(filtered_episode)
         else:
-            # Mostrar todos los episodios si no se ingresa un número válido
             self.__display_episodes()
 
     def __previous_episode(self, episode_info: EpisodeInfo):
         current_index = next(i for i, ep in enumerate(self.anime_info.episodes) if ep.id == episode_info.id)
         previous_index = current_index + 1 if self.sort_descending else current_index - 1
-
-        # Verificar que el siguiente episodio está en el rango
         if 0 <= previous_index < len(self.anime_info.episodes):
             previous_episode = self.anime_info.episodes[previous_index]
             self.__display_episodes([previous_episode])
@@ -1782,25 +1585,22 @@ class AnimeWindowViewer:
     def __next_episode(self, episode_info: EpisodeInfo):
         current_index = next(i for i, ep in enumerate(self.anime_info.episodes) if ep.id == episode_info.id)
         next_index = current_index - 1 if self.sort_descending else current_index + 1
-
-        # Verificar que el siguiente episodio está en el rango
         if 0 <= next_index < len(self.anime_info.episodes):
             next_episode = self.anime_info.episodes[next_index]
             self.__display_episodes([next_episode])
             self.__display_previous_and_next_episodes(next_episode)
 
     def __toggle_episode_switch(self, episode_id: int):
-        """Marca o desmarca un episodio. **Marcar es acumulativo; desmarcar, no.**
+        """Marca o desmarca un episodio. Marcar es acumulativo; desmarcar, no.
 
-        Marcar el 5 marca del 1 al 5 y **conserva** los posteriores que ya
-        estuvieran vistos; desmarcar el 3 desmarca solo el 3. Esa es la lógica que
-        la fase no toca: aquí solo se le ha cambiado el envoltorio, de una lista
-        de interruptores indexada por posición a las filas por identificador.
+        Marcar el 5 marca del 1 al 5 y conserva los posteriores que ya estuvieran
+        vistos; desmarcar el 3 desmarca solo el 3.
+
+        :param episode_id: Episodio sobre el que actúa el interruptor.
         """
-        # Encontrar el índice del episodio en la lista COMPLETA del anime, en
-        # orden real ascendente: el de la lista de la ficha depende del botón de
-        # orden, y "todos los anteriores" no puede depender de cómo se esté
-        # mirando la lista.
+        # Índice en orden real ascendente, no en el de la lista de la ficha (que
+        # depende del botón de orden): "todos los anteriores" no puede depender
+        # de cómo se esté mirando la lista.
         all_episodes_sorted = sorted(self.anime_info.episodes, key=lambda ep: ep.id)
         try:
             ep_index_asc = next(i for i, ep in enumerate(all_episodes_sorted) if ep.id == episode_id)
@@ -1812,39 +1612,31 @@ class AnimeWindowViewer:
         # IDs de todos los episodios hasta el marcado (inclusive) en orden real.
         episodes_up_to = {ep.id for ep in all_episodes_sorted[:ep_index_asc + 1]}
 
-        # --- 1. Actualizar lo que se ve ---------------------------------
         if marking_as_watched:
             for ep_id in episodes_up_to:
                 self.watched_status[ep_id] = True
         else:
-            # Unitario: solo este episodio
             self.watched_status[episode_id] = False
         self.__refresh_episode_states()
         self.__refresh_seen_bar()
 
-        # --- 2. Calcular el conjunto COMPLETO a persistir ----------------
         bd_watched = self.main_window.animes_persistence.get_watched_episodes(self.persistence_anime_id)
 
         if marking_as_watched:
-            # Al marcar como visto: todos los episodios desde el inicio hasta
-            # episode_id (en orden real ascendente) se consideran vistos,
-            # salvo los que el usuario haya desmarcado explícitamente en BD.
-            # Los episodios posteriores no se tocan.
+            # Todo hasta episode_id se marca visto, salvo lo que el usuario haya
+            # desmarcado explícitamente por delante; lo posterior no se toca.
             episodes_after = {ep_id for ep_id in bd_watched if ep_id > episode_id}
             merged = episodes_up_to | episodes_after
         else:
-            # Al desmarcar: eliminar solo este episodio, el resto se preserva intacto
             merged = bd_watched - {episode_id}
 
         saved = self.main_window.animes_persistence.update_watched_episodes(self.persistence_anime_id, merged)
 
         # «Retomar donde lo dejaste» de la portada sale de aquí. Se apunta solo al
         # marcar (desmarcar no es «seguir viendo») y solo si el UPDATE encontró la
-        # fila: update_watched_episodes() devuelve False cuando el anime no está en
-        # la biblioteca, y guardar entonces su identificador dejaría en la banda una
-        # tarjeta sin fila que pintar.
-        # ⚠️ El identificador es persistence_anime_id, nunca anime_info.id: con el
-        # desplegable desviado son slugs distintos (trampa 21).
+        # fila, para no guardar en la banda el identificador de un anime que no
+        # está en la biblioteca. Usa persistence_anime_id y no anime_info.id: con
+        # el desplegable desviado son slugs distintos.
         if saved and marking_as_watched:
             self.main_window.user_persistence.push_last_watched_id(self.persistence_anime_id)
 
@@ -1859,14 +1651,12 @@ class AnimeWindowViewer:
                                                              self.__next_unwatched_episode_id()))
             return
 
-        # strict=True y provider_id explícito: `episode_info.anime` es el slug del
+        # strict=True y provider_id explícito: episode_info.anime es el slug del
         # proveedor que sirvió esta ficha, así que pedir los servidores a otro
-        # sitio con ese slug no devolvería nada útil. Sin esto, el bloque de
-        # proveedor mentiría: diría "AnimeFLV" y abriría servidores de AnimeAV1.
+        # sitio con ese slug no devolvería nada útil.
         #
-        # La petición va en el hilo de Tkinter, como hasta ahora. El cursor de
-        # espera es lo único que se ha añadido: sin él, la ventana se queda quieta
-        # un par de segundos sin explicar por qué.
+        # La petición va en el hilo de Tkinter; el cursor de espera es lo único
+        # que evita que la ventana parezca congelada sin explicar por qué.
         self.main_window.configure(cursor="watch")
         self.main_window.update_idletasks()
         try:
