@@ -1693,7 +1693,7 @@ class AnimeWindowViewer:
             row.set_expanded(True)
             row.set_state_text(self.__episode_state_text(episode_info, None))
 
-        server_url_map = {server.server: server.url for server in servers_info}
+        server_url_map = self.__server_url_map(servers_info)
         server_button = ctk.CTkSegmentedButton(
             servers_frame,
             values=list(server_url_map.keys()),
@@ -1708,6 +1708,24 @@ class AnimeWindowViewer:
         server_button.grid(row=0, column=0, sticky="w", padx=EPISODE_PAD_X, pady=14)
         server_button.set(None)
         server_button.configure(command=lambda selected: self.__play_video(server_url_map[selected]))
+
+    @staticmethod
+    def __server_url_map(servers_info: List[ServerInfo]) -> Dict[str, str]:
+        """Asocia cada servidor a su URL, numerando los nombres repetidos («Desu 2»).
+
+        Un mismo episodio puede ofrecer varios servidores con el mismo nombre; con el
+        nombre tal cual como clave, el dict se quedaría solo con el último.
+        :param servers_info: Servidores del episodio, en el orden del proveedor.
+        :return: Diccionario etiqueta visible → URL, sin etiquetas repetidas.
+        """
+        server_url_map = {}
+        for server in servers_info:
+            label, number = server.server, 1
+            while label in server_url_map:
+                number += 1
+                label = f"{server.server} {number}"
+            server_url_map[label] = server.url
+        return server_url_map
 
     def __play_video(self, url):
         webbrowser.open(url)

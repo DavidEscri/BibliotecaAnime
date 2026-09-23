@@ -5,14 +5,14 @@
 
 | | |
 |---|---|
-| **Fase actual** | **1 · Capa de resolución** — ⬜ no empezada |
-| **Situación** | ⚠️ **Fase 0 terminada sin verificar del todo** (2026-09-23): **mpv sigue** como backend; solo falta repetir la prueba de cabeceras contra zilla real, que estaba caído (522). Ver *Qué quedó sin verificar* |
-| **Último paso completado** | Fase 0 cerrada |
-| **Siguiente paso** | Paso 1.1 — `base.py`: `MediaSource` y `Resolver` ([ficha](fases/1-resolutores.md)). ⚠️ Y en su verificación, **repetir (b) contra zilla real con mpv** (receta en *Qué quedó sin verificar*) |
+| **Fase actual** | **2 · Servidores fuera del hilo de Tk** — ⬜ no empezada |
+| **Situación** | ⚠️ **Fase 1 terminada sin verificar del todo** (2026-09-24): la capa resuelve MP4Upload, Desu/Magi y Desuka contra los sitios reales; **zilla sigue caído** (timeout), así que su resolutor y la prueba (b) de la fase 0 siguen sin probarse contra el servidor de verdad. Ver *Qué quedó sin verificar* |
+| **Último paso completado** | Fase 1 cerrada |
+| **Siguiente paso** | Paso 2.1 de la [ficha 2](fases/2-servidores-fuera-del-hilo.md). ⚠️ Si zilla responde ese día, **una** pasada de la receta de *Qué quedó sin verificar* (resolutor + (b) con mpv) |
 | **Rama** | **`feature/reproductor-embebido`** — la creó el usuario antes de la fase 0 (lleva el plan y un merge de `develop`). **No se crea `feature/reproductor-in-app`**: ver *Decisiones* |
 | **Base** | `f7c88ca` en `feature/reproductor-embebido`; `95abd56` **es ancestro** (llega vía `develop`) |
 | **Commits** | automáticos (uno al cerrar cada fase) |
-| **Actualizado** | 2026-09-23 (fase 0) |
+| **Actualizado** | 2026-09-24 (fase 1) |
 
 ---
 
@@ -21,7 +21,7 @@
 | # | Fase | Situación | Commit | Verificada |
 |---|---|---|---|---|
 | 0 | Spike de libmpv | ⚠️ terminada sin verificar del todo | commit «Reproductor fase 0 — Spike de libmpv» (`git log --grep "fase 0"`) | Sí, en pantalla, salvo (b) contra zilla real y el audio oído |
-| 1 | Capa de resolución | ⬜ no empezada | — | — |
+| 1 | Capa de resolución | ⚠️ terminada sin verificar del todo | commit «Reproductor fase 1 — Capa de resolución» (`git log --grep "fase 1"`) | Sí, contra los sitios y en pantalla (B1), salvo zilla |
 | 2 | Servidores fuera del hilo de Tk | ⬜ no empezada | — | — |
 | 3 | Panel de reproducción | ⬜ no empezada | — | — |
 | 4 | Navegación y fin de episodio | ⬜ no empezada | — | — |
@@ -41,6 +41,9 @@ Lo que no se ha podido ejecutar en cada fase, para que nadie lo dé por probado.
 |---|---|---|
 | 0 | 🔴 **(b) contra zilla real**: que el servidor de verdad siga exigiendo `Sec-Fetch-Site` y que mpv reproduzca **su HLS fMP4** (otro demuxer que el MPEG-TS probado) | `player.zilla-networks.com` devolvió **522** (origen caído) a las ~23:30 y a las ~23:50 del 2026-09-23. **Receta para repetirlo** (la primera fase que salga a zilla, idealmente la 1 en su verificación): `mpv.MPV(vo="null", ao="null", cache="no")`, cargar `https://player.zilla-networks.com/m3u8/<hash>` **con** `http_header_fields=["Sec-Fetch-Site: same-origin"]` y ver que `time-pos` avanza; repetir **sin** ella y ver `[curl] HTTP error 403` en los segmentos y `end-file` con `reason=4`. Un episodio, dos pasadas separadas |
 | 0 | **El audio, oído** | Se comprobó que se decodifica (`aac`) y que avanza con el vídeo, pero no puedo oír. Lo confirma el usuario en la fase 3 |
+| 1 | 🔴 **`ZillaResolver` contra el zilla real**: que `m3u8/<hash>` siga siendo el playlist y que sus segmentos sigan dando 403 sin `Sec-Fetch-Site` | `player.zilla-networks.com` agotó el tiempo de lectura (15 s) a las ~00:00 y ~00:05 del 2026-09-24, dos peticiones sueltas. La conversión `play/` → `m3u8/` y la cabecera **sí** se comprobaron sin red. **Es la misma pasada que la (b) de la fase 0**: resolver con `registry.resolve()`, bajar el playlist, un segmento con y sin la cabecera, y cargarlo en mpv |
+| 1 | **B2 con un `Okru` real** | Ningún episodio probado ofrecía `Okru` el 2026-09-24 (One Piece ep. 1 ya no lo trae). Verificado con HTML sintético pasado por `get_anime_episode_servers()`: sale `https://jkanime.net/jkokru.php?u=…` |
+| 1 | **La app lanzada desde la raíz con la BD real** | Se lanzó una **copia** de `src/` con copia de la BD (en el scratchpad): abrir una ficha y entrar en «Nuevos lanzamientos» **escriben** en la biblioteca (refresco de episodios, `provider_id`), y la regla 3 lo prohíbe fuera de la fase 4. El código es el mismo byte a byte |
 | 0 | La **deduplicación de hilos**: el callback de `Esc` desde mpv y su `after(0)` | Ya no hacen falta: el teclado llega a Tk. Si en otra máquina llegara a mpv, habría que volver a mirarlo |
 
 ---
@@ -95,6 +98,13 @@ fase que la tomó. Empieza vacío a propósito: las decisiones de partida están
 | 0 | `CTkScrollableFrame`: **el síntoma temido de la §6.2 no aparece** — la superficie se recorta al área visible del canvas y se desplaza con él, sin pintarse sobre lo de fuera. La decisión de no meter el vídeo ahí **no cambia** (el diseño lo pone en su propia fila), pero ya no se apoya en un fallo |
 | 0 | 🟢 **DECISIÓN DE BACKEND: mpv SIGUE** (`python-mpv` + `libmpv-2.dll` incrustado vía `wid`, sin proxy). Pasan (a), (c), (d), el consumo y las cinco pruebas de (e); (b) pasa contra la regla de zilla simulada. **No se cae a VLC** |
 | 0 | ✅ **Punto 6 viable tal como se decidió**: barra flotante en `Toplevel`, con tres condiciones para la fase 3 — pantalla completa **manual** (no `-fullscreen`), **guarda de primer plano** que oculta la barra al perder el foco la app, y crear la barra con `update()` |
+| 1 | **Capa `APIs/resolvers/`**: `base` (`MediaSource`, `Resolver`, `url_host`, `BROWSER_USER_AGENT`), `zilla`, `jkplayer`, `mp4upload`, `registry` (`resolve`, `has_resolver`). **Solo importa stdlib, `requests` y a sí misma** (ni `APIs.<sitio>` ni `gui/`): el UA de navegador está duplicado a propósito respecto a `jkanime.py`. `__subsystem__ = "APIs.resolvers"`. La red de seguridad de «nunca lanza» está en **dos capas**: cada resolutor captura `RequestException`, y `registry` captura cualquier otra excepción de `matches()` o `resolve()` y devuelve `None` |
+| 1 | **Cobertura medida el 2026-09-24** (3 episodios × 2 proveedores): **MP4Upload 3/3** (206, `ftyp`, AV1 en `a3`/`a4.mp4upload.com:183`) · **Desu/Magi 7/7** (206, `#EXTM3U`, `nika.playmudos.com`) · **Desuka (`/jkplayer/jk`) 1/1** (206, `ftyp`, `jkplayers.com/stream/jkmedia/…`) · **zilla 0/3: caído** (timeout). Sin resolutor, abren el navegador: UPNShare, Voe, Mega, YourUpload, DoodStream, Netu, VidHide, StreamTape |
+| 1 | **JKAnime `um`/`umv`: funciona el anclaje en claro** (la regex del `.m3u8`, que casa con `hls.loadSource(...)`); el de `atob()` queda de respaldo y **también** trae la URL. El GET al reproductor va con `Referer: https://jkanime.net/` (no el del episodio, que el resolutor no conoce) y responde 200. `expires_at` = parámetro `e=` → **~3 h** desde la resolución |
+| 1 | **Cabeceras sin cambios respecto a la investigación**: `jkplayers.com` **con** `Referer` → **410**; mp4upload con `Referer: https://animeav1.com/` → **403**, con el suyo → 206. ✅ La URL de `/jkplayer/jk` **lleva la IP pública del cliente** en el path: no se resuelve en una máquina y se reproduce en otra |
+| 1 | `MediaSource.expires_at = None` significa «la URL no declara caducidad», no «no caduca»: mp4upload la da `None` y su token parece de sesión. No hay caché en ningún sitio, así que da igual hoy; **la fase 3 no debe guardar un `MediaSource` para reutilizarlo** |
+| 1 | **B1: se numeran los repetidos** («Desu», «Desu 2»…), no se descartan: son URLs distintas (`t=`/`op=` diferentes). Lo hace `AnimeWindowViewer.__server_url_map()`; ✅ visto en pantalla con One Piece ep. 1 de JKAnime (5 botones) y cada botón abre su propia URL. **La fase 3 tiene que conservar esas etiquetas** en su selector de servidor |
+| 1 | **B2 en el proveedor**: `urljoin(f"{BASE_URL}/", …)` en `JKAnime.get_anime_episode_servers()`. `Okru` sigue **sin resolutor** (`has_resolver` → `False`): abre el navegador, ahora con una URL absoluta |
 | Diseño (2026-09-23) | **Diseño visual aprobado**, segunda ronda: [DISENO-VISUAL.html](DISENO-VISUAL.html). Reproductor **acoplado encima de la ficha** (`player_frame` fila 0, `content_frame` fila 1, que se queda); columna izquierda sin póster con volver, título, episodio, servidor, progreso y «Siguiente episodio»; barra en el orden anterior · −10 · play/pausa · +10 · siguiente · progreso · tiempo · volumen · pantalla completa, **sin ✕**; pantalla completa con barra flotante que se oculta a los 5 s; «Ir al episodio…» es el buscador de la ficha. Descartados: modo teatro, carril de episodios, pie de información. **Cambia la fase 3 entera, el paso 4.1 y 4.2, y añade el paso 0.7 y `registry.has_resolver()` (fase 1)** |
 
 ---
@@ -111,6 +121,19 @@ Una entrada por paso completado, **la más reciente arriba**. Formato:
 ```
 
 <!-- nuevas entradas aquí arriba -->
+
+### Fase 1 · Verificación y cierre          (2026-09-24)
+- Sin red (`requests` bloqueado): `has_resolver()` acierta los 12 casos (los 8 de la ficha + `mp4upload.com` sin `www`, URL vacía, basura) con **0 peticiones**; `resolve()` da `None` sin lanzar en Mega, Voe, Byse, Okru, vacía y basura; y sin red, `um`/`jk`/mp4upload dan `None` sin lanzar
+- Con red (espaciada 2-3 s, sin reintentos): cobertura en *Decisiones*. Negativas: `jkplayers` con `Referer` → 410 ✅; zilla sin cabecera → **no probada** (caído)
+- GUI: copia de `src/` + copia de la BD en el scratchpad, con `webbrowser.open` interceptado. Arranca y pinta «Nuevos lanzamientos»; «Viendo» → One Piece (reapuntado a JKAnime **solo en la copia**) → «Seguir por el 1» → **5 servidores en pantalla** · pulsar «Desu 2» y «Desuka» manda al navegador sus dos URLs distintas
+- BD real: sha256 `0c8d5216…fa96` al empezar y al terminar · colores literales solo en `theme.py` · `git grep resolvers -- src/gui/` vacío
+- Estado: ⚠️ por zilla (ver *Qué quedó sin verificar*)
+
+### Fase 1 · Pasos 1.1-1.6 — Capa `APIs/resolvers/` escrita, B1 y B2          (2026-09-24)
+- Ficheros: `src/APIs/resolvers/{__init__,base,zilla,jkplayer,mp4upload,registry}.py` (nuevos), `src/APIs/jkanime/jkanime.py` (B2: `urljoin`), `src/gui/anime_window.py` (B1: `__server_url_map`, numera repetidos)
+- Antes de escribir, **una** petición a cada página (2026-09-24): `jkplayer/um` 200, 16 992 B, URL en claro **y** en `atob()` · embed de mp4upload 200, `player.src({… src: "https://a3.mp4upload.com:183/d/<token>/video.mp4"})` · **zilla: timeout de lectura** (15 s) en el playlist, sigue caído
+- Verificado: no todavía (siguiente: script de verificación)
+- Pendiente que deja: la verificación completa
 
 ### Fase 0 · Cierre          (2026-09-23)
 - Ficheros commiteados: `.gitignore` (+`vendor/`), `ESTADO.md`. `src/` **sin un cambio**; `DB_Animes.db` intacta (sha256 `0c8d5216…fa96`, igual que al empezar)
