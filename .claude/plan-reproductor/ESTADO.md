@@ -5,14 +5,14 @@
 
 | | |
 |---|---|
-| **Fase actual** | **2 · Servidores fuera del hilo de Tk** — ⬜ no empezada |
-| **Situación** | ⚠️ **Fase 1 terminada sin verificar del todo** (2026-09-24): la capa resuelve MP4Upload, Desu/Magi y Desuka contra los sitios reales; **zilla sigue caído** (timeout), así que su resolutor y la prueba (b) de la fase 0 siguen sin probarse contra el servidor de verdad. Ver *Qué quedó sin verificar* |
-| **Último paso completado** | Fase 1 cerrada |
-| **Siguiente paso** | Paso 2.1 de la [ficha 2](fases/2-servidores-fuera-del-hilo.md). ⚠️ Si zilla responde ese día, **una** pasada de la receta de *Qué quedó sin verificar* (resolutor + (b) con mpv) |
+| **Fase actual** | **3 · Panel de reproducción** — ⬜ no empezada |
+| **Situación** | ✅ **Fase 2 terminada y verificada** (2026-09-24): la petición de servidores va en un hilo daemon, la fila dice que carga o que no hay servidores, y las respuestas viejas se descartan. Siguen pendientes de la 0 y la 1 las pruebas contra zilla (ver *Qué quedó sin verificar*) |
+| **Último paso completado** | Fase 2 cerrada |
+| **Siguiente paso** | Paso 3.1 de la [ficha 3](fases/3-panel-de-reproduccion.md). ⚠️ Si zilla responde ese día, **una** pasada de la receta de *Qué quedó sin verificar* (resolutor + (b) con mpv) |
 | **Rama** | **`feature/reproductor-embebido`** — la creó el usuario antes de la fase 0 (lleva el plan y un merge de `develop`). **No se crea `feature/reproductor-in-app`**: ver *Decisiones* |
 | **Base** | `f7c88ca` en `feature/reproductor-embebido`; `95abd56` **es ancestro** (llega vía `develop`) |
 | **Commits** | automáticos (uno al cerrar cada fase) |
-| **Actualizado** | 2026-09-24 (fase 1) |
+| **Actualizado** | 2026-09-24 (fase 2) |
 
 ---
 
@@ -22,7 +22,7 @@
 |---|---|---|---|---|
 | 0 | Spike de libmpv | ⚠️ terminada sin verificar del todo | commit «Reproductor fase 0 — Spike de libmpv» (`git log --grep "fase 0"`) | Sí, en pantalla, salvo (b) contra zilla real y el audio oído |
 | 1 | Capa de resolución | ⚠️ terminada sin verificar del todo | commit «Reproductor fase 1 — Capa de resolución» (`git log --grep "fase 1"`) | Sí, contra los sitios y en pantalla (B1), salvo zilla |
-| 2 | Servidores fuera del hilo de Tk | ⬜ no empezada | — | — |
+| 2 | Servidores fuera del hilo de Tk | ✅ terminada | commit «Reproductor fase 2 — Servidores fuera del hilo de Tk» (`git log --grep "fase 2"`) | Sí, en la app (copia) con Tk y red reales: 16/16 comprobaciones y capturas |
 | 3 | Panel de reproducción | ⬜ no empezada | — | — |
 | 4 | Navegación y fin de episodio | ⬜ no empezada | — | — |
 | 5 | Empaquetado | ⬜ no empezada | — | — |
@@ -41,9 +41,11 @@ Lo que no se ha podido ejecutar en cada fase, para que nadie lo dé por probado.
 |---|---|---|
 | 0 | 🔴 **(b) contra zilla real**: que el servidor de verdad siga exigiendo `Sec-Fetch-Site` y que mpv reproduzca **su HLS fMP4** (otro demuxer que el MPEG-TS probado) | `player.zilla-networks.com` devolvió **522** (origen caído) a las ~23:30 y a las ~23:50 del 2026-09-23. **Receta para repetirlo** (la primera fase que salga a zilla, idealmente la 1 en su verificación): `mpv.MPV(vo="null", ao="null", cache="no")`, cargar `https://player.zilla-networks.com/m3u8/<hash>` **con** `http_header_fields=["Sec-Fetch-Site: same-origin"]` y ver que `time-pos` avanza; repetir **sin** ella y ver `[curl] HTTP error 403` en los segmentos y `end-file` con `reason=4`. Un episodio, dos pasadas separadas |
 | 0 | **El audio, oído** | Se comprobó que se decodifica (`aac`) y que avanza con el vídeo, pero no puedo oír. Lo confirma el usuario en la fase 3 |
-| 1 | 🔴 **`ZillaResolver` contra el zilla real**: que `m3u8/<hash>` siga siendo el playlist y que sus segmentos sigan dando 403 sin `Sec-Fetch-Site` | `player.zilla-networks.com` agotó el tiempo de lectura (15 s) a las ~00:00 y ~00:05 del 2026-09-24, dos peticiones sueltas. La conversión `play/` → `m3u8/` y la cabecera **sí** se comprobaron sin red. **Es la misma pasada que la (b) de la fase 0**: resolver con `registry.resolve()`, bajar el playlist, un segmento con y sin la cabecera, y cargarlo en mpv |
+| 1 | 🔴 **`ZillaResolver` contra el zilla real**: que `m3u8/<hash>` siga siendo el playlist y que sus segmentos sigan dando 403 sin `Sec-Fetch-Site` | `player.zilla-networks.com`: el playlist agotó el tiempo (15 s) en **los 3 episodios** probados el 2026-09-24, y `play/` dio **403 de Cloudflare**. ✅ **Es caída del origen** (522 también desde otra IP). Repetir cuando vuelva (ver *Decisiones*, cobertura). La conversión `play/` → `m3u8/` y la cabecera **sí** se comprobaron sin red. **Es la misma pasada que la (b) de la fase 0**: resolver con `registry.resolve()`, bajar el playlist, un segmento con y sin la cabecera, y cargarlo en mpv |
 | 1 | **B2 con un `Okru` real** | Ningún episodio probado ofrecía `Okru` el 2026-09-24 (One Piece ep. 1 ya no lo trae). Verificado con HTML sintético pasado por `get_anime_episode_servers()`: sale `https://jkanime.net/jkokru.php?u=…` |
 | 1 | **La app lanzada desde la raíz con la BD real** | Se lanzó una **copia** de `src/` con copia de la BD (en el scratchpad): abrir una ficha y entrar en «Nuevos lanzamientos» **escriben** en la biblioteca (refresco de episodios, `provider_id`), y la regla 3 lo prohíbe fuera de la fase 4. El código es el mismo byte a byte |
+| 2 | **El clic real con el ratón sobre la fila** y **el scroll a mano mientras carga** | El arnés llama a `__toggle_servers_frame` directamente (la atadura `<Button-1>` → `on_click` no se ha tocado) y demuestra que el bucle de eventos queda libre midiendo un latido de 10 ms (hueco máximo de 0,03 s durante la petición, 0,12 s con una de 3 s en vuelo), no arrastrando la barra. Lo confirma el usuario al usar la app |
+| 2 | **La app lanzada desde la raíz con la BD real** | Igual que en la fase 1: se lanzó una **copia** byte a byte de `src/` (comprobado con `diff -r`) con copia de la BD, porque abrir fichas escribe en la biblioteca (regla 3) |
 | 0 | La **deduplicación de hilos**: el callback de `Esc` desde mpv y su `after(0)` | Ya no hacen falta: el teclado llega a Tk. Si en otra máquina llegara a mpv, habría que volver a mirarlo |
 
 ---
@@ -99,12 +101,17 @@ fase que la tomó. Empieza vacío a propósito: las decisiones de partida están
 | 0 | 🟢 **DECISIÓN DE BACKEND: mpv SIGUE** (`python-mpv` + `libmpv-2.dll` incrustado vía `wid`, sin proxy). Pasan (a), (c), (d), el consumo y las cinco pruebas de (e); (b) pasa contra la regla de zilla simulada. **No se cae a VLC** |
 | 0 | ✅ **Punto 6 viable tal como se decidió**: barra flotante en `Toplevel`, con tres condiciones para la fase 3 — pantalla completa **manual** (no `-fullscreen`), **guarda de primer plano** que oculta la barra al perder el foco la app, y crear la barra con `update()` |
 | 1 | **Capa `APIs/resolvers/`**: `base` (`MediaSource`, `Resolver`, `url_host`, `BROWSER_USER_AGENT`), `zilla`, `jkplayer`, `mp4upload`, `registry` (`resolve`, `has_resolver`). **Solo importa stdlib, `requests` y a sí misma** (ni `APIs.<sitio>` ni `gui/`): el UA de navegador está duplicado a propósito respecto a `jkanime.py`. `__subsystem__ = "APIs.resolvers"`. La red de seguridad de «nunca lanza» está en **dos capas**: cada resolutor captura `RequestException`, y `registry` captura cualquier otra excepción de `matches()` o `resolve()` y devuelve `None` |
-| 1 | **Cobertura medida el 2026-09-24** (3 episodios × 2 proveedores): **MP4Upload 3/3** (206, `ftyp`, AV1 en `a3`/`a4.mp4upload.com:183`) · **Desu/Magi 7/7** (206, `#EXTM3U`, `nika.playmudos.com`) · **Desuka (`/jkplayer/jk`) 1/1** (206, `ftyp`, `jkplayers.com/stream/jkmedia/…`) · **zilla 0/3: caído** (timeout). Sin resolutor, abren el navegador: UPNShare, Voe, Mega, YourUpload, DoodStream, Netu, VidHide, StreamTape |
+| 1 | **Cobertura medida el 2026-09-24** (3 episodios × 2 proveedores): **MP4Upload 3/3** (206, `ftyp`, AV1 en `a3`/`a4.mp4upload.com:183`) · **Desu/Magi 7/7** (206, `#EXTM3U`, `nika.playmudos.com`) · **Desuka (`/jkplayer/jk`) 1/1** (206, `ftyp`, `jkplayers.com/stream/jkmedia/…`) · **zilla 0/3**: el playlist `m3u8/` no responde (timeout de 15 s) **en los 3 episodios**, y la página `play/` da **403 de Cloudflare en 0,1 s** (comprobado a petición del usuario, 3 peticiones sueltas). **No es de un episodio.** ✅ **Caída del origen, confirmada**: desde **otra IP** (WebFetch) el mismo playlist da **522** (`Retry-After: 120`), y el usuario tampoco lo reproduce en su navegador (en el iframe de AnimeAV1 sale «ha rechazado la conexión», que es como Chrome pinta una página de error de Cloudflare dentro de un iframe). ⚠️ Queda sin explicar el **403 de `play/`** a `requests`: puede ser un filtro de Cloudflare contra clientes que no son navegador. El resolutor no pide esa página, pero **cuando zilla vuelva, mirar si el `m3u8/` también lo da**, porque eso sí afectaría a mpv Sin resolutor, abren el navegador: UPNShare, Voe, Mega, YourUpload, DoodStream, Netu, VidHide, StreamTape |
 | 1 | **JKAnime `um`/`umv`: funciona el anclaje en claro** (la regex del `.m3u8`, que casa con `hls.loadSource(...)`); el de `atob()` queda de respaldo y **también** trae la URL. El GET al reproductor va con `Referer: https://jkanime.net/` (no el del episodio, que el resolutor no conoce) y responde 200. `expires_at` = parámetro `e=` → **~3 h** desde la resolución |
 | 1 | **Cabeceras sin cambios respecto a la investigación**: `jkplayers.com` **con** `Referer` → **410**; mp4upload con `Referer: https://animeav1.com/` → **403**, con el suyo → 206. ✅ La URL de `/jkplayer/jk` **lleva la IP pública del cliente** en el path: no se resuelve en una máquina y se reproduce en otra |
 | 1 | `MediaSource.expires_at = None` significa «la URL no declara caducidad», no «no caduca»: mp4upload la da `None` y su token parece de sesión. No hay caché en ningún sitio, así que da igual hoy; **la fase 3 no debe guardar un `MediaSource` para reutilizarlo** |
 | 1 | **B1: se numeran los repetidos** («Desu», «Desu 2»…), no se descartan: son URLs distintas (`t=`/`op=` diferentes). Lo hace `AnimeWindowViewer.__server_url_map()`; ✅ visto en pantalla con One Piece ep. 1 de JKAnime (5 botones) y cada botón abre su propia URL. **La fase 3 tiene que conservar esas etiquetas** en su selector de servidor |
 | 1 | **B2 en el proveedor**: `urljoin(f"{BASE_URL}/", …)` en `JKAnime.get_anime_episode_servers()`. `Okru` sigue **sin resolutor** (`has_resolver` → `False`): abre el navegador, ahora con una URL absoluta |
+| 2 | **Solapamiento: un número por despliegue, no candado.** `__servers_request_seq` numera cada despliegue y `__servers_requests[episode_id]` guarda el que está en vuelo; plegar, redesplegar o repintar la lista (`__display_episodes`) lo quita o lo cambia, y `__show_servers` descarta la respuesta cuyo número no coincide. Se pueden tener varios episodios desplegados a la vez, como antes. **La fase 3 debe hacer lo mismo con la resolución** (segunda petición en este mismo punto): comparar un número antes de pintar |
+| 2 | **Dónde entra la fase 3**: el `CTkSegmentedButton` se construye en **`__show_servers()`** (ya en el hilo de Tk), no en `__toggle_servers_frame()`; su `command` sigue siendo `__play_video` → `webbrowser.open`. Las etiquetas numeradas de B1 salen de `__server_url_map()` como antes |
+| 2 | **Qué se pinta ahora**: al desplegar, la fila dice «Buscando servidores…» (línea de apoyo, `TXT_3`) y el hueco de debajo también, a la altura de los botones que va a sustituir. Sin servidores —lista vacía **o** excepción, que el gestor no distingue— la fila dice «Sin servidores» y el hueco «<Proveedor> no ha devuelto servidores para este episodio · prueba con otro proveedor…». **Desaparecen** el `cursor="watch"` y el `messagebox` de «Sin servidores disponibles». La línea de apoyo sale de `__servers_states`, que sustituye a mirar `__servers_frames` |
+| 2 | **Abrir la ficha por un episodio** (`__focus_on_episode`) llama a `__toggle_servers_frame(..., scroll_into_view=True)`: se desplaza al desplegar y **otra vez al llegar los servidores**, porque el hueco crece. `FOCUS_DELAY_MS` se queda (50 ms) con otro motivo: medir la fila con la ficha ya colocada |
+| 2 | **Congelado antes y después**: antes, lo que tardase la petición (0,2-0,26 s típico en AnimeAV1 y JKAnime, «un par de segundos» en el peor caso) con la ventana parada. Después, **0,03 s** de hueco máximo en el bucle durante la petición real y **0,12 s** con una petición forzada de 3 s. ⚠️ Abrir la ficha **entera** sigue parando el bucle **0,45-0,68 s**, pero eso es construir los widgets de la ficha en el hilo de Tk, no red: no es de esta fase. **La deuda nº 1 del roadmap queda cerrada del todo** (la fase 6 la tacha en `docs/12`, `docs/07` C5 y `CLAUDE.md`) |
 | Diseño (2026-09-23) | **Diseño visual aprobado**, segunda ronda: [DISENO-VISUAL.html](DISENO-VISUAL.html). Reproductor **acoplado encima de la ficha** (`player_frame` fila 0, `content_frame` fila 1, que se queda); columna izquierda sin póster con volver, título, episodio, servidor, progreso y «Siguiente episodio»; barra en el orden anterior · −10 · play/pausa · +10 · siguiente · progreso · tiempo · volumen · pantalla completa, **sin ✕**; pantalla completa con barra flotante que se oculta a los 5 s; «Ir al episodio…» es el buscador de la ficha. Descartados: modo teatro, carril de episodios, pie de información. **Cambia la fase 3 entera, el paso 4.1 y 4.2, y añade el paso 0.7 y `registry.has_resolver()` (fase 1)** |
 
 ---
@@ -121,6 +128,19 @@ Una entrada por paso completado, **la más reciente arriba**. Formato:
 ```
 
 <!-- nuevas entradas aquí arriba -->
+
+### Fase 2 · Verificación y cierre          (2026-09-24)
+- Arnés `verify_f2.py` (scratchpad) sobre **copia** de `src/` y de la BD: Tk real, red real, `webbrowser.open` interceptado, latido de 10 ms para medir el bucle, capturas con `PrintWindow`
+- **16/16**: One Piece (AnimeAV1) abierto por el 1164 → 7 servidores, petición en `Thread-5 (_fetch)` con `strict=True` y `animeav1` · fila «Buscando servidores…» · plegar mientras carga 0,007 s · respuesta tardía (3 s, centinela) del 3 **no** pinta bajo el 5 · redesplegar el mismo episodio no pinta la vieja · plegar ya cargado 0,016 s sin petición · vacío y excepción dicen «Sin servidores» · pulsar «HLS» abre el navegador con su URL · JKAnime (`kaijuu-8-gou` ep. 1) → Desu, Magi · cerrar la ficha con una petición en vuelo: 0 errores de Tk, sin `invalid command name` en el log
+- Peticiones reales: ~8 a AnimeAV1 y 2 a JKAnime por pasada, dos pasadas, sin un 403
+- BD real: sha256 `0c8d5216…fa96` antes y después (36 filas) · colores literales solo en `theme.py`
+- Estado: ✅
+
+### Fase 2 · Pasos 2.1-2.3 — Servidores en hilo daemon, estado en la fila y generación          (2026-09-24)
+- Ficheros: `src/gui/anime_window.py` (`__toggle_servers_frame` partido en petición + `__show_servers` + `__show_servers_message`; `__servers_requests`/`__servers_states`/`__servers_request_seq`; comentario de `FOCUS_DELAY_MS`)
+- `strict=True` y `provider_id=self.provider_id` intactos (identidad de visualización, trampa 21). Plegar no sale a la red. Fuera el `cursor="watch"` y el `messagebox` de «sin servidores»
+- Verificado: no todavía (siguiente: arnés sobre copia en el scratchpad)
+- Pendiente que deja: la verificación
 
 ### Fase 1 · Verificación y cierre          (2026-09-24)
 - Sin red (`requests` bloqueado): `has_resolver()` acierta los 12 casos (los 8 de la ficha + `mp4upload.com` sin `www`, URL vacía, basura) con **0 peticiones**; `resolve()` da `None` sin lanzar en Mega, Voe, Byse, Okru, vacía y basura; y sin red, `um`/`jk`/mp4upload dan `None` sin lanzar
