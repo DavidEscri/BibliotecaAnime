@@ -5,14 +5,14 @@
 
 | | |
 |---|---|
-| **Fase actual** | **3 · Panel de reproducción** — ⬜ no empezada |
-| **Situación** | ✅ **Fase 2 terminada y verificada** (2026-09-24): la petición de servidores va en un hilo daemon, la fila dice que carga o que no hay servidores, y las respuestas viejas se descartan. Siguen pendientes de la 0 y la 1 las pruebas contra zilla (ver *Qué quedó sin verificar*) |
-| **Último paso completado** | Fase 2 cerrada |
-| **Siguiente paso** | Paso 3.1 de la [ficha 3](fases/3-panel-de-reproduccion.md). ⚠️ Si zilla responde ese día, **una** pasada de la receta de *Qué quedó sin verificar* (resolutor + (b) con mpv) |
+| **Fase actual** | **4 · Navegación y fin de episodio** — ⬜ no empezada |
+| **Situación** | ⚠️ **Fase 3 terminada sin verificar del todo** (2026-09-24): pulsar un servidor reproduce **encima de la ficha** con columna, barra de nueve controles, volumen, pantalla completa con barra flotante y caída limpia al navegador. Visto en pantalla con AnimeAV1 (MP4Upload, AV1 1080p) y JKAnime (Desu, Magi). **Falta**: el `HLS` de AnimeAV1 (zilla sigue caído, tercer día) y **oír** el audio |
+| **Último paso completado** | Fase 3 cerrada |
+| **Siguiente paso** | 🔴 **Antes de escribir nada**: preguntar al usuario el punto de decisión 1 (¿marcar como visto al llegar al final?). Después, paso 4.1 de la [ficha 4](fases/4-navegacion-y-fin-de-episodio.md). ⚠️ Si zilla responde ese día, **una** pasada de `HLS` en la app (ver *Qué quedó sin verificar*) |
 | **Rama** | **`feature/reproductor-embebido`** — la creó el usuario antes de la fase 0 (lleva el plan y un merge de `develop`). **No se crea `feature/reproductor-in-app`**: ver *Decisiones* |
 | **Base** | `f7c88ca` en `feature/reproductor-embebido`; `95abd56` **es ancestro** (llega vía `develop`) |
 | **Commits** | automáticos (uno al cerrar cada fase) |
-| **Actualizado** | 2026-09-24 (fase 2) |
+| **Actualizado** | 2026-09-24 (cierre de la fase 3) |
 
 ---
 
@@ -23,7 +23,7 @@
 | 0 | Spike de libmpv | ⚠️ terminada sin verificar del todo | commit «Reproductor fase 0 — Spike de libmpv» (`git log --grep "fase 0"`) | Sí, en pantalla, salvo (b) contra zilla real y el audio oído |
 | 1 | Capa de resolución | ⚠️ terminada sin verificar del todo | commit «Reproductor fase 1 — Capa de resolución» (`git log --grep "fase 1"`) | Sí, contra los sitios y en pantalla (B1), salvo zilla |
 | 2 | Servidores fuera del hilo de Tk | ✅ terminada | commit «Reproductor fase 2 — Servidores fuera del hilo de Tk» (`git log --grep "fase 2"`) | Sí, en la app (copia) con Tk y red reales: 16/16 comprobaciones y capturas |
-| 3 | Panel de reproducción | ⬜ no empezada | — | — |
+| 3 | Panel de reproducción | ⚠️ terminada sin verificar del todo | commit «Reproductor fase 3 — Panel de reproducción» (`git log --grep "fase 3"`) | Sí, en pantalla sobre copia: AnimeAV1/MP4Upload y JKAnime/Desu y Magi, 47 comprobaciones y capturas. Salvo `HLS` (zilla caído) y el audio oído |
 | 4 | Navegación y fin de episodio | ⬜ no empezada | — | — |
 | 5 | Empaquetado | ⬜ no empezada | — | — |
 | 6 | Documentación | ⬜ no empezada | — | — |
@@ -46,6 +46,11 @@ Lo que no se ha podido ejecutar en cada fase, para que nadie lo dé por probado.
 | 1 | **La app lanzada desde la raíz con la BD real** | Se lanzó una **copia** de `src/` con copia de la BD (en el scratchpad): abrir una ficha y entrar en «Nuevos lanzamientos» **escriben** en la biblioteca (refresco de episodios, `provider_id`), y la regla 3 lo prohíbe fuera de la fase 4. El código es el mismo byte a byte |
 | 2 | **El clic real con el ratón sobre la fila** y **el scroll a mano mientras carga** | El arnés llama a `__toggle_servers_frame` directamente (la atadura `<Button-1>` → `on_click` no se ha tocado) y demuestra que el bucle de eventos queda libre midiendo un latido de 10 ms (hueco máximo de 0,03 s durante la petición, 0,12 s con una de 3 s en vuelo), no arrastrando la barra. Lo confirma el usuario al usar la app |
 | 2 | **La app lanzada desde la raíz con la BD real** | Igual que en la fase 1: se lanzó una **copia** byte a byte de `src/` (comprobado con `diff -r`) con copia de la BD, porque abrir fichas escribe en la biblioteca (regla 3) |
+| 3 | 🔴 **AnimeAV1 por `HLS` (zilla) reproducido en la app** | `player.zilla-networks.com` sigue sin responder el 2026-09-24 a las ~00:40 (timeout de 15 s en el playlist, **tercer día**). En la app, `HLS` resuelve, mpv agota su espera y **cae al navegador a los ~20 s** ofreciendo MP4Upload: la degradación sí está verificada. El caso AV1 1080p dentro de la app se verificó con **MP4Upload**. Cuando zilla vuelva: abrir `dandadan` ep. 1, pulsar `HLS` y **ver** que arranca (misma pasada que las pendientes de la fase 0 y la 1) |
+| 3 | **El audio, oído** | Decodifica `aac` en los tres medios y avanza con el vídeo; el volumen y el silencio cambian las propiedades de mpv. No puedo oír: **lo confirma el usuario** abriendo un episodio |
+| 3 | **La app lanzada desde la raíz con la BD real** | Igual que en las fases 1 y 2: copia byte a byte de `src/` (`diff -r`) con copia de la BD. `app.py` de la copia arranca, sigue viva y se cierra por la ventana con código 0 |
+| 3 | **Salir de pantalla completa con la barra lateral plegada** | Se probó con la barra desplegada (vuelve igual). El mecanismo es el mismo (se guarda y se restaura el `minsize` de la columna), pero plegada no se ejecutó |
+| 3 | **Dos monitores en pantalla completa** | La app se probó en el principal. La receta es la de la fase 0 (que sí se probó en el secundario) |
 | 0 | La **deduplicación de hilos**: el callback de `Esc` desde mpv y su `after(0)` | Ya no hacen falta: el teclado llega a Tk. Si en otra máquina llegara a mpv, habría que volver a mirarlo |
 
 ---
@@ -112,6 +117,21 @@ fase que la tomó. Empieza vacío a propósito: las decisiones de partida están
 | 2 | **Qué se pinta ahora**: al desplegar, la fila dice «Buscando servidores…» (línea de apoyo, `TXT_3`) y el hueco de debajo también, a la altura de los botones que va a sustituir. Sin servidores —lista vacía **o** excepción, que el gestor no distingue— la fila dice «Sin servidores» y el hueco «<Proveedor> no ha devuelto servidores para este episodio · prueba con otro proveedor…». **Desaparecen** el `cursor="watch"` y el `messagebox` de «Sin servidores disponibles». La línea de apoyo sale de `__servers_states`, que sustituye a mirar `__servers_frames` |
 | 2 | **Abrir la ficha por un episodio** (`__focus_on_episode`) llama a `__toggle_servers_frame(..., scroll_into_view=True)`: se desplaza al desplegar y **otra vez al llegar los servidores**, porque el hueco crece. `FOCUS_DELAY_MS` se queda (50 ms) con otro motivo: medir la fila con la ficha ya colocada |
 | 2 | **Congelado antes y después**: antes, lo que tardase la petición (0,2-0,26 s típico en AnimeAV1 y JKAnime, «un par de segundos» en el peor caso) con la ventana parada. Después, **0,03 s** de hueco máximo en el bucle durante la petición real y **0,12 s** con una petición forzada de 3 s. ⚠️ Abrir la ficha **entera** sigue parando el bucle **0,45-0,68 s**, pero eso es construir los widgets de la ficha en el hilo de Tk, no red: no es de esta fase. **La deuda nº 1 del roadmap queda cerrada del todo** (la fase 6 la tacha en `docs/12`, `docs/07` C5 y `CLAUDE.md`) |
+| 3 | 🔴 **Los callbacks de mpv no llaman a Tk, ni con `after()`**: dejan el dato en atributos (posición, duración, pausa) o en una `queue.Queue` (`start-file`, `playback-restart`, `end-file`) y el hilo de Tk los recoge con un **sondeo de 100 ms** (`VideoPlayer.__poll`). Motivo: `after()` desde otro hilo **espera** a que Tk lo atienda, y `terminate()` desde Tk espera a ese hilo; juntas se bloquean. **La fase 4 no debe cambiar esto**: el fin de episodio ya le llega a la ficha por `on_end`, en el hilo de Tk |
+| 3 | **Qué es «empezar» y qué es «terminar»**: empieza con el primer `playback-restart` tras su `start-file` (hasta entonces sigue la tarjeta de «Cargando» encima). Un `end-file` antes del `start-file` del medio nuevo es del anterior y se ignora. `reason 0` → `on_end` (estado «Terminado», play pasa a repetir, +10 apagado); `reason 4` → `on_error` → navegador. **La tarjeta de fin la pone la fase 4 en `on_end`** |
+| 3 | **`force-window=yes`**: la ventana de mpv se crea una vez y no se destruye al parar ni al cambiar de servidor (con `no`, cada `stop` la destruía y la volvía a crear desde otro hilo) |
+| 3 | **`network-timeout=15`**: un servidor muerto (zilla) cae al navegador a los **~20 s** de pulsarlo, con la tarjeta de «Cargando» mientras tanto. Bajarlo más arriesga falsos fallos en hosters lentos |
+| 3 | **La tarjeta de «Cargando» va encima de la superficie ya mapeada** (`lift()`), no en su lugar: mpv necesita la ventana puesta para crear su salida de vídeo. Las tarjetas finales (navegador) sí quitan la superficie con `grid_remove()`. Verificado: la tarjeta tapa el vídeo hasta que se retira |
+| 3 | **«Seguir en el navegador» cierra el panel** (como «← Volver a la ficha»): con el episodio en otra pestaña, un recuadro negro no aporta nada. El diseño no decía qué hacía |
+| 3 | **Clic en el icono de volumen = silenciar/activar**; el deslizador sale al pasar el ratón, como pide el diseño. El volumen y el silencio se recuerdan entre episodios **en la sesión** (atributos de clase de `VideoPlayer`), no en BD |
+| 3 | **No se puede como está dibujado** (1): **esquinas rectas** en el vídeo y en la barra. La superficie es una ventana nativa y no se redondea; una barra con radio abajo y recta arriba no existe en CustomTkinter |
+| 3 | **No se puede como está dibujado** (2): los botones de la barra miden **40 × 38**, no 38 × 38: un `CTkButton` de solo icono no baja de 40 de ancho, pruebe `width` o `border_spacing` que se pruebe (medido con `winfo_reqwidth()`) |
+| 3 | **Alto del vídeo**: 16:9 del ancho disponible **sin pasar de la mitad del alto de la ventana**. A 1440 × 910 da los 806 × 453 del diseño; con la barra lateral plegada, 946 × 455; maximizado, el tope de media ventana deja sitio a la lista. El hub avisa también de los cambios solo en alto (`relayout_player()`) |
+| 3 | **La ficha 3 decía `-fullscreen`, `cursor-autohide` y atar ratón y `Esc` en mpv; manda la fase 0**: pantalla completa manual (`overrideredirect` + rectángulo del monitor, en `MainWindow.enter_player_fullscreen()`), `<Motion>` atado **en Tk** sobre el escenario y la superficie, `Esc` con `bind_all` solo mientras dura, y el cursor lo oculta Tk (`cursor="none"`). La guarda de primer plano retira la barra en 150 ms si otra app pasa delante; al volver, la barra de tareas **no** se queda encima del vídeo (verificado) |
+| 3 | **«Siguiente episodio» es un `CTkFrame` con dos etiquetas**, no un `CTkButton` (el número va a la derecha y un botón no lo permite). Hoy está apagado (fondo `LINE`). 🔴 **La fase 4 tiene que atar el clic al frame y a las dos etiquetas con `add="+"`** y cambiar los colores a `ACCENT`/`ACCENT_INK`. Anterior y siguiente de la barra (`PlayerControls.previous_button`/`next_button`) están `disabled` con icono en `LINE` |
+| 3 | **Tokens**: solo `VIDEO_BG`, el que pedía el diseño. Lo demás son medidas en `Metrics` (`PLAYER_*`). El texto sobre el negro de «Cargando» usa `BADGE_INK` (blanco en los dos temas) |
+| 3 | **Consumo y hosters (2026-09-24)**: AV1 1080p de MP4Upload por software, **0,18-0,32 núcleos**, 0 fotogramas perdidos. H.264 de JKAnime por `d3d11va`. ⚠️ **MP4Upload servía hoy a 110-260 KB/s** (`cache-speed` de mpv), por debajo del AV1 1080p: se ve **a tirones** (`paused-for-cache` cada pocos segundos). Es el hoster, no el reproductor |
+| 3 | 🔴 **Lección para verificar con input sintético**: una pulsación **suelta de Alt** con la ventana ya en primer plano la mete en el **bucle modal de menú de Windows**, y el hilo de Tk queda parado dentro de `mainloop` (en C) hasta el siguiente clic o tecla. Parece un cuelgue de la app y **no lo es**. El truco de «Alt + `SetForegroundWindow`» solo se usa si el primer plano **no** es nuestro. Para diagnosticar cuelgues: `faulthandler.dump_traceback_later()`, que vuelca aunque Python esté parado |
 | Diseño (2026-09-23) | **Diseño visual aprobado**, segunda ronda: [DISENO-VISUAL.html](DISENO-VISUAL.html). Reproductor **acoplado encima de la ficha** (`player_frame` fila 0, `content_frame` fila 1, que se queda); columna izquierda sin póster con volver, título, episodio, servidor, progreso y «Siguiente episodio»; barra en el orden anterior · −10 · play/pausa · +10 · siguiente · progreso · tiempo · volumen · pantalla completa, **sin ✕**; pantalla completa con barra flotante que se oculta a los 5 s; «Ir al episodio…» es el buscador de la ficha. Descartados: modo teatro, carril de episodios, pie de información. **Cambia la fase 3 entera, el paso 4.1 y 4.2, y añade el paso 0.7 y `registry.has_resolver()` (fase 1)** |
 
 ---
@@ -128,6 +148,21 @@ Una entrada por paso completado, **la más reciente arriba**. Formato:
 ```
 
 <!-- nuevas entradas aquí arriba -->
+
+### Fase 3 · Verificación y cierre          (2026-09-24)
+- Arnés `verify_f3.py` (scratchpad) sobre **copia** de `src/` (idéntica, `diff -r`) y de la BD: Tk, mpv y red reales, `webbrowser.open` interceptado, capturas de pantalla con la ventana encima, clics y teclas **solo** si el destino es nuestro (0 descartados)
+- **Batería completa limpia** (47 comprobaciones, 0 errores de Tk): AnimeAV1 `dandadan` ep. 1 por MP4Upload se ve (AV1 1920×1080, `aac`) · columna y fila «▮ Reproduciendo · MP4Upload» · pausa congela `time-pos` · +10/−10 · buscar al 50 % · volumen y silencio · clic real en play/pausa · 9 controles en orden, anterior/siguiente apagados · deslizador de volumen: abre, aguanta el paso al deslizador, se arrastra, se cierra · pantalla completa en 1920×1080, barra flotante 64 px, se oculta a los ~5 s con el cursor y vuelve al mover, clic en la barra flotante, tema claro en ella, guarda de primer plano, `Esc` real → misma geometría y barra lateral · Mega → navegador + tarjeta «Ver aquí con HLS» · HLS (zilla caído) → navegador a los 20 s + «Ver aquí con MP4Upload» · JKAnime Desu y Magi se ven (`d3d11va`) · cambiar de servidor desde la columna · plegar la barra lateral (806→946 px) · «Ir al episodio…» con el vídeo en marcha · «Volver a la ficha» (ficha como estaba, sin hilos de mpv) · cambiar de vista (panel cerrado) · cerrar la app sonando (solo queda `MainThread`)
+- Clics reales: Desu en la lista, Magi en la columna, salir con el botón de la barra flotante, «Volver a la ficha»
+- Un cuelgue que resultó ser el Alt suelto del arnés (ver *Decisiones*); 4/4 limpias tras corregirlo
+- `app.py` de la copia arranca y cierra por la ventana con código 0 · colores literales solo en `theme.py` · TODOs: 4 (los de `anime_window.py` pasan a las líneas 150 y 153)
+- BD real: sha256 `0c8d5216…fa96` antes y después (36 filas)
+- Estado: ⚠️ por `HLS`/zilla y el audio oído
+
+### Fase 3 · Pasos 3.1-3.5 — Panel, `VideoPlayer`, columna, pantalla completa y `__play_video`          (2026-09-24)
+- Ficheros: `src/gui/components/video_player.py` (nuevo: `VideoPlayer`, `PlayerControls`, glifos PIL, `load_mpv()`), `src/gui/main_window.py` (`player_frame`, `show/hide/close_player`, pantalla completa manual, `WM_DELETE_WINDOW`, `clear_frame()` cierra el reproductor), `src/gui/anime_window.py` (columna de información, `__play_video` con resolución en hilo y número de petición, caída al navegador, ↗ en los servidores, fila actual en `EpisodeRow`), `src/gui/theme.py` (`VIDEO_BG`, `Metrics.PLAYER_*`)
+- Zilla, una sola petición antes de empezar: el playlist sigue sin responder (timeout de 15 s)
+- Verificado: sí (ver la entrada de arriba)
+- Pendiente que deja: `HLS` con zilla vivo, el audio oído, y lo que es de la fase 4
 
 ### Fase 2 · Verificación y cierre          (2026-09-24)
 - Arnés `verify_f2.py` (scratchpad) sobre **copia** de `src/` y de la BD: Tk real, red real, `webbrowser.open` interceptado, latido de 10 ms para medir el bucle, capturas con `PrintWindow`
