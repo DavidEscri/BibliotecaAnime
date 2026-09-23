@@ -33,8 +33,9 @@ lo que evita que `docs/` envejezca mintiendo.
 
 - **Sección de arquitectura**: la capa de resolución como pieza nueva, entre proveedores y GUI. Qué
   es un `Resolver`, qué es un `MediaSource`, y 🔴 **por qué no es un método de `AnimeProvider`**.
-- **GUI**: `VideoPlayer` como 12.º componente, `player_frame` hermano de `content_frame`, y qué
-  hace hoy `__play_video()`.
+- **GUI**: `VideoPlayer` como 12.º componente, `player_frame` **encima** de `content_frame` (que se
+  queda debajo), la barra flotante de pantalla completa, el token `VIDEO_BG` y qué hace hoy
+  `__play_video()`. Enlazar [`DISENO-VISUAL.html`](../DISENO-VISUAL.html) como referencia visual.
 - **Roadmap**: tachar la **deuda nº 1** («la petición de servidores sigue en el hilo de Tkinter»),
   que cerró la fase 2. Y decir qué deja este plan sin hacer.
 - **Notas de mantenimiento**: `hiddenimports` con el recuento nuevo, `binaries` con la DLL, y la
@@ -49,7 +50,8 @@ lo que evita que `docs/` envejezca mintiendo.
 |---|---|
 | [`01-arquitectura.md`](../../docs/01-arquitectura.md) | La capa `APIs/resolvers/` en el mapa de capas y sus **dependencias permitidas**: no importa de `gui/`, no la usa el manager, la llama la ficha |
 | [`02-mapa-de-modulos.md`](../../docs/02-mapa-de-modulos.md) | Ficha por módulo nuevo: los 6 de `resolvers/` y `video_player.py` |
-| [`03-flujos-de-ejecucion.md`](../../docs/03-flujos-de-ejecucion.md) | **Flujo nuevo** (el 12.º): clic en servidor → hilo daemon → `registry.resolve` → `after(0)` → reproductor → `end-file` → diálogo. Con el hilo de cada paso, que es el formato del documento |
+| [`03-flujos-de-ejecucion.md`](../../docs/03-flujos-de-ejecucion.md) | **Flujo nuevo**, antes de «Flujos documentados en otro sitio» (hoy §13, que se renumera): clic en servidor → tarjeta «Cargando» → hilo daemon → `registry.resolve` → `after(0)` → reproductor → `end-file` → tarjeta de fin. Con el hilo de cada paso, que es el formato del documento |
+| [`06-gui-y-vistas.md`](../../docs/06-gui-y-vistas.md) | La disposición acoplada (fila 0 / fila 1 de la columna de contenido), la ficha de `VideoPlayer` con el parámetro `floating`, la columna de información y la pantalla completa. Y `VIDEO_BG` en la lista de tokens |
 | [`05-proveedores-y-scraping.md`](../../docs/05-proveedores-y-scraping.md) | Un apartado de **hosters**: qué entrega cada uno, con qué cabecera y con qué caducidad. Y cómo se diagnostica uno que dejó de resolver |
 | [`07-concurrencia-e-hilos.md`](../../docs/07-concurrencia-e-hilos.md) | Los eventos de mpv, que llegan en **su propio hilo**; y la petición de servidores, que ya no está en el de Tk |
 | [`09-verificacion-y-pruebas.md`](../../docs/09-verificacion-y-pruebas.md) | Cómo probar la capa de resolución **sin GUI** (el script de la fase 1) y el checklist manual del reproductor |
@@ -70,8 +72,14 @@ Candidatas seguras, todas con **síntoma observable**, que es el formato del doc
   **caducan en ~3 h**. Síntoma: funciona en el momento y falla al día siguiente, o tras una VPN.
 - 🔴 **Los eventos de mpv llegan fuera del hilo de Tkinter.** Síntoma: `invalid command name
   ...!ctkcanvas` sin que el usuario haya tocado nada.
-- 🔴 **`end-file` dispara también al parar** — hay que mirar el `reason`. Síntoma: el diálogo de fin
-  sale al cerrar el reproductor.
+- 🔴 **`end-file` dispara también al parar** — hay que mirar el `reason`. Síntoma: la tarjeta de
+  fin sale al volver a la ficha.
+- 🔴 **Sobre la superficie de mpv, Tk no recibe `<Motion>` ni teclas.** Síntoma: la barra de
+  pantalla completa no vuelve al mover el ratón, o `Esc` no sale. El ratón y el teclado se piden
+  a mpv (lo que encontrase el paso 0.7).
+- ⚠️ **La barra flotante y el deslizador de volumen son ventanas aparte.** Síntomas posibles: la
+  barra se queda encima de otra aplicación tras Alt+Tab, o el deslizador se cierra al pasar del
+  icono a él (`<Leave>` sin margen de gracia). Confirmar con lo que pasó en las fases 0 y 3.
 - 🔴 **Una superficie nativa no admite widgets Tk encima ni vive dentro de un
   `CTkScrollableFrame`.** Síntoma: controles invisibles, o vídeo que se recorta al hacer scroll.
 - 🔴 **La DLL de `binaries` cae dentro de `_internal/`** y `ctypes` puede no encontrarla. Síntoma:

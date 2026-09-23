@@ -6,13 +6,13 @@
 | | |
 |---|---|
 | **Fase actual** | **0 · Spike de libmpv** — ⬜ no empezada |
-| **Situación** | ⬜ **plan recién creado el 2026-08-24**. Ninguna fase ejecutada todavía |
+| **Situación** | ⬜ **Ninguna fase ejecutada todavía.** Plan creado el 2026-08-24; **diseño visual aprobado el 2026-09-23** ([DISENO-VISUAL.html](DISENO-VISUAL.html)) y fichas 0, 1, 3, 4 y 6 ajustadas a él |
 | **Último paso completado** | Ninguno |
 | **Siguiente paso** | Paso 0.1 — orientación, rama y foto del «antes» ([ficha](fases/0-spike-libmpv.md)) |
 | **Rama** | ⬜ pendiente: `feature/reproductor-in-app`, sacada de `feature/ui-redisign`. **La crea la fase 0** |
 | **Base** | `95abd56` en `feature/ui-redisign` (⚠️ esa rama **sigue sin fusionarse con `main`**) |
 | **Commits** | automáticos (uno al cerrar cada fase) |
-| **Actualizado** | 2026-08-24 |
+| **Actualizado** | 2026-09-23 |
 
 ---
 
@@ -52,9 +52,11 @@ entonces nadie decide por su cuenta.
 |---|---|---|---|
 | 1 | 🔴 **¿Marcar el episodio como visto al llegar al final?** Es un supuesto declarado, no una petición, y **escribe en la biblioteca real** | La **fase 4**, preguntando al usuario **antes** de escribir una línea | ⬜ abierta |
 | 2 | **¿Se versiona `libmpv-2.dll` en el repo (`vendor/`) o se ignora y se documenta la descarga?** Son ~40 MB permanentes en el historial de git | La **fase 0**, al bajarla | ⬜ abierta |
-| 3 | **¿Volumen en la barra de controles?** Asumido que sí en la fase 3; no se pidió explícitamente | La **fase 3** | ⬜ abierta (asumido: **sí**) |
+| 3 | **¿Volumen en la barra de controles?** | El **usuario**, con el diseño | ✅ **cerrada el 2026-09-23: sí.** Icono plegado y deslizador vertical al pasar el ratón |
 | 4 | **¿Ofrecer MP4Upload (H.264) como alternativa manual** si el AV1 1080p de AnimeAV1 consume demasiado? | La **fase 0** lo mide; si duele, lo implementa la **fase 3** | ⬜ abierta |
 | 5 | **Legalidad**: reproducir dentro de la app elimina los anuncios del hoster. Decisión del proyecto, no técnica | El usuario, cuando quiera | ⬜ abierta |
+| 6 | **¿La barra de pantalla completa flota en un `Toplevel` o sale de la rejilla?** | El **usuario** | ✅ **cerrada el 2026-09-23: flotante**, para que el vídeo no cambie de tamaño. ⚠️ Falta que la fase 0 (paso 0.7) demuestre que se puede. **Si no se puede, se para y se pregunta**: sacar la barra de la rejilla no se aplica sin consultarlo |
+| 7 | **La tarjeta de fin de episodio en pantalla completa** | El **usuario** | ✅ **cerrada el 2026-09-23.** Sale también en pantalla completa, centrada, y **la barra de controles se ve todo el rato** mientras está. Lleva una **✕** que cierra solo el aviso. **`Esc`** sale de pantalla completa y la tarjeta **vuelve al recuadro del vídeo acoplado**, no se queda en mitad de la pantalla |
 
 ---
 
@@ -66,7 +68,7 @@ fase que la tomó. Empieza vacío a propósito: las decisiones de partida están
 
 | Fase | Decisión |
 |---|---|
-| — | — |
+| Diseño (2026-09-23) | **Diseño visual aprobado**, segunda ronda: [DISENO-VISUAL.html](DISENO-VISUAL.html). Reproductor **acoplado encima de la ficha** (`player_frame` fila 0, `content_frame` fila 1, que se queda); columna izquierda sin póster con volver, título, episodio, servidor, progreso y «Siguiente episodio»; barra en el orden anterior · −10 · play/pausa · +10 · siguiente · progreso · tiempo · volumen · pantalla completa, **sin ✕**; pantalla completa con barra flotante que se oculta a los 5 s; «Ir al episodio…» es el buscador de la ficha. Descartados: modo teatro, carril de episodios, pie de información. **Cambia la fase 3 entera, el paso 4.1 y 4.2, y añade el paso 0.7 y `registry.has_resolver()` (fase 1)** |
 
 ---
 
@@ -83,7 +85,15 @@ Una entrada por paso completado, **la más reciente arriba**. Formato:
 
 <!-- nuevas entradas aquí arriba -->
 
-*(vacía — la primera entrada la escribe el paso 0.1)*
+### Fuera de fases — Puntos de decisión 6 y 7 cerrados por el usuario          (2026-09-23)
+- Ficheros: DISENO-VISUAL.html (✕ en la tarjeta de fin y su versión en pantalla completa), README.md, ESTADO.md, fases/0, 3 y 4
+- Verificado: no aplica (solo documentación)
+- Pendiente que deja: nada nuevo. La fase 0 sigue siendo la siguiente
+
+### Fuera de fases — Diseño visual aprobado y fichas ajustadas          (2026-09-23)
+- Ficheros: DISENO-VISUAL.html (nuevo), README.md, ESTADO.md, fases/0, 1, 3, 4 y 6, `.claude/commands/reproductor.md`
+- Verificado: no aplica (solo documentación; `src/` sin tocar)
+- Pendiente que deja: los puntos de decisión 6 y 7. **La fase 0 sigue siendo la siguiente**, ahora con el paso 0.7
 
 ---
 

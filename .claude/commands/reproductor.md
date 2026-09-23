@@ -76,6 +76,10 @@ En este orden:
 4. La ficha de la fase que toca: `.claude/plan-reproductor/fases/<N>-*.md`.
 5. Lo que esa ficha mande leer en su apartado *Antes de empezar* — incluidas **las secciones
    concretas** de la investigación.
+6. **Si la fase es la 3 o la 4**: `.claude/plan-reproductor/DISENO-VISUAL.html`, el diseño aprobado
+   el 2026-09-23. **En lo visual manda** sobre la investigación: disposición, orden de la barra,
+   textos y estados salen de ahí. Si algo no se puede hacer como está dibujado, anótalo en
+   *Decisiones* y dilo; no lo rediseñes en silencio.
 
 ⚠️ **No leas entero `.claude/plans/investigacion-reproduccion-in-app-kind-flask.md`.** Son ~700
 líneas y cada ficha te dice qué secciones necesita (§4.1 para zilla, §5 para el backend, §6 para las

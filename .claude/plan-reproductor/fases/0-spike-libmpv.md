@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Objetivo** | Tapar el hueco más grande de la investigación: **de mpv no se verificó nada**. Probar las cuatro cosas de las que depende todo el plan antes de escribir una línea de producción |
+| **Objetivo** | Tapar el hueco más grande de la investigación: **de mpv no se verificó nada**. Probar las cinco cosas de las que depende todo el plan antes de escribir una línea de producción: las cuatro del backend y **la que pide el diseño aprobado** (paso 0.7) |
 | **Investigación** | §5 (decisión de reproductor), §6 (restricciones de interfaz), §4.1 (cabeceras de zilla), §9.6 y §10 (lo que no se pudo verificar) |
 | **Estrena** | Nada. Es un spike: **ningún fichero de `src/`** |
 | **Toca** | El entorno virtual `biblio_anime_env/`, el scratchpad, y —si se decide— `vendor/libmpv-2.dll` + `.gitignore` |
@@ -40,6 +40,8 @@ Lectura obligatoria, en este orden:
 3. De la investigación, **solo**: **§5** (la tabla de backends y lo que se verificó de VLC), **§6**
    (las tres restricciones de interfaz) y **§4.1** (la receta de zilla y su tabla de cabeceras).
 4. [`README.md`](../README.md) de este plan — reglas 6 y 7 en particular.
+5. [`DISENO-VISUAL.html`](../DISENO-VISUAL.html), secciones **Pantalla completa** y **Por
+   verificar**: es lo que prueba el paso 0.7.
 
 **Trampas que van a morder en esta fase:**
 
@@ -136,6 +138,43 @@ El paso que decide si mpv sirve o no.
 - Probar de paso un **HLS MPEG-TS de JKAnime** (§4.2, sin cabeceras): son dos demuxers distintos y
   la fase 3 va a usar los dos.
 
+### Paso 0.7 — (e) Lo que pide el diseño
+
+El diseño aprobado el 2026-09-23 ([`DISENO-VISUAL.html`](../DISENO-VISUAL.html)) hace cuatro cosas
+que dependen de cómo se porta mpv dentro de Tk. **Ninguna está verificada.** Se prueban en la misma
+ventana del paso 0.3, con el vídeo del 0.4 en marcha:
+
+- **Una ventana encima de la superficie.** En pantalla completa
+  (`root.attributes('-fullscreen', True)`), crear un `Toplevel` con `overrideredirect(True)` y
+  `attributes('-topmost', True)`, con un par de botones, pegado al borde inferior. Comprobar:
+  - ✅/❌ que **se ve encima del vídeo** (es una ventana del sistema, no un widget sobre la
+    superficie: el §6.1 no debería afectarle, pero es justo lo que hay que confirmar);
+  - que sus botones **reciben clics** y que eso **no le quita el foco** a la ventana principal;
+  - que con **Alt+Tab** no se queda flotando encima de otra aplicación. Si se queda, probar a
+    quitar `-topmost` al perder el foco la raíz;
+  - que ocultarla y mostrarla (`withdraw()` / `deiconify()`) es instantáneo y no parpadea.
+  Es la **barra flotante** de la fase 3 y el **deslizador de volumen** (el mismo mecanismo, más
+  pequeño). 🔴 **El usuario eligió flotante** (punto de decisión 6) para que el vídeo no cambie de
+  tamaño. Si aquí no hay forma de que funcione, **se anota qué falla, se avisa y se para**: sacar la
+  barra de la rejilla y hacer crecer la superficie **no se aplica sin preguntar**.
+- **El movimiento del ratón sobre el vídeo.** Atar `<Motion>` al frame de la superficie y comprobar
+  que **no llega** (lo esperado: la ventana de mpv se queda los eventos). Después, pedírselo a mpv:
+  observar su propiedad de posición del ratón (`mouse-pos`, ⚠️ comprobar que existe en la versión
+  instalada) o atar `MOUSE_MOVE` con `input-vo-keyboard`/`register_key_binding`. Anotar **qué
+  funcionó, con qué frecuencia llega y en qué hilo**. Probar de paso `cursor-autohide=5000`.
+- **El teclado con el foco en el vídeo.** Hacer clic en el vídeo y pulsar `Esc`: comprobar si le
+  llega a Tk. Si no (lo esperado), atarlo en mpv y comprobar que el callback llega y que
+  `after(0, …)` desde ahí sale de pantalla completa sin reventar. Comprobar también que mpv **no
+  tiene atajos propios activos** que choquen (su `Esc`, su `q` que cierra, su OSC): lo normal en
+  libmpv es que vengan apagados, pero hay que verlo.
+- **Ocultar y volver a mostrar la superficie.** Con el vídeo en marcha, `grid_remove()` del frame
+  del `wid`, esperar unos segundos, `grid()` otra vez. Comprobar que **mpv vuelve a pintar** sin
+  recrearlo. Es como la fase 3 enseña las tarjetas de «cargando», «navegador» y «fin de episodio»
+  sin taparla (restricción 4 de la fase 3). Si no vuelve a pintar, anotar qué hace falta
+  (¿un `seek` al mismo punto?, ¿`force-window`?).
+- De paso: entrar y salir de pantalla completa varias veces **con el vídeo en marcha**, y comprobar
+  que la superficie se redimensiona sin parpadeos ni franjas raras.
+
 ---
 
 ## Terminado cuando
@@ -149,6 +188,10 @@ El paso que decide si mpv sirve o no.
       qué hilo** llegan.
 - [ ] (d) `pause`, `seek ±10` y volumen responden sobre un stream ya empezado.
 - [ ] Consumo de CPU del AV1 1080p **medido y anotado**.
+- [ ] (e) Se sabe si un `Toplevel` sin marco **se ve y se usa encima del vídeo** en pantalla
+      completa, **cómo se detecta el ratón** sobre la superficie, **cómo llega `Esc`** con el foco en
+      ella y si la superficie **vuelve a pintar** tras `grid_remove()`. Todo anotado en *Decisiones*.
+      Si la barra flotante no funciona, **el usuario lo sabe** antes de seguir.
 - [ ] `src/` **no tiene ni un cambio** (`git status` limpio salvo `.claude/` y, si se decidió,
       `vendor/`).
 - [ ] La decisión de backend está escrita en *Decisiones* de `ESTADO.md`: **mpv sigue** o **se cae a

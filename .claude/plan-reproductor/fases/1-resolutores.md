@@ -134,6 +134,10 @@ Un módulo, dos rutas del **mismo dominio** (`jkanime.net`), que se comportan di
 
 - `resolve(url) -> MediaSource | None`: recorre los resolutores registrados y devuelve el primero
   cuyo `matches()` diga que sí. Si ninguno casa, o si el que casa devuelve `None`, **`None`**.
+- `has_resolver(url) -> bool`: **sin red**, dice si algún resolutor hace `matches(url)`. Lo pide el
+  diseño aprobado ([`DISENO-VISUAL.html`](../DISENO-VISUAL.html)): la fase 3 marca con ↗ **antes de
+  pulsarlos** los servidores que van a abrir el navegador. Es una promesa a priori: un servidor sin
+  ↗ puede acabar en el navegador igualmente si `resolve()` devuelve `None`.
 - Registro explícito en el módulo, como hace `MainWindow` con los proveedores. El orden no importa:
   los `matches()` son disjuntos por dominio.
 - **Sin caché.** Dos de los cuatro hosters caducan y uno está atado a la IP; una caché aquí es un
@@ -161,6 +165,8 @@ Van aquí porque los dos son de una línea y los dos se manifiestan **hoy**:
 - [ ] Los 6 ficheros de `APIs/resolvers/` existen, con cabecera de módulo correcta.
 - [ ] `registry.resolve()` devuelve un `MediaSource` para zilla, `um`/`umv`, `jk` y mp4upload, y
       **`None`** para Mega, Voe, Byse y Okru — sin lanzar en ninguno de los ocho casos.
+- [ ] `registry.has_resolver()` dice que sí a zilla, `um`/`umv`, `jk` y mp4upload y que no a los
+      otros cuatro, **sin hacer ni una petición**.
 - [ ] Las cabeceras son **las de cada hoster**: `Sec-Fetch-Site` solo en zilla, el `Referer` propio
       solo en mp4upload, y **`{}` en jkplayers** (con el comentario del 410 en el código).
 - [ ] B1 arreglado: los 5 servidores de One Piece ep 1 en JKAnime **se ven los 5**.

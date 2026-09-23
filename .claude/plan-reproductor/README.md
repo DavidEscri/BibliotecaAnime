@@ -5,6 +5,7 @@
 | **Creado** | 2026-08-24 |
 | **Punto de partida** | commit `95abd56`, rama `feature/ui-redisign`, árbol con 4 PNG sin trackear |
 | **Investigación** | [`../plans/investigacion-reproduccion-in-app-kind-flask.md`](../plans/investigacion-reproduccion-in-app-kind-flask.md) — **es la referencia y no se duplica aquí**. Cada ficha de fase cita la sección concreta que hay que leer |
+| **Diseño visual** | [DISENO-VISUAL.html](DISENO-VISUAL.html) — **aprobado el 2026-09-23** (segunda ronda; la primera propuso teatro, carril y acoplado). Publicado también en <https://claude.ai/artifact/NSzRPJ2d4ijGi4RZBmuXo4>. **En lo visual manda sobre la §2 y la §6 de la investigación** |
 | **Estado vivo** | [ESTADO.md](ESTADO.md) — lo actualiza cada sesión |
 
 > ⚠️ **La investigación son ~700 líneas y no se lee entera.** Cada ficha dice en su *Antes de
@@ -12,8 +13,9 @@
 > interfaz…). Una sesión que se lea el documento completo se gasta el contexto en hosters que su
 > fase no toca.
 
-Sustituir `webbrowser.open(url)` por un reproductor **dentro de la propia ventana**: play/pausa,
-±10 s, pantalla completa, episodio anterior/siguiente y diálogo al terminar. Añade una capa nueva
+Sustituir `webbrowser.open(url)` por un reproductor **dentro de la propia ventana**, **acoplado
+encima de la ficha**: play/pausa, ±10 s, volumen, pantalla completa con barra que se oculta sola,
+episodio anterior/siguiente, saltar a un episodio concreto y diálogo al terminar. Añade una capa nueva
 (`APIs/resolvers/`) y toca la GUI; **no cambia el contrato de proveedores, ni el fallback, ni la
 identidad de persistencia**.
 
@@ -52,8 +54,8 @@ verificada** — ⚠️ nada de mpv se pudo probar el 2026-08-23.
 | 0 | [Spike de libmpv](fases/0-spike-libmpv.md) | Nada — valida o tumba el backend elegido | 🔴 **Alto — decide si el plan sigue como está** |
 | 1 | [Capa de resolución](fases/1-resolutores.md) | `APIs/resolvers/`: `MediaSource`, `Resolver`, 3 resolutores y el registro | Medio — depende de sitios reales |
 | 2 | [Servidores fuera del hilo de Tk](fases/2-servidores-fuera-del-hilo.md) | — (cierra la deuda nº 1 del roadmap) | Bajo |
-| 3 | [Panel de reproducción](fases/3-panel-de-reproduccion.md) | `VideoPlayer` (12.º componente) y `player_frame` en `MainWindow` | 🔴 **Alto — superficie nativa dentro de Tk** |
-| 4 | [Navegación y fin de episodio](fases/4-navegacion-y-fin-de-episodio.md) | Diálogo de fin de episodio, anterior/siguiente | 🔴 **Alto — única fase que escribe en `DB_Animes.db`** |
+| 3 | [Panel de reproducción](fases/3-panel-de-reproduccion.md) | `VideoPlayer` (12.º componente), `player_frame` **encima** de `content_frame` y la pantalla completa con barra flotante | 🔴 **Alto — superficie nativa dentro de Tk** |
+| 4 | [Navegación y fin de episodio](fases/4-navegacion-y-fin-de-episodio.md) | Tarjeta de fin de episodio, anterior/siguiente y «Siguiente episodio» | 🔴 **Alto — única fase que escribe en `DB_Animes.db`** |
 | 5 | [Empaquetado](fases/5-empaquetado.md) | `binaries` en el `.spec` (📖 hoy vacío) | Medio — compila bien y revienta en ejecución |
 | 6 | [Documentación](fases/6-documentacion.md) | — | Bajo |
 
@@ -65,13 +67,23 @@ congelado de 2 s en uno de 4 s.
 
 ## Lo que ya está decidido
 
-Sale de la investigación y **no se rediscute** en las fases. Si una fase necesita desviarse, lo
-anota en la tabla de *Decisiones* de [ESTADO.md](ESTADO.md) y lo dice al entregar.
+Sale de la investigación y del diseño aprobado, y **no se rediscute** en las fases. Si una fase
+necesita desviarse, lo anota en la tabla de *Decisiones* de [ESTADO.md](ESTADO.md) y lo dice al
+entregar.
 
 | Decisión | Dónde |
 |---|---|
 | **Reproducción en la misma ventana.** Nada de pestañas ni de reproductor externo | §2 |
-| **Controles en barra fija bajo el vídeo**, no overlay flotante — y no es solo estética: no se pueden superponer widgets Tk sobre una superficie nativa | §2, §6.1 |
+| **Ningún widget de la ventana encima del vídeo** — no se pueden superponer widgets Tk sobre una superficie nativa. En la vista normal la barra va **fija debajo** del vídeo | §2, §6.1 |
+| **Disposición acoplada**: `player_frame` en la fila 0 de la columna de contenido, **encima** de `content_frame` (fila 1), que **se queda** y encoge. La ficha sigue debajo, desplazada hasta el episodio que suena | Diseño |
+| **Columna izquierda de 330 px, sin póster**: «← Volver a la ficha», título, «**Episodio N** de M · servidor X», proveedor, selector de servidor (↗ en los que abren el navegador), «N de M vistos» y «Siguiente episodio» | Diseño |
+| **Orden de la barra**: anterior · −10 s · play/pausa · +10 s · siguiente · progreso · tiempo · volumen · pantalla completa. **Sin botón ✕**: se cierra con «← Volver a la ficha» | Diseño |
+| **Play/pausa del mismo tamaño que los demás** (38 × 38), distinguido por el fondo `ACCENT` | Diseño |
+| **Volumen plegado en un icono**; al pasar el ratón, deslizador **vertical** de 160 px con el porcentaje encima | Diseño |
+| **Pantalla completa**: solo el vídeo. La barra **flota** sobre la imagen en una ventana aparte (`Toplevel`), aparece al mover el ratón y **se oculta a los 5 s** sin movimiento, junto con el cursor. **Flotante por decisión del usuario** (el vídeo no cambia de tamaño). ⚠️ Lo tiene que hacer posible la fase 0; **si no se puede, se para y se pregunta** | Diseño, §6.3, punto 6 |
+| **«Ir al episodio…» es el buscador que ya tiene la ficha**, en la lista de debajo. No hay carril ni segunda lista de episodios | Diseño |
+| **Los estados que no son «reproduciendo»** —cargando, fin de episodio, servidor que abre el navegador— son **tarjetas en el recuadro del vídeo**, con el medio ya cerrado | Diseño, §6.1 |
+| **La tarjeta de fin de episodio** sale **también en pantalla completa**, centrada, con la barra de controles **siempre visible** mientras está. Lleva una **✕** que cierra solo el aviso. `Esc` sale de pantalla completa y la tarjeta **vuelve al recuadro acoplado** | Diseño, punto 7 |
 | **Backend: libmpv incrustado con `python-mpv` vía `wid`, sin proxy.** Contingencia ya probada: `python-vlc` + proxy local | §5 |
 | **Empaquetar libmpv con el `.exe`** (1 DLL, ~40 MB), no VLC (~150 MB) ni exigir instalación externa | §2 |
 | **La resolución es una capa nueva (`APIs/resolvers/`), NO un sexto método de `AnimeProvider`** | §7 |
@@ -113,9 +125,13 @@ anota en la tabla de *Decisiones* de [ESTADO.md](ESTADO.md) y lo dice al entrega
 9. **Cabecera obligatoria** en todo `.py` nuevo (`__author__`, `__subsystem__`, `__module__`,
    `__version__`, `__info__`) — plantilla en [docs/08](../docs/08-convenciones-y-estilo.md).
 10. 🔴 **Ningún color literal fuera de `gui/theme.py`.** La barra de controles usa tokens; si falta
-    uno, se añade allí primero. Comprobable con
+    uno, se añade allí primero. El diseño pide **uno solo nuevo**: `VIDEO_BG = ("#000000", "#000000")`,
+    el fondo de la superficie y de las tarjetas de estado, que no cambia con el tema. Comprobable con
     `git grep -nE "#[0-9A-Fa-f]{6}" -- src/`, que solo debe devolver `theme.py`.
-11. **Antes de tocar nada**, la fase lee
+11. **Lo visual lo decide [DISENO-VISUAL.html](DISENO-VISUAL.html).** Medidas, orden de controles,
+    textos y estados salen de ahí. Si al implementar algo no se puede hacer como está dibujado, se
+    anota en *Decisiones* y se dice al entregar: no se rediseña en silencio.
+12. **Antes de tocar nada**, la fase lee
     [docs/10-invariantes-y-trampas.md](../docs/10-invariantes-y-trampas.md). Las **35** siguen
     vigentes; este plan no anula ninguna y añade varias.
 
@@ -134,6 +150,8 @@ Para que no se cuele por el camino:
   calidades alternativas ni `TYPE=SUBTITLES`: los subtítulos van incrustados en el vídeo.
 - **Proveedores nuevos** (MonosChinos2, TioAnime) — aunque la capa de resolutores se diseña
   pensando en que comparten hosters con AnimeAV1.
+- **Lo descartado en el diseño**: modo teatro, carril de episodios, pie de información bajo el
+  vídeo y póster en la columna izquierda. Están en la primera ronda y el usuario los rechazó.
 - **Redibujar los iconos de origen dudoso** (deuda **B11**,
   [docs/12 §4](../docs/12-deuda-tecnica-y-roadmap.md)).
 
