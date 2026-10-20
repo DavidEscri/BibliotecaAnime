@@ -5,14 +5,14 @@
 
 | | |
 |---|---|
-| **Fase actual** | **5 · Empaquetado** — ⬜ no empezada |
-| **Situación** | ✅ **Fase 4 terminada y verificada en pantalla** (2026-10-20): anterior/siguiente en la barra y «Siguiente episodio» en la columna, tarjeta de fin con ✕ (vuelve el último fotograma) y franja «Marcado como visto», también en pantalla completa con `Esc` de vuelta al recuadro acoplado; llegar al final marca el episodio (sobre copia). ✅ **Zilla ha vuelto**: el `HLS` de AnimeAV1 se ve en la app. **Sigue sin oírse** el audio (lo confirma el usuario) |
-| **Último paso completado** | Fase 4 cerrada |
-| **Siguiente paso** | Paso 5.1 de la [ficha 5](fases/5-empaquetado.md) (`requirements.txt` y la DLL) |
+| **Fase actual** | **6 · Documentación** — ⬜ no empezada |
+| **Situación** | ✅ **Fase 5 terminada y verificada en pantalla** (2026-10-20): el `.exe`, compilado y lanzado **fuera del repo**, reproduce AnimeAV1 por `HLS` (zilla, AV1 fMP4) y JKAnime por Desu (HLS MPEG-TS), con `libmpv-2.dll` cargada desde `_internal\vendor`; UPNShare abre el navegador. `dist` pasa de 38 a 153 MB. **Sigue sin oírse** el audio (lo confirma el usuario) |
+| **Último paso completado** | Fase 5 cerrada |
+| **Siguiente paso** | Paso 6.1 de la [ficha 6](fases/6-documentacion.md) |
 | **Rama** | **`feature/reproductor-embebido`** — la creó el usuario antes de la fase 0 (lleva el plan y un merge de `develop`). **No se crea `feature/reproductor-in-app`**: ver *Decisiones* |
 | **Base** | `f7c88ca` en `feature/reproductor-embebido`; `95abd56` **es ancestro** (llega vía `develop`) |
 | **Commits** | automáticos (uno al cerrar cada fase) |
-| **Actualizado** | 2026-10-20 (cierre de la fase 4) |
+| **Actualizado** | 2026-10-20 (cierre de la fase 5) |
 
 ---
 
@@ -25,7 +25,7 @@
 | 2 | Servidores fuera del hilo de Tk | ✅ terminada | commit «Reproductor fase 2 — Servidores fuera del hilo de Tk» (`git log --grep "fase 2"`) | Sí, en la app (copia) con Tk y red reales: 16/16 comprobaciones y capturas |
 | 3 | Panel de reproducción | ⚠️ terminada sin verificar del todo | commit «Reproductor fase 3 — Panel de reproducción» (`git log --grep "fase 3"`) | Sí, en pantalla sobre copia: AnimeAV1/MP4Upload y JKAnime/Desu y Magi, 47 comprobaciones y capturas. `HLS` ✅ **el 2026-10-20** (en la fase 4). Falta el audio oído |
 | 4 | Navegación y fin de episodio | ✅ terminada | commit «Reproductor fase 4 — Navegación y fin de episodio» (`git log --grep "fase 4"`) | Sí, en pantalla sobre copia de las dos BD: 57 + 12 + 5 comprobaciones con clics y `Esc` reales, y capturas. BD real intacta |
-| 5 | Empaquetado | ⬜ no empezada | — | — |
+| 5 | Empaquetado | ✅ terminada | commit «Reproductor fase 5 — Empaquetado» (`git log --grep "fase 5"`) | Sí, desde el `.exe` en una carpeta fuera del repo: AnimeAV1 `HLS` y JKAnime Desu se ven, UPNShare abre el navegador, capturas. Falta el audio oído |
 | 6 | Documentación | ⬜ no empezada | — | — |
 
 **Situación**: ⬜ no empezada · 🟡 en curso · ✅ terminada · ⚠️ terminada sin verificar · ❌ revertida
@@ -57,6 +57,10 @@ Lo que no se ha podido ejecutar en cada fase, para que nadie lo dé por probado.
 | 4 | **La ✕ en pantalla completa** | Se pulsó en la vista acoplada. En pantalla completa la tarjeta es la misma (mismo frame) y la ✕ llama al mismo `hide_card()`, pero no se pulsó allí |
 | 4 | **La tarjeta «Sin servidores» al navegar** y **el corte antes del final** (`END_TOLERANCE_S`) | Ningún episodio probado se quedó sin servidores ni cortó el stream. Son dos ramas cortas leídas en el código, sin ejecutar |
 | 4 | **El primer episodio con «anterior» apagado al pulsar un servidor con la ventana a medio cargar**, la ordenación descendente de AnimeFLV | Anterior apagado en el ep. 1 **sí** se vio (`dandadan`, captura). AnimeFLV está en desuso; el cálculo de anterior/siguiente va por número, no por el orden de la lista |
+| 5 | **El audio, oído, desde el `.exe`** | Igual que en las fases 0, 3 y 4. **Lo confirma el usuario** lanzando el `.exe` |
+| 5 | **El `.exe` en una máquina sin el entorno de desarrollo** | Se probó en esta máquina, desde el scratchpad (fuera del repo) y sin la DLL en `%PATH%` (comprobado): el proceso la cargó de `_internal\vendor`. Otra máquina limpia no la hay |
+| 5 | **El segundo `.exe` (recompilado con los avisos nuevos) no se volvió a lanzar** | Mismas entradas que el primero salvo los tres ficheros legales, que se copian tras `COLLECT` (comparados con `cmp`). El que se lanzó y reprodujo es el primero |
+| 5 | **La receta de FFmpeg se leyó de `master`** (2026-10-20), no de la etiqueta `20260923` | La licencia (`--enable-gpl --enable-version3`, sin `nonfree`) lleva años igual en esa receta, pero no se comprobó en la etiqueta exacta. Hacerlo antes de distribuir |
 | 0 | La **deduplicación de hilos**: el callback de `Esc` desde mpv y su `after(0)` | Ya no hacen falta: el teclado llega a Tk. Si en otra máquina llegara a mpv, habría que volver a mirarlo |
 
 ---
@@ -145,6 +149,13 @@ fase que la tomó. Empieza vacío a propósito: las decisiones de partida están
 | 4 | **Anterior y siguiente navegan en cualquier estado** (cargando, reproduciendo, en la tarjeta del navegador o al terminar): `PlaybackState.has_previous/has_next` no dependen de `enabled`. «Siguiente episodio» encendido = `ACCENT`/`ACCENT_INK` con `cursor=hand2`; apagado = `LINE`/`TXT_3` sin número |
 | 4 | **Si el episodio terminado ya estaba visto, no se reescribe** (lo decide la fila, no la memoria), pero la franja «Marcado como visto · N de M» sale igual, porque es verdad. Sin fila en la biblioteca, ni se marca ni sale la franja |
 | 4 | 🔴 **Lecciones del arnés** (para la fase 5 y quien verifique la GUI): (1) **con la portada vacía la app saca un `messagebox` modal** («conexión lenta»), que deshabilita la ventana; con `-topmost` el aviso queda tapado y **los clics no llegan a nada**, con `WindowFromPoint` devolviendo el marco `TkTopLevel`. Se suprime el aviso en el arnés. (2) Comprobar el destino del clic con **`winfo_containing(x, y)`** (que sea el widget o un descendiente), no solo con el proceso de `WindowFromPoint`. (3) `faulthandler.enable()` en Windows **vuelca también excepciones manejadas**: `terminate()` de mpv lanza y captura excepciones de LuaJIT (`0xe24c4a02`) y parecen cuelgues sin serlo; el proceso sigue y sale con 0 |
+| 5 | **`binaries`: `('vendor/libmpv-2.dll', 'vendor')`, no `'.'`** como decía la ficha. `load_mpv()` ya buscaba en `get_resource_path("vendor")`, que en el `.exe` es `_internal/vendor`: con ese destino **no hizo falta tocar `src/`** ni `os.add_dll_directory(sys._MEIPASS)`. Verificado con `Get-Process -Module`: la DLL cargada es la de `_internal\vendor` del dist |
+| 5 | **El `.spec` para si falta `vendor/libmpv-2.dll`** (`SystemExit` con el paso del README), en vez de compilar un `.exe` que lo abriría todo en el navegador. La descarga, con URL, nombre del `.7z` y sha256, está en el **paso 4 del `README.md`** |
+| 5 | **`hiddenimports`: 37 nombres** (36 de `src/` + `mpv`). Auditado con AST en las dos direcciones: solo `app` queda fuera |
+| 5 | **Licencias reales**: `python-mpv` es **GPLv2+ o LGPLv2.1+** (no MIT, como decía la ficha); **libmpv-2.dll es GPLv3+ en conjunto**: mpv sin `-Dgpl=false` (GPLv2+, leído de `mpv-configuration`) con FFmpeg `--enable-gpl --enable-version3` y sin `nonfree`. Todo compatible con la GPL-3.0-or-later del proyecto |
+| 5 | **§6 de la GPL para la DLL**: `THIRD-PARTY-NOTICES.txt` da la versión exacta y los enlaces al fuente de mpv (`6fd80b2003`), FFmpeg (`7d14defcc`) y la receta (`mpv-winbuild-cmake` `20260923`), **más una oferta de facilitar el fuente** si los enlaces caen (pedirlo en las *Issues* del repo). `LEEME.txt` remite ahí. ⚠️ **La oferta compromete al autor**: si no la quiere, la alternativa es alojar una copia del fuente |
+| 5 | **`THIRD-PARTY-NOTICES.txt`: 14 → 20 componentes.** Además de `python-mpv` y libmpv, faltaban **cuatro que ya viajaban** en el `.exe` (están en el `PYZ` del build anterior): brotli 1.1.0 (MIT), PySocks 1.7.1 (BSD-3), pyparsing 3.1.4 (MIT) y setuptools 63.2.0 por su `pkg_resources` (MIT). ⚠️ **No se reproducen íntegros** los avisos de las ~45 bibliotecas enlazadas dentro de libmpv ni los de los vendorizados de `pkg_resources`: se nombran y se remite a su fuente (**L10** para `docs/12 §7`). Generador: `notices_add.py` en el scratchpad (añade, no regenera desde cero) |
+| 5 | **`docs/12 §7` se actualiza en la fase 6**, no aquí: los 6 componentes nuevos, la §6 de la DLL con su oferta, L9 (el generador sigue fuera del repo) y L10 nueva. Tamaño de `dist`: **38 → 153 MB** (157 693 874 bytes); `APP_VERSION` **no se subió** (sigue `0.2.1`): es decisión de release del usuario |
 | Diseño (2026-09-23) | **Diseño visual aprobado**, segunda ronda: [DISENO-VISUAL.html](DISENO-VISUAL.html). Reproductor **acoplado encima de la ficha** (`player_frame` fila 0, `content_frame` fila 1, que se queda); columna izquierda sin póster con volver, título, episodio, servidor, progreso y «Siguiente episodio»; barra en el orden anterior · −10 · play/pausa · +10 · siguiente · progreso · tiempo · volumen · pantalla completa, **sin ✕**; pantalla completa con barra flotante que se oculta a los 5 s; «Ir al episodio…» es el buscador de la ficha. Descartados: modo teatro, carril de episodios, pie de información. **Cambia la fase 3 entera, el paso 4.1 y 4.2, y añade el paso 0.7 y `registry.has_resolver()` (fase 1)** |
 
 ---
@@ -161,6 +172,44 @@ Una entrada por paso completado, **la más reciente arriba**. Formato:
 ```
 
 <!-- nuevas entradas aquí arriba -->
+
+### Fase 5 · Verificación y cierre          (2026-10-20)
+- Recompilado con los avisos nuevos: 0 errores; `LICENSE`, `LEEME.txt` y `THIRD-PARTY-NOTICES.txt` junto al `.exe` e idénticos a los del repo (`cmp`), ninguno dentro de `_internal/`; `_internal/resources/` = solo `images/utils`; 0 `.db` y 0 `.jpg`; 153 MB
+- BD real: sha256 `0c8d5216…fa96` (36 filas) y `DB_user.db` `8e7e9798…3354`, sin cambios: el `.exe` crea las suyas en su propio `_internal/resources/DB` · `src/` sin tocar · colores literales solo en `theme.py` · TODOs: 4
+- Estado: ✅
+
+### Fase 5 · Paso 5.4 — Licencia y avisos          (2026-10-20)
+- Ficheros: `THIRD-PARTY-NOTICES.txt` (índice y 6 secciones nuevas antes de PyInstaller, leídas de los `LICENSE` del venv; UTF-8 con BOM y CRLF como estaba), `LEEME.txt` (python-mpv en la lista y párrafo de libmpv que remite a los avisos)
+- Contrastado contra el `PYZ-00.toc` del build nuevo **y** del anterior (`build/` del repo, 2026-10-15): el mismo conjunto de paquetes; los 4 que faltaban ya faltaban antes
+- Verificado: sí · leído el bloque generado; ver *Decisiones* para lo que **no** se reproduce íntegro
+- Pendiente que deja: la actualización de `docs/12 §7` (fase 6)
+
+### Fase 5 · Paso 5.3 — Compilar y reproducir desde el `.exe`          (2026-10-20)
+- `pyinstaller MiBibliotecaAnime.spec --distpath/--workpath` al **scratchpad** (no pisa el `dist/MiBibliotecaAnime_v0.2.1` de 38 MB del repo): exit 0, sin `ERROR` ni `Traceback`
+- `libmpv-2.dll` **no** está en `%PATH%` (comprobado). `.exe` lanzado desde el scratchpad, manejado con clics reales (destino comprobado con `WindowFromPoint`) y capturas `PrintWindow`:
+  - portada de AnimeAV1 a los 15 s, **vivo a los 43 s** y después
+  - `Dark Machine` ep. 1 → `HLS` (zilla) **se ve**: `00:04` → `00:16` en 12 s de reloj, AV1. `Get-Process -Module`: `…\dist\MiBibliotecaAnime_v0.2.1\_internal\vendor\libmpv-2.dll`
+  - UPNShare ↗ en la columna → **abre el navegador** (Brave, proceso nuevo) y tarjeta «UPNShare se abre en tu navegador» con «Ver aquí con HLS»
+  - proveedor de la sesión a JKAnime (desplegable) → portada de 53 → `Psyren` ep. 1 → **Desu se ve** (HLS MPEG-TS, subtítulos incrustados, `00:04 / 23:40`)
+  - cerrado por la ventana: sale en < 15 s, sin procesos colgados
+- No hizo falta `os.add_dll_directory(sys._MEIPASS)`: ver *Decisiones*
+- Peticiones reales: ~8 en total (2 portadas, 2 fichas, 2 listas de servidores, 2 resoluciones) más los medios; ningún 403
+- Pendiente que deja: 5.4
+
+### Fase 5 · Paso 5.2 — `hiddenimports` y `binaries`          (2026-10-20)
+- Ficheros: `MiBibliotecaAnime.spec`
+- `hiddenimports`: +5 `APIs.resolvers.*` (`base`, `jkplayer`, `mp4upload`, `registry`, `zilla`; la ficha decía 6, pero son 5 más el `__init__`), `gui.components.video_player` y `mpv` → **37 nombres** (36 de `src/` + `mpv`)
+- `binaries`: `('vendor/libmpv-2.dll', 'vendor')` — **destino `vendor`, no `'.'`** (ver *Decisiones*). El `.spec` para con un mensaje claro si falta la DLL
+- `python-mpv` no arrastra datos propios: `mpv.py` solo importa la stdlib
+- Verificado: sí · auditoría con AST en las dos direcciones (`audit.py`, scratchpad): los 36 nombres de `src/` resuelven a ficheros reales y el único módulo de `src/` sin declarar es `app` (script de entrada)
+- Pendiente que deja: 5.3
+
+### Fase 5 · Paso 5.1 — `requirements.txt` y la DLL          (2026-10-20)
+- Ficheros: `requirements.txt` (`python-mpv==1.0.8`, la de la fase 0), `README.md` (paso 4 «Descargar libmpv» con URL, nombre del `.7z` y sha256; aviso en «Compilar»; mpv en tecnologías)
+- La DLL **sigue fuera del repo** (decisión 2): `vendor/libmpv-2.dll`, sha256 `751131f8…25ff0`, la misma de la fase 0. Es la que se empaqueta: `mpv v0.41.0-1055-g6fd80b200`, FFmpeg `N-126773-g7d14defcc` (leído de la propia DLL con `mpv-version` / `ffmpeg-version`)
+- Licencia real comprobada (ver *Decisiones*): libmpv sin `-Dgpl=false` + FFmpeg con `--enable-gpl --enable-version3`, sin `nonfree` → **GPLv3+** en conjunto. `python-mpv` es **GPLv2+ o LGPLv2.1+**, no MIT
+- Verificado: sí · `pip check` sin quejas de `python-mpv`; sha256 de la DLL recalculado
+- Pendiente que deja: 5.2
 
 ### Fase 4 · Verificación y cierre          (2026-10-20)
 - Arneses `verify_f4.py`, `verify_f4b.py` y `verify_f4c.py` (scratchpad): `MainWindow` del `src/` real con todo `resources/` desviado a un sandbox con **copia de las dos BD**, portada vacía (sin bajar estrenos), `webbrowser.open` interceptado, clics reales solo si `winfo_containing` da el widget y `Esc` solo con el primer plano nuestro (0 descartados)

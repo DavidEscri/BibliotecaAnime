@@ -32,6 +32,12 @@ lo que realmente viaja dentro del ejecutable.
       - darkdetect 0.8.0 (BSD-3-Clause)
       - packaging 24.1 (Apache-2.0 / BSD-2-Clause)
       - typing_extensions 4.12.2 (PSF-2.0)
+      - brotli 1.1.0 (MIT)
+      - PySocks 1.7.1 (BSD-3-Clause)
+      - pyparsing 3.1.4 (MIT)
+      - setuptools 63.2.0, solo pkg_resources (MIT)
+      - python-mpv 1.0.8 (GPL-2.0-or-later / LGPL-2.1-or-later)
+      - libmpv, con FFmpeg (GPL-3.0-or-later)
       - Python (interprete CPython) (PSF-2.0)
       - Tcl/Tk (BSD-style)
 
@@ -2260,6 +2266,187 @@ Government shall have only "Restricted Rights" as defined in Clause
 authors grant the U.S. Government and others acting in its behalf
 permission to use and distribute the software in accordance with the
 terms specified in this license.
+
+===============================================================================
+brotli 1.1.0
+Licencia: MIT
+Proyecto: https://github.com/google/brotli
+===============================================================================
+
+Copyright (c) 2009, 2010, 2013-2016 by the Brotli Authors.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+
+===============================================================================
+PySocks 1.7.1
+Licencia: BSD-3-Clause
+Proyecto: https://github.com/Anorov/PySocks
+===============================================================================
+
+Copyright 2006 Dan-Haim. All rights reserved.
+
+Redistribution and use in source and binary forms, with or without modification,
+are permitted provided that the following conditions are met:
+1. Redistributions of source code must retain the above copyright notice, this
+   list of conditions and the following disclaimer.
+2. Redistributions in binary form must reproduce the above copyright notice,
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution.
+3. Neither the name of Dan Haim nor the names of his contributors may be used
+   to endorse or promote products derived from this software without specific
+   prior written permission.
+   
+THIS SOFTWARE IS PROVIDED BY DAN HAIM "AS IS" AND ANY EXPRESS OR IMPLIED
+WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO
+EVENT SHALL DAN HAIM OR HIS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA
+OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
+OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMANGE.
+
+===============================================================================
+pyparsing 3.1.4
+Licencia: MIT
+Proyecto: https://github.com/pyparsing/pyparsing
+===============================================================================
+
+Permission is hereby granted, free of charge, to any person obtaining
+a copy of this software and associated documentation files (the
+"Software"), to deal in the Software without restriction, including
+without limitation the rights to use, copy, modify, merge, publish,
+distribute, sublicense, and/or sell copies of the Software, and to
+permit persons to whom the Software is furnished to do so, subject to
+the following conditions:
+
+The above copyright notice and this permission notice shall be
+included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+===============================================================================
+setuptools 63.2.0 (pkg_resources)
+Licencia: MIT
+Proyecto: https://github.com/pypa/setuptools
+===============================================================================
+
+Copyright Jason R. Coombs
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to
+deal in the Software without restriction, including without limitation the
+rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
+sell copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+IN THE SOFTWARE.
+
+[Nota de BibliotecaAnime] El ejecutable solo lleva su módulo pkg_resources,
+que incluye copias internas de appdirs, importlib_resources, jaraco,
+more_itertools, packaging, pyparsing y zipp (licencias MIT y Apache-2.0).
+
+===============================================================================
+python-mpv 1.0.8
+Licencia: GPL-2.0-or-later o LGPL-2.1-or-later (aquí, GPL)
+Proyecto: https://github.com/jaseg/python-mpv
+===============================================================================
+
+Copyright (C) 2017-2024 Sebastian Götte <code@jaseg.net>
+
+python-mpv inherits the underlying libmpv's license, which can be either GPLv2
+or later (default) or LGPLv2.1 or later. For details, see the mpv copyright
+page here: https://github.com/mpv-player/mpv/blob/master/Copyright
+
+You may copy, modify, and redistribute this file under the terms of the GNU
+General Public License version 2 (or, at your option, any later version), or
+the GNU Lesser General Public License as published by the Free Software
+Foundation; either version 2.1 of the License, or (at your option) any later
+version.
+
+This library is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE.  See the GNU General Public License and the GNU Lesser
+General Public License for more details.
+
+[Nota de BibliotecaAnime] Se distribuye aquí bajo la GPL, usando la opción
+«cualquier versión posterior»: el texto de la GPL-3.0 es el del fichero LICENSE
+que acompaña a este programa.
+
+===============================================================================
+libmpv (mpv v0.41.0-1055-g6fd80b200)
+Licencia: GPL-3.0-or-later (conjunto mpv + FFmpeg)
+Proyecto: https://mpv.io
+===============================================================================
+
+Fichero: _internal/vendor/libmpv-2.dll
+Versión: mpv v0.41.0-1055-g6fd80b200 · FFmpeg N-126773-g7d14defcc
+Compilación: shinchiro/mpv-winbuild-cmake, versión 20260923
+  (mpv-dev-x86_64-20260923-git-6fd80b2003.7z)
+SHA-256: 751131f81b5ce485d046ff08d1a44a93c5455be5135d53c0ab19c56780925ff0
+
+mpv es Copyright (C) los desarrolladores de mpv, y se distribuye bajo la GNU
+General Public License, versión 2 o (a tu elección) cualquier versión
+posterior. Esta compilación no usa la opción que la restringe a la LGPL.
+
+La DLL lleva enlazada estáticamente FFmpeg (Copyright (C) los desarrolladores
+de FFmpeg), compilado con --enable-gpl y --enable-version3, sin
+--enable-nonfree. Por eso el conjunto se distribuye bajo la GNU General Public
+License, versión 3 o posterior: la misma licencia de BibliotecaAnime, cuyo
+texto íntegro está en el fichero LICENSE.
+
+Según su receta de compilación, la DLL incorpora además, entre otras, estas
+bibliotecas, cada una con su propia licencia (GPL, LGPL, BSD, MIT, Apache-2.0,
+ISC, zlib o similares, todas compatibles con la GPL-3.0): libass, FreeType,
+FriBidi, HarfBuzz, Fontconfig, dav1d, libplacebo, LuaJIT, MuJS, libcurl,
+OpenSSL, libarchive, libbluray, libdvdnav, libdvdread, uchardet, Rubber Band,
+Little CMS, OpenAL Soft, SDL2, libsixel, shaderc, SPIRV-Cross, Vulkan,
+VapourSynth, zimg, libsoxr, libbs2b, libmysofa, libvpx, libaom, SVT-AV1, x264,
+x265, Opus, Vorbis, Speex, LAME, libwebp, libjxl, libxml2, libssh, SRT,
+libzvbi, libaribcaption, libopenmpt, libmodplug, zlib y bzip2. Sus avisos de copyright y sus textos de
+licencia están en el código fuente correspondiente (ver más abajo).
+
+Código fuente correspondiente (§6 de la GPL)
+--------------------------------------------
+  - mpv:    https://github.com/mpv-player/mpv/tree/6fd80b2003
+  - FFmpeg: https://github.com/FFmpeg/FFmpeg/tree/7d14defcc
+  - Receta de compilación, con la versión exacta de cada biblioteca:
+            https://github.com/shinchiro/mpv-winbuild-cmake/tree/20260923
+
+Si alguno de estos enlaces deja de estar disponible, pide el código fuente
+correspondiente a esta versión en https://github.com/DavidEscri/BibliotecaAnime
+(sección «Issues») y se te facilitará.
 
 ===============================================================================
 PyInstaller (herramienta de empaquetado)

@@ -44,6 +44,7 @@ A diferencia de plataformas como MyAnimeList o Anilist, este proyecto nace con u
 - **Interfaz Gráfica:** *CustomTkinter*.
 - **Base de Datos:** SQLite3 (Nativo en Python).
 - **Manejo de Imágenes:** [Pillow (PIL)](https://python-pillow.org/)
+- **Reproductor:** [mpv](https://mpv.io/) (`libmpv`) mediante [python-mpv](https://github.com/jaseg/python-mpv)
 - **Empaquetado:** [PyInstaller](https://pyinstaller.org/)
 
 ---
@@ -67,13 +68,29 @@ venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-### 4. Ejecutar en modo desarrollo
+### 4. Descargar libmpv (reproductor integrado)
+Los episodios se reproducen dentro de la aplicación con [mpv](https://mpv.io/), que necesita la
+biblioteca `libmpv-2.dll`. Pesa unos 120 MB, más de lo que GitHub admite en un fichero, así que
+**no está en el repositorio** y hay que descargarla aparte:
+
+1. Descarga `mpv-dev-x86_64-20260923-git-6fd80b2003.7z` de
+   [shinchiro/mpv-winbuild-cmake, versión 20260923](https://github.com/shinchiro/mpv-winbuild-cmake/releases/tag/20260923)
+   (el build `x86_64` básico; el `-v3` exige un procesador con AVX2).
+2. Extrae `libmpv-2.dll` en la carpeta `vendor/` de la raíz del proyecto (`vendor/libmpv-2.dll`).
+3. Comprueba que es la versión validada: su SHA-256 debe ser
+   `751131f81b5ce485d046ff08d1a44a93c5455be5135d53c0ab19c56780925ff0`.
+
+Sin la DLL la aplicación funciona igual, pero los episodios se abren en el navegador.
+
+### 5. Ejecutar en modo desarrollo
 ```bash
 python src/app.py
 ```
 
 ## Compilar el Ejecutable (.exe)
 El proyecto incluye un archivo de configuración .spec (MiBibliotecaAnime.spec) preparado para generar un ejecutable independiente para Windows.
+Antes de compilar, `vendor/libmpv-2.dll` tiene que estar en su sitio (paso 4): el ejecutable la
+lleva dentro y la compilación se detiene si falta.
 Para compilar la aplicación y no depender de la consola de Python, ejecuta:
 ```bash
 pyinstaller MiBibliotecaAnime.spec

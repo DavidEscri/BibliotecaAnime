@@ -4,10 +4,23 @@ APP_VERSION = "0.2.1"
 
 block_cipher = None
 
+import os
+
+# libmpv no está en el repositorio (pesa ~120 MB): se descarga aparte, como
+# explica el README. Sin ella el .exe compilaría y abriría todo en el
+# navegador, así que se para aquí en vez de distribuir un reproductor mudo.
+_LIBMPV_DLL = 'vendor/libmpv-2.dll'
+if not os.path.isfile(os.path.join(SPECPATH, _LIBMPV_DLL)):
+    raise SystemExit(f'Falta {_LIBMPV_DLL}: descárgala como indica el README (paso 4).')
+
 a = Analysis(
     ['src/app.py'],
     pathex=['src'],
-    binaries=[],
+    # Destino 'vendor', no '.': load_mpv() la busca en get_resource_path("vendor"),
+    # que en el .exe es _internal/vendor.
+    binaries=[
+        (_LIBMPV_DLL, 'vendor')
+    ],
     datas=[
         ('resources/images/utils', 'resources/images/utils')
     ],
@@ -17,6 +30,11 @@ a = Analysis(
         'APIs.jkanime.jkanime',
         'APIs.common.animeProviderMgr',
         'APIs.common.models',
+        'APIs.resolvers.base',
+        'APIs.resolvers.jkplayer',
+        'APIs.resolvers.mp4upload',
+        'APIs.resolvers.registry',
+        'APIs.resolvers.zilla',
         'dataPersistence.animesPersistence',
         'dataPersistence.userPersistence',
         'gui.sidebarButtons.favouriteAnimes.favouriteAnimes',
@@ -41,12 +59,16 @@ a = Analysis(
         'gui.components.side_panel',
         'gui.components.sidebar',
         'gui.components.status_pill',
+        'gui.components.video_player',
         'gui.components.view_header',
         'gui.anime_window',
         'gui.main_window',
         'utils.buttons.utilsButtons',
         'utils.db.sqlite',
-        'utils.utils'
+        'utils.utils',
+        # El binding de libmpv: video_player lo importa dentro de load_mpv(),
+        # después de poner la DLL en la ruta, y el análisis estático no lo ve.
+        'mpv'
     ],
     hookspath=[],
     runtime_hooks=[],
@@ -94,7 +116,6 @@ coll = COLLECT(
 # distribuir binarios y a indicar cómo obtener el código fuente
 # correspondiente, y las licencias MIT/BSD/Apache/MPL de las dependencias
 # exigen reproducir sus avisos de copyright en cualquier redistribución.
-import os
 import shutil
 
 _dist_dir = os.path.join(DISTPATH, f'MiBibliotecaAnime_v{APP_VERSION}')
