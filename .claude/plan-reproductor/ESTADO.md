@@ -5,14 +5,14 @@
 
 | | |
 |---|---|
-| **Fase actual** | **6 · Documentación** — ⬜ no empezada |
-| **Situación** | ✅ **Fase 5 terminada y verificada en pantalla** (2026-10-20): el `.exe`, compilado y lanzado **fuera del repo**, reproduce AnimeAV1 por `HLS` (zilla, AV1 fMP4) y JKAnime por Desu (HLS MPEG-TS), con `libmpv-2.dll` cargada desde `_internal\vendor`; UPNShare abre el navegador. `dist` pasa de 38 a 153 MB. **Sigue sin oírse** el audio (lo confirma el usuario) |
-| **Último paso completado** | Fase 5 cerrada |
-| **Siguiente paso** | Paso 6.1 de la [ficha 6](fases/6-documentacion.md) |
+| **Fase actual** | **Plan cerrado** — las 7 fases hechas (ver *Cierre del plan*, al final) |
+| **Situación** | ✅ **Fase 6 terminada** (2026-10-20): `CLAUDE.md` y 11 documentos de `.claude/docs/` al día con el reproductor, **12 trampas nuevas** (43-54) más la 18f, 0 enlaces rotos de 903, prueba de humo sobre copia con JKAnime/Desu visto en pantalla. ⚠️ **El audio sigue sin oírse** —falta que lo confirme el usuario— y la prueba de humo destapó la **trampa 54** (zilla lento → «Cargando» sin tope, deuda B15) |
+| **Último paso completado** | Fase 6 cerrada (paso 6.4: cierre del plan) |
+| **Siguiente paso** | Ninguno dentro del plan. Recomendación en *Cierre del plan* |
 | **Rama** | **`feature/reproductor-embebido`** — la creó el usuario antes de la fase 0 (lleva el plan y un merge de `develop`). **No se crea `feature/reproductor-in-app`**: ver *Decisiones* |
 | **Base** | `f7c88ca` en `feature/reproductor-embebido`; `95abd56` **es ancestro** (llega vía `develop`) |
 | **Commits** | automáticos (uno al cerrar cada fase) |
-| **Actualizado** | 2026-10-20 (cierre de la fase 5) |
+| **Actualizado** | 2026-10-20 (cierre de la fase 6 y del plan) |
 
 ---
 
@@ -26,7 +26,7 @@
 | 3 | Panel de reproducción | ⚠️ terminada sin verificar del todo | commit «Reproductor fase 3 — Panel de reproducción» (`git log --grep "fase 3"`) | Sí, en pantalla sobre copia: AnimeAV1/MP4Upload y JKAnime/Desu y Magi, 47 comprobaciones y capturas. `HLS` ✅ **el 2026-10-20** (en la fase 4). Falta el audio oído |
 | 4 | Navegación y fin de episodio | ✅ terminada | commit «Reproductor fase 4 — Navegación y fin de episodio» (`git log --grep "fase 4"`) | Sí, en pantalla sobre copia de las dos BD: 57 + 12 + 5 comprobaciones con clics y `Esc` reales, y capturas. BD real intacta |
 | 5 | Empaquetado | ✅ terminada | commit «Reproductor fase 5 — Empaquetado» (`git log --grep "fase 5"`) | Sí, desde el `.exe` en una carpeta fuera del repo: AnimeAV1 `HLS` y JKAnime Desu se ven, UPNShare abre el navegador, capturas. Falta el audio oído |
-| 6 | Documentación | ⬜ no empezada | — | — |
+| 6 | Documentación | ✅ terminada | commit «Reproductor fase 6 — Documentación» (`git log --grep "fase 6"`) | Sí: barrido de enlaces (0 rotos de 903), 295 identificadores citados cotejados con `src/`, el script sin red de `docs/09 §6h` ejecutado y prueba de humo sobre copia (Desu visto, capturas). `HLS` no se vio en la prueba: zilla iba lento (trampa 54) |
 
 **Situación**: ⬜ no empezada · 🟡 en curso · ✅ terminada · ⚠️ terminada sin verificar · ❌ revertida
 
@@ -62,6 +62,10 @@ Lo que no se ha podido ejecutar en cada fase, para que nadie lo dé por probado.
 | 5 | **El segundo `.exe` (recompilado con los avisos nuevos) no se volvió a lanzar** | Mismas entradas que el primero salvo los tres ficheros legales, que se copian tras `COLLECT` (comparados con `cmp`). El que se lanzó y reprodujo es el primero |
 | 5 | **La receta de FFmpeg se leyó de `master`** (2026-10-20), no de la etiqueta `20260923` | La licencia (`--enable-gpl --enable-version3`, sin `nonfree`) lleva años igual en esa receta, pero no se comprobó en la etiqueta exacta. Hacerlo antes de distribuir |
 | 0 | La **deduplicación de hilos**: el callback de `Esc` desde mpv y su `after(0)` | Ya no hacen falta: el teclado llega a Tk. Si en otra máquina llegara a mpv, habría que volver a mirarlo |
+| 6 | **`HLS` (zilla) en la prueba de humo** | zilla respondía muy lento el 2026-10-20 por la tarde: el medio tardó ~70 s en abrirse (log de mpv en el scratchpad, `diag_hls_mpv.log`), y se dejó de esperar. Se verificó la reproducción con **JKAnime / Desu** (3,4 s, H.264 720p `d3d11va`, `aac`, 0 pérdidas, `time-pos` 4,96 s en 5,0 s, captura). `HLS` sí se había visto ese mismo día en las fases 4 y 5. Lo que destapó es la **trampa 54** |
+| 6 | **La prueba de humo, con la BD real** | Se lanzó el `MainWindow` del `src/` real con `get_resource_path` desviado a una copia de las dos BD (abrir fichas y entrar en la portada escriben). sha256 de las dos BD reales idéntico antes y después |
+| 6 | **Las anclas de los enlaces, en GitHub** | El barrido calcula las anclas con el algoritmo de GitHub (minúsculas, fuera la puntuación y los emojis, espacios a guiones), pero no se han abierto en GitHub. Los ficheros enlazados sí existen todos |
+| 6 | **Las anclas `:línea` que esta fase no tocó** | `2f8a51d` (justo antes del plan) desplazó las de casi todos los módulos; esta fase reancló las de lo que documentó (y §1, §6 y §7 de `docs/07` enteras), y avisa del resto en las cabeceras |
 
 ---
 
@@ -156,6 +160,11 @@ fase que la tomó. Empieza vacío a propósito: las decisiones de partida están
 | 5 | **§6 de la GPL para la DLL**: `THIRD-PARTY-NOTICES.txt` da la versión exacta y los enlaces al fuente de mpv (`6fd80b2003`), FFmpeg (`7d14defcc`) y la receta (`mpv-winbuild-cmake` `20260923`), **más una oferta de facilitar el fuente** si los enlaces caen (pedirlo en las *Issues* del repo). `LEEME.txt` remite ahí. ⚠️ **La oferta compromete al autor**: si no la quiere, la alternativa es alojar una copia del fuente |
 | 5 | **`THIRD-PARTY-NOTICES.txt`: 14 → 20 componentes.** Además de `python-mpv` y libmpv, faltaban **cuatro que ya viajaban** en el `.exe` (están en el `PYZ` del build anterior): brotli 1.1.0 (MIT), PySocks 1.7.1 (BSD-3), pyparsing 3.1.4 (MIT) y setuptools 63.2.0 por su `pkg_resources` (MIT). ⚠️ **No se reproducen íntegros** los avisos de las ~45 bibliotecas enlazadas dentro de libmpv ni los de los vendorizados de `pkg_resources`: se nombran y se remite a su fuente (**L10** para `docs/12 §7`). Generador: `notices_add.py` en el scratchpad (añade, no regenera desde cero) |
 | 5 | **`docs/12 §7` se actualiza en la fase 6**, no aquí: los 6 componentes nuevos, la §6 de la DLL con su oferta, L9 (el generador sigue fuera del repo) y L10 nueva. Tamaño de `dist`: **38 → 153 MB** (157 693 874 bytes); `APP_VERSION` **no se subió** (sigue `0.2.1`): es decisión de release del usuario |
+| 6 | **Trampas 43-54**, no «a continuación de la 35» como decía la ficha: ya había 42. La DLL va como **18f**, junto a la 18e, porque es de empaquetado y la misma mecánica. Tres candidatas de la ficha se escribieron **al revés** (49, 50), porque la fase 0 las desmintió |
+| 6 | **Los «B1» y «B2» de este plan no son los B1 y B2 de `docs/12 §4`** (que ya existían: `get_anime_image` y la ordenación por géneros). En los documentos se citan como «B1/B2 del plan del reproductor» |
+| 6 | **La convención de recuento de `docs/02` cambia**: líneas como las enseña un editor, no `wc -l` + 1, porque desde `2f8a51d` la mitad de los ficheros acaban en salto. **13 676** líneas en 37 módulos |
+| 6 | **Deuda nueva B15** («Cargando» sin tope con un hoster lento) y **trampa 54**, encontradas en la prueba de humo. **No se arregla aquí**: la fase 6 no toca `src/` |
+| 6 | Corregido de paso un fallo previo: un **salto de línea real** dentro de `` `\n` `` partía filas de tabla en `CLAUDE.md`, `docs/06` y `docs/README.md` (dos veces) |
 | Diseño (2026-09-23) | **Diseño visual aprobado**, segunda ronda: [DISENO-VISUAL.html](DISENO-VISUAL.html). Reproductor **acoplado encima de la ficha** (`player_frame` fila 0, `content_frame` fila 1, que se queda); columna izquierda sin póster con volver, título, episodio, servidor, progreso y «Siguiente episodio»; barra en el orden anterior · −10 · play/pausa · +10 · siguiente · progreso · tiempo · volumen · pantalla completa, **sin ✕**; pantalla completa con barra flotante que se oculta a los 5 s; «Ir al episodio…» es el buscador de la ficha. Descartados: modo teatro, carril de episodios, pie de información. **Cambia la fase 3 entera, el paso 4.1 y 4.2, y añade el paso 0.7 y `registry.has_resolver()` (fase 1)** |
 
 ---
@@ -172,6 +181,37 @@ Una entrada por paso completado, **la más reciente arriba**. Formato:
 ```
 
 <!-- nuevas entradas aquí arriba -->
+
+### Fase 6 · Paso 6.4 — Cierre del plan, verificación y commit          (2026-10-20)
+- Ficheros: `ESTADO.md` (este cierre), `README.md` del plan (el enlace a la investigación, que no existe, pasa a texto)
+- **Barrido de enlaces** de todo `.claude/` (salvo `plans/`): **903 enlaces internos, 0 rotos**, ficheros **y anclas** (`check_links.py`, scratchpad)
+- **Nombres de API**: los 295 identificadores entre comillas invertidas que añadió esta fase, cotejados con `src/` y el `.spec` (`check_names.py`): 7 sin rastro, y los 7 son legítimos (nombres de fichero, paquetes, una API de Windows del arnés y un parámetro de CustomTkinter)
+- **Prueba de humo** (`smoke_f6b.py`, `smoke_desu.py`): `src/` real sobre copia de las dos BD, dentro de `mainloop()`, sin teclas ni clics sintéticos. Portada real (AnimeAV1 no respondió; el *fallback* trajo 53 de JKAnime) · las 6 vistas · ficha de `dandadan` con servidores en hilo · UPNShare abre el navegador · `HLS` **no** arrancó en 45 ni en 70 s (**trampa 54**, diagnosticada con el log de mpv) · `kaijuu-8-gou` ep. 1 por **Desu se ve** (captura) · cerrar: sin hilos de mpv, sin hilos no-daemon · **0 `Traceback` y 0 `invalid command name`** en las dos salidas
+- ⚠️ Un primer arnés movido con `update()` en vez de `mainloop()` dio dos `RuntimeError: main thread is not in main loop`: eran **del arnés**, no de la app
+- De paso, en la portada con *fallback*: la precarga pide a AnimeAV1 los *slugs* de JKAnime y da 404 con 3 intentos por anime (12 en la prueba). Comportamiento anterior al plan; no se toca
+- BD real: **46 filas** y sha256 `fc3f74bb…8dc5` antes y después (eran 36 al cerrar la fase 5: el usuario ha seguido usando la app); `DB_user.db` `ca4612be…aeae3`, igual
+- `src/` sin tocar · colores literales solo en `theme.py` · TODOs: **4** (`anime_window.py:151,154`, `jkanime.py:156,217`)
+- Estado: ✅
+
+### Fase 6 · Paso 6.1 y resto de 6.2 — `CLAUDE.md`, `docs/11`, `docs/12` y `docs/README.md`          (2026-10-20)
+- `CLAUDE.md`: descripción, comandos (la DLL), **§1b capa de resolución** (y por qué no es un método de `AnimeProvider`), `VideoPlayer` como 12.º componente, `player_frame`, **bloque «El reproductor acoplado»**, concurrencia (sin HTTP en Tk, regla del hilo de mpv), `.spec` (37 `hiddenimports`, `binaries`), TODOs reinventariados, licencia de libmpv, roadmap (punto 4 hecho, deuda nº 1 tachada, deuda del reproductor), recuento de trampas
+- `docs/11`: **§9 «Añadir un resolutor»** con MP4Upload como caso real; §6 con la DLL y anclas del `.spec` al día · `docs/12`: B4 cerrado, **B14**, **B15**, **C12**, §2, §6, §7 (L4b, L4c, L10, L11) · `docs/README.md`: cabecera, índice, mapa de lectura y mantenimiento
+- Verificado: ver la entrada de arriba
+
+### Fase 6 · Paso 6.2 (parcial) — `docs/01`, `02`, `05`, `06`, `07` y `09`          (2026-10-20)
+- Ficheros: los seis de `.claude/docs/`
+- 01: capa y reproductor en el diagrama, fila de `APIs/resolvers/` en dependencias, **I6 sin excepciones**, **I10** e **I11** nuevos, `python-mpv` y la DLL en §6 · 02: inventario **recontado de cero** (13 676 líneas, 37 módulos; la convención «`wc -l` + 1» ya no vale tras `2f8a51d`), ficha de `APIs/resolvers/`, `video_player.py` como 12.º componente, bloques del reproductor en `main_window` y `anime_window` · 05: **§9 hosters** · 06: **§12 reproductor**, `VIDEO_BG` (24 tokens; el «20» ya era falso antes del plan), `player_frame` · 07: **16 hilos** + §1b (mpv), **C5 resuelta**, `after()` 11 → **28**, `WM_DELETE_WINDOW` · 09: **§6h** (resolución sin GUI), **§6i** (arnés y lecciones), **§7.13** (checklist del reproductor)
+- Verificado: anclas con `grep -n`; el script sin red de §6h **ejecutado** (11 casos, 0 peticiones)
+- Pendiente que deja: 11, 12, README de docs y `CLAUDE.md`
+
+### Fase 6 · Paso 6.3 — Trampas nuevas en `docs/10` (y flujo 13 en `docs/03`, adelantado)          (2026-10-20)
+- Ficheros: `.claude/docs/10-invariantes-y-trampas.md`, `.claude/docs/03-flujos-de-ejecucion.md`
+- **11 trampas nuevas, 43-53**, en el apartado «Reproductor in-app», más la **18f** (la DLL en `binaries`, junto a la 18e de la que es gemela). La ficha decía «a continuación de la 35»: ya había **42**
+- Tres candidatas de la ficha **se escribieron al revés**, porque la fase 0 las desmintió: encima del vídeo **sí** se ve un widget hermano (49), el ratón y el teclado **sí** llegan a Tk (50) y `CTkScrollableFrame` no da el síntoma temido (49). La 46 (bloqueo `after()` + `terminate()`) va con ⚠️: es el motivo del diseño, no se reprodujo aposta; la 48 (corte antes del final) con 📖: rama sin ejecutar
+- `docs/03`: §8 reescrito (servidores en 🧵 con número de despliegue), **§13 nuevo** (13, 13b, 13c) y el antiguo §13 pasa a **§14**; convención de hilos con 🎞️ (`MPVEventHandlerThread`)
+- ⚠️ **Descubierto**: el commit `2f8a51d` (justo antes del plan) reescribió comentarios en 30 módulos (−400 líneas netas), así que **muchas anclas `:línea` de `docs/` ya venían desplazadas**. Se reanclan las que toca esta fase; el resto queda avisado en las cabeceras
+- Verificado: anclas de las trampas y del flujo cotejadas con `grep -n` contra el código actual
+- Pendiente que deja: 6.1 y el resto de 6.2
 
 ### Fase 5 · Verificación y cierre          (2026-10-20)
 - Recompilado con los avisos nuevos: 0 errores; `LICENSE`, `LEEME.txt` y `THIRD-PARTY-NOTICES.txt` junto al `.exe` e idénticos a los del repo (`cmp`), ninguno dentro de `_internal/`; `_internal/resources/` = solo `images/utils`; 0 `.db` y 0 `.jpg`; 153 MB
@@ -333,5 +373,65 @@ Una entrada por paso completado, **la más reciente arriba**. Formato:
 
 ## Cierre del plan
 
-*(lo escribe la fase 6: qué quedó fuera, qué fases se cerraron sin verificar, qué hosters siguen
-abriendo el navegador y qué recomendaría como siguiente tarea)*
+Escrito el 2026-10-20 por la fase 6.
+
+### Las 7 fases
+
+| # | Fase | Cierre | Excepción |
+|---|---|---|---|
+| 0 | Spike de libmpv | ⚠️ | **El audio, oído.** Lo demás se verificó: (b) contra zilla real, el 2026-10-20 |
+| 1 | Capa de resolución | ✅ | — (`Okru` real y la app con la BD real, sin ejecutar; ver arriba) |
+| 2 | Servidores fuera del hilo de Tk | ✅ | — |
+| 3 | Panel de reproducción | ⚠️ | **El audio, oído**; dos monitores en pantalla completa y salir de ella con la barra lateral plegada |
+| 4 | Navegación y fin de episodio | ✅ | — (la ✕ a pantalla completa y el corte antes del final, leídos y no ejecutados) |
+| 5 | Empaquetado | ✅ | El audio desde el `.exe`, una máquina limpia y la receta de FFmpeg en su etiqueta |
+| 6 | Documentación | ✅ | `HLS` no se vio en la prueba de humo (zilla lento, trampa 54); sí se vio Desu |
+
+**Lo único que falta para que las 7 queden en ✅ es que el usuario oiga un episodio**, desde
+`python src/app.py` y desde el `.exe`. Todo lo que se puede medir sin oír —`aac` decodificando,
+avanzando con el vídeo, volumen y silencio cambiando las propiedades de mpv— está medido.
+
+### Qué quedó fuera
+
+- **Hosters sin resolver** (deuda **B14**): siguen abriendo el navegador con ↗ UPNShare, Voe, Byse,
+  YourUpload, DoodStream, Netu, VidHide y StreamTape (AnimeAV1), y Okru (JKAnime). **Mega** está
+  bloqueado de verdad (cifrado de extremo a extremo). Los resueltos —zilla, MP4Upload, Desu, Magi y
+  Desuka— cubrían 7/7 episodios muestreados por proveedor.
+- Lo que el [README](README.md#qué-no-entra-en-este-plan) dejaba fuera desde el principio: descargar
+  episodios, **recordar el minuto donde lo dejaste**, elegir calidad o subtítulos (los playlists no
+  ofrecen alternativas), proveedores nuevos, los descartes del diseño (teatro, carril, pie, póster) y
+  redibujar los iconos de **B11**.
+- Lo que se decidió no hacer por el camino: **MP4Upload como alternativa H.264** (es AV1 también,
+  decisión 4); la **contingencia VLC + proxy** (mpv pasó la fase 0); la rama
+  **`feature/reproductor-in-app`** (se trabajó en `feature/reproductor-embebido`, que ya existía);
+  **versionar la DLL** (120 MB, decisión 2); subir **`APP_VERSION`** (decisión de release del usuario).
+- Lo que apareció al final y **no** se arregló, porque la fase 6 no toca `src/`: **B15**, «Cargando»
+  sin tope con un hoster lento ([trampa 54](../docs/10-invariantes-y-trampas.md)).
+- **La legalidad** (decisión 5): reproducir dentro elimina los anuncios del hoster. **Sigue abierta**, y
+  es del usuario.
+
+### Qué sigue vigente de lo que la investigación no pudo comprobar
+
+La investigación (`.claude/plans/investigacion-reproduccion-in-app-kind-flask.md`) **no está en
+disco** desde antes de la fase 0, así que su §10 no se puede releer. De lo que el plan copió de ella:
+
+- ✅ **Cerrado**: «de mpv no se probó nada» (fase 0); que mpv mande la cabecera en cada segmento de
+  zilla (fase 0 en local, 2026-10-20 contra zilla real); el consumo del AV1 1080p (0,2-0,33 núcleos);
+  la cobertura de los tres hosters (fase 1).
+- ⚠️ **Sigue sin comprobar**: **el audio oído**; el consumo en una máquina **sin** otra GPU que la de
+  pruebas; la URL de `jkplayers` **tras cambiar de IP** (se sabe que la incrusta, no se ha visto
+  fallar); un `Okru` real; por qué `play/` de zilla da **403 de Cloudflare a `requests`** (no afecta: el
+  resolutor no pide esa página); y el `.exe` en una **máquina limpia**.
+
+### Qué recomendaría como siguiente tarea
+
+1. **Oír un episodio** (5 minutos, lo hace el usuario): cierra el ⚠️ de las fases 0, 3 y 5.
+2. **B15 — un tope propio para «Cargando»**: un plazo desde `play()` hasta el primer
+   `playback-restart` que, al vencer, haga lo mismo que `on_error`. Es pequeño, toca dos ficheros y es
+   lo que más se nota: con zilla lento, hoy el usuario no sabe si esperar.
+3. **B2** (`str` vs enum en la ordenación por géneros): lo siguiente barato del roadmap de
+   `CLAUDE.md`, y desbloquea las recomendaciones por género y ordenar favoritos por calificación.
+4. **Antes de distribuir un `.exe` con reproductor**: **L10** y **L11** (`docs/12 §7`), y decidir si la
+   **oferta de facilitar el fuente** de la DLL se mantiene o se sustituye por alojar una copia.
+5. Fusionar `feature/reproductor-embebido` en `develop`, cuando el usuario lo decida: ninguna fase
+   tocó otra rama.

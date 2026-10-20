@@ -2,9 +2,9 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-09-02 · rama `feature/ui-redisign` · último commit **`9083a32`** (documentación) |
-| **Cubre** | los **31** módulos con contenido de `src/` + `MiBibliotecaAnime.spec` + `requirements.txt` |
-| **Última revisión** | 2026-09-02 (**rejillas adaptables y sinopsis**): **2 trampas nuevas**, las dos con el mismo patrón —un widget que *parece* medir el sitio que tiene y no lo mide—: la **41**, una rejilla colocada con `sticky="w"` mide **su propio contenido**, así que calcular columnas de su ancho es un punto fijo que nunca cambia; y la **42**, `wraplength` **no puede deshacer un `\n`** que traiga el texto, por ancha que sea la ventana. Las dos estuvieron vivas y calladas desde el rediseño. La **32** gana su segunda mitad: los pesos `uniform` de `PosterGrid` también sobreviven a destruir las celdas. Antes, 2026-09-01 (**abrir la ficha por un episodio**): trampa **40** nueva —un `bind()` sin `add="+"` **borra** el manejador que el widget ya tenía, y excluir un botón de un recorrido **no excluye su interior**—, en un apartado propio; es la que explica por qué «Empezar» **nunca** movió un anime a «Viendo». La **37** gana la corrección de por qué `AnimeRow` sigue sin sufrirla. Antes, 2026-09-01 (**ancho de las fichas de género**): trampa **39** nueva —un `CTkButton` no respeta el `width` que se le pide: su rejilla interna propaga tamaño y el ancho *pedido* gana—, en un apartado propio, con la aritmética exacta de lo que reserva por dentro. Antes, 2026-09-01 (**refresco de la banda «Retomar»**): trampa **38** nueva —una fila guardada no refresca sus episodios sola, así que un anime en emisión miente hasta que abres su ficha—, **resuelta solo para las ≤3 tarjetas de la portada** y viva en el resto de la biblioteca. Antes, 2026-09-01 (**hover de la lista de episodios**): trampa **37** nueva —un hijo sin `bind` es una salida de la que no llega ningún `<Leave>`, la complementaria de la **34**—, con la nota de que **no se reproduce moviendo el ratón deprisa**. Antes, 2026-08-31 (**fondo de la pantalla de carga**): trampa **36** nueva —un widget sin `fg_color` sale del gris por defecto de CustomTkinter, no de `Theme`—, con el `minsize` que sobrevive a `grid_forget()` y el GIF transparente como medias trampas; la **33** gana un aviso: el comentario que la anclaba en el código ya no está. Antes, 2026-08-21 (**rediseño de interfaz**): **7 trampas nuevas** (29-35), todas de CustomTkinter y de layout, en un apartado propio; la **33** nace ya resuelta. La trampa **22** queda cerrada: la ficha ya no calcula anchos a mano. Antes, 2026-08-17 (**licencia y empaquetado**): la trampa **18** se subdivide en **a-e** — **18d cerrada** (`datas` ya no lleva datos de usuario; PyInstaller **ignora en silencio las carpetas vacías**) y **18e nueva** (los destinos de `datas` caen dentro de `_internal/`, no junto al `.exe`). Antes, 2026-08-16 (**columna `provider_id`**): **3 trampas nuevas** (26, 27, 28), trampa **21 reescrita** —ahora se puede provocar a voluntad y la ficha la señala en pantalla—, trampas **4** y **13** ampliadas, y anclas de `anime_window.py` (647→1156) y `animesPersistence.py` reubicadas |
+| **Fecha** | 2026-10-20 · rama `feature/reproductor-embebido` · último commit de código **`047e5ea`** (fase 5 del reproductor) |
+| **Cubre** | los **37** módulos con contenido de `src/` + `MiBibliotecaAnime.spec` + `requirements.txt` |
+| **Última revisión** | 2026-10-20 (**reproductor in-app**, plan de 7 fases en [`plan-reproductor/`](../plan-reproductor/README.md)): **12 trampas nuevas** (43-54) en un apartado propio, más la **18f** (la DLL de libmpv y dónde la busca `python-mpv`), que es de empaquetado y va con las demás de la 18. Tres familias: **hosters** (43-45: cabeceras que uno exige y otro rechaza, URLs que caducan o van atadas a la IP), **mpv** (46-48: sus eventos llegan en otro hilo, el final no es un evento y un corte parece un final) y **la superficie nativa dentro de Tk** (49-52), donde tres de las cinco **corrigen** lo que el plan daba por hecho: encima del vídeo **sí** se ve un widget hermano, y el ratón y el teclado **sí** llegan a Tk. La **54** —un hoster **lento** deja «Cargando» sin tope— salió en la propia prueba de humo de la fase 6 y sigue **abierta**. La **53** es el bug de los servidores repetidos («B1» del plan del reproductor, que **no** es el B1 de [12 §4](12-deuda-tecnica-y-roadmap.md)), ya resuelto. Antes, 2026-09-02 (**rejillas adaptables y sinopsis**): **2 trampas nuevas**, las dos con el mismo patrón —un widget que *parece* medir el sitio que tiene y no lo mide—: la **41**, una rejilla colocada con `sticky="w"` mide **su propio contenido**, así que calcular columnas de su ancho es un punto fijo que nunca cambia; y la **42**, `wraplength` **no puede deshacer un `\n`** que traiga el texto, por ancha que sea la ventana. Las dos estuvieron vivas y calladas desde el rediseño. La **32** gana su segunda mitad: los pesos `uniform` de `PosterGrid` también sobreviven a destruir las celdas. Antes, 2026-09-01 (**abrir la ficha por un episodio**): trampa **40** nueva —un `bind()` sin `add="+"` **borra** el manejador que el widget ya tenía, y excluir un botón de un recorrido **no excluye su interior**—, en un apartado propio; es la que explica por qué «Empezar» **nunca** movió un anime a «Viendo». La **37** gana la corrección de por qué `AnimeRow` sigue sin sufrirla. Antes, 2026-09-01 (**ancho de las fichas de género**): trampa **39** nueva —un `CTkButton` no respeta el `width` que se le pide: su rejilla interna propaga tamaño y el ancho *pedido* gana—, en un apartado propio, con la aritmética exacta de lo que reserva por dentro. Antes, 2026-09-01 (**refresco de la banda «Retomar»**): trampa **38** nueva —una fila guardada no refresca sus episodios sola, así que un anime en emisión miente hasta que abres su ficha—, **resuelta solo para las ≤3 tarjetas de la portada** y viva en el resto de la biblioteca. Antes, 2026-09-01 (**hover de la lista de episodios**): trampa **37** nueva —un hijo sin `bind` es una salida de la que no llega ningún `<Leave>`, la complementaria de la **34**—, con la nota de que **no se reproduce moviendo el ratón deprisa**. Antes, 2026-08-31 (**fondo de la pantalla de carga**): trampa **36** nueva —un widget sin `fg_color` sale del gris por defecto de CustomTkinter, no de `Theme`—, con el `minsize` que sobrevive a `grid_forget()` y el GIF transparente como medias trampas; la **33** gana un aviso: el comentario que la anclaba en el código ya no está. Antes, 2026-08-21 (**rediseño de interfaz**): **7 trampas nuevas** (29-35), todas de CustomTkinter y de layout, en un apartado propio; la **33** nace ya resuelta. La trampa **22** queda cerrada: la ficha ya no calcula anchos a mano. Antes, 2026-08-17 (**licencia y empaquetado**): la trampa **18** se subdivide en **a-e** — **18d cerrada** (`datas` ya no lleva datos de usuario; PyInstaller **ignora en silencio las carpetas vacías**) y **18e nueva** (los destinos de `datas` caen dentro de `_internal/`, no junto al `.exe`). Antes, 2026-08-16 (**columna `provider_id`**): **3 trampas nuevas** (26, 27, 28), trampa **21 reescrita** —ahora se puede provocar a voluntad y la ficha la señala en pantalla—, trampas **4** y **13** ampliadas, y anclas de `anime_window.py` (647→1156) y `animesPersistence.py` reubicadas |
 
 Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ sin verificar.
 
@@ -469,6 +469,33 @@ for _legal_file in ('LICENSE', 'LEEME.txt', 'THIRD-PARTY-NOTICES.txt'):
 ⚠️ **Importa más allá de la comodidad**: esos tres ficheros son los que hacen que la distribución
 binaria cumpla la GPL-3.0 (§4 avisos, §6 oferta de código fuente) y las licencias MIT/BSD/Apache/MPL
 de las dependencias. En `_internal/` no cumplirían su función.
+
+**f) `libmpv-2.dll` va en `binaries` con destino `vendor`, y `python-mpv` no la busca ahí** ✅
+*(añadida el 2026-10-20, fases 0 y 5 del reproductor)*
+
+**Por qué**: `python-mpv` localiza la DLL con `ctypes.util.find_library`, que en Windows **solo mira
+`%PATH%`**, no la carpeta del script ni la del `.exe`. Sin ella en la ruta, `import mpv` lanza
+`OSError: Cannot find mpv-1.dll, mpv-2.dll or libmpv-2.dll`. Por eso `load_mpv()`
+(`video_player.py:68`) antepone `get_resource_path("vendor")` a `os.environ["PATH"]` —y la pasa a
+`os.add_dll_directory()` para sus dependencias— **antes** del `import`.
+
+Y en el `.exe` esa ruta es `_internal/vendor`, por la misma mecánica que la **18e**: el destino de
+`binaries` cae dentro de `_internal/`. De ahí que el `.spec` diga `('vendor/libmpv-2.dll', 'vendor')`
+y no `'.'`, como proponía el plan. Con `'.'` la DLL acabaría en `_internal/` a secas y `load_mpv()` no
+la vería sin tocar `src/` (⚠️ esa variante no se compiló).
+
+**Síntoma observable**: **ningún error**. El `.exe` arranca perfecto, la ficha monta el panel del
+reproductor y **todos los servidores acaban en el navegador** con la tarjeta «No se ha podido cargar
+aquí». `load_mpv()` no lanza —es la degradación diseñada— y su `print` no se ve, porque el `.exe` va
+con `console=False` (**18c**). Parece que han caído todos los hosters a la vez.
+
+**Además**: la DLL **no está en el repositorio** (120 MB, por encima del límite de GitHub; `vendor/`
+está en `.gitignore`). Un clon limpio no puede compilar sin el paso 4 del `README.md`, y por eso el
+`.spec` **para con `SystemExit`** si falta, en vez de compilar un `.exe` que lo abriría todo fuera.
+
+**Cómo comprobarlo**: con el `.exe` reproduciendo, `Get-Process -Module` del proceso tiene que
+listar `…\_internal\vendor\libmpv-2.dll`. ✅ Verificado el 2026-10-20 desde una carpeta fuera del
+repo y **sin la DLL en `%PATH%`**.
 
 ---
 
@@ -1257,6 +1284,296 @@ estaban guardadas, sin migrar la BD.
 
 **Cómo comprobarlo**: [09 §6g](09-verificacion-y-pruebas.md#6g-comprobar-la-normalización-de-la-sinopsis-2026-09-02). Se compara `texto.split()`
 antes y después: la normalización no puede perder ni inventar una sola palabra.
+
+---
+
+## Reproductor in-app *(añadidas 2026-10-20, fases 0-5 del plan del reproductor)*
+
+Lo que tienen en común casi todas: **fallan cayendo al navegador**, que es la degradación
+diseñada ([`plan-reproductor/README.md`](../plan-reproductor/README.md), regla 2). Así que el
+síntoma típico **no** es un error, sino «este servidor se abre fuera cuando debería verse aquí», y
+eso se confunde fácilmente con que el hoster haya cambiado. Antes de tocar un resolutor, descarta
+las de este apartado.
+
+La capa y el reproductor se describen en [06 §12](06-gui-y-vistas.md) y
+[05 §9](05-proveedores-y-scraping.md); el flujo entero, en [03 §13](03-flujos-de-ejecucion.md).
+
+### 43. Los segmentos de zilla dan 403 sin `Sec-Fetch-Site: same-origin` 🔴 ✅
+
+**Por qué**: el playlist `https://player.zilla-networks.com/m3u8/<hash>` (el servidor «HLS» de
+AnimeAV1) responde 200 a cualquiera. Los **segmentos** —`segs/<hash>/NNN.html`, que pese a la
+extensión son fMP4 y empiezan por `styp`— exigen la cabecera `Sec-Fetch-Site: same-origin`,
+**exactamente con ese valor**. Es la forma que tiene el sitio de comprobar que la petición sale de su
+propio reproductor.
+
+**Síntoma observable**: mpv baja el playlist, pide el primer segmento, recibe 403 y acaba en
+`end-file` con `reason=4`. En pantalla, la tarjeta de «Cargando» dura un instante y el episodio **se
+abre en el navegador** con «No se ha podido cargar aquí». Parece que zilla está caído, y no lo está.
+
+⚠️ **No confundirlo con una caída real**, que también pasa (tres días seguidos en septiembre de
+2026, con **522** de Cloudflare): entonces mpv espera el `network-timeout` de 15 s y la caída al
+navegador tarda **~20 s**. **Instantáneo → cabecera; ~20 s → origen caído.** Y si responde, pero
+**despacio**, no cae nunca: [trampa 54](#54-un-hoster-lento-deja-cargando-sin-tope---abierta-2026-10-20).
+
+**Invariante**: las cabeceras viajan en `MediaSource.headers` y `VideoPlayer.play()`
+(`video_player.py:680`) las pasa a mpv como `http_header_fields` —todas salvo `User-Agent`, que va a
+su propiedad—. El cliente `curl` de mpv las aplica a **cada** petición, playlist y segmentos. Nunca
+se ponen solo en la petición del playlist.
+
+**Cómo comprobarlo**: un segmento con y sin la cabecera ([09 §6h](09-verificacion-y-pruebas.md)).
+✅ 2026-09-23 contra un servidor local con la misma regla (los segmentos llegan con la cabecera) y ✅
+2026-10-20 contra zilla real: **200 con ella, 403 sin ella**, y `dandadan` ep. 1 visto en la app.
+
+---
+
+### 44. Cada hoster quiere sus cabeceras, y lo que uno exige otro lo rechaza 🔴 ✅
+
+**Por qué**: no hay una política de cabeceras común que valga para todos:
+
+| Medio | Cabeceras que funcionan | Lo que lo rompe |
+|---|---|---|
+| zilla (HLS de AnimeAV1) | `Sec-Fetch-Site: same-origin` | quitarla → 403 en los segmentos ([43](#43-los-segmentos-de-zilla-dan-403-sin-sec-fetch-site-same-origin--)) |
+| MP4Upload | UA de navegador + `Referer: https://www.mp4upload.com/` (**el suyo**) | el `Referer` del sitio que lo embebe (`https://animeav1.com/`) → **403** |
+| `jkplayers.com` (`/jkplayer/jk`, «Desuka») | **ninguna** | **cualquier `Referer` → 410 Gone** |
+| `playmudos` (`/jkplayer/um` y `umv`, «Desu» y «Magi») | ninguna | — |
+
+**Síntoma observable**: añadir una cabecera «por si acaso» en un sitio común —en `base.py` o en
+`VideoPlayer.play()`— **rompe en silencio un hoster que funcionaba**. Un `Referer` genérico deja
+Desuka cayendo al navegador sin un solo error.
+
+**Invariante**: las cabeceras son del **resolutor** que conoce el hoster, y el reproductor manda
+**exactamente** las de `MediaSource.headers`, ni una más. Por eso `base.py` no tiene cabeceras por
+defecto, y por eso el UA de navegador está **duplicado a propósito** en `base.py` respecto a
+`jkanime.py`: la capa de resolución no importa de `APIs.<sitio>` ([01](01-arquitectura.md)).
+
+✅ Medido el 2026-09-24 (fase 1): `jkplayers` con `Referer` → 410; MP4Upload con el de AnimeAV1 →
+403 y con el suyo → 206.
+
+---
+
+### 45. Una URL de medio no se guarda: caduca o va atada a tu IP 🔴 ✅
+
+**Por qué**:
+
+- **playmudos** (Desu, Magi) lleva un parámetro `e=` que es un *epoch* **~3 h** después de
+  resolver. El resolutor lo copia a `MediaSource.expires_at`.
+- **`jkplayers.com`** (Desuka) **incrusta la IP pública del cliente en el path**: se resuelve en una
+  máquina y no se reproduce en otra, ni en la misma tras cambiar de red o encender una VPN.
+- **MP4Upload** lleva un token en el path que no declara caducidad (`expires_at=None`) y parece de
+  sesión.
+
+⚠️ `expires_at=None` significa «la URL no la declara», **no** «no caduca».
+
+**Síntoma observable**: funciona en el momento y falla horas después, al día siguiente o tras una
+VPN, siempre como 403 o 410 y siempre cayendo al navegador.
+
+**Invariante**: se resuelve **al pulsar el servidor**, nunca al listarlos —`ServerInfo` guarda la
+URL del *embed*, no la del medio— y `registry` **no tiene caché a propósito**. No guardes un
+`MediaSource` para reutilizarlo.
+
+⚠️ **La única reutilización que hay** es «repetir» con el episodio terminado, que vuelve a cargar el
+mismo `MediaSource` (`VideoPlayer.toggle_pause()`). Tras horas parado en la tarjeta de fin, repetir
+fallaría y caería al navegador. No se ha visto; se deduce del código.
+
+---
+
+### 46. Los eventos de mpv llegan en su hilo, y desde ahí ni `after()` es seguro 🔴
+
+**Por qué**: los observadores (`observe_property`) y los callbacks de evento (`event_callback`) de
+`python-mpv` se ejecutan en el hilo **`MPVEventHandlerThread`** (✅ fase 0), no en el de Tk. Tocar
+un widget desde ahí es la regla de siempre ([07](07-concurrencia-e-hilos.md)). Lo nuevo es que
+**tampoco** basta con `after(0, …)`, la receta del resto de la aplicación. `after()` llamado desde
+otro hilo **espera** a que el hilo de Tk lo atienda, y `terminate()`, llamado desde Tk al cerrar el
+reproductor, **espera** a que acabe el hilo de eventos. Si coinciden, se esperan el uno al otro.
+
+**Síntoma**: la aplicación se congela al cerrar el reproductor («← Volver a la ficha», cambiar de
+vista o cerrar la ventana). Con `time-pos` llegando a 13-24 veces por segundo, «si coinciden» es
+casi siempre. ⚠️ **No se ha reproducido aposta**: el diseño lo evitó desde la fase 3. Lo que sí está
+medido es que `after(0)` **funciona** mientras nadie cierre (24 repintados/s sin errores en la fase
+0), y eso es justo lo que hace que la trampa parezca innecesaria.
+
+**Invariante**: los callbacks de mpv **solo asignan atributos** (posición, duración, pausa) **o
+meten en una `queue.Queue`** (`start-file`, `playback-restart`, `end-file`, `eof`). El hilo de Tk los
+recoge con un sondeo cada `POLL_MS` = 100 ms (`VideoPlayer.__poll`, `video_player.py:816`). Si
+añades un observador, sigue ese patrón. Los callbacks hacia el dueño (`on_started`, `on_end`,
+`on_error`) ya llegan en el hilo de Tk.
+
+---
+
+### 47. El final de un vídeo no es un evento: `end-file` llega también al parar, y con `keep-open` no llega al terminar 🔴 ✅
+
+**Por qué**, en dos mitades:
+
+- `end-file.reason` vale **0** al llegar al final, **2** al `stop()` **y** al cargar otro medio
+  encima, **3** al `terminate()` y **4** con error (✅ fase 0). Parar a mano y cambiar de servidor
+  dan el mismo código, y el `end-file` del medio anterior puede llegar **después** de haber pedido el
+  nuevo.
+- El reproductor va con **`keep-open=yes`**, porque sin él la superficie se queda **negra** al
+  terminar y la ✕ de la tarjeta de fin no tendría último fotograma que enseñar. Y con `keep-open` el
+  final **no manda `end-file`**: llega `eof-reached=True` con el medio en pausa (✅ fase 4, *spike*
+  con `lavfi`).
+
+**Síntoma observable**: si se trata cualquier `end-file` como fin, sale la tarjeta de «Has terminado»
+al volver a la ficha o al cambiar de servidor, **y el episodio se marca como visto en la
+biblioteca**. Si se espera solo `reason == 0`, la tarjeta no sale nunca y no se marca nada.
+
+**Invariante** (`__handle_event`, `video_player.py:832`): el fin es `eof-reached`, con
+`end-file` / `reason 0` de respaldo, y **solo** si el medio había empezado (`playback-restart`). Un
+`end-file` que llega antes del `start-file` del medio nuevo es del anterior y se ignora
+(`__awaiting_start`). `reason 4` es error → navegador.
+
+---
+
+### 48. Un fin de fichero a mitad de episodio es un corte, no el final 🔴 📖
+
+**Por qué**: un servidor que corta el stream a mitad deja a mpv en fin de fichero, **igual que el
+final de verdad**. Y desde la fase 4 el final **escribe en la biblioteca**: marca el episodio como
+visto, con la semántica acumulativa ([trampa 9](#9-el-marcado-de-episodios-es-acumulativo-el-desmarcado-unitario-)).
+
+**Síntoma** (si se quita la guarda): un episodio que se corta en el minuto 8 queda marcado como visto,
+**y con él todos los anteriores**.
+
+**Invariante**: `__reach_end()` (`video_player.py:860`) compara posición y duración. Si faltan más
+de `END_TOLERANCE_S` = 15 s, lo trata como error (`on_error` → navegador) y **no marca nada**.
+📖 Rama leída, **no ejecutada**: en las pruebas ningún servidor cortó.
+
+---
+
+### 49. Un widget dentro del frame del vídeo no se ve; uno hermano encima, sí 🔴 ✅
+
+**Por qué**: mpv pinta en la ventana nativa del frame cuyo `winfo_id()` recibe como `wid`. Los
+**hijos** de ese frame quedan tapados (**0 %** de sus píxeles visibles, ✅ fase 0). Un **hermano**
+—mismo padre, misma celda, `lift()`— **sí** se ve (92 %), y opaco, porque Tk no tiene transparencia
+por widget.
+
+Esto **corrige** a la investigación, que decía «ningún widget encima del vídeo». Es lo que hace
+posibles las tarjetas: en `VideoPlayer`, `__card_frame` es hermano de `__surface` dentro de
+`__stage`. La de «Cargando» va **encima** de la superficie mapeada, porque mpv necesita la ventana
+puesta para crear su salida de vídeo. Las tarjetas finales sí quitan la superficie
+(`grid_remove()`).
+
+Por la misma razón el panel **no vive dentro del `CTkScrollableFrame`**. `player_frame`
+(`main_window.py:127`) es hermano de `content_frame`: fila 0 y fila 1 de la columna de contenido.
+⚠️ El síntoma que se temía allí —el vídeo pintándose fuera del área visible— **no aparece** (✅
+fase 0: la superficie se recorta y se desplaza con el lienzo), pero el vídeo se iría con el scroll de
+la ficha, que no es lo que pide el diseño.
+
+**Síntoma observable**: un control creado **dentro** de `__surface` se ve hasta que mpv pinta el
+primer fotograma, y luego desaparece.
+
+**Invariante**: nada dentro de `__surface`. Lo que vaya encima va como **hermano** en `__stage`, y
+opaco. Lo que tenga que flotar sobre la imagen a pantalla completa son ventanas aparte
+([52](#52-la-barra-flotante-y-el-deslizador-de-volumen-son-ventanas-aparte-siempre-encima--)).
+
+---
+
+### 50. El ratón y el teclado sobre el vídeo llegan a Tk, no a mpv 🔴 ✅
+
+**Por qué**: al revés de lo que esperaba el plan. Con `input-vo-keyboard` encendido **o** apagado,
+39-40 de 40 `<Motion>` sobre el vídeo llegan al frame de Tk; `Esc` y `q` los recibe `bind_all`; los
+*bindings* de mpv y su propiedad `mouse-pos` **no reciben nada** (✅ fase 0). Además, libmpv trae
+**apagados** `input-default-bindings`, `input-vo-keyboard` y `osc`: no hay atajos propios, ni `Esc`,
+ni la `q` que cierra, ni barra en pantalla.
+
+**Consecuencias**:
+
+- «Mover el ratón muestra la barra» y el `Esc` de salir se atan **en Tk**, como en cualquier otro
+  widget. No hace falta pasar nada desde el hilo de mpv.
+- **`cursor-autohide` no sirve**, porque mpv no ve el ratón. El cursor lo oculta Tk con `cursor="none"`
+  sobre `__stage`, `__surface` y `__card_frame` (`__set_cursor_hidden`, `video_player.py:1222`).
+- `<Motion>` se ata **dos veces** por widget, con `tkinter.Frame.bind` y con el `bind` de CTk
+  (`video_player.py:673-675`), porque `CTkFrame.bind()` solo ata el lienzo interno
+  ([trampa 35](#35-bind-y-event_generate-no-hablan-del-mismo-widget-en-customtkinter--)). ⚠️ No se
+  probó a quitar una de las dos.
+
+**Síntoma**: un atajo definido en mpv no hace nada; con `cursor-autohide` el cursor no se oculta
+nunca.
+
+---
+
+### 51. `-fullscreen` lleva la ventana al monitor principal 🔴 ✅
+
+**Por qué**: `attributes("-fullscreen", True)` movió la ventana del monitor secundario (`2028, 91`)
+al principal (`0, 0, 1920, 1080`), y al salir la devolvió a su sitio (✅ fase 0). También acabaron en
+el principal `-fullscreen` seguido de `geometry` y `geometry` seguido de `-fullscreen`. Quitar el
+marco con `SetWindowLong` colocaba bien, pero descolocaba la ventana al salir.
+
+**Síntoma observable**: con dos monitores, «pantalla completa» sale en el que no estás mirando.
+
+**Invariante**: `MainWindow.enter_player_fullscreen()` (`main_window.py:214`) **no** usa
+`-fullscreen`:
+
+1. Lee el rectángulo del monitor de la ventana con `MonitorFromWindow(…, MONITOR_DEFAULTTONEAREST)` y
+   `GetMonitorInfoW`.
+2. Pone `overrideredirect(True)` y la geometría con **`tkinter.Tk.wm_geometry`**, no con la de CTk,
+   que aplica el escalado de DPI a un rectángulo que ya viene en píxeles físicos.
+3. Guarda la geometría, el maximizado y el `minsize` de la columna de la barra lateral, y pone ese
+   `minsize` a 0. Sin eso quedaría una franja a la izquierda del vídeo, porque ese `minsize`
+   **sobrevive a quitar la barra** ([trampa 36](#36-un-widget-sin-fg_color-no-es-del-tema-de-la-aplicación---resuelta-2026-08-31)).
+   `exit_player_fullscreen()` lo restaura todo.
+
+⚠️ En la aplicación solo se probó en el monitor **principal**. La receta se probó en el secundario
+con la ventana de la fase 0.
+
+---
+
+### 52. La barra flotante y el deslizador de volumen son ventanas aparte, siempre encima 🔴 ✅
+
+**Por qué**: a pantalla completa no hay rejilla donde poner la barra sin encoger el vídeo. Por decisión
+del usuario es un `Toplevel` sin marco y con `-topmost`, igual que el deslizador de volumen
+(`_VolumePopup`). Ser ventanas aparte trae tres problemas, los tres vistos:
+
+| Problema | Síntoma | Remedio |
+|---|---|---|
+| **`-topmost` sobrevive a `Alt+Tab`** | la barra se queda flotando **encima de la otra aplicación** (✅ visto encima de la terminal) | `__check_foreground()` (`video_player.py:1210`) mira `GetForegroundWindow()` cada `FOREGROUND_CHECK_MS` = 150 ms y la retira si el primer plano no es de este proceso. `__on_motion` tampoco la saca en ese caso |
+| **Mostrarla con `update_idletasks()`** | **el primer clic sobre la barra se pierde**: no está mapeada del todo | `update()` al crearla y al volver a enseñarla |
+| **Salir del icono hacia el deslizador dispara `<Leave>`** | el deslizador **se cierra** al ir a por él | margen de `VOLUME_GRACE_MS` = 300 ms (`schedule_volume_check`, `video_player.py:554`), y solo se cierra si el puntero no está ni en el icono ni en el deslizador |
+
+**Invariante**: cualquier ventana flotante nueva tiene que pasar por las tres guardas: retirarse
+cuando el primer plano no es nuestro, mostrarse con `update()` y tener margen de gracia para llegar a
+ella.
+
+---
+
+### 53. Dos servidores con el mismo nombre se pisan en un dict ✅ *(resuelta 2026-09-24, «B1» del plan del reproductor)*
+
+**Por qué**: un mismo episodio de JKAnime puede ofrecer varios «Desu» con URLs distintas (cambian
+`t=` y `op=`). Un `{s.server: s.url for s in servers}` se queda solo con el último.
+
+**Síntoma**: sale un único «Desu» y el otro es inaccesible, o pulsar «Desu» abre la URL de otro.
+
+**Invariante**: todo mapa etiqueta → URL pasa por `AnimeWindowViewer.__server_url_map()`
+(`anime_window.py:1894`), que numera los repetidos («Desu», «Desu 2»). La columna del reproductor y
+la navegación entre episodios —que prefiere **el mismo nombre** de servidor— usan esas etiquetas.
+Si vuelve a aparecer un `{s.server: …}` en `src/`, es este bug. ✅ Visto con One Piece ep. 1 de
+JKAnime: 5 botones, y cada uno abre su URL.
+
+---
+
+### 54. Un hoster lento deja «Cargando» sin tope 🔴 ✅ *(abierta, 2026-10-20)*
+
+**Por qué**: el único plazo que hay es el `network-timeout` de mpv (15 s), y cuenta **por petición**,
+no para el arranque entero. Un servidor que contesta cada petición en menos de 15 s —pero contesta a
+todas despacio— nunca da error: mpv sigue abriendo el medio y la tarjeta de «Cargando» sigue puesta.
+La aplicación **no tiene un tope propio** para pasar de «Cargando» a otra cosa.
+
+**Síntoma observable**: ✅ visto en la prueba de humo de la fase 6 (2026-10-20) con `dandadan` ep. 1
+por `HLS`. El log de mpv: el playlist de zilla tardó **13 s** (a `requests`, un minuto antes, **0,4 s**),
+el segmento `init` 6 s, y la sonda del formato **47 s** más; el medio se abrió a los **~70 s**. Durante
+todo ese rato, «Cargando el episodio 1» y ningún aviso. La degradación al navegador **no llega**,
+porque técnicamente nada ha fallado. Ese mismo día AnimeAV1 tampoco dio la portada.
+
+**Lo que salva al usuario hoy**: la columna sigue viva —puede pulsar otro servidor o «← Volver a la
+ficha»— y la petición nueva deja obsoleta la vieja (número de petición). No se queda atrapado; se
+queda **sin saber** si esperar.
+
+**Lo que falta** (deuda **B15**, [12 §4](12-deuda-tecnica-y-roadmap.md)): un plazo propio de la
+aplicación para la tarjeta de «Cargando» —contado desde `play()` hasta el primer `playback-restart`—
+que, al vencer, haga lo mismo que un error: navegador y tarjeta con otro servidor. 🔴 Cambia `src/` y
+**no es de la fase de documentación**: queda para una tarea aparte.
+
+**Cómo comprobarlo**: el log de mpv (`log_handler` + `loglevel="v"`) dice cuánto tarda cada
+`curl: Opening …`; si cada una baja de 15 s y la suma pasa de 20, es esto y no una caída.
 
 ---
 

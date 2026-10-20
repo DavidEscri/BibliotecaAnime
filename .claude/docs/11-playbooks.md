@@ -2,9 +2,9 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-08-21 · rama `feature/ui-redisign` · la fase 9 que entonces estaba sin commitear entró en **`7606def`**; el documento no se ha revisado desde entonces |
-| **Última revisión** | 2026-08-17: **§6 reescrito** — 8 pasos en vez de 6, con la verificación compilando, la regla de no volver a meter datos de usuario en `datas`, la copia de los ficheros legales tras `COLLECT` y la regeneración de `THIRD-PARTY-NOTICES.txt`. Antes, 2026-08-16: §2 reescrito con el **caso real ya ejecutado** (`provider_id` en medio del enum, con reconstrucción de tabla) y §3 con el paso 0 nuevo — añadir un proveedor empieza por `AnimeProviderId` |
-| **Cubre** | recetas operativas sobre los 19 módulos de `src/` + `MiBibliotecaAnime.spec` |
+| **Fecha** | 2026-10-20 · rama `feature/reproductor-embebido` · último commit de código **`047e5ea`** (fase 5 del reproductor) |
+| **Última revisión** | 2026-10-20 (**reproductor in-app**): **§9 nuevo, «Añadir un resolutor»**, con MP4Upload como caso real; **§6** gana la DLL de libmpv en `binaries`, `hiddenimports` a **37** y sus anclas al día. Antes, 2026-08-17: **§6 reescrito** — 8 pasos en vez de 6, con la verificación compilando, la regla de no volver a meter datos de usuario en `datas`, la copia de los ficheros legales tras `COLLECT` y la regeneración de `THIRD-PARTY-NOTICES.txt`. Antes, 2026-08-16: §2 reescrito con el **caso real ya ejecutado** (`provider_id` en medio del enum, con reconstrucción de tabla) y §3 con el paso 0 nuevo — añadir un proveedor empieza por `AnimeProviderId` |
+| **Cubre** | recetas operativas sobre los módulos de `src/` + `MiBibliotecaAnime.spec` |
 
 Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ sin verificar.
 
@@ -475,7 +475,10 @@ la barra diagonal del icono «sin conexión».
 
 **Pasos**
 
-1. **Revisa `hiddenimports`.** ✅ **Al día el 2026-08-21**: **30** nombres, auditados en las dos direcciones con AST —todos resuelven a un fichero real de `src/` y ningún módulo de `src/` queda sin declarar, salvo `app.py`, que es el script de entrada. El rediseño añadió `gui.theme` y los **11** `gui.components.*`. 🔴 **Todo módulo nuevo bajo `src/` hay que declararlo aquí**, o el `.exe` compila y revienta al arrancar. Antes, Entre el 2026-08-06 y el
+1. **Revisa `hiddenimports`.** ✅ **Al día el 2026-10-20**: **37** nombres —36 módulos de `src/` y
+   `mpv`, el binding de libmpv, que `video_player.py` importa **dentro** de `load_mpv()` y el análisis
+   estático no ve—, auditados con AST en las dos direcciones. El reproductor añadió los cinco
+   `APIs.resolvers.*` y `gui.components.video_player`. Antes, ✅ **al día el 2026-08-21**: **30** nombres, auditados en las dos direcciones con AST —todos resuelven a un fichero real de `src/` y ningún módulo de `src/` queda sin declarar, salvo `app.py`, que es el script de entrada. El rediseño añadió `gui.theme` y los **11** `gui.components.*`. 🔴 **Todo módulo nuevo bajo `src/` hay que declararlo aquí**, o el `.exe` compila y revienta al arrancar. Antes, Entre el 2026-08-06 y el
    2026-08-07 se añadieron `APIs.animeav1.animeav1`, `APIs.jkanime.jkanime`,
    `APIs.common.animeProviderMgr`, `APIs.common.models` y `dataPersistence.userPersistence`; se
    corrigió `gui.anime_windows` → `gui.anime_window` (`d99a2ee`) y se retiró el fantasma
@@ -492,15 +495,21 @@ la barra diagonal del icono «sin conexión».
    resolviendo cada nombre a su fichero.
 
 2. Sube `APP_VERSION` (`:3`) — determina el nombre de `dist/MiBibliotecaAnime_v<X>/`.
+2b. 🆕 **Pon `vendor/libmpv-2.dll` en su sitio** (paso 4 del `README.md`: URL, nombre del `.7z` y
+   sha256). No está en el repositorio (120 MB) y el `.spec` **para con `SystemExit`** si falta, en
+   vez de compilar un `.exe` que lo abriría todo en el navegador. Va en `binaries` (`:21`) con
+   destino **`vendor`**, no `'.'`: `load_mpv()` la busca en `get_resource_path("vendor")`, que en el
+   `.exe` es `_internal/vendor` ([trampa 18f](10-invariantes-y-trampas.md)). Suma **~115 MB** a
+   `dist/` (38 → 153 MB el 2026-10-20).
 3. ✅ **`datas` ya no empaqueta datos de usuario.** Desde el 2026-08-17 contiene **solo**
    `resources/images/utils`. No vuelvas a añadir `resources/DB` ni las carpetas de pósters: la app
    las crea sola en el primer arranque, y empaquetarlas distribuye la biblioteca personal del
    desarrollador ([10 § trampa 18d](10-invariantes-y-trampas.md)).
-4. Revisa que toda carpeta nueva de recursos **de solo lectura** esté en `datas` (`:11-13`).
+4. Revisa que toda carpeta nueva de recursos **de solo lectura** esté en `datas` (`:24`).
    ⚠️ Los destinos son relativos a `_internal/`, no a la carpeta del `.exe`
    ([10 § trampa 18e](10-invariantes-y-trampas.md)).
 5. **Si añades un fichero que el usuario final deba ver** (licencias, LÉEME), no lo pongas en
-   `datas`: añádelo al bucle posterior a `COLLECT` (`:83-86`), que copia al primer nivel usando
+   `datas`: añádelo al bucle posterior a `COLLECT` (`:122-124`), que copia al primer nivel usando
    `DISTPATH`. Hoy copia `LICENSE`, `LEEME.txt` y `THIRD-PARTY-NOTICES.txt`.
 6. **Regenera `THIRD-PARTY-NOTICES.txt` si has tocado `requirements.txt`** — caduca en cuanto cambia
    una dependencia. Se construye leyendo los `LICENSE` reales de `biblio_anime_env/Lib/site-packages`,
@@ -512,7 +521,9 @@ la barra diagonal del icono «sin conexión».
    pyinstaller MiBibliotecaAnime.spec
    ```
 
-8. Para depurar: cambia `console=False` → `console=True` (`:60`) y verás los `print`.
+8. Para depurar: cambia `console=False` → `console=True` (`:96`) y verás los `print`. 🆕 Es la
+   única forma de ver por qué un servidor acaba en el navegador desde el `.exe`
+   ([05 §9](05-proveedores-y-scraping.md)).
 
 **Checklist**
 
@@ -522,6 +533,10 @@ la barra diagonal del icono «sin conexión».
 - [ ] El **buscador** abre.
 - [ ] Los iconos y el GIF de carga se ven (→ `datas` correcto).
 - [ ] La ficha de detalle abre y los servidores cargan.
+- [ ] 🆕 **Un episodio se ve y se oye dentro de la app** (un `HLS` de AnimeAV1 y un `Desu` de
+      JKAnime), y un servidor con ↗ abre el navegador.
+- [ ] 🆕 `Get-Process -Module` del `.exe` lista `…\_internal\vendor\libmpv-2.dll`, con la DLL **fuera**
+      de `%PATH%`.
 - [ ] Comprobado en una máquina **sin** el entorno de desarrollo.
 - [ ] `dist/MiBibliotecaAnime_v<X>/` **no** contiene ningún `.db` ni `.jpg`
       (`find dist/… -name "*.db" -o -name "*.jpg"` → 0).
@@ -563,3 +578,100 @@ la barra diagonal del icono «sin conexión».
 4. Si el usuario dice «marqué episodios y no se guardaron», comprueba primero que el anime **tenga
    algún estado asignado**: sin fila en `ANIMES`, `update_watched_episodes` devuelve `False` en
    silencio (trampa 7).
+
+---
+
+## §9 — Añadir un resolutor *(2026-10-20)*
+
+**Cuándo**: un servidor que hoy lleva ↗ —se abre en el navegador— y se quiere ver dentro de la
+aplicación. Un resolutor es **de un hoster**, no de un proveedor: si el mismo hoster lo embeben dos
+sitios, sirve a los dos sin tocar nada más. Lee antes [05 §9](05-proveedores-y-scraping.md) y las
+[trampas 43-45](10-invariantes-y-trampas.md).
+
+**Ficheros**: `src/APIs/resolvers/<hoster>.py` (nuevo), `src/APIs/resolvers/registry.py`,
+`MiBibliotecaAnime.spec`. **Ni la GUI ni los proveedores se tocan**: la ↗ desaparece sola, porque la
+pone `registry.has_resolver()`.
+
+**El caso real**: `MP4UploadResolver` (`mp4upload.py`, 2026-09-24). Es el más completo de los tres:
+baja una página, extrae la URL con una regex y tiene una regla de cabeceras que no es la intuitiva.
+
+**Pasos**
+
+0. **Investiga con una sola petición, sin bucles** (la IP ya quedó bloqueada por Cloudflare el
+   2026-08-23). Baja la página del *embed* una vez y busca dónde está la URL del medio: en claro, en
+   un `atob()`, en la inicialización del reproductor JavaScript… Luego **una** petición al medio
+   **con y sin** cada cabecera candidata. MP4Upload, por ejemplo, responde 206 con su propio
+   `Referer` y **403** con el del sitio que lo embebe; `jkplayers.com`, al revés, da **410** con
+   cualquier `Referer`. Anota en el código, con fecha, lo que has medido.
+1. **Crea el módulo** con la cabecera obligatoria y `__subsystem__ = "APIs.resolvers"`. Importa **solo**
+   stdlib, `requests` y `APIs.resolvers.base` ([01 §2](01-arquitectura.md)): nada de `APIs.<sitio>`,
+   ni siquiera para reutilizar un User-Agent.
+2. **`matches(url)` sin red**: compara el dominio con `url_host(url)`, que ya quita `www.` y no lanza.
+   Si el dominio tiene varias familias de reproductor, distingue también la ruta (lo hace
+   `JKPlayerResolver` con `um`/`umv`/`jk`).
+3. **`resolve(url)` nunca lanza**: captura `requests.RequestException` y devuelve `None`, con un
+   `print` que empiece por `[<hoster>]` y diga **qué** no encontró. Ese `print` es lo único que verá
+   quien diagnostique ([05 §9](05-proveedores-y-scraping.md)).
+4. **Devuelve un `MediaSource`** con:
+   - `url`: la del medio, no la del *embed*;
+   - `headers`: **exactamente** las que exige el medio, ni una más. Se mandan en **cada** petición
+     del medio, segmentos HLS incluidos;
+   - `kind`: `"hls"` o `"mp4"`;
+   - `expires_at`: el *epoch* de caducidad si la URL lo declara; si no, `None`.
+5. **Regístralo** en `_RESOLVERS` de `registry.py`. Gana el primero que acepta la URL, así que los
+   dominios no deben solaparse.
+6. **Declara `APIs.resolvers.<hoster>` en `hiddenimports`** del `.spec` (§6).
+
+```python
+# src/APIs/resolvers/mp4upload.py — lo esencial
+MP4UPLOAD_HOST = "mp4upload.com"
+MP4UPLOAD_REFERER = f"https://www.{MP4UPLOAD_HOST}/"
+_PLAYER_SRC_PATTERN = re.compile(r"player\.src\(\s*\{.*?src:\s*['\"](?P<url>https?://[^'\"]+)['\"]", re.DOTALL)
+
+class MP4UploadResolver(Resolver):
+
+    def matches(self, url: str) -> bool:
+        return url_host(url) == MP4UPLOAD_HOST          # sin red
+
+    def resolve(self, url: str) -> Optional[MediaSource]:
+        try:
+            response = requests.get(url, headers={"User-Agent": BROWSER_USER_AGENT},
+                                    timeout=REQUEST_TIMEOUT)
+            response.raise_for_status()
+        except requests.RequestException as exc:
+            print(f"[mp4upload] No se pudo descargar el embed: {exc}")
+            return None
+        match = _PLAYER_SRC_PATTERN.search(response.text) or _VIDEO_URL_PATTERN.search(response.text)
+        if match is None:
+            print("[mp4upload] El embed no trae la URL del vídeo")
+            return None
+        # Con el Referer del sitio que lo embebe, 403; con el suyo, 206.
+        return MediaSource(url=match.group("url"),
+                           headers={"User-Agent": BROWSER_USER_AGENT, "Referer": MP4UPLOAD_REFERER},
+                           kind="mp4", expires_at=None)
+```
+
+⚠️ **Lo que no hay que hacer**:
+
+- **Cachear** el `MediaSource` o la URL del medio: hay URLs que caducan en horas y otras atadas a la
+  IP ([trampa 45](10-invariantes-y-trampas.md)). Se resuelve cada vez que se pulsa.
+- **Resolver al listar los servidores**: solo al pulsar. `ServerInfo` no cambia.
+- **Añadir el resolutor como método de `AnimeProvider`** ni pasar por el *fallback* del manager
+  ([01 I10](01-arquitectura.md)).
+- **Poner cabeceras por defecto** en `base.py` o en `VideoPlayer.play()` para que «funcione» este
+  hoster: rompe otro ([trampa 44](10-invariantes-y-trampas.md)).
+
+**Checklist**
+
+- [ ] [09 §6h](09-verificacion-y-pruebas.md), parte sin red, con los casos del hoster nuevo añadidos:
+      `has_resolver()` acierta y no sale a la red; `resolve()` sin red devuelve `None` sin lanzar.
+- [ ] [09 §6h](09-verificacion-y-pruebas.md), parte con red, **una** pasada: 200/206 y los primeros
+      bytes que tocan (`ftyp` o `#EXTM3U`), y la respuesta **sin** cada cabecera que hayas puesto, para
+      demostrar que hace falta.
+- [ ] [09 §6i](09-verificacion-y-pruebas.md): **visto en pantalla** dentro de la app, con
+      `time-pos` avanzando. Sin esto no está verificado.
+- [ ] La degradación: con `registry.resolve` forzado a `None`, el servidor **abre el navegador**.
+- [ ] En la lista de servidores, el hoster ya **no** lleva ↗.
+- [ ] `hiddenimports` al día y el `.exe` lo reproduce (§6).
+- [ ] [05 §9](05-proveedores-y-scraping.md): fila nueva en «Qué entrega cada hoster», y fuera de la
+      lista «Sin resolutor». [12 §4](12-deuda-tecnica-y-roadmap.md): fuera de los hosters pendientes.

@@ -4,7 +4,7 @@
 |---|---|
 | **Creado** | 2026-08-24 |
 | **Punto de partida** | commit `95abd56`, rama `feature/ui-redisign`, árbol con 4 PNG sin trackear |
-| **Investigación** | [`../plans/investigacion-reproduccion-in-app-kind-flask.md`](../plans/investigacion-reproduccion-in-app-kind-flask.md) — **es la referencia y no se duplica aquí**. Cada ficha de fase cita la sección concreta que hay que leer |
+| **Investigación** | `../plans/investigacion-reproduccion-in-app-kind-flask.md` — ⚠️ **ya no existe en disco** (comprobado en la fase 0, el 2026-09-23). Lo que las fases necesitaban de ella está copiado en las fichas y, desde la fase 6, en [`docs/05 §9`](../docs/05-proveedores-y-scraping.md) y en las trampas 43-53 de [`docs/10`](../docs/10-invariantes-y-trampas.md). Quien cite «§N de la investigación» cita un documento que no está |
 | **Diseño visual** | [DISENO-VISUAL.html](DISENO-VISUAL.html) — **aprobado el 2026-09-23** (segunda ronda; la primera propuso teatro, carril y acoplado). Publicado también en <https://claude.ai/artifact/NSzRPJ2d4ijGi4RZBmuXo4>. **En lo visual manda sobre la §2 y la §6 de la investigación** |
 | **Estado vivo** | [ESTADO.md](ESTADO.md) — lo actualiza cada sesión |
 
