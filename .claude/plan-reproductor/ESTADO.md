@@ -5,14 +5,14 @@
 
 | | |
 |---|---|
-| **Fase actual** | **4 · Navegación y fin de episodio** — ⬜ no empezada |
-| **Situación** | ⚠️ **Fase 3 terminada sin verificar del todo** (2026-09-24): pulsar un servidor reproduce **encima de la ficha** con columna, barra de nueve controles, volumen, pantalla completa con barra flotante y caída limpia al navegador. Visto en pantalla con AnimeAV1 (MP4Upload, AV1 1080p) y JKAnime (Desu, Magi). **Falta**: el `HLS` de AnimeAV1 (zilla sigue caído, tercer día) y **oír** el audio |
-| **Último paso completado** | Fase 3 cerrada |
-| **Siguiente paso** | 🔴 **Antes de escribir nada**: preguntar al usuario el punto de decisión 1 (¿marcar como visto al llegar al final?). Después, paso 4.1 de la [ficha 4](fases/4-navegacion-y-fin-de-episodio.md). ⚠️ Si zilla responde ese día, **una** pasada de `HLS` en la app (ver *Qué quedó sin verificar*) |
+| **Fase actual** | **5 · Empaquetado** — ⬜ no empezada |
+| **Situación** | ✅ **Fase 4 terminada y verificada en pantalla** (2026-10-20): anterior/siguiente en la barra y «Siguiente episodio» en la columna, tarjeta de fin con ✕ (vuelve el último fotograma) y franja «Marcado como visto», también en pantalla completa con `Esc` de vuelta al recuadro acoplado; llegar al final marca el episodio (sobre copia). ✅ **Zilla ha vuelto**: el `HLS` de AnimeAV1 se ve en la app. **Sigue sin oírse** el audio (lo confirma el usuario) |
+| **Último paso completado** | Fase 4 cerrada |
+| **Siguiente paso** | Paso 5.1 de la [ficha 5](fases/5-empaquetado.md) (`requirements.txt` y la DLL) |
 | **Rama** | **`feature/reproductor-embebido`** — la creó el usuario antes de la fase 0 (lleva el plan y un merge de `develop`). **No se crea `feature/reproductor-in-app`**: ver *Decisiones* |
 | **Base** | `f7c88ca` en `feature/reproductor-embebido`; `95abd56` **es ancestro** (llega vía `develop`) |
 | **Commits** | automáticos (uno al cerrar cada fase) |
-| **Actualizado** | 2026-09-24 (cierre de la fase 3) |
+| **Actualizado** | 2026-10-20 (cierre de la fase 4) |
 
 ---
 
@@ -20,11 +20,11 @@
 
 | # | Fase | Situación | Commit | Verificada |
 |---|---|---|---|---|
-| 0 | Spike de libmpv | ⚠️ terminada sin verificar del todo | commit «Reproductor fase 0 — Spike de libmpv» (`git log --grep "fase 0"`) | Sí, en pantalla, salvo (b) contra zilla real y el audio oído |
-| 1 | Capa de resolución | ⚠️ terminada sin verificar del todo | commit «Reproductor fase 1 — Capa de resolución» (`git log --grep "fase 1"`) | Sí, contra los sitios y en pantalla (B1), salvo zilla |
+| 0 | Spike de libmpv | ⚠️ terminada sin verificar del todo | commit «Reproductor fase 0 — Spike de libmpv» (`git log --grep "fase 0"`) | Sí, en pantalla. (b) contra zilla real ✅ **el 2026-10-20** (en la fase 4). Falta el audio oído |
+| 1 | Capa de resolución | ✅ terminada | commit «Reproductor fase 1 — Capa de resolución» (`git log --grep "fase 1"`) | Sí, contra los sitios y en pantalla (B1). `ZillaResolver` ✅ **el 2026-10-20** (en la fase 4) |
 | 2 | Servidores fuera del hilo de Tk | ✅ terminada | commit «Reproductor fase 2 — Servidores fuera del hilo de Tk» (`git log --grep "fase 2"`) | Sí, en la app (copia) con Tk y red reales: 16/16 comprobaciones y capturas |
-| 3 | Panel de reproducción | ⚠️ terminada sin verificar del todo | commit «Reproductor fase 3 — Panel de reproducción» (`git log --grep "fase 3"`) | Sí, en pantalla sobre copia: AnimeAV1/MP4Upload y JKAnime/Desu y Magi, 47 comprobaciones y capturas. Salvo `HLS` (zilla caído) y el audio oído |
-| 4 | Navegación y fin de episodio | ⬜ no empezada | — | — |
+| 3 | Panel de reproducción | ⚠️ terminada sin verificar del todo | commit «Reproductor fase 3 — Panel de reproducción» (`git log --grep "fase 3"`) | Sí, en pantalla sobre copia: AnimeAV1/MP4Upload y JKAnime/Desu y Magi, 47 comprobaciones y capturas. `HLS` ✅ **el 2026-10-20** (en la fase 4). Falta el audio oído |
+| 4 | Navegación y fin de episodio | ✅ terminada | commit «Reproductor fase 4 — Navegación y fin de episodio» (`git log --grep "fase 4"`) | Sí, en pantalla sobre copia de las dos BD: 57 + 12 + 5 comprobaciones con clics y `Esc` reales, y capturas. BD real intacta |
 | 5 | Empaquetado | ⬜ no empezada | — | — |
 | 6 | Documentación | ⬜ no empezada | — | — |
 
@@ -51,6 +51,12 @@ Lo que no se ha podido ejecutar en cada fase, para que nadie lo dé por probado.
 | 3 | **La app lanzada desde la raíz con la BD real** | Igual que en las fases 1 y 2: copia byte a byte de `src/` (`diff -r`) con copia de la BD. `app.py` de la copia arranca, sigue viva y se cierra por la ventana con código 0 |
 | 3 | **Salir de pantalla completa con la barra lateral plegada** | Se probó con la barra desplegada (vuelve igual). El mecanismo es el mismo (se guarda y se restaura el `minsize` de la columna), pero plegada no se ejecutó |
 | 3 | **Dos monitores en pantalla completa** | La app se probó en el principal. La receta es la de la fase 0 (que sí se probó en el secundario) |
+| 0 · 1 · 3 | ✅ **Zilla, resuelto el 2026-10-20** (las tres filas 🔴 de arriba): el origen ha vuelto. `registry.resolve()` convierte `play/` en `m3u8/` con `Sec-Fetch-Site: same-origin`; el playlist es **HLS fMP4** (`EXT-X-MAP`, segmentos `segs/<hash>/NNN.html` que empiezan por `styp`); un segmento da **200 con la cabecera y 403 sin ella**; y en la app `dandadan` ep. 1 por `HLS` **se ve** a los 2,3 s (AV1 1920×1080 por software, `aac`, 0 fotogramas perdidos, `time-pos` avanza 5 s en 5 s). El 403 de `play/` a `requests` ya no importa: el resolutor no pide esa página | — |
+| 4 | **El audio, oído** | Igual que en las fases 0 y 3: decodifica `aac`, pero no puedo oír. **Lo confirma el usuario** |
+| 4 | **La app lanzada desde la raíz con la BD real** | Se lanzó `MainWindow` del `src/` real (no una copia) con `get_resource_path` desviado al sandbox para todo `resources/`, porque abrir fichas y terminar episodios **escriben**. Arranca, se recorre y se cierra con código 0 dejando solo `MainThread` |
+| 4 | **La ✕ en pantalla completa** | Se pulsó en la vista acoplada. En pantalla completa la tarjeta es la misma (mismo frame) y la ✕ llama al mismo `hide_card()`, pero no se pulsó allí |
+| 4 | **La tarjeta «Sin servidores» al navegar** y **el corte antes del final** (`END_TOLERANCE_S`) | Ningún episodio probado se quedó sin servidores ni cortó el stream. Son dos ramas cortas leídas en el código, sin ejecutar |
+| 4 | **El primer episodio con «anterior» apagado al pulsar un servidor con la ventana a medio cargar**, la ordenación descendente de AnimeFLV | Anterior apagado en el ep. 1 **sí** se vio (`dandadan`, captura). AnimeFLV está en desuso; el cálculo de anterior/siguiente va por número, no por el orden de la lista |
 | 0 | La **deduplicación de hilos**: el callback de `Esc` desde mpv y su `after(0)` | Ya no hacen falta: el teclado llega a Tk. Si en otra máquina llegara a mpv, habría que volver a mirarlo |
 
 ---
@@ -62,7 +68,7 @@ entonces nadie decide por su cuenta.
 
 | # | Decisión | Quién la cierra | Estado |
 |---|---|---|---|
-| 1 | 🔴 **¿Marcar el episodio como visto al llegar al final?** Es un supuesto declarado, no una petición, y **escribe en la biblioteca real** | La **fase 4**, preguntando al usuario **antes** de escribir una línea | ⬜ abierta |
+| 1 | 🔴 **¿Marcar el episodio como visto al llegar al final?** Es un supuesto declarado, no una petición, y **escribe en la biblioteca real** | La **fase 4**, preguntando al usuario **antes** de escribir una línea | ✅ **cerrada el 2026-10-20 por el usuario: SÍ.** Llegar al final (`end-file` con `reason == 0`) marca el episodio con la semántica acumulativa de siempre, **solo si el anime ya está en la biblioteca** (nunca crea fila), con la identidad de la fila guardada. La tarjeta lleva la franja «✓ Marcado como visto · N de M» |
 | 2 | **¿Se versiona `libmpv-2.dll` en el repo (`vendor/`) o se ignora y se documenta la descarga?** | La **fase 0**, al bajarla | ✅ **cerrada el 2026-09-23: NO se versiona.** La DLL pesa **120 MB** (no ~40): GitHub **rechaza** ficheros de más de 100 MB sin LFS. Vive en `vendor/libmpv-2.dll`, con `vendor/` en `.gitignore`; la descarga se documenta (ver *Decisiones*) |
 | 3 | **¿Volumen en la barra de controles?** | El **usuario**, con el diseño | ✅ **cerrada el 2026-09-23: sí.** Icono plegado y deslizador vertical al pasar el ratón |
 | 4 | **¿Ofrecer MP4Upload (H.264) como alternativa manual** si el AV1 1080p de AnimeAV1 consume demasiado? | La **fase 0** lo mide; si duele, lo implementa la **fase 3** | ✅ **cerrada el 2026-09-23: NO.** El AV1 1080p cuesta **0,2-0,33 núcleos** por software (dav1d), sin un fotograma perdido, en un i5-11400 con GTX 1070 (sin AV1 por hardware). Y MP4Upload **también es AV1 1080p**, no H.264, así que no sería alternativa |
@@ -132,6 +138,13 @@ fase que la tomó. Empieza vacío a propósito: las decisiones de partida están
 | 3 | **Tokens**: solo `VIDEO_BG`, el que pedía el diseño. Lo demás son medidas en `Metrics` (`PLAYER_*`). El texto sobre el negro de «Cargando» usa `BADGE_INK` (blanco en los dos temas) |
 | 3 | **Consumo y hosters (2026-09-24)**: AV1 1080p de MP4Upload por software, **0,18-0,32 núcleos**, 0 fotogramas perdidos. H.264 de JKAnime por `d3d11va`. ⚠️ **MP4Upload servía hoy a 110-260 KB/s** (`cache-speed` de mpv), por debajo del AV1 1080p: se ve **a tirones** (`paused-for-cache` cada pocos segundos). Es el hoster, no el reproductor |
 | 3 | 🔴 **Lección para verificar con input sintético**: una pulsación **suelta de Alt** con la ventana ya en primer plano la mete en el **bucle modal de menú de Windows**, y el hilo de Tk queda parado dentro de `mainloop` (en C) hasta el siguiente clic o tecla. Parece un cuelgue de la app y **no lo es**. El truco de «Alt + `SetForegroundWindow`» solo se usa si el primer plano **no** es nuestro. Para diagnosticar cuelgues: `faulthandler.dump_traceback_later()`, que vuelca aunque Python esté parado |
+| 4 | 🔴 **`keep-open=yes` y el fin se detecta por `eof-reached`, no por `end-file`** (spike del 2026-10-20 con `lavfi testsrc2` de 3 s, sin red). Sin `keep-open`, tras el EOF la superficie queda **negra** (brillo medio 0,0) y la ✕ no podría «devolver el último fotograma» como pide la ficha. Con `keep-open=yes`, el EOF **no manda `end-file`**: llega `eof-reached=True` con `pause=True` y el último fotograma se queda (brillo 127,5); quitar la superficie 1 s y volver a ponerla **lo repinta en pausa** (captura con `00:00:02.958`). `end-file` sigue llegando con `reason 2` al parar o cambiar de medio. **Repetir recarga el medio** (`play()`, que quita la pausa): `seek 0` no sirve en medios no buscables. El `end-file` con `reason 0` se sigue atendiendo como fin, por si llegara |
+| 4 | **Un EOF lejos del final es un corte, no un fin**: si se sabe la duración y quedan más de `END_TOLERANCE_S` segundos, se trata como error (`on_error` → navegador) y **no se marca nada**. Sin esto, un stream que se cae a mitad marcaría el episodio como visto en la biblioteca |
+| 4 | **«El último» con el corte `[:25]` es el último de `anime_info.episodes`** (todo lo que lista el proveedor), no el último de los 25 que se pintan. Anterior/siguiente van por **orden real de número** (el mayor menor / el menor mayor), como `__following_episode_id()` y el «N+1» de la tarjeta. Si el episodio nuevo no tiene fila en la lista (fuera del corte o con la lista filtrada por «Ir al episodio…»), se pinta **él solo con los botones de navegación**, igual que al buscarlo |
+| 4 | **Cambiar de episodio pide sus servidores una sola vez**: la misma respuesta rellena el hueco de la fila (que se despliega, y se pliega la del episodio anterior) y elige el servidor: **el mismo nombre si existe**, si no, los demás que tengan resolutor en el orden del proveedor, **una petición por servidor, sin reintentos**. Si no se resuelve ninguno, navegador con la tarjeta de siempre. Sin servidores en absoluto: tarjeta «Sin servidores» con «Volver a la ficha» (no hay URL que abrir) |
+| 4 | **Anterior y siguiente navegan en cualquier estado** (cargando, reproduciendo, en la tarjeta del navegador o al terminar): `PlaybackState.has_previous/has_next` no dependen de `enabled`. «Siguiente episodio» encendido = `ACCENT`/`ACCENT_INK` con `cursor=hand2`; apagado = `LINE`/`TXT_3` sin número |
+| 4 | **Si el episodio terminado ya estaba visto, no se reescribe** (lo decide la fila, no la memoria), pero la franja «Marcado como visto · N de M» sale igual, porque es verdad. Sin fila en la biblioteca, ni se marca ni sale la franja |
+| 4 | 🔴 **Lecciones del arnés** (para la fase 5 y quien verifique la GUI): (1) **con la portada vacía la app saca un `messagebox` modal** («conexión lenta»), que deshabilita la ventana; con `-topmost` el aviso queda tapado y **los clics no llegan a nada**, con `WindowFromPoint` devolviendo el marco `TkTopLevel`. Se suprime el aviso en el arnés. (2) Comprobar el destino del clic con **`winfo_containing(x, y)`** (que sea el widget o un descendiente), no solo con el proceso de `WindowFromPoint`. (3) `faulthandler.enable()` en Windows **vuelca también excepciones manejadas**: `terminate()` de mpv lanza y captura excepciones de LuaJIT (`0xe24c4a02`) y parecen cuelgues sin serlo; el proceso sigue y sale con 0 |
 | Diseño (2026-09-23) | **Diseño visual aprobado**, segunda ronda: [DISENO-VISUAL.html](DISENO-VISUAL.html). Reproductor **acoplado encima de la ficha** (`player_frame` fila 0, `content_frame` fila 1, que se queda); columna izquierda sin póster con volver, título, episodio, servidor, progreso y «Siguiente episodio»; barra en el orden anterior · −10 · play/pausa · +10 · siguiente · progreso · tiempo · volumen · pantalla completa, **sin ✕**; pantalla completa con barra flotante que se oculta a los 5 s; «Ir al episodio…» es el buscador de la ficha. Descartados: modo teatro, carril de episodios, pie de información. **Cambia la fase 3 entera, el paso 4.1 y 4.2, y añade el paso 0.7 y `registry.has_resolver()` (fase 1)** |
 
 ---
@@ -148,6 +161,29 @@ Una entrada por paso completado, **la más reciente arriba**. Formato:
 ```
 
 <!-- nuevas entradas aquí arriba -->
+
+### Fase 4 · Verificación y cierre          (2026-10-20)
+- Arneses `verify_f4.py`, `verify_f4b.py` y `verify_f4c.py` (scratchpad): `MainWindow` del `src/` real con todo `resources/` desviado a un sandbox con **copia de las dos BD**, portada vacía (sin bajar estrenos), `webbrowser.open` interceptado, clics reales solo si `winfo_containing` da el widget y `Esc` solo con el primer plano nuestro (0 descartados)
+- Copia preparada: `kaijuu-8-gou` (JKAnime) con vistos {1, 2, 5}; fila de `kaoru-hana-wa-rin-to-saku` **borrada en la copia** para probarlo como no guardado. Animes tocados en la copia: esos dos y `dandadan` (sin escrituras de vistos)
+- **57/57** (el único rojo fue una expectativa mal escrita del arnés: «4 de 12» donde lo correcto era 5, y la captura dice 5): ep. 3 por Desu (clic real) → fin real (`seek` a 6 s del final) → tarjeta con título, «Kaijuu 8-gou · JKAnime · Desu», «Marcado como visto · 4 de 12» y los dos botones · BD copia `[[1,3],[5,5]]` (acumulativo, **conserva el 5**) · interruptor y «Terminado» en la fila · TERMINADO en la columna · +10 apagado, play en repetir · `on_end` una vez · **✕ (clic real)**: retira la tarjeta, **vuelve el último fotograma** (captura), la barra sigue en repetir, no marca nada más, el aviso no vuelve · **«Siguiente episodio» de la columna (clic real)** → ep. 4 por el **mismo servidor**, «Episodio 4 de 12 · servidor Desu», el 4 desplegado y el 3 plegado · **pantalla completa (clic real)**: fin, la barra flotante **sigue a los 7 s quieto**, tarjeta centrada (960 = 960) con «5 de 12» · **`Esc` real**: sale y la tarjeta **queda sola en el recuadro acoplado** (806×453), sin moverla a mano · «Ver el episodio 5» (clic real) encadena · **«anterior» de la barra (clic real)** → 4 · fin de un episodio ya visto: franja sí, sin reescribir · «Volver a la ficha» de la tarjeta cierra el panel y la ficha sigue con el 4 desplegado · ep. 6 a mitad + «← Volver a la ficha» → **ni tarjeta ni `on_end`**, el 6 sin marcar · **no guardado**, último episodio (13): siguiente apagado y anterior encendido, «Siguiente episodio» apagado, tarjeta sin franja y sin «Ver el episodio…», **ninguna fila nueva** (35 = 35)
+- **Degradación (12/12)**: `dandadan` (AnimeAV1) · UPNShare ↗ → navegador con su URL y la tarjeta de siempre · siguiente con `registry.resolve` forzado a None → intenta **solo** HLS y MP4Upload, **una vez cada uno**, y abre el navegador con el preferido; la tarjeta no ofrece lo ya intentado · «Seguir en el navegador» cierra · 0 escrituras
+- **Zilla ha vuelto** (una petición de sondeo: 200). `zilla_check.py`: resolución, playlist fMP4 y segmento **200 con / 403 sin** `Sec-Fetch-Site`. En la app (`verify_f4c.py`, 5/5): `HLS` se ve a los 2,3 s, AV1 1080p, 0 fotogramas perdidos
+- Peticiones reales: ~25 en total, espaciadas, ningún 403 salvo el segmento sin cabecera, que era la prueba
+- **BD real**: sha256 `0c8d5216…fa96` antes y después de todas las pasadas · **36 filas** (sin cambios) · `DB_user.db` real también intacta · colores literales solo en `theme.py` · TODOs: 4 (los de `anime_window.py` en las líneas 151 y 154) · sin errores de Tk en los `stderr`
+- Estado: ✅
+
+### Fase 4 · Pasos 4.1-4.4 — Anterior/siguiente, tarjeta de fin, marcado y listas del hub          (2026-10-20)
+- Spike previo (scratchpad, `spike_keepopen.py`, sin red): `keep-open` necesario para la ✕ (ver *Decisiones*)
+- Ficheros: `src/gui/components/video_player.py` (`keep_open`, `eof-reached` → `__reach_end()` con `END_TOLERANCE_S`; `on_previous`/`on_next`, `set_navigation()`, `PlaybackState.has_previous/has_next`; `show_message(check_note=, closable=)`; glifos `close` y `check`; la barra flotante sale al aparecer una tarjeta), `src/gui/anime_window.py` (`__play_episode`, `__play_adjacent`, `__adjacent_episode`, `__on_episode_resolved`, `__on_player_ended`, `__mark_finished_episode`, «Siguiente episodio» conectado, estado `unavailable`; extraídos sin cambiar comportamiento `__set_episode_watched`, `__refresh_hub_lists`, `__open_servers_frame`, `__fetch_servers`, `__ensure_episode_row`)
+- 4.4: los contadores de la barra cuentan **animes por estado**, así que marcar un episodio **no los mueve** (y la ficha 4.4 prohíbe mover estados). Aun así se releen las listas del hub tras marcar, para que nada quede cacheado con los vistos viejos
+- Verificado: compila; colores literales solo en `theme.py`; TODOs: 4. **En pantalla: todavía no** (siguiente: arnés sobre copia)
+- Pendiente que deja: la verificación
+
+### Fase 4 · Inicio — Punto de decisión 1 cerrado          (2026-10-20)
+- Ficheros: ESTADO.md
+- El usuario responde **sí**: llegar al final marca como visto (solo si el anime está guardado; nunca crea fila)
+- Verificado: no aplica
+- Pendiente que deja: pasos 4.1-4.4
 
 ### Fase 3 · Verificación y cierre          (2026-09-24)
 - Arnés `verify_f3.py` (scratchpad) sobre **copia** de `src/` (idéntica, `diff -r`) y de la BD: Tk, mpv y red reales, `webbrowser.open` interceptado, capturas de pantalla con la ventana encima, clics y teclas **solo** si el destino es nuestro (0 descartados)

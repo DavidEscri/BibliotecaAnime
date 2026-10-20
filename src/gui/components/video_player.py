@@ -57,6 +57,9 @@ NETWORK_TIMEOUT_S = 15
 #: `end-file.reason` de mpv que importan aquí: fin natural y error.
 END_REASON_EOF = 0
 END_REASON_ERROR = 4
+#: Segundos que pueden faltar para el final y seguir contando como «terminado».
+#: Un fin de fichero antes de eso es el servidor cortando el vídeo.
+END_TOLERANCE_S = 15
 
 _mpv_module = None
 _mpv_load_error: Optional[str] = None
@@ -201,6 +204,18 @@ def _left_glyph(draw, s, color):
     _round_line(draw, [(s * 0.46, s * 0.24), (s * 0.20, s * 0.50), (s * 0.46, s * 0.76)], width, color)
 
 
+def _close_glyph(draw, s, color):
+    """✕: cerrar un aviso."""
+    width = s * 0.10
+    _round_line(draw, [(s * 0.26, s * 0.26), (s * 0.74, s * 0.74)], width, color)
+    _round_line(draw, [(s * 0.26, s * 0.74), (s * 0.74, s * 0.26)], width, color)
+
+
+def _check_glyph(draw, s, color):
+    """✓: hecho."""
+    _round_line(draw, [(s * 0.20, s * 0.52), (s * 0.42, s * 0.74), (s * 0.80, s * 0.30)], s * 0.11, color)
+
+
 def _draw_back10(image: Image.Image, color: str) -> Image.Image:
     draw = ImageDraw.Draw(image)
     _circular_arrow(draw, image.width, color)
@@ -228,6 +243,8 @@ _GLYPHS: Dict[str, Callable] = {
     "exit_fullscreen": _exit_fullscreen_glyph,
     "external": _external_glyph,
     "left": _left_glyph,
+    "close": _close_glyph,
+    "check": _check_glyph,
 }
 _IMAGE_GLYPHS: Dict[str, Callable[[Image.Image, str], Image.Image]] = {
     "back10": _draw_back10,
@@ -240,7 +257,7 @@ def player_icon(name: str, size: int = ICON_SIZE, color: ColorToken = Theme.TXT_
     """Glifo del reproductor dibujado con PIL, con variante clara y oscura.
 
     :param name: «play», «pause», «previous», «next», «back10», «forward10», «replay»,
-        «volume», «muted», «fullscreen», «exit_fullscreen», «external» o «left».
+        «volume», «muted», «fullscreen», «exit_fullscreen», «external», «left», «close» o «check».
     :param size: Lado del icono.
     :param color: Par (claro, oscuro) con el que se tiñe.
     :return: El icono, cacheado por nombre, tamaño y color.
@@ -319,6 +336,8 @@ class PlaybackState:
     volume: float = 100.0
     muted: bool = False
     fullscreen: bool = False
+    has_previous: bool = False
+    has_next: bool = False
 
 
 class _VolumePopup:
@@ -404,7 +423,7 @@ class PlayerControls(ctk.CTkFrame):
         self.grid_columnconfigure(5, weight=1)
         side_pad = 18 if floating else 10
 
-        self.previous_button = self.__button("previous", None)
+        self.previous_button = self.__button("previous", player.go_previous)
         self.back_button = self.__button("back10", lambda: player.seek_relative(-SEEK_STEP))
         self.play_button = ctk.CTkButton(
             self, text="", width=Metrics.PLAYER_BUTTON, height=Metrics.PLAYER_BUTTON, corner_radius=8,
@@ -412,7 +431,7 @@ class PlayerControls(ctk.CTkFrame):
             image=player_icon("pause", color=Theme.ACCENT_INK), command=player.toggle_pause
         )
         self.forward_button = self.__button("forward10", lambda: player.seek_relative(SEEK_STEP))
-        self.next_button = self.__button("next", None)
+        self.next_button = self.__button("next", player.go_next)
         for column, widget in enumerate((self.previous_button, self.back_button, self.play_button,
                                          self.forward_button, self.next_button)):
             padx = (side_pad, 1) if column == 0 else ((4, 4) if widget is self.play_button else (1, 1))
@@ -451,8 +470,6 @@ class PlayerControls(ctk.CTkFrame):
             ctk.CTkLabel(esc_frame, text="Esc", height=18, font=Theme.font(11, False, True),
                          text_color=Theme.TXT_3).pack(padx=6, pady=1)
 
-        self.__disabled_navigation()
-
     def __button(self, icon: str, command: Optional[Callable[[], None]]) -> ctk.CTkButton:
         """Un control de 38 × 38 con su glifo, sin texto."""
         return ctk.CTkButton(
@@ -460,11 +477,6 @@ class PlayerControls(ctk.CTkFrame):
             fg_color=Theme.TRANSPARENT, hover_color=Theme.CARD_HOVER,
             image=player_icon(icon), command=command
         )
-
-    def __disabled_navigation(self) -> None:
-        """Anterior y siguiente existen pero no navegan todavía."""
-        self.previous_button.configure(state="disabled", image=player_icon("previous", color=Theme.LINE))
-        self.next_button.configure(state="disabled", image=player_icon("next", color=Theme.LINE))
 
     # ---- Estado ----
     def refresh(self, state: PlaybackState) -> None:
@@ -474,6 +486,9 @@ class PlayerControls(ctk.CTkFrame):
         if (previous is None or previous.enabled != state.enabled or previous.paused != state.paused
                 or previous.ended != state.ended):
             self.__refresh_buttons(state)
+        if (previous is None or previous.has_previous != state.has_previous
+                or previous.has_next != state.has_next):
+            self.__refresh_navigation(state)
         if previous is None or previous.fullscreen != state.fullscreen:
             icon = "exit_fullscreen" if state.fullscreen else "fullscreen"
             self.fullscreen_button.configure(image=player_icon(icon))
@@ -497,6 +512,13 @@ class PlayerControls(ctk.CTkFrame):
             button.configure(state="normal" if allowed else "disabled",
                              image=player_icon(icon, color=Theme.TXT_2 if allowed else Theme.LINE))
         self.seek_slider.configure(state="normal" if state.enabled else "disabled")
+
+    def __refresh_navigation(self, state: PlaybackState) -> None:
+        """Anterior y siguiente no dependen de que el medio suene: también navegan cargando o al terminar."""
+        for button, icon, allowed in ((self.previous_button, "previous", state.has_previous),
+                                      (self.next_button, "next", state.has_next)):
+            button.configure(state="normal" if allowed else "disabled",
+                             image=player_icon(icon, color=Theme.TXT_2 if allowed else Theme.LINE))
 
     def __refresh_time(self, position: Optional[float], duration: Optional[float]) -> None:
         self.position_label.configure(text=format_time(position))
@@ -580,19 +602,27 @@ class VideoPlayer(ctk.CTkFrame):
     def __init__(self, parent, on_error: Callable[[str], None],
                  on_started: Optional[Callable[[], None]] = None,
                  on_end: Optional[Callable[[], None]] = None,
-                 on_fullscreen_request: Optional[Callable[[bool], None]] = None):
+                 on_fullscreen_request: Optional[Callable[[bool], None]] = None,
+                 on_previous: Optional[Callable[[], None]] = None,
+                 on_next: Optional[Callable[[], None]] = None):
         """
         :param on_error: Se llama con el motivo cuando el medio no se puede reproducir.
         :param on_started: Se llama cuando empieza a verse el medio cargado.
         :param on_end: Se llama cuando el episodio llega al final.
         :param on_fullscreen_request: Se llama con True/False al pedir entrar o salir de
             pantalla completa; el dueño cambia la disposición y llama a ``set_fullscreen()``.
+        :param on_previous: Se llama al pulsar «episodio anterior», si está habilitado.
+        :param on_next: Se llama al pulsar «episodio siguiente», si está habilitado.
         """
         super().__init__(parent, corner_radius=0, fg_color=Theme.TRANSPARENT)
         self.__on_error = on_error
         self.__on_started = on_started
         self.__on_end = on_end
         self.__on_fullscreen_request = on_fullscreen_request
+        self.__on_previous = on_previous
+        self.__on_next = on_next
+        self.__has_previous = False
+        self.__has_next = False
 
         self.__mpv = None
         self.__default_user_agent: Optional[str] = None
@@ -734,6 +764,9 @@ class VideoPlayer(ctk.CTkFrame):
                 input_vo_keyboard=False,
                 cursor_autohide="no",
                 hwdec="auto-safe",
+                # Al final se queda en pausa sobre el último fotograma en vez de
+                # descargar el medio: es lo que se ve al cerrar el aviso de fin.
+                keep_open="yes",
                 ytdl=False,
                 network_timeout=NETWORK_TIMEOUT_S,
                 volume=self.volume,
@@ -752,9 +785,15 @@ class VideoPlayer(ctk.CTkFrame):
         def on_pause(_name, value):
             self.__mpv_paused = bool(value)
 
+        def on_eof(_name, value):
+            # Con keep-open el final no manda end-file: lo cuenta esta propiedad.
+            if value is True:
+                self.__events.put(("eof", None))
+
         player.observe_property("time-pos", on_time)
         player.observe_property("duration", on_duration)
         player.observe_property("pause", on_pause)
+        player.observe_property("eof-reached", on_eof)
 
         @player.event_callback("start-file")
         def on_start_file(_event):
@@ -800,21 +839,38 @@ class VideoPlayer(ctk.CTkFrame):
                 self.hide_card()
                 if self.__on_started is not None:
                     self.__on_started()
+        elif kind == "eof":
+            if self.__awaiting_start or not self.__file_active or not self.__started or self.__ended:
+                return
+            self.__reach_end()
         elif kind == "end-file":
             reason, error = payload
             if self.__awaiting_start or not self.__file_active:
                 return
             self.__file_active = False
             if reason == END_REASON_EOF:
-                self.__ended = True
-                self.__refresh_controls()
-                if self.__on_end is not None:
-                    self.__on_end()
+                if self.__started and not self.__ended:
+                    self.__reach_end()
             elif reason == END_REASON_ERROR:
                 print(f"mpv no pudo reproducir el medio (error {error})")
                 self.__source = None
                 self.__refresh_controls()
                 self.__on_error("El servidor no ha entregado el vídeo")
+
+    def __reach_end(self) -> None:
+        """El medio ha llegado al final: fin de episodio, o un corte si faltaba demasiado."""
+        position, duration = self.__mpv_position, self.__mpv_duration
+        if position is not None and duration and duration - position > END_TOLERANCE_S:
+            print(f"El medio terminó en {format_time(position)} de {format_time(duration)}: "
+                  f"se trata como un corte del servidor")
+            self.__source = None
+            self.__refresh_controls()
+            self.__on_error("El servidor ha cortado el vídeo antes del final")
+            return
+        self.__ended = True
+        self.__refresh_controls()
+        if self.__on_end is not None:
+            self.__on_end()
 
     # ---- Órdenes de la barra ----
     def toggle_pause(self) -> None:
@@ -878,6 +934,24 @@ class VideoPlayer(ctk.CTkFrame):
         if self.__on_fullscreen_request is not None:
             self.__on_fullscreen_request(not self.__fullscreen)
 
+    def set_navigation(self, has_previous: bool, has_next: bool) -> None:
+        """Habilita o apaga «episodio anterior» y «episodio siguiente» en las dos barras.
+
+        :param has_previous: Si hay un episodio antes del que suena.
+        :param has_next: Si hay uno después.
+        """
+        self.__has_previous = has_previous
+        self.__has_next = has_next
+        self.__refresh_controls()
+
+    def go_previous(self) -> None:
+        if self.__has_previous and self.__on_previous is not None:
+            self.__on_previous()
+
+    def go_next(self) -> None:
+        if self.__has_next and self.__on_next is not None:
+            self.__on_next()
+
     def __refresh_controls(self) -> None:
         position = self.__mpv_position
         if self.__seek_target is not None:
@@ -897,6 +971,8 @@ class VideoPlayer(ctk.CTkFrame):
             volume=self.volume,
             muted=self.__muted,
             fullscreen=self.__fullscreen,
+            has_previous=self.__has_previous,
+            has_next=self.__has_next,
         )
         for controls in (self.__controls, self.__floating_controls):
             if controls is not None and controls.winfo_exists():
@@ -914,27 +990,46 @@ class VideoPlayer(ctk.CTkFrame):
 
     def show_message(self, title: str, body: str,
                      buttons: List[Tuple[str, Callable[[], None], bool]],
-                     icon: Optional[str] = None, subtitle: Optional[str] = None) -> None:
-        """Tarjeta con título, texto y botones, con el medio ya parado.
+                     icon: Optional[str] = None, subtitle: Optional[str] = None,
+                     check_note: Optional[str] = None, closable: bool = False) -> None:
+        """Tarjeta con título, texto y botones, en lugar de la superficie.
 
         :param buttons: (texto, acción, es_primario), de izquierda a derecha.
         :param icon: Glifo del recuadro de arriba, o None para no ponerlo.
         :param subtitle: Línea gris bajo el título.
+        :param check_note: Franja con ✓ bajo el texto («Marcado como visto · 3 de 12»), o None.
+        :param closable: Pone una ✕ arriba a la derecha que retira solo la tarjeta y
+            deja a la vista la superficie con lo que tenga.
         """
         self.__surface.grid_remove()
         content = self.__new_card(boxed=True)
         wrap = Metrics.PLAYER_CARD_W - 56
+        if closable:
+            ctk.CTkButton(
+                content.master, text="", width=30, height=30, corner_radius=7,
+                fg_color=Theme.TRANSPARENT, hover_color=Theme.CARD_HOVER,
+                image=player_icon("close", 16, Theme.TXT_3), command=self.hide_card
+            ).place(relx=1.0, x=-14, y=14, anchor="ne")
+            # El título no puede meterse debajo de la ✕.
+            wrap -= 34
         if icon is not None:
             ctk.CTkLabel(content, text="", width=38, height=38, corner_radius=10, fg_color=Theme.ACCENT_SOFT,
                          image=player_icon(icon, color=Theme.ACCENT)).pack(anchor="w", pady=(0, 14))
         ctk.CTkLabel(content, text=title, font=Theme.font(20, True), text_color=Theme.TXT,
                      anchor="w", justify="left", wraplength=wrap).pack(anchor="w", fill="x")
+        wrap = Metrics.PLAYER_CARD_W - 56
         if subtitle:
             ctk.CTkLabel(content, text=subtitle, font=Theme.font(*Theme.T_SUB), text_color=Theme.TXT_3,
                          anchor="w", justify="left", wraplength=wrap).pack(anchor="w", fill="x", pady=(5, 0))
         if body:
             ctk.CTkLabel(content, text=body, font=Theme.font(*Theme.T_UI), text_color=Theme.TXT_2,
                          anchor="w", justify="left", wraplength=wrap).pack(anchor="w", fill="x", pady=(8, 0))
+        if check_note:
+            strip = ctk.CTkFrame(content, height=1, corner_radius=9, fg_color=Theme.BG)
+            strip.pack(fill="x", pady=(18, 0))
+            ctk.CTkLabel(strip, text=f"  {check_note}", image=player_icon("check", 16, Theme.FIN_TXT),
+                         compound="left", font=Theme.font(12), text_color=Theme.TXT_2,
+                         fg_color=Theme.BG, anchor="w").pack(anchor="w", padx=13, pady=8)
         if buttons:
             row = ctk.CTkFrame(content, fg_color=Theme.TRANSPARENT, height=1)
             row.pack(fill="x", pady=(20, 0))
@@ -968,6 +1063,10 @@ class VideoPlayer(ctk.CTkFrame):
             child.destroy()
         self.__card_frame.grid()
         self.__card_frame.lift()
+        # A pantalla completa la barra no se oculta mientras haya tarjeta, y si ya
+        # se había ido hay que sacarla: es la salida del aviso.
+        if self.__fullscreen:
+            self.__show_floating_bar()
         if boxed:
             box = ctk.CTkFrame(self.__card_frame, width=Metrics.PLAYER_CARD_W, corner_radius=14,
                                fg_color=Theme.CARD, border_width=1, border_color=Theme.LINE)
