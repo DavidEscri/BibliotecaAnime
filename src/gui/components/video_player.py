@@ -659,7 +659,7 @@ class VideoPlayer(ctk.CTkFrame):
         self.__floating_controls: Optional[PlayerControls] = None
         self.__idle_job: Optional[str] = None
         self.__foreground_job: Optional[str] = None
-        self.__escape_bound = False
+        self.__escape_funcid: Optional[str] = None
         self.__ring_job: Optional[str] = None
 
         self.grid_columnconfigure(0, weight=1)
@@ -1163,15 +1163,16 @@ class VideoPlayer(ctk.CTkFrame):
             # geometría del vídeo ya a pantalla completa.
             root.update()
             self.__create_floating_bar()
-            root.bind_all("<Escape>", self.__on_escape)
-            self.__escape_bound = True
+            self.__escape_funcid = root.bind_all("<Escape>", self.__on_escape)
             root.focus_force()
             self.__show_floating_bar()
             self.__foreground_job = self.after(FOREGROUND_CHECK_MS, self.__check_foreground)
         else:
-            if self.__escape_bound:
+            if self.__escape_funcid is not None:
+                # unbind_all() no borra el comando Tcl, y ese comando retiene el reproductor.
                 root.unbind_all("<Escape>")
-                self.__escape_bound = False
+                root.deletecommand(self.__escape_funcid)
+                self.__escape_funcid = None
             for job in (self.__idle_job, self.__foreground_job):
                 if job is not None:
                     self.after_cancel(job)
