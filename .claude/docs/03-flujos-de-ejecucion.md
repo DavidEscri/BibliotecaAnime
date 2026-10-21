@@ -813,7 +813,7 @@ la tabla pasan por ahí.
 
 📖 `anime_window.py:1916-2430` (bloque «Reproductor acoplado»), `video_player.py` entero,
 `main_window.py:165-300` y `APIs/resolvers/`. ✅ Recorrido en pantalla en las fases 3, 4 y 5 del
-[plan del reproductor](../plan-reproductor/README.md): AnimeAV1 por `HLS` (zilla) y MP4Upload, JKAnime
+plan del reproductor: AnimeAV1 por `HLS` (zilla) y MP4Upload, JKAnime
 por Desu y Magi, también desde el `.exe`.
 
 Aquí aparece un **cuarto hilo**: 🎞️ = **`MPVEventHandlerThread`**, el hilo propio de `python-mpv`

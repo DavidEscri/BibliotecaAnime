@@ -155,3 +155,9 @@ fabric.properties
 # .idea
 # libmpv (120 MB, supera el límite de 100 MB de GitHub): se descarga aparte
 vendor/
+
+# Claude Code: en el repo solo van CLAUDE.md, COMO-PEDIR-TAREAS.md y docs/
+.claude/*
+!.claude/CLAUDE.md
+!.claude/COMO-PEDIR-TAREAS.md
+!.claude/docs/

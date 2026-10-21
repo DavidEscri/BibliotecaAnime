@@ -473,7 +473,7 @@ que la lista avanza.**
    del plan del reproductor, que la necesitaba antes de añadir una **segunda** petición en el mismo
    punto (la resolución del medio).
 4b. ~~**Reproducir dentro de la aplicación**~~ — ✅ **hecho entre el 2026-09-23 y el 2026-10-20**, en
-   7 fases ([`plan-reproductor/`](../plan-reproductor/README.md)). No estaba en esta lista: se cruzó
+   7 fases (`plan-reproductor/`). No estaba en esta lista: se cruzó
    por delante, igual que el rediseño. Deja **B14** (hosters sin resolver) y **C12** (la DLL fuera del
    repo), y fuera de alcance a propósito: **recordar el minuto donde lo dejaste** (una columna más en
    `ANIMES`, no pedida) y elegir calidad o subtítulos (los playlists no ofrecen alternativas).
