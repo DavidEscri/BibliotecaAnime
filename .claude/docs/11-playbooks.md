@@ -495,8 +495,19 @@ la barra diagonal del icono «sin conexión».
    resolviendo cada nombre a su fichero.
 
 2. Sube `APP_VERSION` (`:3`) — determina el nombre de `dist/MiBibliotecaAnime_v<X>/`.
-2b. 🆕 **Pon `vendor/libmpv-2.dll` en su sitio** (paso 4 del `README.md`: URL, nombre del `.7z` y
-   sha256). No está en el repositorio (120 MB) y el `.spec` **para con `SystemExit`** si falta, en
+2b. 🆕 **Pon `vendor/libmpv-2.dll` en su sitio** con `python tools/actualizar_libmpv.py --tag <etiqueta>
+   --apply` (o a mano, con el paso 4 del `README.md`: URL, nombre del `.7z` y sha256). La herramienta
+   la descarga de la release de shinchiro, la **prueba** con python-mpv (un vídeo y un audio
+   sintéticos), reconstruye la versión de cada biblioteca que lleva dentro y **regenera la sección de
+   libmpv de `THIRD-PARTY-NOTICES.txt`** y el paso 4 del `README.md`, entre sus marcas. Sin `--apply`
+   va en seco: deja el resultado en la carpeta de trabajo y no toca el repo. 🔴 **Actualizar la DLL
+   sin regenerar los avisos los deja mintiendo**: versión, sha256 y lista de bibliotecas son de cada
+   compilación. Detalle en [12 §7](12-deuda-tecnica-y-roadmap.md) (L10 y L11).
+   ✅ **Desde el 2026-10-21 el `.spec` lo comprueba**: calcula el sha256 de la DLL y **se para** si no
+   es el que figura en la sección generada de `THIRD-PARTY-NOTICES.txt` o en la del paso 4 del
+   `README.md` (o si falta alguna de las dos), remitiendo a la herramienta. Es local y no mira si hay
+   una DLL más reciente: actualizar sigue siendo una decisión, no algo que pase al compilar.
+   No está en el repositorio (120 MB) y el `.spec` **para con `SystemExit`** si falta, en
    vez de compilar un `.exe` que lo abriría todo en el navegador. Va en `binaries` (`:21`) con
    destino **`vendor`**, no `'.'`: `load_mpv()` la busca en `get_resource_path("vendor")`, que en el
    `.exe` es `_internal/vendor` ([trampa 18f](10-invariantes-y-trampas.md)). Suma **~115 MB** a

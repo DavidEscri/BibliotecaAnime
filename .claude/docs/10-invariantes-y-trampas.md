@@ -137,7 +137,15 @@ SQL se ejecutó sin excepción».
 
 ---
 
-### 6. `get_anime_by_genre_and_order` recibe un `str` donde espera un enum ✅
+### 6. `get_anime_by_genre_and_order` recibe un `str` donde espera un enum ✅ *(resuelta, 2026-10-21)*
+
+> ✅ **Resuelta en la persistencia.** El llamante de abajo **desapareció con el rediseño**
+> (2026-08-21), así que desde entonces el método no tiene llamantes y el fallo no se veía. Pero el
+> resto del código —la vista «Buscar» y los tres proveedores— maneja el orden como **`value`**
+> (`str`), así que el siguiente que lo usara caería igual. Desde el 2026-10-21 el método **acepta las
+> dos formas** (`order in (POR_DEFECTO, POR_DEFECTO.value)`). ✅ Verificado sobre copia de la BD en
+> los cuatro estados: con el enum y con el `str` sale el mismo orden por coincidencias. Lo de abajo es
+> la historia.
 
 `AccordionFilterButton.__apply_filters` (`utilsButtons.py:341`) pasa `self.selected_order.get()` →
 `"default"`. La comparación `order != AnimeOrderFilter.POR_DEFECTO` (`animesPersistence.py:384`) es
@@ -149,7 +157,8 @@ se aplica desde la GUI**.
 **Síntoma**: el filtro por género funciona, pero los resultados salen en orden de inserción en BD.
 
 **Al arreglarlo**: convierte en el llamante (`AnimeOrderFilter(self.selected_order.get())`) **o**
-compara por valor en la persistencia — no ambos.
+compara por valor en la persistencia — no ambos. *(Se eligió lo segundo: es lo que hace el resto del
+código.)*
 
 ---
 
@@ -1313,7 +1322,7 @@ abre en el navegador** con «No se ha podido cargar aquí». Parece que zilla es
 ⚠️ **No confundirlo con una caída real**, que también pasa (tres días seguidos en septiembre de
 2026, con **522** de Cloudflare): entonces mpv espera el `network-timeout` de 15 s y la caída al
 navegador tarda **~20 s**. **Instantáneo → cabecera; ~20 s → origen caído.** Y si responde, pero
-**despacio**, no cae nunca: [trampa 54](#54-un-hoster-lento-deja-cargando-sin-tope---abierta-2026-10-20).
+**despacio**, cae a los **30 s**, por el tope propio del reproductor: [trampa 54](#54-un-hoster-lento-deja-cargando-sin-tope---resuelta-2026-10-21).
 
 **Invariante**: las cabeceras viajan en `MediaSource.headers` y `VideoPlayer.play()`
 (`video_player.py:680`) las pasa a mpv como `http_header_fields` —todas salvo `User-Agent`, que va a
@@ -1550,7 +1559,18 @@ JKAnime: 5 botones, y cada uno abre su URL.
 
 ---
 
-### 54. Un hoster lento deja «Cargando» sin tope 🔴 ✅ *(abierta, 2026-10-20)*
+### 54. Un hoster lento deja «Cargando» sin tope 🔴 ✅ *(resuelta, 2026-10-21)*
+
+> ✅ **Resuelta el 2026-10-21** (deuda **B15**): `VideoPlayer` lleva un plazo propio,
+> **`LOAD_TIMEOUT_S = 30`**, contado desde `play()` hasta el primer `playback-restart`. Si vence, para
+> mpv **antes** de avisar —para que un medio que arranca tarde no suene detrás de la tarjeta— y llama a
+> `on_error` («El servidor tarda demasiado en entregar el vídeo»): navegador y tarjeta con otro
+> servidor, como cualquier error. Se cancela al empezar, en `stop_media()` y en `close()`, y cada
+> `play()` lo reinicia. 30 s es ~10 veces un arranque normal (2-4 s) y queda **por encima** de los
+> ~20 s con los que ya cae un servidor caído, así que solo actúa sobre los lentos. ✅ Verificado con el
+> `VideoPlayer` real y un servidor local que gotea un byte cada 3 s: error a los **30,0 s** con mpv
+> parado; un medio que arranca en 0,2 s no dispara nada en 40 s; y un segundo `play()` a los 15 s
+> lleva el vencimiento a los **45,0 s**. Lo de abajo es la historia.
 
 **Por qué**: el único plazo que hay es el `network-timeout` de mpv (15 s), y cuenta **por petición**,
 no para el arranque entero. Un servidor que contesta cada petición en menos de 15 s —pero contesta a

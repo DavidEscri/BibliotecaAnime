@@ -57,7 +57,8 @@ fallo— **siguen abriendo el navegador**, que es lo que hacía antes.
 ```bash
 pip install -r requirements.txt      # dependencias
 python src/app.py                    # ejecutar (desde la raíz del repo)
-# reproductor: vendor/libmpv-2.dll (120 MB, fuera del repo) → paso 4 del README.md
+# reproductor: vendor/libmpv-2.dll (120 MB, fuera del repo) → paso 4 del README.md, o bien:
+python tools/actualizar_libmpv.py --tag 20260923 --apply   # baja, prueba e instala la DLL y regenera sus avisos
 pyinstaller MiBibliotecaAnime.spec   # generar dist/MiBibliotecaAnime_v<APP_VERSION>/
 ```
 
@@ -72,6 +73,12 @@ pyinstaller MiBibliotecaAnime.spec   # generar dist/MiBibliotecaAnime_v<APP_VERS
   está en `.gitignore`). Sin ella la app arranca y funciona, pero **todo servidor se abre en el
   navegador**; y el `.spec` **se niega a compilar**. URL, nombre del `.7z` y sha256: paso 4 del
   `README.md`.
+- 🆕 **`tools/actualizar_libmpv.py`** (2026-10-21) es la forma de poner o **actualizar** la DLL: la
+  baja de la release de shinchiro, la prueba con python-mpv, reconstruye la versión de cada
+  biblioteca que lleva y regenera la sección de libmpv de `THIRD-PARTY-NOTICES.txt` y el paso 4 del
+  `README.md` **entre sus marcas** (no edites a mano lo que hay entre ellas). Sin `--apply` va en
+  seco. Vive fuera de `src/`, así que no va en el `.exe` ni en `hiddenimports`. 🔴 **Cambiar la DLL sin
+  pasarla deja los avisos de licencia mintiendo.**
 
 ---
 
@@ -487,8 +494,9 @@ red, y en esa rama pasa `size=` explícito — sin él `CTkImage` pinta a 20×20
   resolutor, si no resuelve, si libmpv no carga o si el medio da error (`end-file` con `reason=4`),
   **abre el navegador** y lo dice en el recuadro del vídeo, ofreciendo otro servidor que sí se vea.
   🔴 **Ningún cambio puede dejar la reproducción peor que eso.** ⚠️ Con un hoster que responde
-  **lento** no hay error que valga: «Cargando» se queda sin tope (zilla tardó ~70 s el 2026-10-20;
-  [trampa 54](docs/10-invariantes-y-trampas.md), deuda **B15**).
+  **lento** tampoco hay error de mpv, así que `VideoPlayer` lleva un **tope propio de 30 s**
+  (`LOAD_TIMEOUT_S`, desde `play()` hasta que empieza a verse) que para mpv y cae al navegador
+  (zilla tardó ~70 s el 2026-10-20; [trampa 54](docs/10-invariantes-y-trampas.md), B15 cerrada el 2026-10-21).
 - **Va encima de la ficha, no en su lugar**: `MainWindow.show_player_frame()` pone `player_frame` en la
   fila 0 y baja `content_frame` a la fila 1, que **se queda** debajo, encogido y desplazado hasta el
   episodio. «← Volver a la ficha», cambiar de vista (`clear_frame()`) y cerrar la ventana
@@ -566,6 +574,11 @@ lo que daba por hecho la investigación previa. Detalle completo en
   con `SystemExit`. ✅ **Verificado compilando el 2026-10-20**: el `.exe`, lanzado **fuera del repo y sin
   la DLL en `%PATH%`**, reproduce AnimeAV1 por `HLS` y JKAnime por Desu, y carga la DLL de
   `_internal\vendor`. `dist/` pasa de **38 a 153 MB**.
+  🆕 **Y desde el 2026-10-21 se para también si la DLL no es la que describen los avisos**: compara
+  su sha256 con el de la sección generada de `THIRD-PARTY-NOTICES.txt` y la del paso 4 del
+  `README.md`. Se arregla pasando `tools/actualizar_libmpv.py`, nunca editando el sha a mano. No
+  comprueba si hay una DLL más reciente, a propósito: actualizar es una decisión.
+  ✅ **0.2.2 compilada y probada por el usuario el 2026-10-21** (`HLS`, Desu y navegador).
 - La versión de la app vive en `APP_VERSION` dentro del `.spec`.
 - `resources/DB/` y las carpetas de pósters están en `.gitignore`: se generan en tiempo de ejecución.
 - Hay **4** `# TODO:` en el código, en dos ficheros: `anime_window.py:151,154` (recomendaciones por
@@ -596,9 +609,12 @@ lo que daba por hecho la investigación previa. Detalle completo en
   `nonfree`): compatibles con el proyecto. Los avisos pasan de 14 a **20** componentes —cuatro ya
   viajaban en el `.exe` sin aviso— y, por la §6, dan la versión exacta y los enlaces al fuente de mpv,
   FFmpeg y la receta de compilación, **más una oferta de facilitar el fuente** si caen.
-  ⚠️ **Esa oferta compromete al autor.** Antes de distribuir, quedan **L10** (los avisos de las ~45
-  bibliotecas dentro de libmpv no van íntegros) y **L11** (la receta de FFmpeg se leyó de `master`, no
-  de la etiqueta de la DLL).
+  ⚠️ **Esa oferta compromete al autor**, y el usuario decidió mantenerla (2026-10-21).
+  ✅ **L10 y L11 cerrados el 2026-10-21**: la DLL lleva **89** bibliotecas (más submódulos y 71 crates
+  de Rust), y sus avisos van íntegros —el fichero pasa de 2 460 a 16 810 líneas—; la licencia de
+  FFmpeg se comprobó en la etiqueta exacta. ⚠️ **La receta no anota qué versión de cada biblioteca
+  compila**: las de los avisos son **reconstruidas** (último commit antes de compilar), y así lo dicen;
+  el método acierta el hash real de mpv y de FFmpeg en las dos releases probadas (L12).
 - ⚠️ **Los iconos `viendo_light/dark.png` y `pendientes_light/dark.png` existen en
   `resources/images/utils/` pero NO se usan, y activarlos no funcionaría**: ✅ comprobado, **los dos
   dibujos de cada par son de tinta negra**, así que como par (claro, oscuro) el del tema oscuro sería
@@ -646,8 +662,8 @@ cerrados —el pin y la integración de un proveedor nuevo el 2026-08-06, y la c
 4. ✅ ~~**Reproducir los episodios dentro de la aplicación**~~ — **hecho entre el 2026-09-23 y el
    2026-10-20**, en **7 fases**, una por sesión ([`.claude/plan-reproductor/`](plan-reproductor/README.md),
    cierre en su `ESTADO.md`). Tampoco estaba en la lista. Cerró de paso la **deuda nº 1** del rediseño
-   (los servidores en el hilo de Tk). ⚠️ **El audio está decodificado pero nadie lo ha oído**: es lo
-   único que deja tres fases en «terminada sin verificar del todo». **Deja sin hacer, a propósito**:
+   (los servidores en el hilo de Tk). ✅ **El audio lo oyó el usuario el 2026-10-21**, que era lo
+   último sin verificar. **Deja sin hacer, a propósito**:
    los hosters aplazados (**B14**), recordar el minuto donde lo dejaste (una columna más, no pedida),
    elegir calidad o subtítulos (los playlists no ofrecen alternativas) y descargar episodios.
 
@@ -687,12 +703,11 @@ Después, sin orden fijado. **El rediseño se llevó por delante buena parte de 
 - **Deuda que deja el reproductor**:
   1. **B14**: los hosters sin resolutor siguen abriendo el navegador. Lo que más valdría es un segundo
      hoster por proveedor que no dependa del mismo origen: zilla estuvo caído tres días en septiembre.
-  2. **L10 / L11**: dos comprobaciones de licencia pendientes **antes de distribuir** un `.exe` con
-     reproductor ([`docs/12 §7`](docs/12-deuda-tecnica-y-roadmap.md)).
+  2. ✅ ~~**L10 / L11**~~ — **cerradas el 2026-10-21** con `tools/actualizar_libmpv.py`
+     ([`docs/12 §7`](docs/12-deuda-tecnica-y-roadmap.md)).
   3. **C12**: la DLL no está en el repo; un clon limpio no compila el `.exe` sin el paso 4 del README.
-  4. **B15**: «Cargando» no tiene tope propio; con un hoster lento no se cae al navegador
-     ([trampa 54](docs/10-invariantes-y-trampas.md)). Es lo más barato de esta lista y lo que más se
-     nota: un plazo desde `play()` hasta que empieza a verse.
+  4. ✅ ~~**B15**: «Cargando» no tiene tope propio~~ — **cerrada el 2026-10-21**: 30 s desde `play()`
+     hasta que empieza a verse, y al vencer cae al navegador ([trampa 54](docs/10-invariantes-y-trampas.md)).
 
 ---
 

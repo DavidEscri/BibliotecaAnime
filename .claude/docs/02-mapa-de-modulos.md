@@ -460,7 +460,8 @@ el botón que había aquí.
 > ✅ **Bug**: `__apply_filters` (`:341`) pasa `self.selected_order.get()`, un **`str`**, a
 > `get_anime_by_genre_and_order`, que compara contra el **enum** (`animesPersistence.py:384`). La
 > comparación siempre es `True` → *return* temprano → **la ordenación por coincidencias de género
-> nunca se aplica**. Trampa 6.
+> nunca se aplica**. Trampa 6. ✅ **Resuelto el 2026-10-21** en la persistencia, que ahora acepta
+> las dos formas; este llamante ya no existe.
 
 ---
 

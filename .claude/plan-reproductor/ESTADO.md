@@ -6,13 +6,13 @@
 | | |
 |---|---|
 | **Fase actual** | **Plan cerrado** — las 7 fases hechas (ver *Cierre del plan*, al final) |
-| **Situación** | ✅ **Fase 6 terminada** (2026-10-20): `CLAUDE.md` y 11 documentos de `.claude/docs/` al día con el reproductor, **12 trampas nuevas** (43-54) más la 18f, 0 enlaces rotos de 903, prueba de humo sobre copia con JKAnime/Desu visto en pantalla. ⚠️ **El audio sigue sin oírse** —falta que lo confirme el usuario— y la prueba de humo destapó la **trampa 54** (zilla lento → «Cargando» sin tope, deuda B15) |
+| **Situación** | ✅ **Fase 6 terminada** (2026-10-20): `CLAUDE.md` y 11 documentos de `.claude/docs/` al día con el reproductor, **12 trampas nuevas** (43-54) más la 18f, 0 enlaces rotos de 903, prueba de humo sobre copia con JKAnime/Desu visto en pantalla. ✅ **El audio lo ha oído el usuario** (2026-10-21: «los episodios se escuchan perfectamente»). La prueba de humo destapó la **trampa 54** (zilla lento → «Cargando» sin tope, deuda B15) |
 | **Último paso completado** | Fase 6 cerrada (paso 6.4: cierre del plan) |
 | **Siguiente paso** | Ninguno dentro del plan. Recomendación en *Cierre del plan* |
 | **Rama** | **`feature/reproductor-embebido`** — la creó el usuario antes de la fase 0 (lleva el plan y un merge de `develop`). **No se crea `feature/reproductor-in-app`**: ver *Decisiones* |
 | **Base** | `f7c88ca` en `feature/reproductor-embebido`; `95abd56` **es ancestro** (llega vía `develop`) |
 | **Commits** | automáticos (uno al cerrar cada fase) |
-| **Actualizado** | 2026-10-20 (cierre de la fase 6 y del plan) |
+| **Actualizado** | 2026-10-21 (audio confirmado por el usuario: fases 0 y 3 pasan a ✅) |
 
 ---
 
@@ -20,12 +20,12 @@
 
 | # | Fase | Situación | Commit | Verificada |
 |---|---|---|---|---|
-| 0 | Spike de libmpv | ⚠️ terminada sin verificar del todo | commit «Reproductor fase 0 — Spike de libmpv» (`git log --grep "fase 0"`) | Sí, en pantalla. (b) contra zilla real ✅ **el 2026-10-20** (en la fase 4). Falta el audio oído |
+| 0 | Spike de libmpv | ✅ terminada | commit «Reproductor fase 0 — Spike de libmpv» (`git log --grep "fase 0"`) | Sí, en pantalla. (b) contra zilla real ✅ **el 2026-10-20** (en la fase 4). Audio oído por el usuario ✅ **el 2026-10-21** |
 | 1 | Capa de resolución | ✅ terminada | commit «Reproductor fase 1 — Capa de resolución» (`git log --grep "fase 1"`) | Sí, contra los sitios y en pantalla (B1). `ZillaResolver` ✅ **el 2026-10-20** (en la fase 4) |
 | 2 | Servidores fuera del hilo de Tk | ✅ terminada | commit «Reproductor fase 2 — Servidores fuera del hilo de Tk» (`git log --grep "fase 2"`) | Sí, en la app (copia) con Tk y red reales: 16/16 comprobaciones y capturas |
-| 3 | Panel de reproducción | ⚠️ terminada sin verificar del todo | commit «Reproductor fase 3 — Panel de reproducción» (`git log --grep "fase 3"`) | Sí, en pantalla sobre copia: AnimeAV1/MP4Upload y JKAnime/Desu y Magi, 47 comprobaciones y capturas. `HLS` ✅ **el 2026-10-20** (en la fase 4). Falta el audio oído |
+| 3 | Panel de reproducción | ✅ terminada | commit «Reproductor fase 3 — Panel de reproducción» (`git log --grep "fase 3"`) | Sí, en pantalla sobre copia: AnimeAV1/MP4Upload y JKAnime/Desu y Magi, 47 comprobaciones y capturas. `HLS` ✅ **el 2026-10-20** (en la fase 4). Audio oído por el usuario ✅ **el 2026-10-21** |
 | 4 | Navegación y fin de episodio | ✅ terminada | commit «Reproductor fase 4 — Navegación y fin de episodio» (`git log --grep "fase 4"`) | Sí, en pantalla sobre copia de las dos BD: 57 + 12 + 5 comprobaciones con clics y `Esc` reales, y capturas. BD real intacta |
-| 5 | Empaquetado | ✅ terminada | commit «Reproductor fase 5 — Empaquetado» (`git log --grep "fase 5"`) | Sí, desde el `.exe` en una carpeta fuera del repo: AnimeAV1 `HLS` y JKAnime Desu se ven, UPNShare abre el navegador, capturas. Falta el audio oído |
+| 5 | Empaquetado | ✅ terminada | commit «Reproductor fase 5 — Empaquetado» (`git log --grep "fase 5"`) | Sí, desde el `.exe` en una carpeta fuera del repo: AnimeAV1 `HLS` y JKAnime Desu se ven, UPNShare abre el navegador, capturas. Audio oído por el usuario el 2026-10-21 (⚠️ no consta si también desde el `.exe`) |
 | 6 | Documentación | ✅ terminada | commit «Reproductor fase 6 — Documentación» (`git log --grep "fase 6"`) | Sí: barrido de enlaces (0 rotos de 903), 295 identificadores citados cotejados con `src/`, el script sin red de `docs/09 §6h` ejecutado y prueba de humo sobre copia (Desu visto, capturas). `HLS` no se vio en la prueba: zilla iba lento (trampa 54) |
 
 **Situación**: ⬜ no empezada · 🟡 en curso · ✅ terminada · ⚠️ terminada sin verificar · ❌ revertida
@@ -40,6 +40,7 @@ Lo que no se ha podido ejecutar en cada fase, para que nadie lo dé por probado.
 | Fase | Sin verificar | Por qué |
 |---|---|---|
 | 0 | 🔴 **(b) contra zilla real**: que el servidor de verdad siga exigiendo `Sec-Fetch-Site` y que mpv reproduzca **su HLS fMP4** (otro demuxer que el MPEG-TS probado) | `player.zilla-networks.com` devolvió **522** (origen caído) a las ~23:30 y a las ~23:50 del 2026-09-23. **Receta para repetirlo** (la primera fase que salga a zilla, idealmente la 1 en su verificación): `mpv.MPV(vo="null", ao="null", cache="no")`, cargar `https://player.zilla-networks.com/m3u8/<hash>` **con** `http_header_fields=["Sec-Fetch-Site: same-origin"]` y ver que `time-pos` avanza; repetir **sin** ella y ver `[curl] HTTP error 403` en los segmentos y `end-file` con `reason=4`. Un episodio, dos pasadas separadas |
+| 0 · 3 · 4 · 5 | ✅ **El audio, oído — confirmado por el usuario el 2026-10-21** («los episodios se escuchan perfectamente»). Cierra las cuatro filas de audio de abajo. No consta si lo oyó también desde el `.exe` | — |
 | 0 | **El audio, oído** | Se comprobó que se decodifica (`aac`) y que avanza con el vídeo, pero no puedo oír. Lo confirma el usuario en la fase 3 |
 | 1 | 🔴 **`ZillaResolver` contra el zilla real**: que `m3u8/<hash>` siga siendo el playlist y que sus segmentos sigan dando 403 sin `Sec-Fetch-Site` | `player.zilla-networks.com`: el playlist agotó el tiempo (15 s) en **los 3 episodios** probados el 2026-09-24, y `play/` dio **403 de Cloudflare**. ✅ **Es caída del origen** (522 también desde otra IP). Repetir cuando vuelva (ver *Decisiones*, cobertura). La conversión `play/` → `m3u8/` y la cabecera **sí** se comprobaron sin red. **Es la misma pasada que la (b) de la fase 0**: resolver con `registry.resolve()`, bajar el playlist, un segmento con y sin la cabecera, y cargarlo en mpv |
 | 1 | **B2 con un `Okru` real** | Ningún episodio probado ofrecía `Okru` el 2026-09-24 (One Piece ep. 1 ya no lo trae). Verificado con HTML sintético pasado por `get_anime_episode_servers()`: sale `https://jkanime.net/jkokru.php?u=…` |
@@ -379,17 +380,17 @@ Escrito el 2026-10-20 por la fase 6.
 
 | # | Fase | Cierre | Excepción |
 |---|---|---|---|
-| 0 | Spike de libmpv | ⚠️ | **El audio, oído.** Lo demás se verificó: (b) contra zilla real, el 2026-10-20 |
+| 0 | Spike de libmpv | ✅ | — (audio oído por el usuario el 2026-10-21; (b) contra zilla real, el 2026-10-20) |
 | 1 | Capa de resolución | ✅ | — (`Okru` real y la app con la BD real, sin ejecutar; ver arriba) |
 | 2 | Servidores fuera del hilo de Tk | ✅ | — |
-| 3 | Panel de reproducción | ⚠️ | **El audio, oído**; dos monitores en pantalla completa y salir de ella con la barra lateral plegada |
+| 3 | Panel de reproducción | ✅ | Dos monitores en pantalla completa y salir de ella con la barra lateral plegada (audio oído el 2026-10-21) |
 | 4 | Navegación y fin de episodio | ✅ | — (la ✕ a pantalla completa y el corte antes del final, leídos y no ejecutados) |
 | 5 | Empaquetado | ✅ | El audio desde el `.exe`, una máquina limpia y la receta de FFmpeg en su etiqueta |
 | 6 | Documentación | ✅ | `HLS` no se vio en la prueba de humo (zilla lento, trampa 54); sí se vio Desu |
 
-**Lo único que falta para que las 7 queden en ✅ es que el usuario oiga un episodio**, desde
-`python src/app.py` y desde el `.exe`. Todo lo que se puede medir sin oír —`aac` decodificando,
-avanzando con el vídeo, volumen y silencio cambiando las propiedades de mpv— está medido.
+~~Lo único que falta para que las 7 queden en ✅ es que el usuario oiga un episodio.~~ ✅ **Hecho el
+2026-10-21**: el usuario confirma que los episodios se oyen perfectamente. **Las 7 fases están en
+✅.**
 
 ### Qué quedó fuera
 
@@ -418,20 +419,21 @@ disco** desde antes de la fase 0, así que su §10 no se puede releer. De lo que
 - ✅ **Cerrado**: «de mpv no se probó nada» (fase 0); que mpv mande la cabecera en cada segmento de
   zilla (fase 0 en local, 2026-10-20 contra zilla real); el consumo del AV1 1080p (0,2-0,33 núcleos);
   la cobertura de los tres hosters (fase 1).
-- ⚠️ **Sigue sin comprobar**: **el audio oído**; el consumo en una máquina **sin** otra GPU que la de
+- ⚠️ **Sigue sin comprobar** (el audio oído salió de esta lista el 2026-10-21): el consumo en una máquina **sin** otra GPU que la de
   pruebas; la URL de `jkplayers` **tras cambiar de IP** (se sabe que la incrusta, no se ha visto
   fallar); un `Okru` real; por qué `play/` de zilla da **403 de Cloudflare a `requests`** (no afecta: el
   resolutor no pide esa página); y el `.exe` en una **máquina limpia**.
 
 ### Qué recomendaría como siguiente tarea
 
-1. **Oír un episodio** (5 minutos, lo hace el usuario): cierra el ⚠️ de las fases 0, 3 y 5.
-2. **B15 — un tope propio para «Cargando»**: un plazo desde `play()` hasta el primer
+1. ~~**Oír un episodio**~~ — ✅ hecho por el usuario el 2026-10-21.
+2. ✅ **Hecho el 2026-10-21 con 30 s** (`LOAD_TIMEOUT_S`, trampa 54 resuelta). ~~**B15 — un tope propio para «Cargando»**~~: un plazo desde `play()` hasta el primer
    `playback-restart` que, al vencer, haga lo mismo que `on_error`. Es pequeño, toca dos ficheros y es
    lo que más se nota: con zilla lento, hoy el usuario no sabe si esperar.
-3. **B2** (`str` vs enum en la ordenación por géneros): lo siguiente barato del roadmap de
-   `CLAUDE.md`, y desbloquea las recomendaciones por género y ordenar favoritos por calificación.
-4. **Antes de distribuir un `.exe` con reproductor**: **L10** y **L11** (`docs/12 §7`), y decidir si la
-   **oferta de facilitar el fuente** de la DLL se mantiene o se sustituye por alojar una copia.
+3. ~~**B2**~~ (`str` vs enum en la ordenación por géneros) — ✅ cerrado el 2026-10-21 en
+   `animesPersistence.py` ([`docs/12 §4`](../docs/12-deuda-tecnica-y-roadmap.md)).
+4. ✅ **Hecho el 2026-10-21**: **L10** y **L11** cerrados con `tools/actualizar_libmpv.py`, y la
+   **oferta de facilitar el fuente** se mantiene (decisión del usuario). La DLL sigue dentro del
+   `.exe`, para que el reproductor sea transparente (`docs/12 §7`, L12-L13).
 5. Fusionar `feature/reproductor-embebido` en `develop`, cuando el usuario lo decida: ninguna fase
    tocó otra rama.

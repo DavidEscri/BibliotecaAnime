@@ -1080,9 +1080,9 @@ si el anime está guardado: terminar un episodio escribe ([§6i](#6i-verificar-e
 **Degradación — lo que no puede romperse nunca**
 - [ ] 🔴 Un servidor con ↗ (UPNShare, Mega…) **abre el navegador** y el recuadro dice «X se abre en tu
       navegador», con «Ver aquí con Y» si hay otro que sí se ve.
-- [ ] 🔴 Un servidor que no responde (zilla caído) cae al navegador a los **~20 s**. ⚠️ Uno que
-      responde **lento** se queda en «Cargando» sin tope ([trampa 54](10-invariantes-y-trampas.md),
-      abierta): comprobar al menos que la columna sigue respondiendo y se puede pulsar otro servidor.
+- [ ] 🔴 Un servidor que no responde (zilla caído) cae al navegador a los **~20 s**. Uno que
+      responde **lento** cae a los **30 s** (`LOAD_TIMEOUT_S`, [trampa 54](10-invariantes-y-trampas.md)),
+      y mientras tanto la columna sigue respondiendo y se puede pulsar otro servidor.
 - [ ] 🔴 Sin `vendor/libmpv-2.dll`, la app arranca igual y **todo** servidor acaba en el navegador.
 
 **Navegar y terminar**

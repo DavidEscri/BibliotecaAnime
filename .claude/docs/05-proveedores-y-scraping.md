@@ -682,7 +682,7 @@ Lo que dice qué ha pasado es **la consola** (con `python src/app.py`; el `.exe`
 | Igual, pero | `No se pudo descargar …` con **403** | Cloudflare | **parar**: no reintentar en bucle (la IP ya se bloqueó una vez, el 2026-08-23) |
 | «Cargando» un instante y navegador | `mpv no pudo reproducir el medio (error …)` | el medio rechaza la petición: cabeceras o caducidad | [trampas 43-45](10-invariantes-y-trampas.md) |
 | «Cargando» **~20 s** y navegador | idem, tras el `network-timeout` de 15 s | el origen del hoster está **caído** | esperar; no es el resolutor |
-| «Cargando» **más de medio minuto**, sin caer | nada: mpv sigue abriendo el medio | el hoster **responde, pero lento** (zilla, 2026-10-20: ~70 s hasta abrir) | pulsar otro servidor; [trampa 54](10-invariantes-y-trampas.md), deuda **B15** |
+| «Cargando» **30 s** y navegador | `El medio no ha empezado a verse en 30 s: …` y `[reproductor] …: El servidor tarda demasiado en entregar el vídeo` | el hoster **responde, pero lento** (zilla, 2026-10-20: ~70 s hasta abrir) | ya cae solo al navegador; si se repite, el hoster va lento ese día ([trampa 54](10-invariantes-y-trampas.md), B15 cerrada) |
 | **Todos** los servidores al navegador | `No se pudo cargar libmpv…` | falta la DLL | [trampa 18f](10-invariantes-y-trampas.md) |
 | Se ve, pero **a tirones** | — (mpv: `paused-for-cache`) | el hoster sirve por debajo del bitrate (MP4Upload, 110-260 KB/s el 2026-09-24) | nada en la app |
 | Navegador tras ver **un buen rato** | `El medio terminó en … : se trata como un corte del servidor` | el stream se cortó antes del final | [trampa 48](10-invariantes-y-trampas.md): no marca el episodio |
