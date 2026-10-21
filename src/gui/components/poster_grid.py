@@ -12,7 +12,7 @@ estrellas de «Favoritos») y un pie opcional (el proveedor, en las vistas de
 biblioteca). El tamaño del póster es un parámetro, así que la rejilla de
 «Nuevos lanzamientos» y la de «Favoritos» son la misma clase con otros
 argumentos. El sello, igualmente, es de la rejilla y no de ninguna vista: llega
-desde fuera con su texto y su glifo.
+desde fuera con su texto y su estado, y la rejilla dibuja el glifo.
 
 El número de columnas se calcula del ancho disponible: ``columns_that_fit()``
 divide el ancho de la rejilla entre póster + hueco. Por eso la vista tiene que
@@ -31,6 +31,8 @@ from typing import Any, Callable, List, Optional, Tuple
 
 import customtkinter as ctk
 
+from dataPersistence.animesPersistence import AnimeStatus
+from gui.components.status_pill import StatusPill
 from gui.theme import Metrics, Theme
 from utils.utils import load_rounded_image
 
@@ -45,9 +47,9 @@ class PosterItem:
         placeholder gris de ``load_rounded_image()``.
     :param badge: texto del sello superpuesto (el «12 / 12» de finalizados).
         ``None`` no pinta nada.
-    :param badge_icon: glifo que va delante de ese texto, normalmente el de
-        ``StatusPill.icon()``. El hueco que lo separa del texto viene dentro del
-        propio dibujo. ``None`` deja el sello con texto solo.
+    :param badge_status: estado cuyo glifo de ``StatusPill.icon()`` va delante de
+        ese texto. El hueco que lo separa del texto viene dentro del propio
+        dibujo. ``None`` deja el sello con texto solo.
     :param footer: línea de apoyo bajo el título (el proveedor). ``None`` la omite
         y la celda queda más baja.
     :param data: lo que la vista necesite recuperar en ``extra_builder`` sin
@@ -62,7 +64,7 @@ class PosterItem:
     title: str
     poster_path: Optional[str] = None
     badge: Optional[str] = None
-    badge_icon: Optional[ctk.CTkImage] = None
+    badge_status: Optional[AnimeStatus] = None
     footer: Optional[str] = None
     data: Any = None
 
@@ -256,6 +258,12 @@ class PosterGrid(ctk.CTkFrame):
         self.__clear_cells()
         self.__items = []
 
+    def destroy(self) -> None:
+        """Destruye la rejilla soltando sus imágenes, porque la vista conserva la referencia a ella."""
+        self.__images.clear()
+        self.__items = []
+        super().destroy()
+
     def __render(self, items: List[PosterItem]) -> None:
         self.__clear_cells()
         self.__items = items
@@ -287,10 +295,13 @@ class PosterGrid(ctk.CTkFrame):
         poster_label.grid(row=0, column=0)
 
         if item.badge:
+            # El glifo se crea aquí y no en la vista: un CTkImage que sobrevive a su
+            # widget lo retiene, con la celda entera, mientras la vista guarde el ítem.
+            badge_icon = StatusPill.icon(item.badge_status) if item.badge_status is not None else None
             badge_label = ctk.CTkLabel(
                 poster_label,
                 text=item.badge,
-                image=item.badge_icon,
+                image=badge_icon,
                 # Con imagen y texto a la vez hay que decir dónde va cada uno:
                 # por defecto CTkLabel los superpone (compound="center") y el
                 # glifo saldría debajo de la cifra.
@@ -301,8 +312,8 @@ class PosterGrid(ctk.CTkFrame):
                 fg_color=Theme.BADGE_BG,
                 text_color=Theme.BADGE_INK
             )
-            if item.badge_icon is not None:
-                self.__images.append(item.badge_icon)
+            if badge_icon is not None:
+                self.__images.append(badge_icon)
             # place() y no grid: el sello se superpone al póster, no ocupa sitio.
             # Mezclar los dos gestores en el mismo contenedor es lo que produce
             # widgets que no aparecen o que se comen a sus hermanos.

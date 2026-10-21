@@ -253,7 +253,10 @@ _IMAGE_GLYPHS: Dict[str, Callable[[Image.Image, str], Image.Image]] = {
     "back10": _draw_back10,
     "forward10": _draw_forward10,
 }
-_ICON_CACHE: Dict[Tuple[str, int, ColorToken], ctk.CTkImage] = {}
+#: Dibujos ya hechos (claro, oscuro). Se cachea el dibujo y no el CTkImage,
+#: porque un CTkImage compartido retiene a todo widget que lo haya usado aunque
+#: ya esté destruido.
+_ICON_CACHE: Dict[Tuple[str, int, ColorToken], Tuple[Image.Image, Image.Image]] = {}
 
 
 def player_icon(name: str, size: int = ICON_SIZE, color: ColorToken = Theme.TXT_2) -> ctk.CTkImage:
@@ -263,46 +266,49 @@ def player_icon(name: str, size: int = ICON_SIZE, color: ColorToken = Theme.TXT_
         «volume», «muted», «fullscreen», «exit_fullscreen», «external», «left», «close» o «check».
     :param size: Lado del icono.
     :param color: Par (claro, oscuro) con el que se tiñe.
-    :return: El icono, cacheado por nombre, tamaño y color.
+    :return: Un CTkImage nuevo; el dibujo sale cacheado por nombre, tamaño y color.
     """
     key = (name, size, color)
-    cached = _ICON_CACHE.get(key)
-    if cached is not None:
-        return cached
-    images = []
-    for tone in color:
-        big = Image.new("RGBA", (size * _SUPERSAMPLE, size * _SUPERSAMPLE), (0, 0, 0, 0))
-        if name in _IMAGE_GLYPHS:
-            big = _IMAGE_GLYPHS[name](big, tone)
-        else:
-            _GLYPHS[name](ImageDraw.Draw(big), big.width, tone)
-        images.append(big.resize((size, size), Image.LANCZOS))
-    icon = ctk.CTkImage(light_image=images[0], dark_image=images[1], size=(size, size))
-    _ICON_CACHE[key] = icon
-    return icon
+    images = _ICON_CACHE.get(key)
+    if images is None:
+        drawn = []
+        for tone in color:
+            big = Image.new("RGBA", (size * _SUPERSAMPLE, size * _SUPERSAMPLE), (0, 0, 0, 0))
+            if name in _IMAGE_GLYPHS:
+                big = _IMAGE_GLYPHS[name](big, tone)
+            else:
+                _GLYPHS[name](ImageDraw.Draw(big), big.width, tone)
+            drawn.append(big.resize((size, size), Image.LANCZOS))
+        images = (drawn[0], drawn[1])
+        _ICON_CACHE[key] = images
+    return ctk.CTkImage(light_image=images[0], dark_image=images[1], size=(size, size))
 
 
-_RING_CACHE: List[ctk.CTkImage] = []
+#: Fotogramas del aro ya dibujados, como pares (claro, oscuro).
+_RING_CACHE: List[Tuple[Image.Image, Image.Image]] = []
 
 
 def _ring_frames() -> List[ctk.CTkImage]:
-    """Fotogramas del aro que gira en la tarjeta de «Cargando»."""
-    if _RING_CACHE:
-        return _RING_CACHE
-    big = RING_SIZE * _SUPERSAMPLE
-    width = 3 * _SUPERSAMPLE
-    for index in range(RING_FRAMES):
-        pair = []
-        for track, arc in zip(Theme.LINE, Theme.ACCENT):
-            image = Image.new("RGBA", (big, big), (0, 0, 0, 0))
-            draw = ImageDraw.Draw(image)
-            box = [width / 2, width / 2, big - width / 2, big - width / 2]
-            draw.ellipse(box, outline=track, width=width)
-            start = index * 360 / RING_FRAMES - 90
-            draw.arc(box, start=start, end=start + 90, fill=arc, width=width)
-            pair.append(image.resize((RING_SIZE, RING_SIZE), Image.LANCZOS))
-        _RING_CACHE.append(ctk.CTkImage(light_image=pair[0], dark_image=pair[1], size=(RING_SIZE, RING_SIZE)))
-    return _RING_CACHE
+    """Fotogramas del aro que gira en la tarjeta de «Cargando».
+
+    :return: Una lista nueva de CTkImage, para que la tarjeta se la lleve al destruirse.
+    """
+    if not _RING_CACHE:
+        big = RING_SIZE * _SUPERSAMPLE
+        width = 3 * _SUPERSAMPLE
+        for index in range(RING_FRAMES):
+            pair = []
+            for track, arc in zip(Theme.LINE, Theme.ACCENT):
+                image = Image.new("RGBA", (big, big), (0, 0, 0, 0))
+                draw = ImageDraw.Draw(image)
+                box = [width / 2, width / 2, big - width / 2, big - width / 2]
+                draw.ellipse(box, outline=track, width=width)
+                start = index * 360 / RING_FRAMES - 90
+                draw.arc(box, start=start, end=start + 90, fill=arc, width=width)
+                pair.append(image.resize((RING_SIZE, RING_SIZE), Image.LANCZOS))
+            _RING_CACHE.append((pair[0], pair[1]))
+    return [ctk.CTkImage(light_image=light, dark_image=dark, size=(RING_SIZE, RING_SIZE))
+            for light, dark in _RING_CACHE]
 
 
 def _pointer_inside(widget) -> bool:
@@ -1011,11 +1017,12 @@ class VideoPlayer(ctk.CTkFrame):
     def show_loading(self, title: str, subtitle: str) -> None:
         """Tarjeta de «Cargando» con el aro girando."""
         content = self.__new_card(boxed=False)
-        ring = ctk.CTkLabel(content, text="", image=_ring_frames()[0])
+        frames = _ring_frames()
+        ring = ctk.CTkLabel(content, text="", image=frames[0])
         ring.pack(pady=(0, 14))
         ctk.CTkLabel(content, text=title, font=Theme.font(15, True), text_color=Theme.BADGE_INK).pack()
         ctk.CTkLabel(content, text=subtitle, font=Theme.font(*Theme.T_SUB), text_color=Theme.TXT_3).pack(pady=(4, 0))
-        self.__animate_ring(ring, 0)
+        self.__animate_ring(ring, frames, 0)
 
     def show_message(self, title: str, body: str,
                      buttons: List[Tuple[str, Callable[[], None], bool]],
@@ -1107,13 +1114,12 @@ class VideoPlayer(ctk.CTkFrame):
         content.place(relx=0.5, rely=0.5, anchor="center")
         return content
 
-    def __animate_ring(self, ring: ctk.CTkLabel, index: int) -> None:
+    def __animate_ring(self, ring: ctk.CTkLabel, frames: List[ctk.CTkImage], index: int) -> None:
         self.__ring_job = None
         if self.__closed or not ring.winfo_exists():
             return
-        frames = _ring_frames()
         ring.configure(image=frames[index % len(frames)])
-        self.__ring_job = self.after(RING_STEP_MS, self.__animate_ring, ring, index + 1)
+        self.__ring_job = self.after(RING_STEP_MS, self.__animate_ring, ring, frames, index + 1)
 
     def __stop_ring(self) -> None:
         if self.__ring_job is not None:

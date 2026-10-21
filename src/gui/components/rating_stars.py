@@ -35,10 +35,11 @@ from PIL import Image, ImageDraw
 
 from gui.theme import Theme
 
-#: Imágenes ya construidas, indexadas por (relleno, tamaño). Un CTkImage se
-#: puede compartir entre widgets: con 5 estrellas por celda y 10 celdas por
-#: página, generarlas una vez ahorra 50 dibujos por repintado.
-_IMAGE_CACHE: Dict[Tuple[float, int], ctk.CTkImage] = {}
+#: Dibujos ya hechos (claro, oscuro), indexados por (relleno, tamaño): con 5
+#: estrellas por celda y 10 celdas por página, ahorra 50 dibujos por repintado.
+#: Se cachea el dibujo y no el CTkImage, porque un CTkImage compartido retiene
+#: a todo widget que lo haya usado aunque ya esté destruido.
+_IMAGE_CACHE: Dict[Tuple[float, int], Tuple[Image.Image, Image.Image]] = {}
 
 #: Factor de supermuestreo. La estrella se dibuja a 8x y se reduce con LANCZOS
 #: porque un polígono a 14 px sin antialias sale con los picos dentados.
@@ -79,23 +80,19 @@ def _star_layer(fill: float, size: int, on_color: str, off_color: str) -> Image.
 
 
 def star_image(fill: float, size: int) -> ctk.CTkImage:
-    """Devuelve (y cachea) la estrella rellena a la fracción ``fill`` (0.0, 0.5 o 1.0).
+    """Estrella rellena a la fracción ``fill`` (0.0, 0.5 o 1.0), en un CTkImage nuevo.
 
-    Construye las dos variantes de la imagen —clara y oscura— a partir de los
-    tokens del tema, así que ``CTkImage`` cambia de una a otra al cambiar la
-    apariencia **sin que nadie tenga que reconfigurar el widget**.
+    Lleva las dos variantes —clara y oscura— a partir de los tokens del tema,
+    así que cambia de una a otra al cambiar la apariencia **sin que nadie tenga
+    que reconfigurar el widget**. El dibujo sale de la caché.
     """
     key = (fill, size)
-    cached = _IMAGE_CACHE.get(key)
-    if cached is not None:
-        return cached
-    image = ctk.CTkImage(
-        light_image=_star_layer(fill, size, Theme.ACCENT[0], Theme.LINE[0]),
-        dark_image=_star_layer(fill, size, Theme.ACCENT[1], Theme.LINE[1]),
-        size=(size, size)
-    )
-    _IMAGE_CACHE[key] = image
-    return image
+    layers = _IMAGE_CACHE.get(key)
+    if layers is None:
+        layers = (_star_layer(fill, size, Theme.ACCENT[0], Theme.LINE[0]),
+                  _star_layer(fill, size, Theme.ACCENT[1], Theme.LINE[1]))
+        _IMAGE_CACHE[key] = layers
+    return ctk.CTkImage(light_image=layers[0], dark_image=layers[1], size=(size, size))
 
 
 def format_rating(rating: Optional[int]) -> str:
@@ -137,6 +134,9 @@ class RatingStars(ctk.CTkFrame):
         self.__value = value
         self.__on_change = on_change
         self.__star_labels: List[ctk.CTkLabel] = []
+        #: Imágenes por relleno, compartidas por las cinco estrellas de esta fila y
+        #: no entre filas: se destruyen con ella en vez de retenerla.
+        self.__star_images: Dict[float, ctk.CTkImage] = {}
 
         for index in range(self.STARS):
             star_label = ctk.CTkLabel(self, text="", width=self.STAR_SLOT, height=self.STAR_PX)
@@ -177,7 +177,10 @@ class RatingStars(ctk.CTkFrame):
         for index, star_label in enumerate(self.__star_labels):
             # Cuántos de los dos puntos de esta estrella están cubiertos.
             covered = min(max(points - index * self.POINTS_PER_STAR, 0), self.POINTS_PER_STAR)
-            star_label.configure(image=star_image(covered / self.POINTS_PER_STAR, self.STAR_PX))
+            fill = covered / self.POINTS_PER_STAR
+            if fill not in self.__star_images:
+                self.__star_images[fill] = star_image(fill, self.STAR_PX)
+            star_label.configure(image=self.__star_images[fill])
         self.__value_label.configure(text=format_rating(self.__value))
 
     # ------------------------------------------------------------------

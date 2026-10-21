@@ -42,9 +42,10 @@ _ICON_GAP = 5
 #: Lado del glifo de una ficha, en píxeles.
 _ICON_SIZE = 9
 
-#: Glifos ya construidos, indexados por (clase, color). Un ``CTkImage`` se puede
-#: compartir entre widgets y en esta fila hay cuarenta fichas.
-_ICON_CACHE: Dict[Tuple[str, ColorToken], ctk.CTkImage] = {}
+#: Dibujos ya hechos (claro, oscuro), indexados por (clase, color): en esta fila
+#: hay cuarenta fichas. Se cachea el dibujo y no el ``CTkImage``, porque un
+#: ``CTkImage`` compartido retiene a todo widget que lo haya usado aunque ya esté destruido.
+_ICON_CACHE: Dict[Tuple[str, ColorToken], Tuple[Image.Image, Image.Image]] = {}
 
 #: ``borderwidth`` de la etiqueta del texto, a cada lado. La crea CustomTkinter
 #: con ``padx=0, pady=0, borderwidth=1``.
@@ -91,25 +92,23 @@ def _glyph_image(name: str, color: ColorToken, size: int = _ICON_SIZE) -> ctk.CT
     lleva las dos variantes y CustomTkinter elige.
     """
     key = (name, color)
-    cached = _ICON_CACHE.get(key)
-    if cached is not None:
-        return cached
+    variants = _ICON_CACHE.get(key)
+    if variants is None:
+        draw_glyph = _GLYPHS[name]
+        big = size * _SUPERSAMPLE
+        gap = _ICON_GAP * _SUPERSAMPLE
+        drawn: List[Image.Image] = []
+        for variant_color in color:
+            glyph = Image.new("RGBA", (big + gap, big), (0, 0, 0, 0))
+            # El hueco va a la izquierda: el glifo de una ficha se pinta detrás del
+            # texto (compound="right"), al revés que el de un sello.
+            draw_glyph(ImageDraw.Draw(glyph), big, variant_color, gap)
+            drawn.append(glyph.resize((size + _ICON_GAP, size), Image.LANCZOS))
+        variants = (drawn[0], drawn[1])
+        _ICON_CACHE[key] = variants
 
-    draw_glyph = _GLYPHS[name]
-    big = size * _SUPERSAMPLE
-    gap = _ICON_GAP * _SUPERSAMPLE
-    variants: List[Image.Image] = []
-    for variant_color in color:
-        glyph = Image.new("RGBA", (big + gap, big), (0, 0, 0, 0))
-        # El hueco va a la izquierda: el glifo de una ficha se pinta detrás del
-        # texto (compound="right"), al revés que el de un sello.
-        draw_glyph(ImageDraw.Draw(glyph), big, variant_color, gap)
-        variants.append(glyph.resize((size + _ICON_GAP, size), Image.LANCZOS))
-
-    image = ctk.CTkImage(light_image=variants[0], dark_image=variants[1],
-                         size=(size + _ICON_GAP, size))
-    _ICON_CACHE[key] = image
-    return image
+    return ctk.CTkImage(light_image=variants[0], dark_image=variants[1],
+                        size=(size + _ICON_GAP, size))
 
 
 class GenreChips(ctk.CTkFrame):

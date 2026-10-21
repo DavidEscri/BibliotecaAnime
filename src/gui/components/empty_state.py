@@ -85,8 +85,10 @@ _GLYPHS: Dict[str, Callable[[ImageDraw.ImageDraw, float, str], None]] = {
     "search": _magnifier_glyph,
 }
 
-#: Iconos ya construidos, indexados por (nombre, tamaño, color).
-_ICON_CACHE: Dict[Tuple[str, int, ColorToken], ctk.CTkImage] = {}
+#: Dibujos ya hechos (claro, oscuro), indexados por (nombre, tamaño, color). Se
+#: cachea el dibujo y no el ``CTkImage``, porque un ``CTkImage`` compartido
+#: retiene a todo widget que lo haya usado aunque ya esté destruido.
+_ICON_CACHE: Dict[Tuple[str, int, ColorToken], Tuple[Image.Image, Image.Image]] = {}
 
 
 def glyph(name: str, size: int = ICON_SIZE,
@@ -107,14 +109,11 @@ def glyph(name: str, size: int = ICON_SIZE,
         return None
 
     key = (name, size, color)
-    cached = _ICON_CACHE.get(key)
-    if cached is not None:
-        return cached
-
-    light_glyph, dark_glyph = (_draw(draw_glyph, size, tone) for tone in color)
-    image = ctk.CTkImage(light_image=light_glyph, dark_image=dark_glyph, size=(size, size))
-    _ICON_CACHE[key] = image
-    return image
+    glyphs = _ICON_CACHE.get(key)
+    if glyphs is None:
+        glyphs = tuple(_draw(draw_glyph, size, tone) for tone in color)
+        _ICON_CACHE[key] = glyphs
+    return ctk.CTkImage(light_image=glyphs[0], dark_image=glyphs[1], size=(size, size))
 
 
 def _draw(draw_glyph: Callable[[ImageDraw.ImageDraw, float, str], None],

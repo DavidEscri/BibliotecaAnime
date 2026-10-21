@@ -294,7 +294,7 @@ class FavouritesButton(utilsButtons.SidebarButton):
             title=anime_record.title,
             poster_path=find_cached_poster_path(anime_record.anime_id),
             badge=StatusPill.text(status) if status is not None else None,
-            badge_icon=StatusPill.icon(status) if status is not None else None,
+            badge_status=status,
             footer=self.__provider_name(anime_record),
             data=anime_record
         )

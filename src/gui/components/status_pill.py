@@ -103,10 +103,11 @@ _GLYPHS: Dict[AnimeStatus, Callable[[ImageDraw.ImageDraw, float, str], None]] = 
     AnimeStatus.PENDING:   _list_glyph,
 }
 
-#: Glifos ya construidos, indexados por (estado, tamaño). Un ``CTkImage`` se
-#: puede compartir entre widgets: con doce celdas por página, dibujarlo una vez
-#: ahorra once dibujos por repintado.
-_ICON_CACHE: Dict[Tuple[AnimeStatus, int, Optional[ColorToken], int], ctk.CTkImage] = {}
+#: Dibujos ya hechos (claro, oscuro), indexados por (estado, tamaño, color,
+#: hueco): con doce celdas por página, ahorra once dibujos por repintado. Se
+#: cachea el dibujo y no el ``CTkImage``, porque un ``CTkImage`` compartido
+#: retiene a todo widget que lo haya usado aunque ya esté destruido.
+_ICON_CACHE: Dict[Tuple[AnimeStatus, int, Optional[ColorToken], int], Tuple[Image.Image, Image.Image]] = {}
 
 
 class StatusPill(ctk.CTkLabel):
@@ -170,21 +171,17 @@ class StatusPill(ctk.CTkLabel):
             return None
 
         key = (status, size, color, gap)
-        cached = _ICON_CACHE.get(key)
-        if cached is not None:
-            return cached
+        glyphs = _ICON_CACHE.get(key)
+        if glyphs is None:
+            if color is None:
+                dark_variant = StatusPill.colors(status)[0][1]
+                tones = (dark_variant, dark_variant)
+            else:
+                tones = color
+            glyphs = tuple(StatusPill.__draw(draw_glyph, size, tone, gap) for tone in tones)
+            _ICON_CACHE[key] = glyphs
 
-        if color is None:
-            dark_variant = StatusPill.colors(status)[0][1]
-            tones = (dark_variant, dark_variant)
-        else:
-            tones = color
-        light_glyph, dark_glyph = (StatusPill.__draw(draw_glyph, size, tone, gap) for tone in tones)
-
-        image = ctk.CTkImage(light_image=light_glyph, dark_image=dark_glyph,
-                             size=(size + gap, size))
-        _ICON_CACHE[key] = image
-        return image
+        return ctk.CTkImage(light_image=glyphs[0], dark_image=glyphs[1], size=(size + gap, size))
 
     @staticmethod
     def __draw(draw_glyph: Callable[[ImageDraw.ImageDraw, float, str], None],

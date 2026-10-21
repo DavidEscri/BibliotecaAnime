@@ -521,7 +521,7 @@ class SearchButton(utilsButtons.SidebarButton):
             title=anime.title,
             poster_path=self.__poster_path(anime),
             badge=StatusPill.text(status) if status is not None else None,
-            badge_icon=StatusPill.icon(status) if status is not None else None
+            badge_status=status
         )
 
     @staticmethod

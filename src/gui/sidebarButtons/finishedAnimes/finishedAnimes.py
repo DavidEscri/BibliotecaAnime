@@ -221,7 +221,7 @@ class FinishedAnimeButton(utilsButtons.SidebarButton):
             title=anime_record.title,
             poster_path=find_cached_poster_path(anime_record.anime_id),
             badge=self.__badge_text(anime_record),
-            badge_icon=StatusPill.icon(AnimeStatus.FINISHED),
+            badge_status=AnimeStatus.FINISHED,
             footer=self.__provider_name(anime_record)
         )
 
