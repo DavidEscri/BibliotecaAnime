@@ -4,12 +4,13 @@
 
 **Tu biblioteca de anime: tu colección vive solo en tu equipo; el catálogo llega de proveedores web públicos.**
 
+[![Versión](https://img.shields.io/badge/Versi%C3%B3n-0.4.2-informational.svg?style=flat-square)](#)
 [![Python Version](https://img.shields.io/badge/Python-3.10+-blue.svg?style=flat-square&logo=python)](https://www.python.org/)
 [![License: GPL-3.0](https://img.shields.io/badge/License-GPL--3.0-yellow.svg?style=flat-square)](LICENSE)
 [![OS: Windows](https://img.shields.io/badge/OS-Windows-lightgrey.svg?style=flat-square)](#)
 [![Status: En Desarrollo](https://img.shields.io/badge/Status-Activo-success.svg?style=flat-square)](#)
 
-[Características](#caracteristicas-principales) • [Instalación](##instalación-y-despliegue) • [Estructura](#-estructura-del-proyecto) • [Próximos pasos](#-proximos-pasos) • [Licencia](#licencia)
+[Características](#características-principales) • [Instalación](#instalación-y-despliegue) • [Estructura](#estructura-del-proyecto) • [Próximos pasos](#próximos-pasos) • [Licencia](#licencia)
 
 </div>
 
@@ -25,16 +26,19 @@ A diferencia de plataformas como MyAnimeList o Anilist, este proyecto nace con u
 - **Tu colección, solo en tu equipo:** La base de datos y las portadas se almacenan en local. Sin cuenta, sin registro y sin telemetría: la aplicación no tiene backend propio ni envía tus datos a ningún sitio.
 - **Catálogo de varios proveedores:** Los datos de los animes (fichas, episodios y enlaces) se obtienen por *web scraping* de sitios públicos de anime, con selección de proveedor y sistema de reserva si uno falla. **Esta parte sí requiere conexión a internet.**
 - **Rendimiento Nativo:** Una vez guardado un anime, navegar por tu biblioteca y buscar en ella es instantáneo y funciona sin conexión.
-- **Gestión Integral (CRUD):** Añade nuevos animes, marca los episodios vistos y organízalos por estados (*Favoritos, Viendo, Finalizados, Pendientes*).
-- **Portable:** Posibilidad de compilar la aplicación en un único archivo ejecutable (`.exe`) para llevar tu librería en un pendrive a cualquier parte.
+- **Reproductor integrado:** Los episodios se ven dentro de la propia ventana, con pantalla completa, salto al episodio siguiente y marcado automático como visto al terminar. Los servidores que todavía no se pueden reproducir dentro se abren en el navegador.
+- **Gestión Integral (CRUD):** Añade nuevos animes, marca los episodios vistos y organízalos por estados (*Favoritos, Viendo, Finalizados, Pendientes*). Retoma lo que estabas viendo desde la portada y puntúa tus favoritos.
+- **Portable:** Posibilidad de compilar la aplicación en una carpeta autocontenida con su ejecutable (`.exe`) para llevar tu librería en un pendrive a cualquier parte.
 
 ---
 
 ## Capturas de Pantalla
 
-|               Vista Principal               |               Detalles del Anime               |
-|:-------------------------------------------:|:----------------------------------------------:|
-| ![](resources/images/utils/MainWindows.PNG) | ![](resources/images/utils/AnimeWindow.PNG) |
+|                       Nuevos lanzamientos                       |                       Ficha del anime                       |
+|:---------------------------------------------------------------:|:-----------------------------------------------------------:|
+| ![Nuevos lanzamientos](resources/images/utils/MainWindows.PNG)  | ![Ficha del anime](resources/images/utils/AnimeWindow.PNG)  |
+|                           **Buscar**                            |                   **Reproductor integrado**                   |
+| ![Buscar](resources/images/utils/SearchWindow.PNG)              | ![Reproductor integrado](resources/images/utils/PlayerWindow.PNG) |
 
 ---
 
@@ -115,17 +119,28 @@ MiBibliotecaAnime/
 │   │   │   └── animeav1.py             # Cliente web scraping de AnimeAV1
 │   │   ├── jkanime/
 │   │   │   └── jkanime.py              # Cliente web scraping de JKAnime
-│   │   └── animeflv/
-│   │       └── animeflv.py             # Cliente web scraping de AnimeFLV
+│   │   ├── animeflv/
+│   │   │   └── animeflv.py             # Cliente web scraping de AnimeFLV
+│   │   └── resolvers/                  # Del servidor del episodio al vídeo reproducible
+│   │       ├── base.py                 # Contrato común de los resolutores
+│   │       ├── registry.py             # Punto de entrada: elige el resolutor por dominio
+│   │       └── zilla.py · jkplayer.py · mp4upload.py   # Un resolutor por hoster
 │   ├── dataPersistence/
 │   │   ├── animesPersistence.py        # Capa de acceso a datos de animes persistidos (SQLite)
 │   │   └── userPersistence.py          # Capa de acceso a datos del usuario persistidos (SQLite)
 │   ├── gui/
 │   │   ├── main_window.py              # Ventana principal (CTk)
 │   │   ├── anime_window.py             # Vista de detalle de un anime
+│   │   ├── theme.py                    # Colores, tipografía y medidas de la interfaz
+│   │   ├── components/                 # Piezas compartidas por las vistas
+│   │   │   ├── sidebar.py              # Barra lateral plegable
+│   │   │   ├── poster_grid.py          # Rejilla de pósters
+│   │   │   ├── anime_row.py            # Fila de la cascada de «Viendo» y «Pendientes»
+│   │   │   ├── video_player.py         # Reproductor integrado (mpv) y sus controles
+│   │   │   └── ...                     # Paginador, estrellas, géneros, estados vacíos…
 │   │   └── sidebarButtons/
 │   │       ├── recentAnimes/           
-│   │       │   └── recentAnimes.py     # Botón y vista: animes recientes
+│   │       │   └── recentAnimes.py     # Botón y vista: nuevos lanzamientos
 │   │       ├── favouriteAnimes/        
 │   │       │   └── favouriteAnimes.py  # Botón y vista: favoritos
 │   │       ├── finishedAnimes/         
@@ -154,6 +169,10 @@ MiBibliotecaAnime/
 │       ├── watching/                   # Posters de animes en curso
 │       ├── pending/                    # Posters de animes pendientes
 │       └── search/                     # Posters temporales del buscador
+├── tools/
+│   └── actualizar_libmpv.py            # Descarga, prueba e instala libmpv y regenera sus avisos
+├── vendor/
+│   └── libmpv-2.dll                    # Biblioteca del reproductor (no está en el repositorio: paso 4)
 ├── MiBibliotecaAnime.spec              # Configuración de PyInstaller
 ├── requirements.txt                    # Librerías externas de python requeridas
 ├── LICENSE                             # Licencia del proyecto (GNU GPL v3)
@@ -168,15 +187,17 @@ MiBibliotecaAnime/
  - Alternar entre visualización de anime y manga.
  - Capacidad de identificar el capitulo del manga por el que continuar tras finalizar un anime.
  - Mostrar animes/mangas relacionados que podrían gustar al usuario tras finalizar un anime/manga.
- - Mejora visual general.
+ - Reproducir dentro de la aplicación los servidores que hoy se abren en el navegador.
 
 ## Contribuciones
-Siendo un proyecto personal, las sugerencias y mejoras son siempre bienvenidas. Si deseas contribuir:
+Siendo un proyecto personal, las sugerencias y mejoras son siempre bienvenidas. El proyecto sigue
+Gitflow: `main` solo contiene versiones publicadas y el desarrollo se integra en `develop`. Si
+deseas contribuir:
  1. Haz un Fork del proyecto.
- 2. Crea una rama para tu función (git checkout -b feature/NuevaFuncion).
+ 2. Crea una rama para tu función a partir de `develop` (git checkout -b feature/NuevaFuncion develop).
  3. Haz commit de tus cambios (git commit -m 'Añade NuevaFuncion').
  4. Haz push a la rama (git push origin feature/NuevaFuncion).
- 5. Abre un Pull Request.
+ 5. Abre un Pull Request contra `develop`.
 
 ## Licencia
 
