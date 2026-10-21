@@ -56,7 +56,7 @@ Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ si
    abajo una posición y reconfigurar el `grid_rowconfigure(8, weight=1)` de `create_sidebar_frame()`
    a la fila nueva. No basta con tocar el selector de apariencia.
 6. Si la vista muestra pósters propios, decide su carpeta en `resources/images/<categoría>/` y
-   **añádela a `get_anime_image` (`utils.py:185-196`)** o el póster se bajará de la red cada vez
+   **añádela a `POSTER_FOLDERS` (`utils.py:212`)**, que es donde busca `find_cached_poster_path()`, o el póster se bajará de la red cada vez
    (trampa 15). Esa lista tiene hoy las 6 categorías existentes; se olvidó `watching` durante meses,
    así que es un paso fácil de saltarse. Si además creas un `AnimeStatus` nuevo, la carpeta sale de
    `status.name.lower()` (`utils.py:53-60`, y ahora también `move_anime_poster_by_status:62-79`) y el olvido es aún más silencioso.
@@ -475,7 +475,7 @@ la barra diagonal del icono «sin conexión».
 
 **Pasos**
 
-1. **Revisa `hiddenimports`.** ✅ **Al día el 2026-10-20**: **37** nombres —36 módulos de `src/` y
+1. **Revisa `hiddenimports`.** ✅ **Al día el 2026-10-21**: **38** nombres —la auditoría de rendimiento añadió `gui.components.order_menu`—, auditados con AST en las dos direcciones. Antes, ✅ **al día el 2026-10-20**: **37** nombres —36 módulos de `src/` y
    `mpv`, el binding de libmpv, que `video_player.py` importa **dentro** de `load_mpv()` y el análisis
    estático no ve—, auditados con AST en las dos direcciones. El reproductor añadió los cinco
    `APIs.resolvers.*` y `gui.components.video_player`. Antes, ✅ **al día el 2026-08-21**: **30** nombres, auditados en las dos direcciones con AST —todos resuelven a un fichero real de `src/` y ningún módulo de `src/` queda sin declarar, salvo `app.py`, que es el script de entrada. El rediseño añadió `gui.theme` y los **11** `gui.components.*`. 🔴 **Todo módulo nuevo bajo `src/` hay que declararlo aquí**, o el `.exe` compila y revienta al arrancar. Antes, Entre el 2026-08-06 y el

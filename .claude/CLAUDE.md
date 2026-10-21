@@ -18,7 +18,7 @@ internamente lo pedido usando [`.claude/COMO-PEDIR-TAREAS.md`](COMO-PEDIR-TAREAS
    primero que hay que aclarar, y lo que más cambia el tamaño del trabajo.
 3. **Ficheros exactos y frontera de alcance.** Las 4 vistas de estado son casi idénticas línea por
    línea: decide si la tarea afecta a una o a las cuatro.
-4. **¿Es una trampa conocida?** Coteja con `docs/10-invariantes-y-trampas.md` (**54** trampas con su
+4. **¿Es una trampa conocida?** Coteja con `docs/10-invariantes-y-trampas.md` (**57** trampas con su
    síntoma) **antes** de investigar desde cero.
 5. **Nivel de verificación** — ejecutar la GUI · script en el scratchpad · solo lectura. No hay
    tests: si no se ejecuta, se entrega marcado como no verificado.
@@ -274,9 +274,20 @@ dos piezas que antes no existían:
   ni hereda del padre — sale del gris por defecto de CustomTkinter, que no es de `Theme`. No hay
   literal que buscar, porque el problema es la **ausencia** de uno. Le pasaba a la pantalla de carga
   hasta el 2026-08-31 ([trampa 36](docs/10-invariantes-y-trampas.md)).
-- **`gui/components/`** — **12** piezas compartidas: `Sidebar`, `ViewHeader`, `PosterGrid`, `Pager`,
-  `AnimeRow`, `SidePanel`, `ResumeBand`, `RatingStars`, `StatusPill`, `GenreChips`, `EmptyState` y,
-  desde el 2026-09-24, **`VideoPlayer`** (`video_player.py`, ver *El reproductor acoplado* más abajo).
+- **`gui/components/`** — **13** piezas compartidas: `Sidebar`, `ViewHeader`, `PosterGrid`, `Pager`,
+  `AnimeRow`, `SidePanel`, `ResumeBand`, `RatingStars`, `StatusPill`, `GenreChips`, `EmptyState`,
+  desde el 2026-09-24 **`VideoPlayer`** (`video_player.py`, ver *El reproductor acoplado* más abajo)
+  y desde el 2026-10-21 **`OrderMenu`**, el desplegable de orden de tres vistas.
+  🔴 **Nada que viva toda la sesión puede apuntar a un widget que se destruye** (2026-10-21). En
+  CustomTkinter 5.2.2 hay tres formas silenciosas de hacerlo, y las tres hacían crecer la memoria
+  con cada cambio de vista (49 → 239 MB en 75):
+  - un `CTkImage` compartido, porque `CTkLabel`/`CTkButton` no se desapuntan de él al
+    destruirse. Las cachés de iconos guardan **el dibujo PIL** y devuelven un `CTkImage` nuevo;
+  - un `ctk.CTkOptionMenu` que se destruye, porque su menú se queda en el registro de escalado.
+    Para eso está `OrderMenu`;
+  - un `bind_all()` sin `deletecommand()`.
+  Son las [trampas 55-57](docs/10-invariantes-y-trampas.md), y se miden como dice
+  [`docs/09 §6j`](docs/09-verificacion-y-pruebas.md).
   ⚠️ **En CustomTkinter `width` y `height` son una petición, no un contrato.** Un `CTkFrame` vacío no
   mide cero, un `CTkLabel` no se recorta a su `height` y un `CTkButton` se pinta al ancho que necesita
   su rejilla interna, no al que se le pidió. Quien coloque con `place()` y lleve él la cuenta —hoy
@@ -310,8 +321,11 @@ Arranque:
 1. `show_loading_screen()` pinta el GIF + barra de progreso y lanza un hilo daemon. **Cubre la
    ventana entera con `Theme.BG`** y centra el bloque con `place(relx=0.5, rely=0.5)`; la raíz de Tk
    lleva ese mismo fondo desde `__config_main_window()`.
-2. Ese hilo: `load_animes()` (BD, 0→40 %) → `get_recent_animes()` del manager → `download_images_progress()`
-   (90→100 %) → `RecentAnimeButton.show_frame()`, que además revela la sidebar.
+2. Ese hilo hace **solo lo lento**: `load_animes()` (BD, 0→40 %) → `get_recent_animes()` del manager →
+   `download_images_progress()` (90→100 %), y avisa del progreso con un callback que pinta la barra con
+   `after(0, …)`. Lo demás lo hace `__on_startup_loaded()` **en el hilo de Tk**: retirar la pantalla de
+   carga, el aviso si no hay estrenos y `RecentAnimeButton.show_frame()`, que además revela la sidebar.
+   Antes del 2026-10-21 todo iba en el hilo, y la portada tardaba 860-1 000 ms en vez de ~200 (C1).
 3. Tras mostrar la portada, un segundo hilo (`__preload_recent_animes_info`) rellena sinopsis/géneros/episodios de cada
    anime reciente para que el clic sea instantáneo, escribiendo en `self.recent_animes[index]`.
 
@@ -480,9 +494,11 @@ distinto en cada sitio y la comprobación por `anime_id` no lo detecta.
 redimensionados a **`(248, 372)`** desde el rediseño —el mayor tamaño que pide cualquier vista— y cada
 vista reduce con su propio `size=` al construir el `CTkImage`. ⚠️ Ese valor está **duplicado a mano**
 en `utils/utils.py:24-33` y en `Metrics.POSTER_CACHE_SIZE`, porque `utils/` no puede importar de
-`gui/`: si cambia uno, cambia el otro. La ficha de detalle los pide a `(195, 275)`. `get_anime_image()` busca en las **6**
-categorías (`favourite`, `watching`, `finished`, `pending`, `recent_animes` y `search`) antes de bajarlo de la
-red, y en esa rama pasa `size=` explícito — sin él `CTkImage` pinta a 20×20. Las descargas van en un
+`gui/`: si cambia uno, cambia el otro. La ficha de detalle los pinta a `Metrics.SHEET_POSTER` (248 × 372).
+`find_cached_poster_path()` busca en las **6** carpetas de `POSTER_FOLDERS` (`favourite`, `watching`,
+`finished`, `pending`, `recent_animes` y `search`); si no está en ninguna, la ficha pinta el cuadro gris y
+lo baja **en un hilo** con `download_poster()`, que no toca Tk (desde el 2026-10-21; antes se bajaba en el
+hilo de la interfaz). Las descargas van en un
 `ThreadPoolExecutor` de 8 workers y borran del disco lo que ya no está en la lista actual.
 
 **El reproductor acoplado** (2026-09-24 a 2026-10-20, plan de 7 fases en
@@ -527,7 +543,10 @@ lo que daba por hecho la investigación previa. Detalle completo en
 ### 4. Concurrencia
 
 - Toda petición HTTP va en un hilo daemon; nunca en el hilo de Tkinter. ✅ **Sin excepciones desde el
-  2026-09-24**: la última —los servidores de un episodio— salió con la fase 2 del reproductor.
+  2026-10-21**: la última —el póster de la ficha cuando no estaba en disco, que se había quedado sin
+  contar— salió con la auditoría de rendimiento; la anterior, los servidores de un episodio, con la
+  fase 2 del reproductor. 🆕 Y **toda petición lleva timeout**: las búsquedas de AnimeAV1 (`_fetch`) y
+  tres de AnimeFLV no lo tenían, y un servidor colgado dejaba «Buscar» cargando para siempre.
 - 🔴 **Los eventos de mpv llegan en su propio hilo (`MPVEventHandlerThread`), y desde él no se llama a
   Tk ni con `after()`**: `after()` desde otro hilo espera a que Tk lo atienda, y `terminate()` desde Tk
   espera a ese hilo. Los callbacks solo dejan el dato en atributos o en una cola, y `VideoPlayer` lo
@@ -561,11 +580,12 @@ lo que daba por hecho la investigación previa. Detalle completo en
 
 ## Notas de mantenimiento
 
-- **`MiBibliotecaAnime.spec`**: `hiddenimports` tiene **37** nombres desde el 2026-10-20 —36 módulos
+- **`MiBibliotecaAnime.spec`**: `hiddenimports` tiene **38** nombres desde el 2026-10-21 —37 módulos
   de `src/` y `mpv`, que `video_player.py` importa **dentro** de `load_mpv()` y el análisis estático no
   ve—. ✅ Auditado con AST en las dos direcciones: todos resuelven a ficheros reales y **ningún módulo
   de `src/` queda sin declarar** salvo `app.py`, que es el script de entrada. El reproductor añadió los
-  cinco `APIs.resolvers.*` y `gui.components.video_player`. 🔴 **Todo módulo nuevo bajo `src/` hay que
+  cinco `APIs.resolvers.*` y `gui.components.video_player`; la auditoría de rendimiento,
+  `gui.components.order_menu`. 🔴 **Todo módulo nuevo bajo `src/` hay que
   declararlo aquí**, o el `.exe` compila y revienta al arrancar.
 - **`binaries`** lleva `('vendor/libmpv-2.dll', 'vendor')` —destino **`vendor`**, no `'.'`—, porque
   `load_mpv()` la busca en `get_resource_path("vendor")`, que en el `.exe` es `_internal/vendor`; y
@@ -581,10 +601,10 @@ lo que daba por hecho la investigación previa. Detalle completo en
   ✅ **0.2.2 compilada y probada por el usuario el 2026-10-21** (`HLS`, Desu y navegador).
 - La versión de la app vive en `APP_VERSION` dentro del `.spec`.
 - `resources/DB/` y las carpetas de pósters están en `.gitignore`: se generan en tiempo de ejecución.
-- Hay **4** `# TODO:` en el código, en dos ficheros: `anime_window.py:151,154` (recomendaciones por
+- Hay **4** `# TODO:` en el código, en dos ficheros: `anime_window.py:152,155` (recomendaciones por
   género; alternar anime/manga) y `jkanime.py:156,217` (buscar en el directorio con texto vacío;
-  acotar `get_recent_animes`). ✅ Reinventariados el 2026-10-20 con el grep: el reproductor no abrió ni
-  cerró ninguno, pero `2f8a51d` y él los desplazaron. El del selector de proveedor se cerró el 2026-07-30 y el de
+  acotar `get_recent_animes`). ✅ Reinventariados el 2026-10-21 con el grep: la auditoría de
+  rendimiento no abrió ni cerró ninguno, pero desplazó una línea los de `anime_window.py`. El del selector de proveedor se cerró el 2026-07-30 y el de
   `main_window.py:32` —quitar «Anime» de los botones y el título— el 2026-08-20, con la fase 1 del
   rediseño.
   ⚠️ **Este apartado se ha equivocado tres veces**: hasta el 2026-08-07 citaba dos TODOs inventados;
@@ -686,8 +706,8 @@ Después, sin orden fijado. **El rediseño se llevó por delante buena parte de 
 - **Deuda que deja el rediseño**, por orden de lo que más molesta:
   1. ✅ ~~**La petición de servidores de la ficha sigue en el hilo de Tkinter**~~ — **cerrada el
      2026-09-24** con la fase 2 del reproductor, que la necesitaba antes de añadir una segunda
-     petición en el mismo punto. Ya **ningún** sitio de la GUI sale a la red desde el hilo de la
-     interfaz.
+     petición en el mismo punto. ⚠️ «Ya ningún sitio de la GUI sale a la red desde el hilo de la
+     interfaz» **no era cierto** hasta el 2026-10-21: quedaba el póster de la ficha sin caché.
   2. **B11**: los ~7 iconos de la barra lateral y los 2 GIF de carga siguen siendo de origen
      desconocido ([`docs/12 §4`](docs/12-deuda-tecnica-y-roadmap.md)). El rediseño **no la hizo
      crecer**: sus diez glifos se dibujan con PIL.
@@ -696,10 +716,13 @@ Después, sin orden fijado. **El rediseño se llevó por delante buena parte de 
      de la biblioteca sigue enseñando el recuento del día que abriste su ficha, así que las barras de
      «Viendo» y «Pendientes» y el sello de «Finalizados» siguen mintiendo con los animes en emisión
      ([trampa 38](docs/10-invariantes-y-trampas.md), [`docs/12 §4`](docs/12-deuda-tecnica-y-roadmap.md)).
-  5. **B13**: `PosterGrid` vuelve a leer y reescalar los JPG **en cada repintado**, aunque el tamaño
-     del póster no cambie: ~350 ms para 16 celdas, en el hilo de la interfaz. Se mitiga juntando los
-     `<Configure>`, no cacheando; falta una caché de `CTkImage` por (ruta, tamaño) que serviría igual
-     a `AnimeRow` y a `ResumeCard` ([`docs/12 §4`](docs/12-deuda-tecnica-y-roadmap.md)).
+  5. **B13**: cambiar de vista bloquea la interfaz **270-620 ms**. ✅ Rediagnosticada el 2026-10-21:
+     ~70 % es crear los widgets de CustomTkinter (8-12 mil llamadas a Tcl por vista), y los JPG cuestan
+     menos de 60 ms. Una caché de `CTkImage` **no** es el arreglo, y además reintroduciría la
+     [trampa 55](docs/10-invariantes-y-trampas.md). La palanca es conservar las vistas construidas en
+     vez de rehacerlas. Opcional ([`docs/12 §4`](docs/12-deuda-tecnica-y-roadmap.md)).
+  6. **B16-B17** (2026-10-21, opcionales): sin `requests.Session` (~90 ms por petición, casi todo en
+     segundo plano) y el `<Configure>` de la raíz, que se dispara con el de cualquier widget.
 - **Deuda que deja el reproductor**:
   1. **B14**: los hosters sin resolutor siguen abriendo el navegador. Lo que más valdría es un segundo
      hoster por proveedor que no dependa del mismo origen: zilla estuvo caído tres días en septiembre.
@@ -720,7 +743,7 @@ Guía de colaboración (cómo plantear una tarea en este repo, qué asumo por de
 cambian mi comportamiento): [`.claude/COMO-PEDIR-TAREAS.md`](COMO-PEDIR-TAREAS.md).
 
 **Antes de tocar cualquier cosa, lee [`docs/10-invariantes-y-trampas.md`](docs/10-invariantes-y-trampas.md)**
-— **54** trampas con su síntoma observable.
+— **57** trampas con su síntoma observable.
 
 | Documento | Qué responde |
 |---|---|
@@ -734,7 +757,7 @@ cambian mi comportamiento): [`.claude/COMO-PEDIR-TAREAS.md`](COMO-PEDIR-TAREAS.m
 | [docs/07-concurrencia-e-hilos.md](docs/07-concurrencia-e-hilos.md) | Qué corre en qué hilo, reglas y carreras conocidas |
 | [docs/08-convenciones-y-estilo.md](docs/08-convenciones-y-estilo.md) | Cabecera obligatoria, singletons, **plantillas copiables** |
 | [docs/09-verificacion-y-pruebas.md](docs/09-verificacion-y-pruebas.md) | Cómo probar cada capa sin GUI; scripts listos; checklist manual |
-| [docs/10-invariantes-y-trampas.md](docs/10-invariantes-y-trampas.md) | **Empieza por aquí.** **54** trampas con síntoma observable |
+| [docs/10-invariantes-y-trampas.md](docs/10-invariantes-y-trampas.md) | **Empieza por aquí.** **57** trampas con síntoma observable |
 | [docs/11-playbooks.md](docs/11-playbooks.md) | Recetas: añadir vista, columna, proveedor, campo, **resolutor**; empaquetar |
 | [docs/12-deuda-tecnica-y-roadmap.md](docs/12-deuda-tecnica-y-roadmap.md) | TODOs con `fichero:línea`, discrepancias, riesgos, roadmap técnico **y licencia/cumplimiento de la distribución (§7)** |
 | [docs/13-selector-de-proveedor.md](docs/13-selector-de-proveedor.md) | Selector de proveedor, `DB_user.db` **y la columna `provider_id`** (§14). **Léelo antes de tocar `animeProviderMgr.py`, `main_window.py` o `anime_window.py`** |

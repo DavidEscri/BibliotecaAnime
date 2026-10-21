@@ -230,7 +230,7 @@ from dataPersistence.animesPersistence import (AnimesPersistence, AnimesPersiste
                                                AnimeStatus, AnimeRecord)
 from gui.anime_window import AnimeWindowViewer
 from utils.buttons import utilsButtons
-from utils.utils import load_image, get_resource_path
+from utils.utils import load_rounded_image, get_resource_path
 
 
 class MiVistaButton(utilsButtons.SidebarButton):
@@ -264,8 +264,8 @@ class MiVistaButton(utilsButtons.SidebarButton):
         num_columns = max(1, self.main_window.content_frame.winfo_width() // 150)
         for index, anime_record in enumerate(animes):
             row, column = index // num_columns, index % num_columns
-            image = load_image(get_resource_path(
-                f"resources/images/<categoria>/{anime_record.anime_id}.jpg"))
+            image = load_rounded_image(get_resource_path(
+                f"resources/images/<categoria>/{anime_record.anime_id}.jpg"), (130, 185))
             img_label = ctk.CTkLabel(self.__episodes_frame, text="", image=image)
             img_label.grid(row=row * 2, column=column, padx=10, pady=(20, 0), sticky=ctk.NSEW)
             img_label.bind("<Button-1>",

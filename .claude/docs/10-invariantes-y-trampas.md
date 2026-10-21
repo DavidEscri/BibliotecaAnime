@@ -2,9 +2,9 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-10-20 · rama `feature/reproductor-embebido` · último commit de código **`047e5ea`** (fase 5 del reproductor) |
-| **Cubre** | los **37** módulos con contenido de `src/` + `MiBibliotecaAnime.spec` + `requirements.txt` |
-| **Última revisión** | 2026-10-20 (**reproductor in-app**, plan de 7 fases en [`plan-reproductor/`](../plan-reproductor/README.md)): **12 trampas nuevas** (43-54) en un apartado propio, más la **18f** (la DLL de libmpv y dónde la busca `python-mpv`), que es de empaquetado y va con las demás de la 18. Tres familias: **hosters** (43-45: cabeceras que uno exige y otro rechaza, URLs que caducan o van atadas a la IP), **mpv** (46-48: sus eventos llegan en otro hilo, el final no es un evento y un corte parece un final) y **la superficie nativa dentro de Tk** (49-52), donde tres de las cinco **corrigen** lo que el plan daba por hecho: encima del vídeo **sí** se ve un widget hermano, y el ratón y el teclado **sí** llegan a Tk. La **54** —un hoster **lento** deja «Cargando» sin tope— salió en la propia prueba de humo de la fase 6 y sigue **abierta**. La **53** es el bug de los servidores repetidos («B1» del plan del reproductor, que **no** es el B1 de [12 §4](12-deuda-tecnica-y-roadmap.md)), ya resuelto. Antes, 2026-09-02 (**rejillas adaptables y sinopsis**): **2 trampas nuevas**, las dos con el mismo patrón —un widget que *parece* medir el sitio que tiene y no lo mide—: la **41**, una rejilla colocada con `sticky="w"` mide **su propio contenido**, así que calcular columnas de su ancho es un punto fijo que nunca cambia; y la **42**, `wraplength` **no puede deshacer un `\n`** que traiga el texto, por ancha que sea la ventana. Las dos estuvieron vivas y calladas desde el rediseño. La **32** gana su segunda mitad: los pesos `uniform` de `PosterGrid` también sobreviven a destruir las celdas. Antes, 2026-09-01 (**abrir la ficha por un episodio**): trampa **40** nueva —un `bind()` sin `add="+"` **borra** el manejador que el widget ya tenía, y excluir un botón de un recorrido **no excluye su interior**—, en un apartado propio; es la que explica por qué «Empezar» **nunca** movió un anime a «Viendo». La **37** gana la corrección de por qué `AnimeRow` sigue sin sufrirla. Antes, 2026-09-01 (**ancho de las fichas de género**): trampa **39** nueva —un `CTkButton` no respeta el `width` que se le pide: su rejilla interna propaga tamaño y el ancho *pedido* gana—, en un apartado propio, con la aritmética exacta de lo que reserva por dentro. Antes, 2026-09-01 (**refresco de la banda «Retomar»**): trampa **38** nueva —una fila guardada no refresca sus episodios sola, así que un anime en emisión miente hasta que abres su ficha—, **resuelta solo para las ≤3 tarjetas de la portada** y viva en el resto de la biblioteca. Antes, 2026-09-01 (**hover de la lista de episodios**): trampa **37** nueva —un hijo sin `bind` es una salida de la que no llega ningún `<Leave>`, la complementaria de la **34**—, con la nota de que **no se reproduce moviendo el ratón deprisa**. Antes, 2026-08-31 (**fondo de la pantalla de carga**): trampa **36** nueva —un widget sin `fg_color` sale del gris por defecto de CustomTkinter, no de `Theme`—, con el `minsize` que sobrevive a `grid_forget()` y el GIF transparente como medias trampas; la **33** gana un aviso: el comentario que la anclaba en el código ya no está. Antes, 2026-08-21 (**rediseño de interfaz**): **7 trampas nuevas** (29-35), todas de CustomTkinter y de layout, en un apartado propio; la **33** nace ya resuelta. La trampa **22** queda cerrada: la ficha ya no calcula anchos a mano. Antes, 2026-08-17 (**licencia y empaquetado**): la trampa **18** se subdivide en **a-e** — **18d cerrada** (`datas` ya no lleva datos de usuario; PyInstaller **ignora en silencio las carpetas vacías**) y **18e nueva** (los destinos de `datas` caen dentro de `_internal/`, no junto al `.exe`). Antes, 2026-08-16 (**columna `provider_id`**): **3 trampas nuevas** (26, 27, 28), trampa **21 reescrita** —ahora se puede provocar a voluntad y la ficha la señala en pantalla—, trampas **4** y **13** ampliadas, y anclas de `anime_window.py` (647→1156) y `animesPersistence.py` reubicadas |
+| **Fecha** | 2026-10-21 · rama `feature/auditoria-rendimiento` · último commit de código **`72b144f`** (timeouts de la auditoría de rendimiento) |
+| **Cubre** | los **38** módulos con contenido de `src/` + `MiBibliotecaAnime.spec` + `requirements.txt` |
+| **Última revisión** | 2026-10-21 (**auditoría de rendimiento**): **3 trampas nuevas** (55-57) en un apartado propio, «Ciclo de vida de los widgets de CustomTkinter», las tres con el mismo patrón —algo de larga vida sigue apuntando a un widget ya destruido y lo retiene con todo su árbol—: un `CTkImage` que vive más que su widget (**55**, la fuga que crecía ~2,4 MB por cambio de vista), un `CTkOptionMenu` destruido que se queda en el registro de escalado (**56**) y `unbind_all()`, que no borra el comando de `bind_all()` (**57**). Las tres medidas y resueltas el mismo día, desde el código del proyecto y sin parchear CustomTkinter. Antes, 2026-10-20 (**reproductor in-app**, plan de 7 fases en [`plan-reproductor/`](../plan-reproductor/README.md)): **12 trampas nuevas** (43-54) en un apartado propio, más la **18f** (la DLL de libmpv y dónde la busca `python-mpv`), que es de empaquetado y va con las demás de la 18. Tres familias: **hosters** (43-45: cabeceras que uno exige y otro rechaza, URLs que caducan o van atadas a la IP), **mpv** (46-48: sus eventos llegan en otro hilo, el final no es un evento y un corte parece un final) y **la superficie nativa dentro de Tk** (49-52), donde tres de las cinco **corrigen** lo que el plan daba por hecho: encima del vídeo **sí** se ve un widget hermano, y el ratón y el teclado **sí** llegan a Tk. La **54** —un hoster **lento** deja «Cargando» sin tope— salió en la propia prueba de humo de la fase 6 y sigue **abierta**. La **53** es el bug de los servidores repetidos («B1» del plan del reproductor, que **no** es el B1 de [12 §4](12-deuda-tecnica-y-roadmap.md)), ya resuelto. Antes, 2026-09-02 (**rejillas adaptables y sinopsis**): **2 trampas nuevas**, las dos con el mismo patrón —un widget que *parece* medir el sitio que tiene y no lo mide—: la **41**, una rejilla colocada con `sticky="w"` mide **su propio contenido**, así que calcular columnas de su ancho es un punto fijo que nunca cambia; y la **42**, `wraplength` **no puede deshacer un `\n`** que traiga el texto, por ancha que sea la ventana. Las dos estuvieron vivas y calladas desde el rediseño. La **32** gana su segunda mitad: los pesos `uniform` de `PosterGrid` también sobreviven a destruir las celdas. Antes, 2026-09-01 (**abrir la ficha por un episodio**): trampa **40** nueva —un `bind()` sin `add="+"` **borra** el manejador que el widget ya tenía, y excluir un botón de un recorrido **no excluye su interior**—, en un apartado propio; es la que explica por qué «Empezar» **nunca** movió un anime a «Viendo». La **37** gana la corrección de por qué `AnimeRow` sigue sin sufrirla. Antes, 2026-09-01 (**ancho de las fichas de género**): trampa **39** nueva —un `CTkButton` no respeta el `width` que se le pide: su rejilla interna propaga tamaño y el ancho *pedido* gana—, en un apartado propio, con la aritmética exacta de lo que reserva por dentro. Antes, 2026-09-01 (**refresco de la banda «Retomar»**): trampa **38** nueva —una fila guardada no refresca sus episodios sola, así que un anime en emisión miente hasta que abres su ficha—, **resuelta solo para las ≤3 tarjetas de la portada** y viva en el resto de la biblioteca. Antes, 2026-09-01 (**hover de la lista de episodios**): trampa **37** nueva —un hijo sin `bind` es una salida de la que no llega ningún `<Leave>`, la complementaria de la **34**—, con la nota de que **no se reproduce moviendo el ratón deprisa**. Antes, 2026-08-31 (**fondo de la pantalla de carga**): trampa **36** nueva —un widget sin `fg_color` sale del gris por defecto de CustomTkinter, no de `Theme`—, con el `minsize` que sobrevive a `grid_forget()` y el GIF transparente como medias trampas; la **33** gana un aviso: el comentario que la anclaba en el código ya no está. Antes, 2026-08-21 (**rediseño de interfaz**): **7 trampas nuevas** (29-35), todas de CustomTkinter y de layout, en un apartado propio; la **33** nace ya resuelta. La trampa **22** queda cerrada: la ficha ya no calcula anchos a mano. Antes, 2026-08-17 (**licencia y empaquetado**): la trampa **18** se subdivide en **a-e** — **18d cerrada** (`datas` ya no lleva datos de usuario; PyInstaller **ignora en silencio las carpetas vacías**) y **18e nueva** (los destinos de `datas` caen dentro de `_internal/`, no junto al `.exe`). Antes, 2026-08-16 (**columna `provider_id`**): **3 trampas nuevas** (26, 27, 28), trampa **21 reescrita** —ahora se puede provocar a voluntad y la ficha la señala en pantalla—, trampas **4** y **13** ampliadas, y anclas de `anime_window.py` (647→1156) y `animesPersistence.py` reubicadas |
 
 Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ sin verificar.
 
@@ -1594,6 +1594,89 @@ que, al vencer, haga lo mismo que un error: navegador y tarjeta con otro servido
 
 **Cómo comprobarlo**: el log de mpv (`log_handler` + `loglevel="v"`) dice cuánto tarda cada
 `curl: Opening …`; si cada una baja de 15 s y la suma pasa de 20, es esto y no una caída.
+
+---
+
+## Ciclo de vida de los widgets de CustomTkinter *(añadidas 2026-10-21, auditoría de rendimiento)*
+
+Las tres se destaparon midiendo, no usando la aplicación: **no se ve nada raro** y la velocidad apenas
+cambia, solo crecen la memoria, los handles GDI y las imágenes de Tk con cada cambio de vista. El
+patrón común: algo que vive toda la sesión sigue apuntando a un widget destruido, y ese widget retiene
+a su `master`, el `master` a sus pósters, y así hasta la vista entera. Cómo se midió y con qué:
+[09 §6j](09-verificacion-y-pruebas.md).
+
+### 55. Un `CTkImage` que vive más que su widget lo retiene, con todo su árbol 🔴 ✅ *(resuelta 2026-10-21)*
+
+**Por qué**: `CTkLabel` y `CTkButton` se apuntan en la lista de callbacks del `CTkImage` que reciben
+(`_update_image`), y su `destroy()` **no se desapunta** —CustomTkinter 5.2.2, `ctk_label.py:146` y
+`ctk_button.py:178`—, aunque su `configure(image=…)` sí lo hace con la imagen vieja. Así que un
+`CTkImage` que sobrevive al widget lo mantiene vivo, y por la cadena de `master` también a la celda,
+a la rejilla y a sus pósters.
+
+**Síntoma**: ✅ medido, 75 cambios de vista → memoria privada de **49 a 239 MB**, GDI de 133 a 441,
+imágenes de Tk de 59 a 367 y **6 893 widgets muertos** en memoria; ~2,4 MB más por cambio de vista. Una
+estrella de 14 × 14 acumulaba **705** callbacks de widgets destruidos. Extrapolando, el tope de 10 000
+GDI por proceso llegaría hacia los ~2 200 cambios de vista (⚠️ no reproducido).
+
+**Dónde estaba**, en tres formas:
+
+- las cinco cachés de iconos (`rating_stars`, `status_pill`, `empty_state`, `genre_chips` y
+  `video_player`, con su aro de «Cargando») guardaban **el `CTkImage`** a nivel de módulo y lo
+  compartían entre todos los widgets de la sesión;
+- `PosterItem.badge_icon` metía un `CTkImage` en un dato que la vista conserva para paginar;
+- `PosterGrid.__images`, en la rejilla ya destruida que la vista sigue guardando en un atributo.
+
+**Invariante**: **un `CTkImage` no sobrevive a sus widgets.**
+
+- Las cachés guardan **el dibujo PIL** (claro, oscuro), que es lo caro, y devuelven un `CTkImage`
+  **nuevo** en cada llamada.
+- Los datos llevan el **estado**, no la imagen: `PosterItem.badge_status`, y la rejilla dibuja el
+  glifo.
+- Compartir un `CTkImage` solo vale **dentro de un componente que muere entero**: `RatingStars`
+  reparte sus ≤3 imágenes entre sus cinco estrellas, y `_ring_frames()` da una lista nueva por
+  tarjeta.
+- Un componente que guarda imágenes las suelta en su `destroy()` (`PosterGrid`).
+
+**Cómo comprobarlo**: tras varias vueltas por las vistas, `len(img._configure_callback_list)` de cada
+`CTkImage` vivo debe ser 1, y los `tkinter.Misc` con `winfo_exists() == 0` en `gc.get_objects()` no
+deben crecer. ✅ Tras el arreglo, 75 cambios de vista: memoria privada **57-59 MB** plana, GDI 94,
+imágenes de Tk 20 y **75 zombis constantes**. Esos 75 son los últimos widgets que cada vista guarda en
+atributos (`__poster_grid`, `__pager`…), acotados. ⚠️ Una caché nueva de `CTkImage` a nivel de
+módulo reintroduce la fuga entera, y no se nota en una prueba de humo.
+
+---
+
+### 56. Un `CTkOptionMenu` destruido se queda en el registro de escalado ✅ *(resuelta 2026-10-21)*
+
+**Por qué**: el menú desplegable que lleva dentro, `DropdownMenu`
+(`core_widget_classes/dropdown_menu.py:46-52`), no llama a `CTkScalingBaseClass.destroy()` al
+destruirse. Su `_set_scaling` se queda en `ScalingTracker.window_widgets_dict` para siempre, y con él
+el desplegable y su árbol.
+
+**Síntoma**: ✅ +3 entradas en el registro de escalado por cada vuelta por las vistas, una por cada
+desplegable de orden (Favoritos, Pendientes y Buscar); 44-45 `DropdownMenu` muertos tras 15 vueltas.
+
+**Invariante**: un desplegable que **se destruye** es un `OrderMenu`
+(`gui/components/order_menu.py`), cuyo `destroy()` saca su menú del registro. Un `ctk.CTkOptionMenu` a
+secas solo vale en widgets que viven toda la sesión, como los dos de la barra lateral. ✅ Tras el
+arreglo, el registro se queda en 88 entradas en las 15 vueltas.
+
+---
+
+### 57. `unbind_all()` no borra el comando que creó `bind_all()` ✅ *(resuelta 2026-10-21)*
+
+**Por qué**: tkinter registra el callable de `bind_all()` y de `bind_class()` como **comando Tcl sin
+limpieza** (`needcleanup=0`, `tkinter/__init__.py:1435`), y `unbind_all()` (`:1437`) solo quita la
+atadura. El comando, y lo que referencie, vive hasta que muere la raíz. Un `bind()` normal no lo sufre:
+sus comandos se borran al destruir el widget.
+
+**Síntoma**: cada entrada en pantalla completa dejaba un `VideoPlayer` vivo, con su árbol, porque el
+comando era el método ligado `__on_escape`. ✅ Reproducido con la misma secuencia: 50 ciclos → **+50
+comandos Tcl y 50 objetos vivos**.
+
+**Invariante**: guardar el *funcid* que devuelve `bind_all()` y llamar a `deletecommand(funcid)` tras
+`unbind_all()`, como hace `VideoPlayer.set_fullscreen()` con `__escape_funcid`. ✅ Tras el arreglo, 50
+ciclos → +0 comandos. ⚠️ La pantalla completa real no se ha vuelto a probar a mano después del cambio.
 
 ---
 

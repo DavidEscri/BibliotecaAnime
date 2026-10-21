@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Fecha** | 2026-10-20 · rama `feature/reproductor-embebido` · último commit de código **`047e5ea`** (fase 5 del reproductor). §1, §6 y §7 **reancladas enteras** contra ese árbol; §2, solo en las filas nuevas |
-| **Última revisión** | 2026-10-20 (**reproductor in-app**): **C5 resuelta** —la petición de servidores salió del hilo de Tk el 2026-09-24 y ya **ningún** sitio de la GUI sale a la red desde él—; **16 hilos** (eran 13: tres nuevos de la ficha, para servidores, resolución y cambio de episodio) **más el de eventos de mpv**, que no es nuestro y tiene su propia regla (§1b, [trampa 46](10-invariantes-y-trampas.md)); `after()` pasa de 11 a **28**; §7 gana `WM_DELETE_WINDOW`, que no existía. ⚠️ El commit `2f8a51d` (comentarios, −400 líneas) había desplazado todas las anclas de §1 y §6. Antes, 2026-09-01 (**abrir la ficha por un episodio**): **C5 sube de gravedad** — la petición de servidores ya no la dispara solo el usuario, la dispara también abrir la ficha desde «Viendo» o «Pendientes»; el `after(50 ms)` que lo envuelve es una tirita, no el arreglo. Antes, 2026-09-01 (**refresco de la banda «Retomar»**): hilo nuevo en la portada, y **§1, §2 y §6 reancladas enteras contra el código real** — la mitad de las líneas que citaban se habían movido con el rediseño y tres hilos del inventario **ya no existían**. Antes, 2026-08-31 (**fondo de la pantalla de carga**): anclas de `main_window.py` reverificadas en §1, §2 y §4 (iban ~29 líneas desplazadas) y `place_forget()` corregido a `destroy()` en C1; las de #5 a #13 **siguen sin verificar**. Antes, 2026-08-16 (**columna `provider_id`**): hilos a **13** (eran 8) y `after()` a **10** (eran 4); **C2 resuelta** — los 4 puntos que abren una ficha pintan ya en el hilo de Tk. C5 sigue viva |
+| **Última revisión** | 2026-10-21 (**auditoría de rendimiento**): **C1 resuelta en el arranque** —la portada, el aviso sin estrenos y la barra de progreso se pintan ya en el hilo de Tk; antes la portada se construía desde el hilo daemon y tardaba **860-1 000 ms** en vez de ~200—, y **sale del hilo de Tk el último acceso a la red**, que no estaba contado: el póster de la ficha cuando no está en disco (hilo **#17**). Antes, 2026-10-20 (**reproductor in-app**): **C5 resuelta** —la petición de servidores salió del hilo de Tk el 2026-09-24 y ya **ningún** sitio de la GUI sale a la red desde él—; **16 hilos** (eran 13: tres nuevos de la ficha, para servidores, resolución y cambio de episodio) **más el de eventos de mpv**, que no es nuestro y tiene su propia regla (§1b, [trampa 46](10-invariantes-y-trampas.md)); `after()` pasa de 11 a **28**; §7 gana `WM_DELETE_WINDOW`, que no existía. ⚠️ El commit `2f8a51d` (comentarios, −400 líneas) había desplazado todas las anclas de §1 y §6. Antes, 2026-09-01 (**abrir la ficha por un episodio**): **C5 sube de gravedad** — la petición de servidores ya no la dispara solo el usuario, la dispara también abrir la ficha desde «Viendo» o «Pendientes»; el `after(50 ms)` que lo envuelve es una tirita, no el arreglo. Antes, 2026-09-01 (**refresco de la banda «Retomar»**): hilo nuevo en la portada, y **§1, §2 y §6 reancladas enteras contra el código real** — la mitad de las líneas que citaban se habían movido con el rediseño y tres hilos del inventario **ya no existían**. Antes, 2026-08-31 (**fondo de la pantalla de carga**): anclas de `main_window.py` reverificadas en §1, §2 y §4 (iban ~29 líneas desplazadas) y `place_forget()` corregido a `destroy()` en C1; las de #5 a #13 **siguen sin verificar**. Antes, 2026-08-16 (**columna `provider_id`**): hilos a **13** (eran 8) y `after()` a **10** (eran 4); **C2 resuelta** — los 4 puntos que abren una ficha pintan ya en el hilo de Tk. C5 sigue viva |
 | **Cubre** | `src/gui/main_window.py`, `src/gui/anime_window.py`, `src/gui/components/video_player.py`, `src/gui/sidebarButtons/**`, `src/utils/utils.py` |
 
 Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ sin verificar.
@@ -21,14 +21,16 @@ Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ si
 
 ✅ **Reanclados de cero el 2026-10-20**, con `git grep -n "threading.Thread"` sobre `047e5ea`. Son
 **16**: los 13 del 2026-09-01 —desplazados, ninguno desaparecido— más **tres de la ficha** que trajo
-el reproductor (#12, #13 y #14). Ninguno de los 16 hace red en el hilo de Tk.
+el reproductor (#12, #13 y #14). ⚠️ «Ninguno hace red en el hilo de Tk» era cierto de los hilos,
+pero no de la ficha: si el póster no estaba en disco, lo bajaba **en el hilo de Tk** hasta el
+2026-10-21, cuando pasó a ser el **#17**. Son **17**.
 
 | # | Dónde | Línea | Objetivo | Vuelve con `after`? |
 |---|---|---|---|---|
 | 1 | `main_window.__reload_recent_animes` | `:505` | `__reload_recent_animes_worker` — recarga al cambiar de proveedor | ✅ |
 | 2 | `main_window.__on_recent_animes_reloaded` | `:547` | `__preload_recent_animes_info` tras la recarga | — |
-| 3 | `main_window.show_loading_screen` | `:605` | `download_images_and_show_animes` | ❌ (C1) |
-| 4 | `main_window.download_images_and_show_animes` | `:637` | `__preload_recent_animes_info` | — |
+| 3 | `main_window.show_loading_screen` | `:614` | `download_images_and_show_animes` — solo BD, red y disco; avisa del progreso con un callback | ✅ 🆕 (antes ❌, C1) |
+| 4 | `main_window.__on_startup_loaded` 🆕 | `:659` | `__preload_recent_animes_info`, ya desde el hilo de Tk | — |
 | 5 | `recentAnimes.__on_anime_click` | `:234` | `_load_and_show` (ficha) | ✅ |
 | 6 | `recentAnimes.__refresh_resume_episodes` | `:175` | releer los episodios de la banda «Retomar» | ✅ |
 | 7 | `searchAnimes.__launch_search` | `:344` | `_search` — busca **y baja las carátulas** en el mismo hilo | ✅ |
@@ -41,6 +43,7 @@ el reproductor (#12, #13 y #14). Ninguno de los 16 hace red en el hilo de Tk.
 | 14 | `anime_window.__play_episode` | `:2049` | 🆕 `_load` — servidores del episodio de al lado **y** su resolución, en serie | ✅ (dos `after`) |
 | 15 | `utilsButtons.SavedAnimeSearch.search` | `:151` | búsqueda web que completa a la local | ✅ |
 | 16 | `pendingAnimes.__cache_poster_async` | `:327` | copiar el póster a `watching/` al pulsar «Empezar» | — |
+| 17 🆕 | `anime_window.__build_poster` | `:748` | `_download` — el póster de la ficha, **solo si no estaba en disco** | ✅ |
 
 > 🆕 **#12, #13 y #14 llevan número de petición.** Cada uno compara, ya en el hilo de Tk, el número
 > con el que salió contra el último pedido, y si no coincide **no pinta nada**: un despliegue plegado,
@@ -179,7 +182,14 @@ cierra sin colgarse.
 
 ## 4. Condiciones de carrera conocidas
 
-### C1 — Widgets Tk manipulados desde hilos daemon 📖
+### C1 — Widgets Tk manipulados desde hilos daemon 📖 ✅ *(resuelta 2026-10-21)*
+
+> ✅ **Resuelta el 2026-10-21.** El arranque deja en el hilo daemon solo la BD, la red y el disco;
+> el progreso llega por un callback que pinta la barra con `after(0, …)`, y retirar la pantalla de
+> carga, el aviso y `show_frame()` van en `__on_startup_loaded()`, en el hilo de Tk. ✅ Medido: la
+> portada pasa de **860-1 000 ms** construida desde el hilo a **~200 ms**, porque cada llamada a Tk
+> desde otro hilo se serializa. `download_images_progress()` ya no recibe widgets. La fila del
+> buscador estaba resuelta desde el rediseño (hilos #7 y #8). La tabla de abajo es la historia.
 
 El caso más extendido. Ejemplos reales:
 
@@ -295,7 +305,10 @@ de la GUI que sale a la red desde el hilo de la interfaz.
 
 ### C6 — La purga de imágenes compite con los widgets que las muestran ✅
 
-`load_image` (`utils.py:198-202`) hace `Image.open(path)` **sin cerrar**; PIL carga de forma perezosa, así
+⚠️ `load_image` **ya no existe** (2026-10-21); lo que queda, `load_rounded_image`, convierte la
+imagen al abrirla y no se ha reverificado contra esto. Lo de abajo es la historia.
+
+`load_image` (`utils.py:198-202`) hacía `Image.open(path)` **sin cerrar**; PIL carga de forma perezosa, así
 que el descriptor queda abierto mientras viva el `CTkImage`. Verificado: `os.remove` sobre esa ruta
 lanza `PermissionError` en Windows, y solo se libera tras `del` + `gc.collect()`.
 

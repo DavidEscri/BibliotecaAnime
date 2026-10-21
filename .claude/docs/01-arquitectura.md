@@ -182,8 +182,9 @@ Tabla campo a campo en [04 §1](04-modelo-de-datos.md).
 vacían y repueblan (`main_window.py:141-152`).
 
 ### I6 — Nada de HTTP en el hilo de Tkinter
-📖 Toda petición va en un hilo daemon. ✅ **Sin excepciones desde el 2026-09-24**: la última que
-quedaba —los servidores de un episodio— salió del hilo de Tk con la fase 2 del reproductor. Ver
+📖 Toda petición va en un hilo daemon. ✅ **Sin excepciones desde el 2026-10-21**: la última que
+quedaba —el póster de la ficha cuando no estaba en disco, que nadie había contado— salió con la
+auditoría de rendimiento. La anterior, los servidores de un episodio, con la fase 2 del reproductor. Ver
 [07](07-concurrencia-e-hilos.md), que lleva el inventario de hilos y la regla aparte del hilo de mpv.
 
 ### I7 — El cwd es irrelevante

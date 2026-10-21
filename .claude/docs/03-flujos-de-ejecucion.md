@@ -50,22 +50,24 @@ sequenceDiagram
 
     T->>P: load_animes() :467 → start() :265
     P-->>T: favourite/finished/watching/pending
-    Note over T: progreso 10→40 % (:531-541)<br/>⚠️ progress_bar.set() desde hilo daemon
+    Note over T: progreso 10→40 % por on_progress<br/>🆕 la barra se pinta con after(0) en el hilo de Tk
     T->>MGR: get_recent_animes() :468
     MGR->>NET: GET https://animeav1.com
     NET-->>MGR: HTML
     MGR-->>T: List[AnimeInfo] (20 elementos ✅)
 
-    alt lista vacía
-        T->>MW: loading_frame.destroy() :474
-        T->>U: messagebox.showwarning(...) :475-478
-        T->>MW: __recent_animes_button.show_frame() :480
-    else lista con datos
-        T->>T: progress_bar.set(0.9) :482
-        T->>FS: download_images_progress(...) :484
-        T->>MW: loading_frame.destroy() :487
-        T->>MW: __recent_animes_button.show_frame() :490
-        T->>T: Thread(__preload_recent_animes_info).start() :494-498
+    opt lista con datos
+        T->>FS: download_images_progress(..., on_progress) :631
+    end
+    T->>MW: after(0, __on_startup_loaded) :632
+    Note over MW: 🆕 2026-10-21: desde aquí, hilo de Tk
+    MW->>MW: loading_frame.destroy() :646
+    opt lista vacía
+        MW->>U: messagebox.showwarning(...)
+    end
+    MW->>MW: __recent_animes_button.show_frame()
+    opt lista con datos
+        MW->>T: Thread(__preload_recent_animes_info).start() :659
     end
 ```
 
@@ -73,8 +75,10 @@ sequenceDiagram
 
 - `show_frame()` de `RecentAnimeButton` (`recentAnimes.py:29-34`) **revela la sidebar** con
   `sidebar_frame.grid(...)` (`:31`) antes de pintar. Es el único sitio donde reaparece.
-- 📖 Los `progress_bar.set()` / `configure()` de `load_animes` (`main_window.py:531-541`) y el
-  `messagebox.showwarning` (`:475`) corren en **hilo daemon** ([07 §4](07-concurrencia-e-hilos.md)).
+- ✅ 🆕 Desde el 2026-10-21 **ningún** paso del arranque toca Tk desde el hilo daemon: el progreso
+  llega por un callback que programa el pintado con `after(0, …)`, y la portada la construye
+  `__on_startup_loaded()` en el hilo de Tk, en ~200 ms en vez de 860-1 000
+  ([07, C1](07-concurrencia-e-hilos.md)). Las anclas del diagrama anteriores a esa fecha no se han reverificado.
 - 🆕 **La pantalla de carga no es una tarjeta: es la ventana entera pintada de `Theme.BG`**
   (`:414-415`), con el bloque —título, GIF y barra— centrado con `place(relx=0.5, rely=0.5)` dentro
   de un marco transparente (`:417-418`). Antes era un `CTkFrame` del tamaño de su contenido y **sin
@@ -256,12 +260,13 @@ sequenceDiagram
         AW->>AW: watched_status[ep.id] = ep.id in watched :355-356
     end
     AW->>AW: __display_anime_info() :326 → clear_frame() + time.sleep(0.1) :359-360
-    AW->>FS: get_anime_image(__persistence_anime_info()) :378
+    AW->>FS: __build_poster() → find_cached_poster_path(persistence_anime_id) :722
     alt póster en alguna de las 6 carpetas de estado/caché
-        FS-->>AW: CTkImage (195,275)
+        FS-->>AW: load_rounded_image() a 248 × 372
     else no está en ninguna
-        AW->>NET: requests.get(anime.poster, timeout=10) (utils.py:195-196)
-        NET-->>AW: CTkImage (195,275) con size= explícito
+        AW->>AW: cuadro gris, y la ficha sigue pintándose
+        AW->>NET: 🆕 hilo daemon: download_poster(persistence_poster_url), timeout 10
+        NET-->>AW: after(0) → configure(image=round_image(...)) si la etiqueta sigue viva
     end
     AW->>AW: __show_provider_label() :428 → hasta 3 líneas 🆕
     AW->>AW: __show_anime_status() :429 → __display_anime_status() :716

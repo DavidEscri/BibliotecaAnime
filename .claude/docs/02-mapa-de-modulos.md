@@ -43,6 +43,7 @@ Todas las líneas citadas corresponden al **árbol de trabajo actual**, no al ú
 | `src/gui/components/side_panel.py` | 214 | GUI · componente |
 | `src/gui/components/rating_stars.py` | 203 | GUI · componente |
 | `src/gui/components/view_header.py` | 80 | GUI · componente |
+| `src/gui/components/order_menu.py` 🆕 | **53** | GUI · componente |
 | `src/gui/components/video_player.py` 🆕 | **1 237** | GUI · componente |
 | `src/gui/main_window.py` | **680** | GUI |
 | `src/gui/anime_window.py` | **2 429** | GUI |
@@ -423,9 +424,11 @@ pool; transacciones solo en las migraciones.
 | 🆕 `move_anime_poster_by_status(status, old_id, new_id) -> bool` | `:62-79` | **renombra** el póster cacheado al cambiar el `anime_id`. `False` si no había nada que mover → quien llama lo descarga. Usa `os.replace`, no `os.rename`: en Windows `rename` falla si el destino existe |
 | `remove_anime_poster_by_status(status, anime)` | `:81-88` | borra ese fichero; si no existe, imprime y vuelve |
 | `download_animes_poster(images_path, animes)` | `:90-124` | descarga las que faltan (8 hilos) y **purga huérfanas** `:116-124` |
-| `download_images_progress(images_path, recent_animes, progress_bar, progress_label)` | `:126-183` | igual + progreso 90 %→100 % `:145`; **toca widgets Tk desde workers** |
-| `get_anime_image(anime, image_size=(195,275)) -> CTkImage` | `:185-196` | busca en las **6** categorías `:187`; si no está en ninguna, la baja de la red `:195-196` |
-| `load_image(image_path, image_size=(130,185))` | `:198-202` | placeholder gris si no existe |
+| `download_images_progress(images_path, recent_animes, on_progress)` 🆕 | `:149` | igual + progreso 90 %→100 % por el callback, **desde los workers**; desde el 2026-10-21 ya no recibe widgets |
+| `find_cached_poster_path(anime_id) -> str \| None` | `:215` | busca `{id}.jpg` en las **6** carpetas de `POSTER_FOLDERS` (`:212`), sin red |
+| `download_poster(poster_url) -> Image \| None` 🆕 | `:232` | `GET` con timeout de 10 s; **no toca Tk**, así que va en un hilo. `None` si falla, nunca lanza. Sustituye a `get_anime_image` y `load_image`, que ya no existen |
+| `load_rounded_image(image_path, image_size, radius=0)` | `:247` | 🆕 acepta `None`: cuadro gris si no hay ruta o fichero |
+| `round_image(image, image_size, radius=0)` 🆕 | `:265` | lo de PIL de `load_rounded_image`, para una imagen ya cargada (el póster recién descargado) |
 | `get_resource_path(relative_path)` | `:204-217` | `sys._MEIPASS` si está congelado; si no, raíz calculada desde este fichero |
 
 > ✅ **Los dos bugs que tenía `get_anime_image` están resueltos** (2026-07-30, `83a8448`): la lista de
@@ -492,7 +495,7 @@ Si cambia uno, cambia el otro.
 
 ---
 
-## `src/gui/components/` — las 12 piezas compartidas
+## `src/gui/components/` — las 13 piezas compartidas
 
 Todas viven en `gui/components/`, todas importan de `gui.theme` y **ninguna conoce a `MainWindow`**:
 reciben datos y callbacks. Una vista **compone**; si necesita una variante, se añade un **parámetro**,
@@ -502,7 +505,8 @@ nunca una copia del fichero.
 |---|---|---|---|
 | `sidebar.py` | `Sidebar` (+ `_NavItem`, privado) | fase 1 | La barra entera: 6 destinos, plegado persistido, proveedor con pin y apariencia. `navigate_to(etiqueta)` 🆕 |
 | `view_header.py` | `ViewHeader` | fase 1 | Título + subtítulo + `controls_frame`. Alto fijo 80 |
-| `poster_grid.py` | `PosterGrid`, `PosterItem` | fase 2 | Rejilla que **calcula sus columnas del ancho** (`columns_that_fit()`); `columns` pasó a ser la referencia del diseño, no el número real. Sello con `place()`, pie y `extra_builder`. 🔴 La vista **tiene** que colocarla con `sticky="ew"` ([trampa 41](10-invariantes-y-trampas.md)); `on_columns_changed` traspasa el repintado a quien lo pasa |
+| `order_menu.py` 🆕 | `OrderMenu` | auditoría de rendimiento (2026-10-21) | El desplegable de orden de Favoritos, Pendientes y Buscar, con los colores del tema. Su `destroy()` saca su menú interno del registro de escalado, que `CTkOptionMenu` no hace ([trampa 56](10-invariantes-y-trampas.md)) |
+| `poster_grid.py` | `PosterGrid`, `PosterItem` | fase 2 | Rejilla que **calcula sus columnas del ancho** (`columns_that_fit()`); `columns` pasó a ser la referencia del diseño, no el número real. Sello con `place()` —el ítem trae `badge_status` y la rejilla dibuja el glifo 🆕—, pie y `extra_builder`. 🆕 Su `destroy()` suelta las imágenes ([trampa 55](10-invariantes-y-trampas.md)). 🔴 La vista **tiene** que colocarla con `sticky="ew"` ([trampa 41](10-invariantes-y-trampas.md)); `on_columns_changed` traspasa el repintado a quien lo pasa |
 | `pager.py` | `Pager` | fase 2 | `set_total()` (corta la lista) o `set_pages()` (pagina el proveedor). 🆕 `set_page_size()`, porque el tamaño de página sale de las columnas que quepan y conserva el **primer elemento visible**, no el número de página |
 | `resume_card.py` | `ResumeBand`, `ResumeCard`, `resume_progress()`, `resume_caption()` | fase 2 | `resume_progress()` es el **único** sitio donde se calcula por dónde ibas. 🆕 `update_record()` repinta el pie y la barra de **una** tarjeta sin recrear la banda |
 | `anime_row.py` | `AnimeRow`, `RowAction` | fase 3 | Fila en cascada con acción en hover. La comparten «Viendo» y «Pendientes». 🔴 `__bind_interactions()` (`:278-312`) ata el **hover** a todos los descendientes de `__body` y el **clic** a todos menos el **subárbol** de la píldora, con `add="+"` para no pisar lo que CustomTkinter monta dentro ([trampa 40](10-invariantes-y-trampas.md)) |
@@ -539,7 +543,8 @@ separación limpia es llevarse las dos funciones a un módulo propio y dejar aqu
 **Efectos secundarios**: `poster_grid.py`, `anime_row.py`, `side_panel.py` y `resume_card.py` **leen
 del disco** los JPG cacheados (`find_cached_poster_path()` + `load_rounded_image()`); ninguno sale a
 la red. `rating_stars.py`, `status_pill.py` y `empty_state.py` **dibujan con PIL** en tiempo de
-ejecución y cachean el `CTkImage` resultante.
+ejecución y cachean **el dibujo**, no el `CTkImage`: cada llamada da uno nuevo, que muere con su
+widget ([trampa 55](10-invariantes-y-trampas.md)). Igual `video_player.py` con `player_icon()` y el aro.
 
 🆕 `video_player.py` es otra cosa: **carga una DLL** (`load_mpv()` toca `os.environ["PATH"]` y
 `os.add_dll_directory`, [trampa 18f](10-invariantes-y-trampas.md)), mpv **sale a la red** por su
@@ -585,9 +590,10 @@ arranca ([11 §6](11-playbooks.md)).
 | `__on_recent_animes_reloaded(animes, gen)` | **hilo de UI**: descarta resultados de una generación caducada |
 | `change_appearance_mode_event(mode)` | |
 | `show_loading_screen()` | `:412-463` — **cubre la ventana entera con `Theme.BG`** y centra dentro el título, el GIF y la barra; lanza el hilo daemon. 🆕 Antes era un marco del tamaño de su contenido y **sin `fg_color`**: salía del gris por defecto de CustomTkinter ([trampa 36](10-invariantes-y-trampas.md)) |
-| `download_images_and_show_animes(...)` | **hilo daemon** |
+| `download_images_and_show_animes(on_progress, loading_frame)` | **hilo daemon**: BD, red y disco, **sin tocar widgets**; acaba con `after(0, __on_startup_loaded, …)` 🆕 |
+| `__on_startup_loaded(recent_animes, loading_frame)` 🆕 | **hilo de UI**: retira la pantalla de carga, avisa si no hay estrenos, revela la portada y lanza la precarga |
 | `__preload_recent_animes_info(gen)` | **hilo daemon**; aborta si la generación cambió (si no, escribiría el anime equivocado en el índice equivocado tras un cambio de proveedor) |
-| `load_animes(...)` | BD, progreso 0→40 % |
+| `load_animes(on_progress)` | BD, progreso 0→40 % por el callback |
 
 **Efectos**: red, disco, BD (`DB_Animes.db` y `DB_user.db`), widgets Tk, 🆕 `user32` por `ctypes` (geometría del monitor).
 

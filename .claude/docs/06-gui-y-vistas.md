@@ -270,7 +270,7 @@ cambiaría de valor ([trampa 41](10-invariantes-y-trampas.md)).
   seguro porque `winfo_children()` de un `CTkFrame` **no** incluye su canvas interno —CustomTkinter lo
   filtra—, que es donde vive esa atadura.
 
-- **Sello superpuesto** (`badge` + `badge_icon`), colocado con `place()` arriba a la izquierda. Es
+- **Sello superpuesto** (`badge` + `badge_status`; 🆕 la rejilla dibuja el glifo, la vista solo dice el estado), colocado con `place()` arriba a la izquierda. Es
   **siempre** el del diseño: `BADGE_BG` opaco y `BADGE_INK`, con el color del estado solo en el
   glifo. No se puede elegir otro par — va sobre la carátula, no sobre el fondo de la app, y los pares
   pastel de `StatusPill` no se leen sobre un póster claro.

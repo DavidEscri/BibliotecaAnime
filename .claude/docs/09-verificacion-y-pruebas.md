@@ -267,7 +267,7 @@ repo**—, todos sobre una **copia** de la BD real. Sirven de plantilla para el 
 1. **Dobles de las dependencias que no se pueden ejercitar sin usuario.** `MessageBoxFalso` registra
    qué diálogo se abriría y devuelve la respuesta programada; `HiloFalso` ejecuta el `target` en el
    acto, así que un flujo con hilo + `after()` se prueba de forma **síncrona y determinista**.
-2. **CTk real, pero con la ventana oculta.** `root.withdraw()` + `get_anime_image` parcheada permite
+2. **CTk real, pero con la ventana oculta.** `root.withdraw()` + `get_anime_image` parcheada (⚠️ desde el 2026-10-21 se llama `download_poster` y solo la usa la ficha) permite
    comprobar el layout de verdad —a qué `row`/`column` fue cada widget— sin abrir una ventana.
    ⚠️ En una ventana oculta `winfo_width()` no vale: hay que **capturar el ancho en el momento de
    pintar**, no leerlo después.
@@ -844,6 +844,52 @@ la del repo no se toca.
 todo lo que se puede medir; **oírlo** es cosa del usuario.
 
 ---
+
+## 6j. Medir fugas de memoria, widgets e imágenes *(2026-10-21)*
+
+Así se encontraron y se cerraron las [trampas 55-57](10-invariantes-y-trampas.md). Una prueba de humo
+**no** las ve: la app funciona igual, solo crecen la memoria y los handles.
+
+**Montaje**: un script en el scratchpad que copia `resources/` a un sandbox, parchea
+`utils.utils.get_resource_path` para todas las rutas `resources*` y **comprueba con `assert`** que las
+dos BD apuntan al sandbox. Después construye `MainWindow` y la maneja con `after()`, sin teclas
+sintéticas: `navigate_to()`, `open_saved_anime()`, `change_appearance_mode_event()`,
+`state("zoomed")` y un `VideoPlayer` con `av://lavfi:testsrc2` a volumen 0.
+
+**Qué medir en cada instantánea**, siempre tras `gc.collect()`:
+
+| Medida | Cómo |
+|---|---|
+| Memoria privada, WS y pico | `K32GetProcessMemoryInfo` por `ctypes` |
+| Handles GDI / USER | `GetGuiResources(proceso, 0 / 1)` |
+| Ventanas de Tk | un `proc` Tcl recursivo sobre `winfo children` |
+| Imágenes de Tk, `after` pendientes, comandos Tcl | `image names`, `after info`, `info commands` |
+| **Widgets zombis** | `tkinter.Misc` con `winfo_exists() == 0` en `gc.get_objects()` |
+| Callbacks por `CTkImage` | `len(img._configure_callback_list)`: más de 1 es un widget muerto retenido |
+| Registro de escalado | `sum(len(v) for v in ScalingTracker.window_widgets_dict.values())` |
+
+**Cómo leerlo**: lo que importa es que las cifras **no crezcan** entre la vuelta 1 y la 15, no su
+valor absoluto. Un suelo constante de zombis es normal: cada vista guarda en atributos sus últimos
+widgets. Para saber quién retiene un zombi, `gc.get_referrers()` sobre él, descartando su `__dict__`,
+su `children` y los de otros zombis. ⚠️ Una sonda que haga `zombies[:400]` se encuentra a sí misma:
+el slice es otra lista.
+
+**Valores de referencia** (2026-10-21, 75 cambios de vista, tras el arreglo):
+
+- memoria privada 57-59 MB, GDI 94, imágenes de Tk 20, 75 zombis, registro de escalado en 88, 2
+  `after`;
+- al final solo queda `MainThread`;
+- abrir el reproductor la primera vez suma ~55 MB **una vez**, que es la DLL al cargarse.
+
+Antes del arreglo: 49 → 239 MB y 6 893 zombis.
+
+**`bind_all`**: 50 ciclos de `bind_all` + `unbind_all` + `deletecommand` → los comandos Tcl no se
+mueven. Sin el `deletecommand`, +50.
+
+**Probar lo que el arreglo cambió en el hilo de Tk**: sustituir `download_poster` por una versión que
+duerma 2 s, para ver que la ficha se pinta antes y la descarga no corre en `MainThread`. Para la rama
+sin estrenos del arranque, parchear `get_recent_animes` para que devuelva `[]` y
+`messagebox.showwarning`, y comprobar en qué hilo corren `show_frame` y `CTkProgressBar.set`.
 
 ## 7. Checklist de regresión manual por vista
 
