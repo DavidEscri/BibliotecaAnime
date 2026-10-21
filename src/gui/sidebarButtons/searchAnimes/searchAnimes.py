@@ -33,6 +33,7 @@ from dataPersistence.animesPersistence import (AnimeRecord, AnimeStatus, AnimesP
 from gui.anime_window import AnimeWindowViewer, find_saved_duplicate, show_anime_info_error
 from gui.components.empty_state import EmptyState, glyph as empty_glyph
 from gui.components.genre_chips import GenreChips
+from gui.components.order_menu import OrderMenu
 from gui.components.pager import Pager
 from gui.components.poster_grid import PosterGrid, PosterItem
 from gui.components.status_pill import StatusPill
@@ -103,7 +104,7 @@ class SearchButton(utilsButtons.SidebarButton):
         # --- Widgets de la vista ------------------------------------------
         self.__query_entry: Optional[ctk.CTkEntry] = None
         self.__chips: Optional[GenreChips] = None
-        self.__order_menu: Optional[ctk.CTkOptionMenu] = None
+        self.__order_menu: Optional[OrderMenu] = None
         self.__results_label: Optional[ctk.CTkLabel] = None
         self.__poster_grid: Optional[PosterGrid] = None
         self.__pager: Optional[Pager] = None
@@ -231,22 +232,15 @@ class SearchButton(utilsButtons.SidebarButton):
         self.__chips = GenreChips(filters_frame, on_change=self.__on_genres_changed)
         self.__chips.grid(row=0, column=0, sticky="ew", padx=(0, 200))
 
-        self.__order_menu = ctk.CTkOptionMenu(
+        self.__order_menu = OrderMenu(
             filters_frame,
             values=list(ORDER_LABELS.values()),
+            command=self.__on_order_changed,
             width=186,
             height=GenreChips.CHIP_H,
             corner_radius=Metrics.pill_radius(GenreChips.CHIP_H),
             font=Theme.font(*Theme.T_META),
-            dropdown_font=Theme.font(*Theme.T_UI),
-            fg_color=Theme.CARD,
-            button_color=Theme.CARD,
-            button_hover_color=Theme.CARD_HOVER,
-            text_color=Theme.TXT_2,
-            dropdown_fg_color=Theme.CARD,
-            dropdown_hover_color=Theme.CARD_HOVER,
-            dropdown_text_color=Theme.TXT,
-            command=self.__on_order_changed
+            text_color=Theme.TXT_2
         )
         self.__order_menu.set(ORDER_LABELS[self.__order])
         self.__order_menu.grid(row=0, column=1, sticky="ne")

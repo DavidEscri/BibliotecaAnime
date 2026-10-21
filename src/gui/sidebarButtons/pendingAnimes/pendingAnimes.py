@@ -28,6 +28,7 @@ from dataPersistence.animesPersistence import AnimesPersistence, AnimesPersisten
 from gui.anime_window import open_saved_anime
 from gui.components.anime_row import AnimeRow, RowAction
 from gui.components.empty_state import EmptyState, ICON_SIZE as EMPTY_ICON_SIZE
+from gui.components.order_menu import OrderMenu
 from gui.components.resume_card import resume_progress
 from gui.components.status_pill import StatusPill
 from gui.components.view_header import ViewHeader
@@ -36,7 +37,7 @@ from utils.buttons import utilsButtons
 from utils.utils import download_anime_poster_by_status
 
 #: Criterios de orden de la cola, tal y como se leen en el desplegable. El texto
-#: es la clave: es lo que devuelve el ``CTkOptionMenu`` y lo que se compara.
+#: es la clave: es lo que devuelve el ``OrderMenu`` y lo que se compara.
 ORDER_SHORTEST = "Más cortos primero"
 ORDER_LONGEST = "Más largos primero"
 ORDER_TITLE = "Título (A-Z)"
@@ -116,23 +117,8 @@ class PendingAnimeButton(utilsButtons.SidebarButton):
 
     def __build_controls(self, header: ViewHeader) -> None:
         """Orden y buscador local, en la zona de controles de la cabecera."""
-        order_optionmenu = ctk.CTkOptionMenu(
-            header.controls_frame,
-            values=ORDER_VALUES,
-            width=180,
-            height=34,
-            corner_radius=Metrics.RADIUS_CONTROL,
-            font=Theme.font(*Theme.T_UI),
-            dropdown_font=Theme.font(*Theme.T_UI),
-            fg_color=Theme.CARD,
-            button_color=Theme.CARD,
-            button_hover_color=Theme.CARD_HOVER,
-            text_color=Theme.TXT,
-            dropdown_fg_color=Theme.CARD,
-            dropdown_hover_color=Theme.CARD_HOVER,
-            dropdown_text_color=Theme.TXT,
-            command=self.__on_order_changed
-        )
+        order_optionmenu = OrderMenu(header.controls_frame, values=ORDER_VALUES,
+                                     command=self.__on_order_changed)
         order_optionmenu.set(self.__order)
         order_optionmenu.grid(row=0, column=0, padx=(0, 14))
 

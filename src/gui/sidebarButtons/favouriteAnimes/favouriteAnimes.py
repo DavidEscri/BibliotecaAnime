@@ -30,6 +30,7 @@ from dataPersistence.animesPersistence import (AnimesPersistence, AnimesPersiste
 from dataPersistence.userPersistence import UserPersistence
 from gui.anime_window import open_saved_anime
 from gui.components.empty_state import EmptyState, ICON_SIZE as EMPTY_ICON_SIZE
+from gui.components.order_menu import OrderMenu
 from gui.components.pager import Pager
 from gui.components.poster_grid import PosterGrid, PosterItem
 from gui.components.rating_stars import RatingStars
@@ -145,23 +146,8 @@ class FavouritesButton(utilsButtons.SidebarButton):
 
     def __build_controls(self, header: ViewHeader) -> None:
         """Orden y buscador local, en la zona de controles de la cabecera."""
-        order_optionmenu = ctk.CTkOptionMenu(
-            header.controls_frame,
-            values=list(ORDER_LABELS.values()),
-            width=180,
-            height=34,
-            corner_radius=Metrics.RADIUS_CONTROL,
-            font=Theme.font(*Theme.T_UI),
-            dropdown_font=Theme.font(*Theme.T_UI),
-            fg_color=Theme.CARD,
-            button_color=Theme.CARD,
-            button_hover_color=Theme.CARD_HOVER,
-            text_color=Theme.TXT,
-            dropdown_fg_color=Theme.CARD,
-            dropdown_hover_color=Theme.CARD_HOVER,
-            dropdown_text_color=Theme.TXT,
-            command=self.__on_order_changed
-        )
+        order_optionmenu = OrderMenu(header.controls_frame, values=list(ORDER_LABELS.values()),
+                                     command=self.__on_order_changed)
         order_optionmenu.set(ORDER_LABELS[self.__order])
         order_optionmenu.grid(row=0, column=0, padx=(0, 14))
 

@@ -66,6 +66,7 @@ a = Analysis(
         'gui.components.anime_row',
         'gui.components.empty_state',
         'gui.components.genre_chips',
+        'gui.components.order_menu',
         'gui.components.pager',
         'gui.components.poster_grid',
         'gui.components.rating_stars',
