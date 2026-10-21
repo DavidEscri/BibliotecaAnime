@@ -263,7 +263,7 @@ Para añadir una columna o una tabla → `docs/11 §2` y `§2b`. **La migración
 ### 3. GUI (`src/gui/`)
 
 **Rediseñada por completo entre el 2026-08-20 y el 2026-08-21** (plan de 9 fases en
-[`.claude/plan-rediseno/`](plan-rediseno/README.md)). La GUI pasó de 1 800 a **6 800** líneas y ganó
+`.claude/plan-rediseno/`). La GUI pasó de 1 800 a **6 800** líneas y ganó
 dos piezas que antes no existían:
 
 - **`gui/theme.py`** — `Theme` (**24** tokens de color en tuplas `(claro, oscuro)` + tipografía) y
@@ -502,8 +502,8 @@ hilo de la interfaz). Las descargas van en un
 `ThreadPoolExecutor` de 8 workers y borran del disco lo que ya no está en la lista actual.
 
 **El reproductor acoplado** (2026-09-24 a 2026-10-20, plan de 7 fases en
-[`.claude/plan-reproductor/`](plan-reproductor/README.md); aspecto en
-[`DISENO-VISUAL.html`](plan-reproductor/DISENO-VISUAL.html), el diseño aprobado):
+`.claude/plan-reproductor/`; aspecto en
+`DISENO-VISUAL.html`, el diseño aprobado):
 
 - **Pulsar un servidor ya no es `webbrowser.open()`.** `__play_video()` monta el panel si hace falta,
   enseña «Cargando», resuelve en un hilo daemon y carga el medio en `VideoPlayer`. Si no hay
@@ -676,11 +676,11 @@ cerrados —el pin y la integración de un proveedor nuevo el 2026-08-06, y la c
    ✅ **Commiteado** en `a3d4331` («Actualización v0.2.0 del proyecto»), rama `main`.
 
 3. ✅ ~~**Rediseño completo de la interfaz**~~ — **hecho entre el 2026-08-20 y el 2026-08-21**, en
-   **9 fases**, una por sesión ([`.claude/plan-rediseno/`](plan-rediseno/README.md)). No estaba en la
+   **9 fases**, una por sesión (`.claude/plan-rediseno/`). No estaba en la
    lista original: se cruzó por delante y cerró de paso **cinco puntos** que sí estaban.
 
 4. ✅ ~~**Reproducir los episodios dentro de la aplicación**~~ — **hecho entre el 2026-09-23 y el
-   2026-10-20**, en **7 fases**, una por sesión ([`.claude/plan-reproductor/`](plan-reproductor/README.md),
+   2026-10-20**, en **7 fases**, una por sesión (`.claude/plan-reproductor/`,
    cierre en su `ESTADO.md`). Tampoco estaba en la lista. Cerró de paso la **deuda nº 1** del rediseño
    (los servidores en el hilo de Tk). ✅ **El audio lo oyó el usuario el 2026-10-21**, que era lo
    último sin verificar. **Deja sin hacer, a propósito**:

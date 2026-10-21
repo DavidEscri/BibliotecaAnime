@@ -9,12 +9,12 @@
 Procedencia: ✅ verificado en ejecución (arranque real de la GUI) · 📖 leído en código · ⚠️ sin verificar.
 
 > La **especificación** visual —tokens, medidas, reglas de composición— vive en
-> [`.claude/plan-rediseno/DISENO.md`](../plan-rediseno/DISENO.md), y el histórico de por qué cada
-> cosa es como es, en [`ESTADO.md`](../plan-rediseno/ESTADO.md). Este documento describe **el código
+> `.claude/plan-rediseno/DISENO.md`, y el histórico de por qué cada
+> cosa es como es, en `ESTADO.md`. Este documento describe **el código
 > que resultó**, no el diseño.
 >
-> El **reproductor** tiene su propio diseño aprobado —[`plan-reproductor/DISENO-VISUAL.html`](../plan-reproductor/DISENO-VISUAL.html), 2026-09-23—
-> y su histórico en [`plan-reproductor/ESTADO.md`](../plan-reproductor/ESTADO.md), tabla de *Decisiones*.
+> El **reproductor** tiene su propio diseño aprobado —`plan-reproductor/DISENO-VISUAL.html`, 2026-09-23—
+> y su histórico en `plan-reproductor/ESTADO.md`, tabla de *Decisiones*.
 
 ---
 
@@ -640,8 +640,8 @@ Receta detallada en [11 §1](11-playbooks.md).
 
 📖 `gui/components/video_player.py` (1 237 líneas), el bloque «Reproductor acoplado» de
 `anime_window.py` (`:1916` en adelante) y `main_window.py:121-300`. ✅ Recorrido en pantalla en las
-fases 3, 4 y 5 del [plan del reproductor](../plan-reproductor/README.md). El aspecto
-lo fija [`DISENO-VISUAL.html`](../plan-reproductor/DISENO-VISUAL.html); el flujo, con el hilo de
+fases 3, 4 y 5 del plan del reproductor. El aspecto
+lo fija `DISENO-VISUAL.html`; el flujo, con el hilo de
 cada paso, está en [03 §13](03-flujos-de-ejecucion.md).
 
 ### La disposición: encima de la ficha, no en su lugar

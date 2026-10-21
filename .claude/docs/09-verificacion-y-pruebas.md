@@ -1107,7 +1107,7 @@ del scratchpad **antes** de construir `MainWindow`.
 
 ### 7.13 Reproductor 🆕 *(2026-10-20)*
 
-Contra el [diseño aprobado](../plan-reproductor/DISENO-VISUAL.html). **Siempre sobre copia de la BD**
+Contra el diseño aprobado. **Siempre sobre copia de la BD**
 si el anime está guardado: terminar un episodio escribe ([§6i](#6i-verificar-el-reproductor-en-la-aplicación-2026-10-20)).
 
 **Abrir y ver**
