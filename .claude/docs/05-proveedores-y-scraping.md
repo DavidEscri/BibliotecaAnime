@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-10-20 · rama `feature/reproductor-embebido` · último commit de código **`047e5ea`** (fase 5 del reproductor) |
+| **Fecha** | 2026-10-20 · rama `feature/reproductor-embebido` · último commit de código **`f3fc229`** (fase 5 del reproductor) |
 | **Última revisión** | 2026-10-20 (**reproductor in-app**): **§9 nuevo**, los **hosters**: qué entrega cada uno, con qué cabeceras y con qué caducidad, por qué la resolución **no** es un método de `AnimeProvider` y cómo se diagnostica uno que dejó de resolver. §6 gana la fila que remite allí. JKAnime convierte en absolutas las URLs de servidor relativas (Okru, `urljoin`). Antes, 2026-08-16: `PROVIDER_ID` deja de ser una cadena y pasa a ser **`AnimeProviderId`** (§1); `provider_info()` nuevo; el fallback ahora **estampa** quién respondió (§5) |
 | **Cubre** | `src/APIs/common/animeProviderMgr.py`, `src/APIs/common/models.py`, `src/APIs/animeav1/animeav1.py`, `src/APIs/animeflv/animeflv.py`, `src/APIs/jkanime/jkanime.py`, `src/APIs/resolvers/` |
 

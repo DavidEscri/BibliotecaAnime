@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-10-20 · rama `feature/reproductor-embebido` · último commit de código **`047e5ea`** (fase 5 del reproductor) |
+| **Fecha** | 2026-10-20 · rama `feature/reproductor-embebido` · último commit de código **`f3fc229`** (fase 5 del reproductor) |
 | **Última revisión** | 2026-10-20 (**reproductor in-app**): la capa **`APIs/resolvers/`** entra en el diagrama y en la tabla de dependencias —solo stdlib, `requests` y ella misma; **no** la usa el manager; la llama la ficha—, junto con `VideoPlayer`, libmpv y los hosters; **I6 se cumple ya sin excepciones**; **I10** (la resolución no es un método de `AnimeProvider`) e **I11** (todo fallo de reproducción acaba en el navegador) nuevos; §6 gana `python-mpv` y la DLL. Antes, 2026-08-16 (**columna `provider_id`**): `DB_user.db` incorporada al diagrama, **I9 nuevo** (el proveedor es un tipo, no una cadena), §5 con las dos BD y §7 corregido — sí hay migraciones y sí hay configuración persistida |
 | **Cubre** | `src/app.py`, `src/APIs/**`, `src/dataPersistence/**`, `src/gui/**`, `src/utils/**` |
 

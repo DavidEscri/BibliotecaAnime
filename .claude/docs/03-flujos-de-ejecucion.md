@@ -2,14 +2,14 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-10-20 · rama `feature/reproductor-embebido` · último commit de código **`047e5ea`** (fase 5 del reproductor) |
+| **Fecha** | 2026-10-20 · rama `feature/reproductor-embebido` · último commit de código **`f3fc229`** (fase 5 del reproductor) |
 | **Última revisión** | 2026-10-20 (**reproductor in-app**): **flujo 13 nuevo** —reproducir un episodio dentro de la aplicación, con **13b** (anterior/siguiente) y **13c** (pantalla completa y cierre)— y el antiguo §13 pasa a **§14**; **§8 reescrito**: la petición de servidores ya va en un hilo daemon (cerró la deuda nº 1) y lleva número de despliegue; la convención de hilos gana 🎞️ (el hilo de eventos de mpv); §12 reanclado. Antes, 2026-09-01 (**abrir la ficha por un episodio**): **flujo 12 nuevo** —las tres acciones que prometen un episodio lo cumplen: la ficha sale con esa fila desplegada—, y el antiguo §12 pasa a **§13**; §3 gana el parámetro `focus_episode` y §8 deja de ser siempre cosa del usuario. Antes, 2026-09-01 (**refresco de la banda «Retomar»**): **flujo 11 nuevo** —la portada relee los episodios de lo que estás viendo al entrar—, y el antiguo §11 pasa a **§12**. Antes, 2026-08-31 (**fondo de la pantalla de carga**): §1 reanclado entero contra el código real y corregido —seguía diciendo `place_forget()`, que la fase 9 cambió a `destroy()`— y con la nota del fondo `Theme.BG`. Antes, 2026-08-16 (**columna `provider_id`**): §3 pasa de 2 caminos a **3, todos asíncronos**; **flujo 10 nuevo** (migrar una fila a otro proveedor); anclas de `anime_window.py` reubicadas tras crecer a 1 155 líneas |
 | **Cubre** | `main_window.py`, `anime_window.py`, `recentAnimes.py`, `resume_card.py`, `searchAnimes.py`, las 4 vistas de estado, `animeProviderMgr.py`, `animesPersistence.py`, `utils.py`, `video_player.py`, `APIs/resolvers/` |
 
 Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ sin verificar.
 **Convención de hilos**: 🖥️ = hilo de Tkinter (UI) · 🧵 = hilo daemon · ⚙️ = worker del `ThreadPoolExecutor` · 🎞️ = hilo de eventos de mpv (`MPVEventHandlerThread`).
 
-> ⚠️ **Anclas `:línea` anteriores al 2026-10-20**: el commit `2f8a51d` («Actualización comentarios
+> ⚠️ **Anclas `:línea` anteriores al 2026-10-20**: el commit `cbd2721` («Actualización comentarios
 > del proyecto», justo antes del plan del reproductor) reescribió los comentarios de 30 módulos con
 > **−400 líneas netas**. Las anclas de §8, §12 y §13 están al día; las de los demás flujos pueden ir
 > desplazadas. Búscalas por nombre de función.

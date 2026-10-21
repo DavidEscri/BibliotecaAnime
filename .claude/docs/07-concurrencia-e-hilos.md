@@ -2,8 +2,8 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-10-20 · rama `feature/reproductor-embebido` · último commit de código **`047e5ea`** (fase 5 del reproductor). §1, §6 y §7 **reancladas enteras** contra ese árbol; §2, solo en las filas nuevas |
-| **Última revisión** | 2026-10-21 (**auditoría de rendimiento**): **C1 resuelta en el arranque** —la portada, el aviso sin estrenos y la barra de progreso se pintan ya en el hilo de Tk; antes la portada se construía desde el hilo daemon y tardaba **860-1 000 ms** en vez de ~200—, y **sale del hilo de Tk el último acceso a la red**, que no estaba contado: el póster de la ficha cuando no está en disco (hilo **#17**). Antes, 2026-10-20 (**reproductor in-app**): **C5 resuelta** —la petición de servidores salió del hilo de Tk el 2026-09-24 y ya **ningún** sitio de la GUI sale a la red desde él—; **16 hilos** (eran 13: tres nuevos de la ficha, para servidores, resolución y cambio de episodio) **más el de eventos de mpv**, que no es nuestro y tiene su propia regla (§1b, [trampa 46](10-invariantes-y-trampas.md)); `after()` pasa de 11 a **28**; §7 gana `WM_DELETE_WINDOW`, que no existía. ⚠️ El commit `2f8a51d` (comentarios, −400 líneas) había desplazado todas las anclas de §1 y §6. Antes, 2026-09-01 (**abrir la ficha por un episodio**): **C5 sube de gravedad** — la petición de servidores ya no la dispara solo el usuario, la dispara también abrir la ficha desde «Viendo» o «Pendientes»; el `after(50 ms)` que lo envuelve es una tirita, no el arreglo. Antes, 2026-09-01 (**refresco de la banda «Retomar»**): hilo nuevo en la portada, y **§1, §2 y §6 reancladas enteras contra el código real** — la mitad de las líneas que citaban se habían movido con el rediseño y tres hilos del inventario **ya no existían**. Antes, 2026-08-31 (**fondo de la pantalla de carga**): anclas de `main_window.py` reverificadas en §1, §2 y §4 (iban ~29 líneas desplazadas) y `place_forget()` corregido a `destroy()` en C1; las de #5 a #13 **siguen sin verificar**. Antes, 2026-08-16 (**columna `provider_id`**): hilos a **13** (eran 8) y `after()` a **10** (eran 4); **C2 resuelta** — los 4 puntos que abren una ficha pintan ya en el hilo de Tk. C5 sigue viva |
+| **Fecha** | 2026-10-20 · rama `feature/reproductor-embebido` · último commit de código **`f3fc229`** (fase 5 del reproductor). §1, §6 y §7 **reancladas enteras** contra ese árbol; §2, solo en las filas nuevas |
+| **Última revisión** | 2026-10-21 (**auditoría de rendimiento**): **C1 resuelta en el arranque** —la portada, el aviso sin estrenos y la barra de progreso se pintan ya en el hilo de Tk; antes la portada se construía desde el hilo daemon y tardaba **860-1 000 ms** en vez de ~200—, y **sale del hilo de Tk el último acceso a la red**, que no estaba contado: el póster de la ficha cuando no está en disco (hilo **#17**). Antes, 2026-10-20 (**reproductor in-app**): **C5 resuelta** —la petición de servidores salió del hilo de Tk el 2026-09-24 y ya **ningún** sitio de la GUI sale a la red desde él—; **16 hilos** (eran 13: tres nuevos de la ficha, para servidores, resolución y cambio de episodio) **más el de eventos de mpv**, que no es nuestro y tiene su propia regla (§1b, [trampa 46](10-invariantes-y-trampas.md)); `after()` pasa de 11 a **28**; §7 gana `WM_DELETE_WINDOW`, que no existía. ⚠️ El commit `cbd2721` (comentarios, −400 líneas) había desplazado todas las anclas de §1 y §6. Antes, 2026-09-01 (**abrir la ficha por un episodio**): **C5 sube de gravedad** — la petición de servidores ya no la dispara solo el usuario, la dispara también abrir la ficha desde «Viendo» o «Pendientes»; el `after(50 ms)` que lo envuelve es una tirita, no el arreglo. Antes, 2026-09-01 (**refresco de la banda «Retomar»**): hilo nuevo en la portada, y **§1, §2 y §6 reancladas enteras contra el código real** — la mitad de las líneas que citaban se habían movido con el rediseño y tres hilos del inventario **ya no existían**. Antes, 2026-08-31 (**fondo de la pantalla de carga**): anclas de `main_window.py` reverificadas en §1, §2 y §4 (iban ~29 líneas desplazadas) y `place_forget()` corregido a `destroy()` en C1; las de #5 a #13 **siguen sin verificar**. Antes, 2026-08-16 (**columna `provider_id`**): hilos a **13** (eran 8) y `after()` a **10** (eran 4); **C2 resuelta** — los 4 puntos que abren una ficha pintan ya en el hilo de Tk. C5 sigue viva |
 | **Cubre** | `src/gui/main_window.py`, `src/gui/anime_window.py`, `src/gui/components/video_player.py`, `src/gui/sidebarButtons/**`, `src/utils/utils.py` |
 
 Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ sin verificar.
@@ -19,7 +19,7 @@ Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ si
 
 📖 Todos los `threading.Thread` del proyecto:
 
-✅ **Reanclados de cero el 2026-10-20**, con `git grep -n "threading.Thread"` sobre `047e5ea`. Son
+✅ **Reanclados de cero el 2026-10-20**, con `git grep -n "threading.Thread"` sobre `f3fc229`. Son
 **16**: los 13 del 2026-09-01 —desplazados, ninguno desaparecido— más **tres de la ficha** que trajo
 el reproductor (#12, #13 y #14). ⚠️ «Ninguno hace red en el hilo de Tk» era cierto de los hilos,
 pero no de la ficha: si el póster no estaba en disco, lo bajaba **en el hilo de Tk** hasta el
@@ -94,7 +94,7 @@ cierra sin colgarse.
 
 ## 2. Qué corre en qué hilo
 
-✅ Anclajes reverificados el 2026-09-01 contra `4ffc2ef`.
+✅ Anclajes reverificados el 2026-09-01 contra `704e894`.
 
 | Operación | Hilo | Anclaje |
 |---|---|---|
@@ -226,7 +226,7 @@ pintaba **encima de la vista nueva**.
 | `open_saved_anime` (las 4 vistas de estado) | `anime_window.py:270-306` |
 | `__confirm_and_migrate._done` (reconstruye tras migrar) | `anime_window.py:1149-1164` |
 
-✅ Líneas reancladas el 2026-09-01 contra `4ffc2ef`.
+✅ Líneas reancladas el 2026-09-01 contra `704e894`.
 
 > 🔴 **No fue una mejora cosmética: era un crash reproducible.** Construir la ficha desde el hilo
 > secundario revienta con `invalid command name ...!searchbutton.!ctkcanvas` en cuanto la vista que se
@@ -373,7 +373,7 @@ ocurrencias a la vez**: cambia una, verifica que la rejilla mantiene sus columna
 ## 6. `after()` — dónde se usa y dónde no
 
 📖 Hay **28** usos de `.after(...)` en `src/`. ✅ Recontados y **reanclados de cero el 2026-10-20**
-contra `047e5ea` (`git grep -nE "\.after\(" -- src/`). Eran 11; los nuevos son del reproductor y de
+contra `f3fc229` (`git grep -nE "\.after\(" -- src/`). Eran 11; los nuevos son del reproductor y de
 la ficha, más uno de `PosterGrid` que este documento no tenía.
 
 **Devolver trabajo de un hilo daemon al de Tk** (`after(0, …)`):

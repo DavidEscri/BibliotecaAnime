@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-10-20 · rama `feature/reproductor-embebido` · último commit de código **`047e5ea`** (fase 5 del reproductor). Revisados §1 (bloque nuevo arriba), §2, §4 (filas nuevas y B4), §6 (orden sugerido) y §7; ⚠️ las anclas `:línea` de §4 anteriores a esta fecha **no se han reverificado** tras `2f8a51d` (comentarios, −400 líneas) |
+| **Fecha** | 2026-10-20 · rama `feature/reproductor-embebido` · último commit de código **`f3fc229`** (fase 5 del reproductor). Revisados §1 (bloque nuevo arriba), §2, §4 (filas nuevas y B4), §6 (orden sugerido) y §7; ⚠️ las anclas `:línea` de §4 anteriores a esta fecha **no se han reverificado** tras `cbd2721` (comentarios, −400 líneas) |
 | **Cubre** | `src/**`, `.claude/CLAUDE.md`, `README.md`, `requirements.txt`, `MiBibliotecaAnime.spec`, `LICENSE`, `LEEME.txt`, `THIRD-PARTY-NOTICES.txt` |
 | **Última revisión** | 2026-10-21 (**auditoría de rendimiento**): **B13 rediagnosticada** —el coste de cambiar de vista es crear widgets de CustomTkinter, no leer JPG— y **B16-B17** nuevas, las dos opcionales; las fugas que destapó la auditoría están resueltas y son las trampas 55-57 de [10](10-invariantes-y-trampas.md). Antes, 2026-10-21: **B2 y B15 cerrados** (§4 y orden sugerido); **L10 y L11 cerrados**, L4c corregido y **L12-L13** nuevos (§7), con la herramienta `tools/actualizar_libmpv.py`; el usuario **ha oído** los episodios, así que el reproductor queda verificado entero. Antes, 2026-10-20 (**reproductor in-app**): **B4 cerrado del todo** —era la **deuda nº 1** del roadmap: la petición de servidores salió del hilo de Tk el 2026-09-24—; **B14 nuevo**, los hosters que siguen abriendo el navegador; **B15 nuevo**, «Cargando» sin tope con un hoster lento; **C12 nuevo**, la DLL de libmpv fuera del repo; §2 reinventariado (**4** TODOs, en líneas nuevas); §6 con el reproductor hecho y la siguiente tarea; **§7** con lo que hizo la fase 5 sobre la GPL —**seis componentes más** en `THIRD-PARTY-NOTICES.txt`, la §6 de la GPL para la DLL **con una oferta de fuente**— y **L10** nuevo. Antes, 2026-09-02 (**rejillas adaptables**): **B13 nuevo** —cada repintado de la rejilla vuelve a leer y reescalar los JPG desde disco, ~350 ms para 16 celdas en el hilo de la interfaz—, hoy mitigado con una espera de coalescencia y no con una caché. Antes, 2026-09-01 (**refresco de la banda «Retomar»**): **B12 nuevo** —solo se refrescan las ≤3 filas de la portada; el resto de la biblioteca sigue enseñando el recuento del día que abriste su ficha—, y **B3 y B8 cerrados**: los tres hilos del buscador y los siete `time.sleep(0.1)` que describían **ya no existen en `src/`** desde el rediseño. Antes, 2026-08-18: §1 rehecho —la tanda de licencia ya está publicada— y **C10 cerrado del todo**: el árbol de directorios del `README.md` tenía dos erratas de copiar-pegar y omitía los ficheros legales. Antes, 2026-08-17 (**licencia y distribución**): **A3 y C11 cerrados** —`datas` ya no lleva datos de usuario y el `.spec` está por fin **verificado compilando**—, C10 cerrado a medias, **B11 abierto** (origen de los recursos gráficos) y §7 nueva |
 
@@ -13,18 +13,18 @@ Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ si
 ## 1. Estado del árbol de trabajo
 
 🆕 **2026-10-20 — rama `feature/reproductor-embebido`**, sin fusionar con `develop` ni con `main`.
-La creó el usuario con el plan del reproductor dentro y un merge de `develop` (`4ca436c`), y lleva un
+La creó el usuario con el plan del reproductor dentro y un merge de `develop` (`5b9dd06`), y lleva un
 commit por fase:
 
 | Commit | Qué entró |
 |---|---|
-| `2f8a51d` | (antes del plan, vía `develop`) **comentarios de 30 módulos reescritos**, −400 líneas netas: desplazó las anclas `:línea` de casi toda esta documentación |
-| `b269d2a` | Fase 0 — *spike* de libmpv: `.gitignore` (+`vendor/`) y el estado del plan. `src/` sin tocar |
-| `9df7b18` | Fase 1 — capa `APIs/resolvers/`, y los «B1» y «B2» **del plan** (servidores repetidos y Okru relativo), que no son los B1 y B2 de §4 |
-| `3364a11` | Fase 2 — servidores fuera del hilo de Tk (cierra **B4** y la deuda nº 1) |
-| `beeb9ae` | Fase 3 — `VideoPlayer`, `player_frame` y la pantalla completa |
-| `84810fc` | Fase 4 — anterior/siguiente, tarjeta de fin y marcado como visto |
-| `047e5ea` | Fase 5 — `.spec`, `requirements.txt`, `README.md`, `LEEME.txt` y `THIRD-PARTY-NOTICES.txt` |
+| `cbd2721` | (antes del plan, vía `develop`) **comentarios de 30 módulos reescritos**, −400 líneas netas: desplazó las anclas `:línea` de casi toda esta documentación |
+| `4152880` | Fase 0 — *spike* de libmpv: `.gitignore` (+`vendor/`) y el estado del plan. `src/` sin tocar |
+| `5f81873` | Fase 1 — capa `APIs/resolvers/`, y los «B1» y «B2» **del plan** (servidores repetidos y Okru relativo), que no son los B1 y B2 de §4 |
+| `4167f3b` | Fase 2 — servidores fuera del hilo de Tk (cierra **B4** y la deuda nº 1) |
+| `1d8b3a8` | Fase 3 — `VideoPlayer`, `player_frame` y la pantalla completa |
+| `5a90828` | Fase 4 — anterior/siguiente, tarjeta de fin y marcado como visto |
+| `f3fc229` | Fase 5 — `.spec`, `requirements.txt`, `README.md`, `LEEME.txt` y `THIRD-PARTY-NOTICES.txt` |
 
 Sin trackear siguen los mismos: los 4 PNG sin usar, `.vscode/`, `.claude/settings.local.json` y
 `.claude/plans/`. ⚠️ **`vendor/libmpv-2.dll` no aparece porque `vendor/` está en `.gitignore`** (C12).
@@ -88,7 +88,7 @@ antes del arreglo de A5. Se re-descargaron con el scraper corregido; copia previ
 ## 2. TODOs reales en el código
 
 ✅ Inventario **rehecho con `git grep -n "TODO" -- src/` el 2026-10-20**, mirando la salida. Siguen
-siendo **4**, los mismos, pero **en otras líneas**: los desplazaron `2f8a51d` y el reproductor. El
+siendo **4**, los mismos, pero **en otras líneas**: los desplazaron `cbd2721` y el reproductor. El
 plan del reproductor no abrió ni cerró ninguno.
 
 | # | Ubicación | Contenido | Documento afectado |
@@ -215,7 +215,7 @@ Auditado punto por punto. Donde el código contradice a `CLAUDE.md`, **gana el c
 | **B12** 🆕 | **Solo se refrescan los episodios de las ≤3 filas de la banda «Retomar».** El resto de la biblioteca sigue enseñando el recuento del día que abriste su ficha, así que un anime en emisión miente en las barras de «Viendo» y «Pendientes», en el subtítulo «M episodios pendientes» y en el sello de «Finalizados» ([trampa 38](10-invariantes-y-trampas.md)) | `recentAnimes.py:137-186` (lo que sí se refresca) vs. `anime_window.py:647-648` (el único otro sitio que escribe `episodes`) |
 | **B13** | **Cambiar de vista bloquea la interfaz 270-620 ms, y no por los JPG.** ✅ Rediagnosticada el 2026-10-21 con `cProfile`: ~70 % del tiempo es `_tkinter.call`, **8-12 mil llamadas a Tcl por vista** para crear los widgets de CustomTkinter y pintar sus canvas; abrir, reescalar y redondear los JPG se queda **por debajo de 60 ms**. El diagnóstico anterior —~350 ms en PIL para 16 celdas— estaba **sobreestimado**, así que una caché de `CTkImage` por (ruta, tamaño) apenas ganaría nada, y además sería justo lo que provoca la [trampa 55](10-invariantes-y-trampas.md). La palanca real es de diseño: **conservar las vistas construidas** y alternarlas con `grid_remove()` / `grid()` en vez de destruirlas y rehacerlas, o menos widgets CTk por celda. Opcional: no se rompe nada, solo se nota. Medias de 2026-10-21: Favoritos 447 ms, Viendo 405, Finalizados 331, Nuevos 334, Pendientes 279, Buscar 224 | las seis vistas; `poster_grid.py` (`__build_cell`) |
 
-> **B12 — hasta dónde llevar el refresco** (abierto el 2026-09-01). El arreglo de `4ffc2ef` cubre lo
+> **B12 — hasta dónde llevar el refresco** (abierto el 2026-09-01). El arreglo de `704e894` cubre lo
 > que el usuario mira **para decidir qué ver**, que era el síntoma que molestaba. Extenderlo a
 > «Viendo» entero es tentador y **no es un simple copiar-pegar**: son N peticiones en vez de 3, y cada
 > una **escribe en la biblioteca sin que el usuario lo pida**, así que hereda las dos precauciones del
