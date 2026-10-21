@@ -18,7 +18,7 @@ internamente lo pedido usando [`.claude/COMO-PEDIR-TAREAS.md`](COMO-PEDIR-TAREAS
    primero que hay que aclarar, y lo que más cambia el tamaño del trabajo.
 3. **Ficheros exactos y frontera de alcance.** Las 4 vistas de estado son casi idénticas línea por
    línea: decide si la tarea afecta a una o a las cuatro.
-4. **¿Es una trampa conocida?** Coteja con `docs/10-invariantes-y-trampas.md` (**42** trampas con su
+4. **¿Es una trampa conocida?** Coteja con `docs/10-invariantes-y-trampas.md` (**54** trampas con su
    síntoma) **antes** de investigar desde cero.
 5. **Nivel de verificación** — ejecutar la GUI · script en el scratchpad · solo lectura. No hay
    tests: si no se ejecuta, se entrega marcado como no verificado.
@@ -46,6 +46,10 @@ el trabajo inservible. El protocolo existe para acertar a la primera, no para pe
 biblioteca personal de anime. Obtiene los datos por *web scraping* de varios sitios de anime, los persiste en SQLite y
 cachea los pósters en disco. Todo el estado es local; no hay backend propio.
 
+Desde el 2026-10-20 **reproduce los episodios dentro de la propia ventana**, con mpv incrustado
+(`python-mpv` + `libmpv-2.dll`), para los servidores cuyo hoster sabe resolver. Los demás —y cualquier
+fallo— **siguen abriendo el navegador**, que es lo que hacía antes.
+
 ---
 
 ## Comandos
@@ -53,6 +57,8 @@ cachea los pósters en disco. Todo el estado es local; no hay backend propio.
 ```bash
 pip install -r requirements.txt      # dependencias
 python src/app.py                    # ejecutar (desde la raíz del repo)
+# reproductor: vendor/libmpv-2.dll (120 MB, fuera del repo) → paso 4 del README.md, o bien:
+python tools/actualizar_libmpv.py --tag 20260923 --apply   # baja, prueba e instala la DLL y regenera sus avisos
 pyinstaller MiBibliotecaAnime.spec   # generar dist/MiBibliotecaAnime_v<APP_VERSION>/
 ```
 
@@ -63,6 +69,16 @@ pyinstaller MiBibliotecaAnime.spec   # generar dist/MiBibliotecaAnime_v<APP_VERS
 - **No hay suite de tests, linter ni formateador configurados.** `TESTS/` está en `.gitignore` y contiene ejemplos de
   terceros y scripts sueltos de scraping, no tests del proyecto. No inventes comandos de test.
 - `.vscode/launch.json` y `tasks.json` lanzan la app con el intérprete de `biblio_anime_env/`.
+- **`vendor/libmpv-2.dll` no está en el repositorio** (supera el límite de 100 MB de GitHub; `vendor/`
+  está en `.gitignore`). Sin ella la app arranca y funciona, pero **todo servidor se abre en el
+  navegador**; y el `.spec` **se niega a compilar**. URL, nombre del `.7z` y sha256: paso 4 del
+  `README.md`.
+- 🆕 **`tools/actualizar_libmpv.py`** (2026-10-21) es la forma de poner o **actualizar** la DLL: la
+  baja de la release de shinchiro, la prueba con python-mpv, reconstruye la versión de cada
+  biblioteca que lleva y regenera la sección de libmpv de `THIRD-PARTY-NOTICES.txt` y el paso 4 del
+  `README.md` **entre sus marcas** (no edites a mano lo que hay entre ellas). Sin `--apply` va en
+  seco. Vive fuera de `src/`, así que no va en el `.exe` ni en `hiddenimports`. 🔴 **Cambiar la DLL sin
+  pasarla deja los avisos de licencia mintiendo.**
 
 ---
 
@@ -154,6 +170,34 @@ depende de qué falle: ver la tabla de [`docs/05 §3b`](docs/05-proveedores-y-sc
 falta renderizar JS, y el *slug* y el **id numérico interno** no son intercambiables. Son las
 [trampas 23, 24 y 25](docs/10-invariantes-y-trampas.md).
 
+### 1b. Capa de resolución (`src/APIs/resolvers/`) — de la URL del servidor al vídeo *(2026-09-24)*
+
+`ServerInfo.url` es la URL del **reproductor incrustado** (*embed*) de un **hoster** (zilla, MP4Upload,
+playmudos…), no la del vídeo. Pasar de una a otra es **resolver**, y lo hace esta capa:
+
+| Pieza | Qué es |
+|---|---|
+| `MediaSource(url, headers, kind, expires_at)` (`base.py`) | El medio ya resuelto. `headers` van en **cada** petición del medio, segmentos HLS incluidos; `kind` es `"hls"` o `"mp4"`; `expires_at`, un *epoch* o `None` si la URL **no lo declara** (que no es «no caduca») |
+| `Resolver` (`base.py`) | ABC: `matches(url)` **sin red** y `resolve(url)`, que **nunca lanza** y devuelve `None` |
+| `registry.has_resolver(url)` / `registry.resolve(url)` | El único punto de entrada. **Sin caché a propósito** |
+| `zilla.py`, `jkplayer.py`, `mp4upload.py` | Los tres resolutores: «HLS» de AnimeAV1 (sintáctico, sin red), «Desu»/«Magi»/«Desuka» de JKAnime y MP4Upload |
+
+🔴 **Por qué no es un sexto método de `AnimeProvider`**: un hoster no es de un proveedor —MP4Upload lo
+embeben varios sitios—, así que la capa se indexa por **dominio del hoster**. El *fallback* del manager
+**no interviene**: si no se resuelve, la salida es **el navegador**, no otro proveedor. Y `ServerInfo`
+no cambia: se resuelve **al pulsar**, nunca al listar, porque hay URLs que caducan en ~3 h o van atadas
+a la IP del cliente. La capa **solo importa stdlib, `requests` y a sí misma**; la llaman la ficha y el
+reproductor, nadie más. Detalle, qué entrega cada hoster y cómo se diagnostica uno que dejó de
+resolver: [`docs/05 §9`](docs/05-proveedores-y-scraping.md).
+
+⚠️ **Las cabeceras son de cada hoster, y lo que uno exige otro lo rechaza**: zilla da 403 en los
+segmentos sin `Sec-Fetch-Site: same-origin`, MP4Upload exige **su propio** `Referer`, y `jkplayers.com`
+da **410** con cualquier `Referer`. Nada de cabeceras «por si acaso»
+([trampas 43-45](docs/10-invariantes-y-trampas.md)).
+
+Hoy **siguen abriendo el navegador** (llevan ↗): UPNShare, Voe, Mega, YourUpload, DoodStream, Netu,
+VidHide, StreamTape y Okru (deuda **B14**). Añadir uno: [`docs/11 §9`](docs/11-playbooks.md).
+
 ### 2. Persistencia (`src/dataPersistence/animesPersistence.py` + `src/utils/db/sqlite.py`)
 
 Dos bases de datos SQLite en `resources/DB/`, cada una con su clase derivada de `ServiceDB` y su propio
@@ -222,7 +266,7 @@ Para añadir una columna o una tabla → `docs/11 §2` y `§2b`. **La migración
 [`.claude/plan-rediseno/`](plan-rediseno/README.md)). La GUI pasó de 1 800 a **6 800** líneas y ganó
 dos piezas que antes no existían:
 
-- **`gui/theme.py`** — `Theme` (20 tokens de color en tuplas `(claro, oscuro)` + tipografía) y
+- **`gui/theme.py`** — `Theme` (**24** tokens de color en tuplas `(claro, oscuro)` + tipografía) y
   `Metrics` (medidas). 🔴 **Ningún color literal fuera de este módulo**; si hace falta uno que no
   está, se añade el token primero. Comprobable: `git grep -nE "#[0-9A-Fa-f]{6}" -- src/` solo debe
   devolver `theme.py`.
@@ -230,8 +274,9 @@ dos piezas que antes no existían:
   ni hereda del padre — sale del gris por defecto de CustomTkinter, que no es de `Theme`. No hay
   literal que buscar, porque el problema es la **ausencia** de uno. Le pasaba a la pantalla de carga
   hasta el 2026-08-31 ([trampa 36](docs/10-invariantes-y-trampas.md)).
-- **`gui/components/`** — **11** piezas compartidas: `Sidebar`, `ViewHeader`, `PosterGrid`, `Pager`,
-  `AnimeRow`, `SidePanel`, `ResumeBand`, `RatingStars`, `StatusPill`, `GenreChips` y `EmptyState`.
+- **`gui/components/`** — **12** piezas compartidas: `Sidebar`, `ViewHeader`, `PosterGrid`, `Pager`,
+  `AnimeRow`, `SidePanel`, `ResumeBand`, `RatingStars`, `StatusPill`, `GenreChips`, `EmptyState` y,
+  desde el 2026-09-24, **`VideoPlayer`** (`video_player.py`, ver *El reproductor acoplado* más abajo).
   ⚠️ **En CustomTkinter `width` y `height` son una petición, no un contrato.** Un `CTkFrame` vacío no
   mide cero, un `CTkLabel` no se recorta a su `height` y un `CTkButton` se pinta al ancho que necesita
   su rejilla interna, no al que se le pidió. Quien coloque con `place()` y lleve él la cuenta —hoy
@@ -250,7 +295,8 @@ parámetro; no se bifurca el fichero**. Es lo que mantiene `AnimeRow` en un solo
 y «Pendientes», y `PosterGrid` sirviendo a las tres rejillas.
 
 `MainWindow` (CTk) sigue siendo el **hub compartido**: mantiene `content_frame` (un
-`CTkScrollableFrame` único que todas las vistas reutilizan), `sidebar_frame`, las listas cacheadas
+`CTkScrollableFrame` único que todas las vistas reutilizan), `player_frame` (el panel del reproductor,
+**hermano** de `content_frame`), `sidebar_frame`, las listas cacheadas
 (`recent_animes`, `favourite_animes`, …), `animes_persistence`, `user_persistence`,
 `anime_provider_mgr` y `last_search_instance`. Cada vista recibe `main_window` y muta ese estado
 directamente; no hay router ni gestor de vistas.
@@ -347,9 +393,9 @@ servidores a la vista y la ventana desplazada **solo si la fila no cabía**. El 
 episodios se aplica sobre la lista **tal y como llega**, así que con One Piece por el 1164 forzarlo a
 ascendente lo dejaría fuera. Cuando el episodio cae fuera del corte, se enseña **él solo** con sus
 botones de navegación, como al buscarlo a mano ([`docs/03 §12`](docs/03-flujos-de-ejecucion.md)).
-⚠️ Esto hace que la petición de servidores —que **sigue en el hilo de Tkinter**, la deuda nº 1— se
-dispare **al abrir la ficha**, no solo al pulsar una fila. Va envuelta en un `after(50 ms)` para que al
-menos la ficha se pinte antes.
+✅ La petición de servidores que esto dispara al abrir la ficha **ya no va en el hilo de Tkinter**
+(2026-09-24): la fila dice «Buscando servidores…» mientras llega. El `after(50 ms)` se queda, con otro
+motivo: medir dónde cae la fila con la ficha ya pintada.
 
 🔴 **Las fichas de `GenreChips` se colocan con `place()`, así que el componente lleva a mano la cuenta
 del ancho** — y esa cuenta incluye lo que `CTkButton` reserva por dentro. Quedarse corto no encoge la
@@ -379,13 +425,12 @@ arrancar.** Quien cambie un estado tiene que **releerlas** antes de llamar a
 secundario revienta con `invalid command name ...!ctkcanvas` al destruir una vista que tenía un
 `<Configure>` encolado.
 
-**`AnimeWindowViewer`** (`gui/anime_window.py`, 1 924 líneas) no es una ventana: reemplaza el contenido
+**`AnimeWindowViewer`** (`gui/anime_window.py`, 2 429 líneas) no es una ventana: reemplaza el contenido
 de `content_frame`. Muestra el bloque de proveedor + póster de 248 × 372 + sinopsis + géneros, los 4
 botones de estado y la lista de episodios (**los 25 primeros**, `[:25]`).
 
 🔴 **La sinopsis se normaliza al pintar, no al raspar** (2026-09-02). `wraplength` se recalcula en
-cada `<Configure>` desde el rediseño, pero **no puede deshacer un `
-` que traiga el texto**: Tk lo
+cada `<Configure>` desde el rediseño, pero **no puede deshacer un `\n` que traiga el texto**: Tk lo
 respeta siempre, así que la sinopsis conservaba los renglones del proveedor por ancha que fuera la
 ventana —13 de las 35 filas de la biblioteca— mientras el título de al lado sí se reajustaba.
 `wrap_synopsis()` convierte los saltos sueltos en espacio y **conserva los dobles**, que son párrafos
@@ -440,9 +485,56 @@ categorías (`favourite`, `watching`, `finished`, `pending`, `recent_animes` y `
 red, y en esa rama pasa `size=` explícito — sin él `CTkImage` pinta a 20×20. Las descargas van en un
 `ThreadPoolExecutor` de 8 workers y borran del disco lo que ya no está en la lista actual.
 
+**El reproductor acoplado** (2026-09-24 a 2026-10-20, plan de 7 fases en
+[`.claude/plan-reproductor/`](plan-reproductor/README.md); aspecto en
+[`DISENO-VISUAL.html`](plan-reproductor/DISENO-VISUAL.html), el diseño aprobado):
+
+- **Pulsar un servidor ya no es `webbrowser.open()`.** `__play_video()` monta el panel si hace falta,
+  enseña «Cargando», resuelve en un hilo daemon y carga el medio en `VideoPlayer`. Si no hay
+  resolutor, si no resuelve, si libmpv no carga o si el medio da error (`end-file` con `reason=4`),
+  **abre el navegador** y lo dice en el recuadro del vídeo, ofreciendo otro servidor que sí se vea.
+  🔴 **Ningún cambio puede dejar la reproducción peor que eso.** ⚠️ Con un hoster que responde
+  **lento** tampoco hay error de mpv, así que `VideoPlayer` lleva un **tope propio de 30 s**
+  (`LOAD_TIMEOUT_S`, desde `play()` hasta que empieza a verse) que para mpv y cae al navegador
+  (zilla tardó ~70 s el 2026-10-20; [trampa 54](docs/10-invariantes-y-trampas.md), B15 cerrada el 2026-10-21).
+- **Va encima de la ficha, no en su lugar**: `MainWindow.show_player_frame()` pone `player_frame` en la
+  fila 0 y baja `content_frame` a la fila 1, que **se queda** debajo, encogido y desplazado hasta el
+  episodio. «← Volver a la ficha», cambiar de vista (`clear_frame()`) y cerrar la ventana
+  (`WM_DELETE_WINDOW`) cierran mpv.
+- **Columna de 330 px a la izquierda**: estado, título, «Episodio N de M · servidor X», proveedor,
+  fichas de servidor (↗ en las que se abren fuera), progreso y «Siguiente episodio».
+- **`VideoPlayer`** es solo el reproductor —qué suena y qué hacer si falla lo decide la ficha, por
+  callbacks—: mpv incrustado vía `wid`, tarjetas de estado en el mismo recuadro y `PlayerControls`
+  (anterior · −10 · play · +10 · siguiente · progreso · tiempo · volumen · pantalla completa). Su
+  fondo es el token **`VIDEO_BG`**, negro en los dos temas, el único que pidió el reproductor.
+- **Pantalla completa sin `-fullscreen`**, que con dos monitores lleva la ventana al principal: se
+  quita el marco y se ocupa el monitor de la ventana. La barra pasa a una **ventana flotante**
+  (`PlayerControls(floating=True)` en un `Toplevel` `-topmost`) que se oculta a los 5 s con el cursor
+  y se retira si otra aplicación pasa delante ([trampas 51 y 52](docs/10-invariantes-y-trampas.md)).
+- **Al terminar**, tarjeta con «Volver a la ficha» y «Ver el episodio N+1», y **el episodio se marca
+  como visto** —decisión del usuario del 2026-10-20— **solo si el anime ya tiene fila** (nunca la
+  crea), con la identidad de la fila guardada y la semántica acumulativa de siempre. Un fin de fichero
+  a más de 15 s del final es un **corte**, no un fin, y no marca nada
+  ([trampas 47 y 48](docs/10-invariantes-y-trampas.md)).
+
+🔴 **Encima del vídeo sí se ve un widget de Tk, si es hermano del frame de mpv y opaco**; uno **hijo**
+queda tapado. Y **el ratón y el teclado sobre el vídeo llegan a Tk, no a mpv**: los atajos, el cursor y
+la barra se resuelven en Tk ([trampas 49 y 50](docs/10-invariantes-y-trampas.md)). Las dos corrigen
+lo que daba por hecho la investigación previa. Detalle completo en
+[`docs/06 §12`](docs/06-gui-y-vistas.md) y el flujo, con el hilo de cada paso, en
+[`docs/03 §13`](docs/03-flujos-de-ejecucion.md).
+
 ### 4. Concurrencia
 
-- Toda petición HTTP va en un hilo daemon; nunca en el hilo de Tkinter.
+- Toda petición HTTP va en un hilo daemon; nunca en el hilo de Tkinter. ✅ **Sin excepciones desde el
+  2026-09-24**: la última —los servidores de un episodio— salió con la fase 2 del reproductor.
+- 🔴 **Los eventos de mpv llegan en su propio hilo (`MPVEventHandlerThread`), y desde él no se llama a
+  Tk ni con `after()`**: `after()` desde otro hilo espera a que Tk lo atienda, y `terminate()` desde Tk
+  espera a ese hilo. Los callbacks solo dejan el dato en atributos o en una cola, y `VideoPlayer` lo
+  recoge con un sondeo de 100 ms ([trampa 46](docs/10-invariantes-y-trampas.md),
+  [`docs/07 §1b`](docs/07-concurrencia-e-hilos.md)).
+- Una respuesta que puede llegar tarde lleva **número de petición** y se descarta si ya no es la última
+  (servidores, resolución y cambio de episodio en la ficha).
 - Para reprogramar trabajo en el hilo de UI, usar `self.after(delay, callback)`.
 - ⚠️ **El `time.sleep(0.1)` tras `clear_frame()` desapareció de las seis vistas.** Solo estaba para que
   `winfo_width()` no valiera 1 al calcular columnas; con rejillas de número fijo no se mide nada. **No
@@ -469,18 +561,30 @@ red, y en esa rama pasa `size=` explícito — sin él `CTkImage` pinta a 20×20
 
 ## Notas de mantenimiento
 
-- **`MiBibliotecaAnime.spec`**: `hiddenimports` quedó **completo y sin fantasmas el 2026-08-21**, con **30**
-  nombres. ✅ Auditado con AST en las dos direcciones: los 30 resuelven a ficheros reales de `src/`, y
-  **ningún módulo de `src/` queda sin declarar** salvo `app.py`, que es el script de entrada. El
-  rediseño añadió `gui.theme` y los **11** `gui.components.*`. ✅ **Verificado compilando el
-  2026-08-21**: `pyinstaller` termina sin errores y el `.exe` **abre su ventana y sigue vivo a los
-  40 s**. 🔴 **Todo módulo nuevo bajo `src/` hay que declararlo aquí**, o el `.exe` compila y revienta
-  al arrancar.
+- **`MiBibliotecaAnime.spec`**: `hiddenimports` tiene **37** nombres desde el 2026-10-20 —36 módulos
+  de `src/` y `mpv`, que `video_player.py` importa **dentro** de `load_mpv()` y el análisis estático no
+  ve—. ✅ Auditado con AST en las dos direcciones: todos resuelven a ficheros reales y **ningún módulo
+  de `src/` queda sin declarar** salvo `app.py`, que es el script de entrada. El reproductor añadió los
+  cinco `APIs.resolvers.*` y `gui.components.video_player`. 🔴 **Todo módulo nuevo bajo `src/` hay que
+  declararlo aquí**, o el `.exe` compila y revienta al arrancar.
+- **`binaries`** lleva `('vendor/libmpv-2.dll', 'vendor')` —destino **`vendor`**, no `'.'`—, porque
+  `load_mpv()` la busca en `get_resource_path("vendor")`, que en el `.exe` es `_internal/vendor`; y
+  `python-mpv` solo la encuentra si su carpeta está en `%PATH%`, que es lo que `load_mpv()` arregla
+  antes del `import` ([trampa 18f](docs/10-invariantes-y-trampas.md)). Sin la DLL, el `.spec` para
+  con `SystemExit`. ✅ **Verificado compilando el 2026-10-20**: el `.exe`, lanzado **fuera del repo y sin
+  la DLL en `%PATH%`**, reproduce AnimeAV1 por `HLS` y JKAnime por Desu, y carga la DLL de
+  `_internal\vendor`. `dist/` pasa de **38 a 153 MB**.
+  🆕 **Y desde el 2026-10-21 se para también si la DLL no es la que describen los avisos**: compara
+  su sha256 con el de la sección generada de `THIRD-PARTY-NOTICES.txt` y la del paso 4 del
+  `README.md`. Se arregla pasando `tools/actualizar_libmpv.py`, nunca editando el sha a mano. No
+  comprueba si hay una DLL más reciente, a propósito: actualizar es una decisión.
+  ✅ **0.2.2 compilada y probada por el usuario el 2026-10-21** (`HLS`, Desu y navegador).
 - La versión de la app vive en `APP_VERSION` dentro del `.spec`.
 - `resources/DB/` y las carpetas de pósters están en `.gitignore`: se generan en tiempo de ejecución.
-- Hay **4** `# TODO:` en el código, en dos ficheros: `anime_window.py:147,151` (recomendaciones por
-  género; alternar anime/manga) y `jkanime.py:191,264` (buscar en el directorio con texto vacío;
-  acotar `get_recent_animes`). El del selector de proveedor se cerró el 2026-07-30 y el de
+- Hay **4** `# TODO:` en el código, en dos ficheros: `anime_window.py:151,154` (recomendaciones por
+  género; alternar anime/manga) y `jkanime.py:156,217` (buscar en el directorio con texto vacío;
+  acotar `get_recent_animes`). ✅ Reinventariados el 2026-10-20 con el grep: el reproductor no abrió ni
+  cerró ninguno, pero `2f8a51d` y él los desplazaron. El del selector de proveedor se cerró el 2026-07-30 y el de
   `main_window.py:32` —quitar «Anime» de los botones y el título— el 2026-08-20, con la fase 1 del
   rediseño.
   ⚠️ **Este apartado se ha equivocado tres veces**: hasta el 2026-08-07 citaba dos TODOs inventados;
@@ -500,6 +604,17 @@ red, y en esa rama pasa `size=` explícito — sin él `CTkImage` pinta a 20×20
   la §6 de la GPL y los avisos MIT/BSD/Apache/MPL de las dependencias. ⚠️ **`THIRD-PARTY-NOTICES.txt` caduca al tocar
   `requirements.txt`**; regenéralo ([`docs/11 §6`](docs/11-playbooks.md)). Estado completo en
   [`docs/12 §7`](docs/12-deuda-tecnica-y-roadmap.md).
+  🆕 **El reproductor (2026-10-20)**: `python-mpv` es **GPL-2.0+ o LGPL-2.1+** y **`libmpv-2.dll` es
+  GPL-3.0+ en conjunto** (mpv sin `-Dgpl=false`, FFmpeg con `--enable-gpl --enable-version3`, sin
+  `nonfree`): compatibles con el proyecto. Los avisos pasan de 14 a **20** componentes —cuatro ya
+  viajaban en el `.exe` sin aviso— y, por la §6, dan la versión exacta y los enlaces al fuente de mpv,
+  FFmpeg y la receta de compilación, **más una oferta de facilitar el fuente** si caen.
+  ⚠️ **Esa oferta compromete al autor**, y el usuario decidió mantenerla (2026-10-21).
+  ✅ **L10 y L11 cerrados el 2026-10-21**: la DLL lleva **89** bibliotecas (más submódulos y 71 crates
+  de Rust), y sus avisos van íntegros —el fichero pasa de 2 460 a 16 810 líneas—; la licencia de
+  FFmpeg se comprobó en la etiqueta exacta. ⚠️ **La receta no anota qué versión de cada biblioteca
+  compila**: las de los avisos son **reconstruidas** (último commit antes de compilar), y así lo dicen;
+  el método acierta el hash real de mpv y de FFmpeg en las dos releases probadas (L12).
 - ⚠️ **Los iconos `viendo_light/dark.png` y `pendientes_light/dark.png` existen en
   `resources/images/utils/` pero NO se usan, y activarlos no funcionaría**: ✅ comprobado, **los dos
   dibujos de cada par son de tinta negra**, así que como par (claro, oscuro) el del tema oscuro sería
@@ -508,7 +623,8 @@ red, y en esa rama pasa `size=` explícito — sin él `CTkImage` pinta a 20×20
   ([`docs/11 §5`](docs/11-playbooks.md)). Los cuatro PNG siguen **sin trackear**.
 - **Todo lo gráfico que ha dibujado el proyecto se hace con PIL en tiempo de ejecución**, no como PNG
   en `resources/`: el pin del proveedor (2026-08-06), las estrellas de la calificación, los cuatro
-  glifos de estado (`StatusPill.icon()`) y los dos iconos de estado vacío (`empty_state.glyph()`).
+  glifos de estado (`StatusPill.icon()`), los dos iconos de estado vacío (`empty_state.glyph()`) y,
+  desde el 2026-09-24, los **15 glifos del reproductor** y su aro de «Cargando» (`player_icon()`).
   Todos se supermuestrean a 8x y se reducen con LANCZOS —sin eso un trazo diagonal sale dentado— y se
   cachean como `CTkImage` con variante clara y oscura. Receta en
   [`docs/11 §5`](docs/11-playbooks.md). ⚠️ El pin se distingue por **color** (azul/gris), no por
@@ -543,6 +659,14 @@ cerrados —el pin y la integración de un proveedor nuevo el 2026-08-06, y la c
    **9 fases**, una por sesión ([`.claude/plan-rediseno/`](plan-rediseno/README.md)). No estaba en la
    lista original: se cruzó por delante y cerró de paso **cinco puntos** que sí estaban.
 
+4. ✅ ~~**Reproducir los episodios dentro de la aplicación**~~ — **hecho entre el 2026-09-23 y el
+   2026-10-20**, en **7 fases**, una por sesión ([`.claude/plan-reproductor/`](plan-reproductor/README.md),
+   cierre en su `ESTADO.md`). Tampoco estaba en la lista. Cerró de paso la **deuda nº 1** del rediseño
+   (los servidores en el hilo de Tk). ✅ **El audio lo oyó el usuario el 2026-10-21**, que era lo
+   último sin verificar. **Deja sin hacer, a propósito**:
+   los hosters aplazados (**B14**), recordar el minuto donde lo dejaste (una columna más, no pedida),
+   elegir calidad o subtítulos (los playlists no ofrecen alternativas) y descargar episodios.
+
 Después, sin orden fijado. **El rediseño se llevó por delante buena parte de lo que había aquí**:
 
 - ✅ ~~Renombrar «animes recientes» a **nuevos lanzamientos**~~ — fase 1.
@@ -560,10 +684,10 @@ Después, sin orden fijado. **El rediseño se llevó por delante buena parte de 
 - Bloque «Si te ha gustado *X*, te puede interesar…» al final de la lista de episodios, con 4 animes del mismo género.
 - Integrar más proveedores (MonosChinos2, TioAnime) y proveedores de manga.
 - **Deuda que deja el rediseño**, por orden de lo que más molesta:
-  1. ⚠️ **La petición de servidores de la ficha sigue en el hilo de Tkinter** — el **último** sitio de
-     la GUI que sale a la red desde el hilo de la interfaz. Congela la ventana un par de segundos, y
-     desde el 2026-09-01 **molesta más**: abrir la ficha por un episodio la dispara sin que el usuario
-     pulse nada.
+  1. ✅ ~~**La petición de servidores de la ficha sigue en el hilo de Tkinter**~~ — **cerrada el
+     2026-09-24** con la fase 2 del reproductor, que la necesitaba antes de añadir una segunda
+     petición en el mismo punto. Ya **ningún** sitio de la GUI sale a la red desde el hilo de la
+     interfaz.
   2. **B11**: los ~7 iconos de la barra lateral y los 2 GIF de carga siguen siendo de origen
      desconocido ([`docs/12 §4`](docs/12-deuda-tecnica-y-roadmap.md)). El rediseño **no la hizo
      crecer**: sus diez glifos se dibujan con PIL.
@@ -576,6 +700,14 @@ Después, sin orden fijado. **El rediseño se llevó por delante buena parte de 
      del póster no cambie: ~350 ms para 16 celdas, en el hilo de la interfaz. Se mitiga juntando los
      `<Configure>`, no cacheando; falta una caché de `CTkImage` por (ruta, tamaño) que serviría igual
      a `AnimeRow` y a `ResumeCard` ([`docs/12 §4`](docs/12-deuda-tecnica-y-roadmap.md)).
+- **Deuda que deja el reproductor**:
+  1. **B14**: los hosters sin resolutor siguen abriendo el navegador. Lo que más valdría es un segundo
+     hoster por proveedor que no dependa del mismo origen: zilla estuvo caído tres días en septiembre.
+  2. ✅ ~~**L10 / L11**~~ — **cerradas el 2026-10-21** con `tools/actualizar_libmpv.py`
+     ([`docs/12 §7`](docs/12-deuda-tecnica-y-roadmap.md)).
+  3. **C12**: la DLL no está en el repo; un clon limpio no compila el `.exe` sin el paso 4 del README.
+  4. ✅ ~~**B15**: «Cargando» no tiene tope propio~~ — **cerrada el 2026-10-21**: 30 s desde `play()`
+     hasta que empieza a verse, y al vencer cae al navegador ([trampa 54](docs/10-invariantes-y-trampas.md)).
 
 ---
 
@@ -588,7 +720,7 @@ Guía de colaboración (cómo plantear una tarea en este repo, qué asumo por de
 cambian mi comportamiento): [`.claude/COMO-PEDIR-TAREAS.md`](COMO-PEDIR-TAREAS.md).
 
 **Antes de tocar cualquier cosa, lee [`docs/10-invariantes-y-trampas.md`](docs/10-invariantes-y-trampas.md)**
-— **42** trampas con su síntoma observable.
+— **54** trampas con su síntoma observable.
 
 | Documento | Qué responde |
 |---|---|
@@ -597,13 +729,13 @@ cambian mi comportamiento): [`.claude/COMO-PEDIR-TAREAS.md`](COMO-PEDIR-TAREAS.m
 | [docs/02-mapa-de-modulos.md](docs/02-mapa-de-modulos.md) | Ficha por módulo: API pública, dependencias, efectos secundarios |
 | [docs/03-flujos-de-ejecucion.md](docs/03-flujos-de-ejecucion.md) | Los **13** flujos en diagramas de secuencia, con el hilo de cada paso |
 | [docs/04-modelo-de-datos.md](docs/04-modelo-de-datos.md) | `AnimeInfo` vs `AnimeRecord`, esquema real de `ANIMES`, rangos, estados |
-| [docs/05-proveedores-y-scraping.md](docs/05-proveedores-y-scraping.md) | Contrato, payload de AnimeAV1, selectores de AnimeFLV, fallback, diagnóstico |
+| [docs/05-proveedores-y-scraping.md](docs/05-proveedores-y-scraping.md) | Contrato, payload de AnimeAV1, selectores de AnimeFLV, fallback, diagnóstico **y los hosters de vídeo (§9)** |
 | [docs/06-gui-y-vistas.md](docs/06-gui-y-vistas.md) | `MainWindow` como hub, ciclo de vida de una vista, layout, temas |
 | [docs/07-concurrencia-e-hilos.md](docs/07-concurrencia-e-hilos.md) | Qué corre en qué hilo, reglas y carreras conocidas |
 | [docs/08-convenciones-y-estilo.md](docs/08-convenciones-y-estilo.md) | Cabecera obligatoria, singletons, **plantillas copiables** |
 | [docs/09-verificacion-y-pruebas.md](docs/09-verificacion-y-pruebas.md) | Cómo probar cada capa sin GUI; scripts listos; checklist manual |
-| [docs/10-invariantes-y-trampas.md](docs/10-invariantes-y-trampas.md) | **Empieza por aquí.** **42** trampas con síntoma observable |
-| [docs/11-playbooks.md](docs/11-playbooks.md) | Recetas: añadir vista, columna, proveedor, campo; empaquetar |
+| [docs/10-invariantes-y-trampas.md](docs/10-invariantes-y-trampas.md) | **Empieza por aquí.** **54** trampas con síntoma observable |
+| [docs/11-playbooks.md](docs/11-playbooks.md) | Recetas: añadir vista, columna, proveedor, campo, **resolutor**; empaquetar |
 | [docs/12-deuda-tecnica-y-roadmap.md](docs/12-deuda-tecnica-y-roadmap.md) | TODOs con `fichero:línea`, discrepancias, riesgos, roadmap técnico **y licencia/cumplimiento de la distribución (§7)** |
 | [docs/13-selector-de-proveedor.md](docs/13-selector-de-proveedor.md) | Selector de proveedor, `DB_user.db` **y la columna `provider_id`** (§14). **Léelo antes de tocar `animeProviderMgr.py`, `main_window.py` o `anime_window.py`** |
 

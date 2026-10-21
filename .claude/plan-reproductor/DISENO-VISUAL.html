@@ -1,0 +1,822 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- Diseño aprobado el 2026-09-23. Publicado en https://claude.ai/artifact/NSzRPJ2d4ijGi4RZBmuXo4 -->
+<title>El reproductor acoplado</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* ============================================================
+   PÁGINA ANFITRIONA — la de DISENO-VISUAL.html
+   ============================================================ */
+:root{
+  --ground:#EDEEF2; --surface:#FFFFFF; --surface-2:#E4E6EC;
+  --ink:#15171C; --ink-2:#3D434F; --muted:#666D7C;
+  --rule:#D3D7E0; --accent:#2F4E9E; --good:#2E7D5B; --bad:#A8563A; --caution:#9A5B0B;
+  --shadow:0 1px 2px rgba(21,23,28,.06),0 8px 24px -12px rgba(21,23,28,.18);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --ground:#111318; --surface:#181B21; --surface-2:#20242C;
+    --ink:#E8EAEF; --ink-2:#B9BFCB; --muted:#8A92A1;
+    --rule:#2A2F39; --accent:#8AA6EE; --good:#6FC79A; --bad:#E2946F; --caution:#F2B64C;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px -14px rgba(0,0,0,.7);
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --ground:#111318; --surface:#181B21; --surface-2:#20242C;
+  --ink:#E8EAEF; --ink-2:#B9BFCB; --muted:#8A92A1;
+  --rule:#2A2F39; --accent:#8AA6EE; --good:#6FC79A; --bad:#E2946F; --caution:#F2B64C;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px -14px rgba(0,0,0,.7);
+}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--ground);color:var(--ink);
+  font-family:'Newsreader',Georgia,serif;font-size:17px;line-height:1.6;-webkit-font-smoothing:antialiased;}
+a{color:var(--accent);text-decoration:none;}
+a:hover{text-decoration:underline;}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:3px;}
+h1,h2,h3{font-family:'Archivo','Segoe UI',system-ui,sans-serif;}
+.wrap{max-width:1180px;margin:0 auto;padding-inline:28px;}
+@media (max-width:600px){ .wrap{padding-inline:16px;} }
+
+.topbar{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;
+  background:color-mix(in srgb,var(--ground) 88%,transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--rule);}
+.topbar .wrap{display:flex;align-items:center;gap:20px;height:54px;}
+.topbar b{font-family:'Archivo',sans-serif;font-weight:600;font-size:14px;white-space:nowrap;}
+.topbar b span{color:var(--muted);font-weight:500;}
+.topnav{margin-left:auto;display:flex;gap:2px;}
+.topnav a{font-family:'Archivo',sans-serif;font-size:11.5px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;
+  color:var(--muted);padding:6px 9px;border-radius:6px;}
+.topnav a:hover{color:var(--ink);background:var(--surface-2);text-decoration:none;}
+
+.lede{padding-block:72px 0;}
+.eyebrow{font-family:'Archivo',sans-serif;font-size:11px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);margin:0 0 18px;}
+h1{font-size:clamp(36px,5.2vw,56px);font-weight:700;letter-spacing:-.028em;line-height:1.04;margin:0;text-wrap:balance;max-width:17ch;}
+.lede p{max-width:62ch;font-size:20px;color:var(--ink-2);margin:22px 0 0;}
+
+.decisions{margin:44px 0 0;border:1px solid var(--rule);border-radius:10px;background:var(--surface);overflow:hidden;}
+.decisions h3{font-size:11px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:0;padding:18px 24px 12px;}
+.decisions ul{list-style:none;margin:0;padding:0 0 8px;}
+.decisions li{display:grid;grid-template-columns:104px 1fr;gap:18px;padding:11px 24px;font-size:16px;color:var(--ink-2);line-height:1.5;}
+.decisions li + li{border-top:1px solid var(--rule);}
+.decisions .tag{font-family:'Archivo',sans-serif;font-size:10.5px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;padding-top:4px;}
+.tag.from{color:var(--accent);} .tag.new{color:var(--good);} .tag.out{color:var(--bad);} .tag.ask{color:var(--caution);}
+
+section{padding-block:84px 0;}
+.head{margin:0 0 24px;}
+h2{font-size:31px;font-weight:600;letter-spacing:-.02em;margin:0;line-height:1.1;}
+.job{font-family:'Archivo',sans-serif;font-size:12px;font-weight:500;color:var(--muted);letter-spacing:.02em;margin-top:6px;display:block;}
+.thesis{margin:12px 0 0;max-width:66ch;font-size:18px;color:var(--ink-2);}
+
+.shot{border:1px solid var(--rule);border-radius:12px;overflow:hidden;background:var(--surface-2);box-shadow:var(--shadow);max-width:100%;}
+.stage{overflow:hidden;}
+.frame{width:1440px;height:910px;transform-origin:0 0;transform:scale(var(--s,1));display:flex;flex-direction:column;overflow:hidden;
+  font-family:'Segoe UI','Archivo',system-ui,sans-serif;}
+figure{margin:0;min-width:0;}
+figcaption{font-family:'Archivo',sans-serif;font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:12px 0 0;
+  display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+.chip{font-size:10px;letter-spacing:.08em;border:1px solid var(--rule);border-radius:4px;padding:1px 6px;color:var(--muted);}
+.stack{display:flex;flex-direction:column;gap:30px;}
+.duo{display:grid;grid-template-columns:1fr 1fr;gap:22px;}
+.state + .state{margin-top:44px;}
+.state h3{font-size:15px;font-weight:600;margin:0 0 4px;letter-spacing:-.005em;}
+.state p.lead{margin:0 0 16px;font-size:16px;color:var(--ink-2);max-width:70ch;}
+
+.notes{display:grid;grid-template-columns:1fr 1fr;gap:34px;margin:30px 0 0;padding:26px 0 0;border-top:1px solid var(--rule);}
+.notes h3{font-size:11px;font-weight:600;letter-spacing:.11em;text-transform:uppercase;margin:0 0 9px;color:var(--muted);}
+.notes p{margin:0;font-size:16px;line-height:1.55;color:var(--ink-2);}
+.notes p + p{margin-top:10px;}
+code{font-family:'JetBrains Mono',ui-monospace,monospace;font-size:.82em;background:var(--surface-2);padding:.12em .38em;border-radius:4px;color:var(--ink);}
+.grid-fig{font-family:'JetBrains Mono',monospace;font-size:12.5px;line-height:1.55;color:var(--ink-2);background:var(--surface);
+  border:1px solid var(--rule);border-radius:8px;padding:12px 14px;margin:10px 0 0;white-space:pre;overflow-x:auto;}
+
+/* anatomía de la barra */
+.anat{overflow-x:auto;border:1px solid var(--rule);border-radius:12px;box-shadow:var(--shadow);}
+.anat .pad{width:max-content;min-width:100%;padding:188px 36px 54px;display:flex;justify-content:center;}
+.legend{list-style:none;margin:22px 0 0;padding:0;display:grid;grid-template-columns:repeat(3,1fr);gap:14px 30px;}
+.legend li{display:grid;grid-template-columns:26px 1fr;gap:8px;font-size:15.5px;line-height:1.45;color:var(--ink-2);}
+.legend li b{color:var(--ink);font-family:'Archivo',sans-serif;font-size:14px;font-weight:600;display:block;}
+.legend .k{font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:500;color:var(--accent);padding-top:2px;}
+
+/* demo */
+.demo-status{font-family:'JetBrains Mono',monospace;font-size:12.5px;color:var(--ink-2);margin:12px 0 0;display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+.demo-status .m{width:140px;height:4px;border-radius:2px;background:var(--rule);overflow:hidden;}
+.demo-status .m i{display:block;height:100%;width:0;background:var(--accent);}
+.seg{display:inline-flex;border:1px solid var(--rule);border-radius:7px;overflow:hidden;}
+.seg button{all:unset;cursor:pointer;font-family:'Archivo',sans-serif;font-size:11.5px;font-weight:600;padding:5px 10px;color:var(--muted);}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--ground);}
+.seg button:focus-visible{outline:2px solid var(--accent);outline-offset:-2px;}
+
+.risks{counter-reset:r;list-style:none;margin:0;padding:0;border:1px solid var(--rule);border-radius:10px;background:var(--surface);}
+.risks li{display:grid;grid-template-columns:150px 1fr;gap:22px;padding:18px 24px;font-size:16px;color:var(--ink-2);line-height:1.55;}
+.risks li + li{border-top:1px solid var(--rule);}
+.risks li b.h{font-family:'Archivo',sans-serif;font-size:13.5px;font-weight:600;color:var(--ink);line-height:1.35;}
+.risks .v{display:block;font-family:'Archivo',sans-serif;font-size:10.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--caution);margin-top:6px;}
+
+footer{margin:88px 0 0;border-top:1px solid var(--rule);padding-block:26px 64px;color:var(--muted);font-size:15.5px;}
+footer p{margin:0;max-width:66ch;}
+footer p + p{margin-top:8px;}
+
+@media (max-width:900px){
+  .notes,.duo{grid-template-columns:1fr;gap:24px;}
+  .legend{grid-template-columns:1fr;}
+  .topnav{display:none;}
+  .decisions li,.risks li{grid-template-columns:1fr;gap:4px;}
+}
+
+/* ============================================================
+   MAQUETAS — tokens de gui/theme.py
+   ============================================================ */
+.ic{width:20px;height:20px;flex:none;stroke:currentColor;fill:none;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;}
+.ic.s{width:16px;height:16px;} .ic.xs{width:13px;height:13px;} .ic.l{width:23px;height:23px;}
+
+.ui{
+  --bg:#14161A; --panel:#0F1115; --card:#1B1E24; --cardh:#232730; --line:#262A33; --line2:#1D212A;
+  --t1:#ECEEF2; --t2:#A6AEBA; --t3:#6F7885;
+  --ac:#6D8AF0; --acd:#222A44; --acink:#0C1020; --warn:#FBBF24; --fin:#68C888;
+  --chrome:#1B2027; --chromet:#FFFFFF;
+  --vid:#000000;
+  background:var(--bg);color:var(--t1);
+}
+.ui.lt{
+  --bg:#F4F5F7; --panel:#E9EBEF; --card:#FFFFFF; --cardh:#EFF1F5; --line:#DCDFE5; --line2:#E7EAEF;
+  --t1:#171A1F; --t2:#525A66; --t3:#7C8593;
+  --ac:#3A55C9; --acd:#E4E9FA; --acink:#FFFFFF; --warn:#B45309; --fin:#2E7D5B;
+  --chrome:#F3F3F3; --chromet:#1A1A1A;
+}
+.ui .tbar{height:32px;flex:none;display:flex;align-items:center;gap:9px;padding-left:12px;font-size:12px;font-weight:500;background:var(--chrome);color:var(--chromet);}
+.ui .tbar .dot{width:14px;height:14px;border-radius:4px;background:#6D8AF0;}
+.ui .tbar .ctl{margin-left:auto;display:flex;height:32px;}
+.ui .tbar .ctl span{width:46px;display:grid;place-items:center;opacity:.85;}
+.ui .tbar .ctl svg{width:11px;height:11px;fill:none;stroke:currentColor;stroke-width:1.4;stroke-linecap:round;}
+.ui .app{flex:1;display:flex;min-height:0;}
+
+.ui .side{width:224px;flex:none;background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;padding:16px 0 14px;}
+.ui .side .brand{display:flex;align-items:center;gap:9px;padding:0 14px 0 18px;margin-bottom:16px;}
+.ui .side .brand b{font-size:13.5px;font-weight:600;}
+.ui .side .brand .fold{margin-left:auto;width:26px;height:26px;display:grid;place-items:center;color:var(--t3);}
+.ui .side a{display:flex;align-items:center;gap:11px;height:38px;padding:0 18px;color:var(--t2);font-size:13.5px;}
+.ui .side a.on{color:var(--t1);background:var(--card);box-shadow:inset 2px 0 0 var(--ac);}
+.ui .side a b{margin-left:auto;font-weight:500;font-size:12px;color:var(--t3);font-variant-numeric:tabular-nums;}
+.ui .side .btm{margin-top:auto;padding:0 14px;}
+.ui .side .cap{font-size:10px;letter-spacing:.13em;text-transform:uppercase;color:var(--t3);margin:0 0 5px 4px;}
+.ui .side .ctrl{display:flex;align-items:center;gap:8px;height:32px;padding:0 10px;border:1px solid var(--line);border-radius:7px;font-size:12.5px;color:var(--t2);background:var(--card);}
+.ui .side .ctrl .gap{margin-left:auto;display:flex;align-items:center;gap:6px;}
+.ui .side .ctrl .pin{color:var(--ac);}
+
+.ui .lbl{font-size:10.5px;font-weight:600;letter-spacing:.13em;text-transform:uppercase;color:var(--t3);margin:0 0 10px;}
+.ui .btn{display:flex;align-items:center;justify-content:center;gap:8px;height:38px;padding:0 16px;border-radius:9px;font-size:13px;font-weight:600;
+  border:1px solid var(--line);color:var(--t2);background:var(--card);white-space:nowrap;}
+.ui .btn.pri{background:var(--ac);border-color:var(--ac);color:var(--acink);}
+.ui .srv{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.ui .srv .s{display:flex;align-items:center;gap:6px;height:30px;padding:0 12px;border-radius:7px;background:var(--card);border:1px solid var(--line);font-size:12.5px;color:var(--t2);}
+.ui .srv .s.on{background:var(--acd);border-color:var(--ac);color:var(--ac);font-weight:600;}
+.ui .srv .s.out{color:var(--t3);}
+.ui .prog{display:flex;align-items:center;gap:11px;}
+.ui .prog .t{height:4px;flex:1;background:var(--line);border-radius:2px;overflow:hidden;}
+.ui .prog .t i{display:block;height:100%;background:var(--ac);border-radius:2px;}
+.ui .prog span{font-size:12px;color:var(--t3);font-variant-numeric:tabular-nums;white-space:nowrap;}
+.ui .sw{width:36px;height:20px;border-radius:10px;background:var(--line);position:relative;flex:none;}
+.ui .sw i{position:absolute;top:3px;left:3px;width:14px;height:14px;border-radius:50%;background:var(--t3);}
+.ui .sw.on{background:var(--ac);} .ui .sw.on i{left:19px;background:var(--acink);}
+
+/* disposición acoplada */
+.ui .main{flex:1;min-width:0;display:flex;flex-direction:column;padding:0 28px;}
+.ui .dock{flex:none;display:flex;gap:24px;padding-top:20px;}
+.ui .info{width:330px;flex:none;display:flex;flex-direction:column;}
+.ui .back{align-self:flex-start;display:flex;align-items:center;gap:7px;height:32px;padding:0 12px 0 9px;border-radius:7px;border:1px solid var(--line);
+  font-size:12.5px;color:var(--t2);background:var(--card);}
+.ui .info .now{margin-top:24px;}
+.ui .info h5{margin:0;font-size:22px;font-weight:600;letter-spacing:-.015em;line-height:1.2;}
+.ui .info .meta{margin:7px 0 0;font-size:13px;color:var(--t2);}
+.ui .info .meta b{color:var(--t1);font-weight:600;}
+.ui .info .pv{margin:3px 0 0;font-size:12px;color:var(--t3);}
+.ui .info .blk{margin-top:28px;}
+.ui .info .foot{margin-top:auto;}
+.ui .info .foot .btn{width:100%;justify-content:space-between;height:44px;}
+.ui .info .foot .btn span{display:flex;align-items:center;gap:8px;}
+.ui .info .foot .btn small{font-weight:500;opacity:.8;font-size:12px;}
+
+.ui .vcol{width:806px;flex:none;position:relative;}
+.ui .video{position:relative;background:var(--vid);overflow:hidden;}
+.ui .vcol .video{height:453px;border-radius:10px 10px 0 0;}
+.ui .vcol .cbar{border:1px solid var(--line);border-top:0;border-radius:0 0 10px 10px;}
+
+.scene{position:absolute;inset:0;background:
+  radial-gradient(ellipse 18% 26% at 64% 44%,rgba(170,195,255,.75),transparent 70%),
+  radial-gradient(ellipse 40% 55% at 64% 44%,rgba(90,70,220,.35),transparent 72%),
+  radial-gradient(ellipse 70% 30% at 50% 102%,rgba(60,24,90,.9),transparent 70%),
+  linear-gradient(180deg,#070B22 0%,#18204E 52%,#0A0A16 100%);}
+.scene::before{content:"";position:absolute;left:0;right:0;bottom:0;height:42%;background:#05060C;
+  clip-path:polygon(0 62%,5% 62%,5% 30%,11% 30%,11% 48%,16% 48%,16% 12%,21% 12%,21% 40%,27% 40%,27% 55%,33% 55%,33% 24%,37% 24%,37% 0,41% 0,41% 36%,47% 36%,47% 58%,54% 58%,54% 70%,60% 70%,60% 44%,66% 44%,66% 20%,71% 20%,71% 50%,78% 50%,78% 32%,84% 32%,84% 8%,88% 8%,88% 46%,94% 46%,94% 26%,100% 26%,100% 100%,0 100%);}
+.scene::after{content:"";position:absolute;left:62.4%;top:40%;width:3.2%;height:30%;border-radius:40% 40% 8% 8%;background:#04050A;box-shadow:0 0 60px 18px rgba(130,160,255,.35);}
+.subs{position:absolute;left:0;right:0;bottom:7%;text-align:center;color:#FFFFFF;font-weight:600;text-shadow:0 0 3px #000,0 0 3px #000,0 2px 2px #000;}
+.letter{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;}
+.letter .inner{position:relative;width:100%;aspect-ratio:16/9;}
+
+/* barra de controles */
+.ui .cbar{height:56px;flex:none;display:flex;align-items:center;gap:2px;padding:0 10px;background:var(--card);}
+.ui .b{position:relative;width:38px;height:38px;border-radius:8px;display:grid;place-items:center;color:var(--t2);flex:none;}
+.ui .b.hov{background:var(--cardh);color:var(--t1);}
+.ui .b.dim{color:var(--line);}
+.ui .b.pp{background:var(--ac);color:var(--acink);margin:0 3px;}
+.ui .b.pp.dim{background:var(--line);color:var(--t3);}
+.ui .tl{position:relative;flex:1;display:flex;align-items:center;margin:0 14px;height:38px;}
+.ui .tr{position:relative;height:4px;flex:1;background:var(--line);border-radius:2px;}
+.ui .tr i{position:absolute;left:0;top:0;bottom:0;background:var(--ac);border-radius:2px;}
+.ui .tr em{position:absolute;top:50%;width:14px;height:14px;border-radius:50%;background:var(--ac);transform:translate(-50%,-50%);box-shadow:0 0 0 3px var(--card);}
+.ui .tm{position:relative;font-family:'Cascadia Mono','JetBrains Mono',monospace;font-size:12.5px;color:var(--t1);white-space:nowrap;font-variant-numeric:tabular-nums;margin-right:8px;}
+.ui .tm span{color:var(--t3);}
+.ui .vpop{display:none;position:absolute;bottom:calc(100% + 12px);left:50%;transform:translateX(-50%);width:46px;height:160px;
+  background:var(--card);border:1px solid var(--line);border-radius:10px;flex-direction:column;align-items:center;padding:12px 0 16px;gap:12px;z-index:3;}
+.ui .vpop b{font-family:'Cascadia Mono','JetBrains Mono',monospace;font-size:11.5px;font-weight:500;color:var(--t2);}
+.ui .vtr{position:relative;width:4px;flex:1;background:var(--line);border-radius:2px;}
+.ui .vtr i{position:absolute;left:0;right:0;bottom:0;background:var(--ac);border-radius:2px;}
+.ui .vtr em{position:absolute;left:50%;width:14px;height:14px;border-radius:50%;background:var(--ac);transform:translate(-50%,50%);box-shadow:0 0 0 3px var(--card);}
+.ui .vol.open .vpop{display:flex;}
+.ui .vol.open{background:var(--cardh);color:var(--t1);}
+
+/* estados dentro del vídeo */
+.ui .card{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:450px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:26px 28px 24px;}
+.ui .card h4{margin:0;font-size:20px;font-weight:600;letter-spacing:-.01em;}
+.ui .card .who{margin:5px 0 0;font-size:13px;color:var(--t3);}
+.ui .card p.tx{margin:8px 0 0;font-size:13px;line-height:1.55;color:var(--t2);}
+.ui .card .ico{width:38px;height:38px;border-radius:10px;background:var(--acd);color:var(--ac);display:grid;place-items:center;margin-bottom:14px;}
+.ui .card .mk{display:flex;align-items:center;gap:10px;margin:18px 0 0;padding:11px 13px;border-radius:9px;background:var(--bg);font-size:12.5px;color:var(--t2);}
+.ui .card .mk .ok{color:var(--fin);}
+.ui .card .mk em{margin-left:auto;font-style:normal;font-size:11px;color:var(--warn);}
+.ui .card .row{display:flex;gap:10px;margin:20px 0 0;}
+.ui .card .row .btn{flex:1;}
+.ui .card .x{position:absolute;top:14px;right:14px;width:30px;height:30px;border-radius:7px;display:grid;place-items:center;color:var(--t3);}
+.ui .card .x.hov{background:var(--cardh);color:var(--t1);}
+.ui .card.end h4{padding-right:34px;}
+.ui .loading{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;color:#FFFFFF;}
+.ui .loading .ring{width:34px;height:34px;border-radius:50%;border:3px solid #2A2E38;border-top-color:#6D8AF0;animation:spin 1s linear infinite;}
+.ui .loading b{font-size:15px;font-weight:600;}
+.ui .loading span{font-size:12.5px;color:#9AA3B2;margin-top:-8px;}
+@keyframes spin{to{transform:rotate(360deg);}}
+@media (prefers-reduced-motion: reduce){ .ui .loading .ring{animation:none;} }
+
+/* lista de la ficha, debajo */
+.ui .under{flex:1;min-height:0;display:flex;flex-direction:column;margin-top:20px;border-top:1px solid var(--line);position:relative;}
+.ui .ephead{display:flex;align-items:center;gap:10px;height:54px;flex:none;}
+.ui .ephead h6{margin:0;font-size:16px;font-weight:600;}
+.ui .ephead .rt{margin-left:auto;display:flex;align-items:center;gap:9px;}
+.ui .pick{display:flex;align-items:center;gap:7px;height:32px;padding:0 12px;border:1px solid var(--line);border-radius:7px;font-size:12.5px;color:var(--t2);background:var(--card);}
+.ui .find{display:flex;align-items:center;gap:8px;height:32px;padding:0 13px;border-radius:16px;background:var(--card);border:1px solid var(--line);color:var(--t3);font-size:12.5px;width:190px;}
+.ui .find.act{border-color:var(--ac);color:var(--t1);}
+.ui .find .caret{width:1px;height:15px;background:var(--ac);margin-left:-5px;}
+.ui .find .enter{margin-left:auto;font-family:'Cascadia Mono','JetBrains Mono',monospace;font-size:10.5px;color:var(--t3);border:1px solid var(--line);border-radius:4px;padding:0 5px;}
+.ui .erow{display:flex;align-items:center;gap:16px;height:52px;padding:0 14px;border-bottom:1px solid var(--line2);flex:none;}
+.ui .erow .n{font-size:13.5px;font-weight:600;width:96px;flex:none;}
+.ui .erow .d{font-size:12px;color:var(--t3);flex:1;display:flex;align-items:center;gap:7px;}
+.ui .erow .d em{font-style:normal;font-size:11px;color:var(--warn);}
+.ui .erow .sl{font-size:12px;color:var(--t3);width:44px;}
+.ui .erow.cur{background:var(--card);border-radius:8px;border-bottom-color:transparent;}
+.ui .erow.cur .n,.ui .erow.cur .d{color:var(--ac);}
+.ui .erow.open{background:var(--card);border-radius:8px 8px 0 0;border-bottom-color:transparent;}
+.ui .srvrow{background:var(--card);border-radius:0 0 8px 8px;padding:4px 14px 16px;display:flex;align-items:center;gap:14px;}
+.ui .srvrow .lbl{margin:0;}
+.ui .nav{display:flex;justify-content:space-between;margin-top:14px;padding:0 14px;}
+.ui .nav .btn{height:32px;font-weight:500;font-size:12.5px;}
+.ui .cut{font-size:11.5px;color:var(--t3);padding:12px 14px 0;}
+
+/* pantalla completa */
+.ui .fs{flex:1;position:relative;background:var(--vid);}
+.ui .fs .cbar{position:absolute;left:0;right:0;bottom:0;height:64px;padding:0 18px;border-top:1px solid var(--line);transition:opacity .18s ease;}
+.ui .fs .cbar .tl{margin:0 18px;}
+.ui .fs.idle .cbar{opacity:0;pointer-events:none;}
+.ui .fs .esc{font-family:'Cascadia Mono','JetBrains Mono',monospace;font-size:11px;color:var(--t3);border:1px solid var(--line);border-radius:5px;padding:1px 6px;margin-left:4px;}
+.ui .cursor{position:absolute;width:18px;height:24px;z-index:4;}
+.demo .fs.idle{cursor:none;}
+.demo .fs .b,.demo .fs .tl{cursor:pointer;}
+.demo .fs .b:hover{background:var(--cardh);color:var(--t1);}
+.demo .fs .b.pp:hover{background:var(--ac);color:var(--acink);filter:brightness(1.1);}
+.demo .fs .vol:hover .vpop{display:flex;}
+@media (prefers-reduced-motion: reduce){ .ui .fs .cbar{transition:none;} }
+
+/* anatomía: números bajo cada control */
+.anat .ui{background:transparent;}
+.anat .cbar{width:806px;border:1px solid var(--line);border-radius:10px;}
+.anat [data-n]::after{content:attr(data-n);position:absolute;top:calc(100% + 16px);left:50%;transform:translateX(-50%);
+  font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:500;color:var(--ac);width:20px;height:20px;border-radius:10px;
+  border:1px solid var(--ac);display:grid;place-items:center;background:var(--bg);}
+.anat .tm[data-n]::after{top:calc(100% + 26px);}
+.anat .tl[data-n]::after{top:calc(100% + 16px);}
+.anat .fr{padding:1px;}
+</style>
+</head>
+<body>
+
+<svg style="display:none" aria-hidden="true">
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7.5V12l3 2"/></symbol>
+  <symbol id="i-heart" viewBox="0 0 24 24"><path d="M12 20s-7-4.4-7-9.3A3.9 3.9 0 0 1 12 8a3.9 3.9 0 0 1 7 2.7C19 15.6 12 20 12 20Z"/></symbol>
+  <symbol id="i-check2" viewBox="0 0 24 24"><path d="m3 12.5 4 4L14 9"/><path d="m11.5 15 1.5 1.5L21 8"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></symbol>
+  <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="2.6"/></symbol>
+  <symbol id="i-list" viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1.1"/><circle cx="4.5" cy="12" r="1.1"/><circle cx="4.5" cy="18" r="1.1"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></symbol>
+  <symbol id="i-pin" viewBox="0 0 24 24"><path d="M14.5 3.5 20.5 9.5M16 8l-6.5 2L6 13.5 10.5 18l3.5-3.5 2-6.5"/><path d="m8.5 15.5-4 4"/></symbol>
+  <symbol id="i-down" viewBox="0 0 24 24"><path d="m6 9.5 6 6 6-6"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.5v13l11-6.5-11-6.5Z" fill="currentColor" stroke-width="1"/></symbol>
+  <symbol id="i-pause" viewBox="0 0 24 24"><rect x="7" y="5.5" width="3.4" height="13" rx="1" fill="currentColor" stroke="none"/><rect x="13.6" y="5.5" width="3.4" height="13" rx="1" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-replay" viewBox="0 0 24 24"><path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3"/><path d="M4.5 4.5v4h4"/></symbol>
+  <symbol id="i-prev" viewBox="0 0 24 24"><path d="M6.5 6v12"/><path d="M18 6.5v11L9.5 12 18 6.5Z" fill="currentColor" stroke-width="1.2"/></symbol>
+  <symbol id="i-next" viewBox="0 0 24 24"><path d="M17.5 6v12"/><path d="M6 6.5v11l8.5-5.5L6 6.5Z" fill="currentColor" stroke-width="1.2"/></symbol>
+  <symbol id="i-back10" viewBox="0 0 24 24"><path d="M5 12.5a7 7 0 1 0 2.1-5"/><path d="M6.8 3.8v3.7h3.7"/><text x="12.3" y="15.6" font-size="7.2" font-weight="700" text-anchor="middle" fill="currentColor" stroke="none" font-family="Segoe UI,Arial,sans-serif">10</text></symbol>
+  <symbol id="i-fwd10" viewBox="0 0 24 24"><path d="M19 12.5a7 7 0 1 1-2.1-5"/><path d="M17.2 3.8v3.7h-3.7"/><text x="11.7" y="15.6" font-size="7.2" font-weight="700" text-anchor="middle" fill="currentColor" stroke="none" font-family="Segoe UI,Arial,sans-serif">10</text></symbol>
+  <symbol id="i-vol" viewBox="0 0 24 24"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4v-5Z"/><path d="M15.5 9a4.2 4.2 0 0 1 0 6M18 6.5a8 8 0 0 1 0 11"/></symbol>
+  <symbol id="i-full" viewBox="0 0 24 24"><path d="M4.5 9V4.5H9M15 4.5h4.5V9M19.5 15v4.5H15M9 19.5H4.5V15"/></symbol>
+  <symbol id="i-unfull" viewBox="0 0 24 24"><path d="M9 4.5V9H4.5M19.5 9H15V4.5M15 19.5V15h4.5M4.5 15H9v4.5"/></symbol>
+  <symbol id="i-left" viewBox="0 0 24 24"><path d="M19 12H5m6-6-6 6 6 6"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="m6.5 6.5 11 11m0-11-11 11"/></symbol>
+  <symbol id="i-ext" viewBox="0 0 24 24"><path d="M13.5 4.5h6v6"/><path d="M19.5 4.5 11 13"/><path d="M17.5 13.5v5a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1v-11a1 1 0 0 1 1-1h5"/></symbol>
+  <symbol id="i-wave" viewBox="0 0 24 24"><path d="M5 15v-3M9 18V8M13 16V6M17 15v-5M21 13v-1"/></symbol>
+  <symbol id="i-fold" viewBox="0 0 24 24"><path d="m13.5 6-6 6 6 6"/><path d="M17.5 5v14"/></symbol>
+  <symbol id="i-sort" viewBox="0 0 24 24"><path d="M6 5v14m0 0-3-3m3 3 3-3"/><path d="M18 19V5m0 0-3 3m3-3 3 3"/></symbol>
+  <symbol id="i-min" viewBox="0 0 12 12"><path d="M1 6h10"/></symbol>
+  <symbol id="i-max" viewBox="0 0 12 12"><rect x="1.2" y="1.2" width="9.6" height="9.6"/></symbol>
+  <symbol id="i-close" viewBox="0 0 12 12"><path d="m1.5 1.5 9 9m0-9-9 9"/></symbol>
+</svg>
+
+<div class="topbar">
+  <div class="wrap">
+    <b>El reproductor acoplado <span>· v2</span></b>
+    <nav class="topnav" aria-label="Secciones">
+      <a href="#vista">Vista</a>
+      <a href="#barra">Barra</a>
+      <a href="#estados">Estados</a>
+      <a href="#completa">Pantalla completa</a>
+      <a href="#pendiente">Por verificar</a>
+    </nav>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <header class="lede">
+    <p class="eyebrow">Plan de reproducción in-app · segunda ronda</p>
+    <h1>El vídeo encima, tu ficha debajo</h1>
+    <p>Parte de la opción C y recoge lo que marcaste en la primera ronda. La información de lo que se
+      está viendo pasa a la izquierda, sin póster, al estilo de la cabecera de B. La lista de debajo
+      es la de la ficha, con su interruptor «Visto». La barra sigue tu orden y, en pantalla completa,
+      se aparta en cuanto dejas el ratón quieto.</p>
+
+    <div class="decisions">
+      <h3>Qué cambia respecto a la primera ronda</h3>
+      <ul>
+        <li><span class="tag from">De C</span><span>El vídeo va arriba y la lista de episodios de la ficha sigue debajo,
+          con el mismo formato: interruptor «Visto» y «Siguiente para ti». No hay una segunda forma de marcar
+          un episodio como visto.</span></li>
+        <li><span class="tag from">De B</span><span>«← Volver a la ficha», el título y la línea
+          «<b>Episodio 12</b> de 24 · servidor HLS». Ahora forman la columna izquierda, sin póster.</span></li>
+        <li><span class="tag new">Nuevo</span><span>«Ir al episodio…» en la lista de debajo. Es el buscador que ya tiene la
+          ficha: escribes un número, pulsas Enter y se queda ese episodio solo, con «← Episodio anterior» y
+          «Episodio siguiente →».</span></li>
+        <li><span class="tag new">Nuevo</span><span>La barra en tu orden: anterior · −10 s · play/pausa · +10 s · siguiente ·
+          progreso · tiempo · volumen · pantalla completa. El play/pausa tiene el tamaño de los demás, con fondo azul.</span></li>
+        <li><span class="tag new">Nuevo</span><span>El volumen se queda en un icono. Al pasar el ratón por encima sale un deslizador vertical.</span></li>
+        <li><span class="tag new">Nuevo</span><span>En pantalla completa, la barra se oculta cuando el ratón deja de moverse. Al moverlo
+          vuelve a salir y se queda 5 s después del último movimiento.</span></li>
+        <li><span class="tag out">Fuera</span><span>El póster de la mini ficha, «Modo teatro», el pie de información de B,
+          el carril de episodios y el botón ✕ de la barra.</span></li>
+        <li><span class="tag ask">Supuesto</span><span>Como no estaba en tu orden, <b>no hay ✕ en la barra</b>. Para cerrar,
+          «← Volver a la ficha», y para salir de pantalla completa, Esc. Si quieres el ✕ de vuelta, va al final.</span></li>
+      </ul>
+    </div>
+  </header>
+
+  <!-- ══════════════ VISTA ══════════════ -->
+  <section id="vista">
+    <div class="head">
+      <h2>La vista normal</h2>
+      <span class="job">1440 × 910 · barra lateral desplegada · vídeo de 806 × 453</span>
+      <p class="thesis">A la izquierda está lo que decides mientras ves: volver, cambiar de servidor, ver
+        cuánto llevas y pasar al siguiente. A la derecha, el vídeo y su barra. Debajo, la ficha de siempre,
+        desplazada hasta el episodio que suena.</p>
+    </div>
+    <div class="stack">
+      <figure><div class="shot" data-shot data-view="normal" data-theme="dark"></div>
+        <figcaption>Oscuro <span class="chip">el volumen, desplegado al pasar el ratón</span></figcaption></figure>
+      <figure><div class="shot" data-shot data-view="normal-plain" data-theme="light"></div>
+        <figcaption>Claro</figcaption></figure>
+    </div>
+    <div class="notes">
+      <div>
+        <h3>Cómo se monta</h3>
+        <div class="grid-fig">col 1 · fila 0   player_frame    alto fijo, weight=0
+                 ├─ info (330 px)
+                 └─ VideoPlayer (superficie + barra)
+col 1 · fila 1   content_frame   weight=1, encoge</div>
+        <p style="margin-top:10px">Al volver a la ficha, la fila 0 se retira <b>y su peso también</b>
+          (trampa 32). <code>content_frame</code> nunca se destruye, así que la ficha sigue igual que la dejaste.</p>
+      </div>
+      <div>
+        <h3>De dónde sale cada dato</h3>
+        <p>«11 de 24 vistos» es la misma barra que <code>__refresh_seen_bar()</code> pinta en la ficha.
+          «Siguiente episodio» usa <code>__next_episode()</code> y respeta el orden del proveedor.</p>
+        <p>Los servidores de la izquierda son los del episodio que suena. Mega lleva ↗ porque abre el
+          navegador, y se ve antes de pulsarlo.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════ BARRA ══════════════ -->
+  <section id="barra">
+    <div class="head">
+      <h2>La barra, control a control</h2>
+      <span class="job">A tamaño real · la misma en la vista normal y en pantalla completa</span>
+    </div>
+    <div class="stack">
+      <figure><div class="anat" id="anat-dark"></div><figcaption>Oscuro</figcaption></figure>
+      <figure><div class="anat" id="anat-light"></div><figcaption>Claro</figcaption></figure>
+    </div>
+    <ol class="legend">
+      <li><span class="k">1</span><span><b>Episodio anterior</b>Se desactiva en el primero de la lista cargada.</span></li>
+      <li><span class="k">2</span><span><b>−10 s</b>Retrocede diez segundos.</span></li>
+      <li><span class="k">3</span><span><b>Play / pausa</b>Mide 38 × 38, como los demás. Lo distingue el fondo <code>ACCENT</code>, no el tamaño.</span></li>
+      <li><span class="k">4</span><span><b>+10 s</b>Avanza diez segundos.</span></li>
+      <li><span class="k">5</span><span><b>Episodio siguiente</b>Se desactiva en el último. Con el corte <code>[:25]</code>, es el último de la lista cargada.</span></li>
+      <li><span class="k">6</span><span><b>Progreso</b>Se arrastra para buscar. Mientras arrastras, no le hace caso a <code>time-pos</code>.</span></li>
+      <li><span class="k">7</span><span><b>Tiempo</b>En <code>Cascadia Mono</code>, para que los dígitos no bailen al cambiar.</span></li>
+      <li><span class="k">8</span><span><b>Volumen</b>Solo el icono. Al pasar el ratón sale un deslizador vertical de 160 px con el porcentaje encima.</span></li>
+      <li><span class="k">9</span><span><b>Pantalla completa</b>Alterna. Dentro, el icono pasa a «salir» y Esc hace lo mismo.</span></li>
+    </ol>
+  </section>
+
+  <!-- ══════════════ ESTADOS ══════════════ -->
+  <section id="estados">
+    <div class="head">
+      <h2>Los tres estados que no son «reproduciendo»</h2>
+      <p class="thesis">Fin de episodio y caída al navegador siguen como los aprobaste. Solo cambian de
+        sitio, porque ahora viven en el recuadro del vídeo acoplado. El tercero es el salto a un episodio
+        concreto, que es lo nuevo.</p>
+    </div>
+
+    <div class="state">
+      <h3>Saltar a un episodio concreto</h3>
+      <p class="lead">«Ir al episodio…» → 17 → Enter. La lista se queda con el 17 y sus servidores, y con los
+        botones de navegación que ya tiene la ficha. Al pulsar un servidor, el vídeo carga ese episodio.</p>
+      <div class="duo">
+        <figure><div class="shot" data-shot data-view="jump" data-theme="dark"></div><figcaption>Oscuro</figcaption></figure>
+        <figure><div class="shot" data-shot data-view="jump" data-theme="light"></div><figcaption>Claro</figcaption></figure>
+      </div>
+    </div>
+
+    <div class="state">
+      <h3>Fin de episodio</h3>
+      <p class="lead">Solo sale con <code>end-file</code> y motivo <code>eof</code>. Si cierras a mano, no sale.
+        Debajo, el interruptor del 12 ya aparece encendido, siempre que el punto de decisión 1 diga que sí.
+        La ✕ cierra solo el aviso: la barra se queda en «repetir» y la ficha no se mueve.</p>
+      <div class="duo">
+        <figure><div class="shot" data-shot data-view="end" data-theme="dark"></div><figcaption>Oscuro</figcaption></figure>
+        <figure><div class="shot" data-shot data-view="end" data-theme="light"></div><figcaption>Claro</figcaption></figure>
+      </div>
+      <p class="lead" style="margin-top:28px">En pantalla completa sale igual, centrado, y <b>la barra no se oculta</b>
+        mientras el aviso está a la vista. Si pulsas Esc, sales de pantalla completa y el aviso vuelve al recuadro
+        del vídeo acoplado, exactamente como arriba: no se queda flotando en mitad de la pantalla.</p>
+      <div class="duo">
+        <figure><div class="shot" data-shot data-view="fs-end" data-theme="dark"></div>
+          <figcaption>Pantalla completa · oscuro <span class="chip">barra fija</span></figcaption></figure>
+        <figure><div class="shot" data-shot data-view="fs-end" data-theme="light"></div>
+          <figcaption>Pantalla completa · claro <span class="chip">Esc → vuelve arriba</span></figcaption></figure>
+      </div>
+    </div>
+
+    <div class="state">
+      <h3>El servidor no se puede ver aquí</h3>
+      <p class="lead">Mega se abre en el navegador y se avisa. En el mismo sitio se ofrece el episodio en un
+        servidor que sí se ve dentro de la app.</p>
+      <div class="duo">
+        <figure><div class="shot" data-shot data-view="browser" data-theme="dark"></div><figcaption>Oscuro</figcaption></figure>
+        <figure><div class="shot" data-shot data-view="browser" data-theme="light"></div><figcaption>Claro</figcaption></figure>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════ PANTALLA COMPLETA ══════════════ -->
+  <section id="completa">
+    <div class="head">
+      <h2>Pantalla completa</h2>
+      <span class="job">El modo en el que más se va a usar</span>
+      <p class="thesis">Solo queda el vídeo. La barra lateral, la columna izquierda y la lista se retiran, y la
+        barra de controles solo aparece cuando mueves el ratón. Pruébalo en el recuadro de abajo.</p>
+    </div>
+
+    <figure class="demo">
+      <div class="shot" data-shot data-view="fs-demo" data-theme="dark" id="demo"></div>
+      <div class="demo-status" aria-live="polite">
+        <span class="seg" role="group" aria-label="Tema de la demostración">
+          <button type="button" id="demo-dark" aria-pressed="true">Oscuro</button>
+          <button type="button" id="demo-light" aria-pressed="false">Claro</button>
+        </span>
+        <span id="demo-text">Ratón quieto: la barra está oculta. Mueve el ratón sobre el vídeo.</span>
+        <span class="m" aria-hidden="true"><i id="demo-meter"></i></span>
+      </div>
+    </figure>
+
+    <div class="duo" style="margin-top:40px">
+      <figure><div class="shot" data-shot data-view="fs-idle" data-theme="dark"></div>
+        <figcaption>Ratón quieto <span class="chip">sin barra y sin cursor</span></figcaption></figure>
+      <figure><div class="shot" data-shot data-view="fs-active" data-theme="light"></div>
+        <figcaption>Ratón en movimiento · claro <span class="chip">5 s tras el último movimiento</span></figcaption></figure>
+    </div>
+
+    <div class="notes">
+      <div>
+        <h3>Por qué la barra puede flotar aquí y no en la vista normal</h3>
+        <p>Ningún widget de la ventana puede ir encima del vídeo, y eso no cambia. La barra que aparece
+          sobre la imagen es <b>otra ventana</b>: un <code>Toplevel</code> sin marco, siempre encima y
+          pegado al borde inferior. El sistema operativo sí sabe apilar dos ventanas.</p>
+        <p>En la vista normal no hace falta: la barra está en la rejilla, debajo del vídeo, como antes.</p>
+      </div>
+      <div>
+        <h3>Una barra, dos sitios</h3>
+        <p>Un widget de Tk no cambia de padre, así que la barra flotante es una <b>segunda instancia</b> del
+          mismo componente (<code>floating=True</code>) conectada al mismo estado del reproductor. Es un
+          parámetro, no un fichero aparte: así funciona <code>gui/components/</code>.</p>
+        <p>El deslizador de volumen también sube por encima del vídeo, así que también es una ventanita aparte.
+          Si la primera funciona, la segunda sale gratis.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════ POR VERIFICAR ══════════════ -->
+  <section id="pendiente">
+    <div class="head">
+      <h2>Lo que este diseño le pide a la fase 0</h2>
+      <p class="thesis">Todo lo de arriba se puede dibujar. Estas cuatro cosas, además, hay que probarlas
+        con libmpv de verdad antes de escribir la fase 3, y ninguna se ha probado todavía.</p>
+    </div>
+    <ul class="risks">
+      <li><b class="h">La barra flotante<span class="v">sin verificar</span></b>
+        <span>Un <code>Toplevel</code> con <code>overrideredirect</code> y <code>-topmost</code> encima de la
+          superficie de mpv en pantalla completa. Hay que comprobar que se ve, que no le quita el foco al vídeo y
+          que no se queda flotando al hacer Alt+Tab. <b>Decidido: flotante</b>, para que el vídeo no cambie de
+          tamaño. Si la fase 0 demuestra que no se puede, se para y se pregunta: la alternativa (sacar la
+          barra de la rejilla y que el vídeo crezca) no se aplica sin consultarlo.</span></li>
+      <li><b class="h">Detectar el ratón<span class="v">sin verificar</span></b>
+        <span>Encima del vídeo, Tk <b>no recibe <code>&lt;Motion&gt;</code></b>, porque los eventos se los queda
+          la ventana de mpv. Hay que pedírselos a mpv: observar su propiedad de posición del ratón o atar
+          <code>MOUSE_MOVE</code>. Esos eventos llegan en el hilo de mpv y van a Tk con <code>after(0, …)</code>.
+          Para ocultar el cursor, mpv ya tiene <code>cursor-autohide</code>; se le pone el mismo plazo, 5000 ms.</span></li>
+      <li><b class="h">Esc y el teclado<span class="v">sin verificar</span></b>
+        <span>Si el foco está en la ventana de mpv, las teclas le llegan a mpv y no a Tk. Esc, y la barra
+          espaciadora si se quiere, hay que atarlas también en mpv. Si no, salir de pantalla completa solo
+          funcionaría con el botón.</span></li>
+      <li><b class="h">El hueco que deja la columna izquierda<span class="v">bajo riesgo</span></b>
+        <span>Al entrar en pantalla completa se ocultan la barra lateral, la columna de información y
+          <code>content_frame</code>, y la superficie crece. mpv escala sin reiniciarse, pero hay que
+          confirmar que no parpadea y que, al volver, la barra lateral recupera su estado plegado o desplegado.</span></li>
+    </ul>
+  </section>
+
+  <footer>
+    <p>Las maquetas usan los tokens de <code>gui/theme.py</code> tal cual, más <code>VIDEO_BG</code>, el
+      único color nuevo. El fotograma es un marcador de posición. No hay nada implementado: el plan sigue en
+      la fase 0.</p>
+    <p>Aprobado el 2026-09-23. Las fichas de las fases 0, 1, 3, 4 y 6 de
+      <code>.claude/plan-reproductor/</code> ya lo recogen; las cuatro comprobaciones de arriba son el
+      paso 0.7.</p>
+  </footer>
+</div>
+
+<script>
+(function () {
+  function I(id, cls) { return '<svg class="ic ' + (cls || '') + '"><use href="#i-' + id + '"/></svg>'; }
+
+  var TBAR = '<div class="tbar"><span class="dot"></span>Mi Biblioteca de Anime<span class="ctl">' +
+    '<span><svg><use href="#i-min"/></svg></span><span><svg><use href="#i-max"/></svg></span><span><svg><use href="#i-close"/></svg></span></span></div>';
+
+  var SIDE = '<div class="side">' +
+    '<div class="brand">' + I('play') .replace('class="ic ', 'style="color:var(--ac)" class="ic ') + '<b>Mi Biblioteca</b><span class="fold">' + I('fold', 's') + '</span></div>' +
+    '<a>' + I('clock') + 'Nuevos lanzamientos</a>' +
+    '<a>' + I('heart') + 'Favoritos<b>12</b></a>' +
+    '<a class="on">' + I('eye') + 'Viendo<b>6</b></a>' +
+    '<a>' + I('list') + 'Pendientes<b>7</b></a>' +
+    '<a>' + I('check2') + 'Finalizados<b>9</b></a>' +
+    '<a>' + I('search') + 'Buscar</a>' +
+    '<div class="btm"><p class="cap">Proveedor</p><div class="ctrl"><span>AnimeAV1</span><span class="gap">' +
+    I('pin', 'xs pin') + I('down', 'xs') + '</span></div></div></div>';
+
+  // o: { pp:'pause'|'play'|'replay', pos:61, t:'14:32', tot:'23:40', vol:false, fs:false, dim:false, n:false }
+  function bar(o) {
+    var n = function (k) { return o.n ? ' data-n="' + k + '"' : ''; };
+    var dim = o.dim ? ' dim' : '';
+    var knob = o.dim ? '' : '<em style="left:' + o.pos + '%"></em>';
+    return '<div class="cbar">' +
+      '<span class="b' + dim + '"' + n(1) + '>' + I('prev') + '</span>' +
+      '<span class="b' + dim + (o.end ? '' : '') + '"' + n(2) + '>' + I('back10', 'l') + '</span>' +
+      '<span class="b pp' + dim + '"' + n(3) + '>' + I(o.pp || 'pause') + '</span>' +
+      '<span class="b' + (o.dim || o.end ? ' dim' : '') + '"' + n(4) + '>' + I('fwd10', 'l') + '</span>' +
+      '<span class="b' + dim + '"' + n(5) + '>' + I('next') + '</span>' +
+      '<span class="tl"' + n(6) + '><span class="tr"><i style="width:' + (o.dim ? 0 : o.pos) + '%"></i>' + knob + '</span></span>' +
+      '<span class="tm"' + n(7) + '>' + (o.dim ? '<span>--:-- / --:--</span>' : o.t + ' <span>/ ' + o.tot + '</span>') + '</span>' +
+      '<span class="b vol' + (o.vol ? ' open' : '') + '"' + n(8) + '>' + I('vol', 's') +
+        '<span class="vpop"><b>72</b><span class="vtr"><i style="height:72%"></i><em style="bottom:72%"></em></span></span></span>' +
+      '<span class="b"' + n(9) + '>' + I(o.fs ? 'unfull' : 'full') + '</span>' +
+      (o.fs ? '<span class="esc">Esc</span>' : '') +
+      '</div>';
+  }
+
+  var PLAYING = { pp: 'pause', pos: 61, t: '14:32', tot: '23:40' };
+
+  function servers(active) {
+    var s = function (name, ext) {
+      var cls = 's' + (active === name ? ' on' : '') + (ext && active !== name ? ' out' : '');
+      return '<span class="' + cls + '">' + name + (ext ? I('ext', 'xs') : '') + '</span>';
+    };
+    return '<div class="srv">' + s('HLS') + s('MP4Upload') + s('Mega', true) + '</div>';
+  }
+
+  function info(o) {
+    return '<div class="info">' +
+      '<span class="back">' + I('left', 's') + 'Volver a la ficha</span>' +
+      '<div class="now"><p class="lbl">' + o.label + '</p>' +
+        '<h5>Ore dake Level Up na Ken</h5>' +
+        '<p class="meta"><b>Episodio ' + o.ep + '</b> de 24 · servidor ' + o.srv + '</p>' +
+        '<p class="pv">AnimeAV1 · en tu biblioteca</p></div>' +
+      '<div class="blk"><p class="lbl">Servidor</p>' + servers(o.srv) + '</div>' +
+      '<div class="blk"><p class="lbl">Tu progreso</p><div class="prog"><span class="t"><i style="width:' +
+        Math.round(o.seen / 24 * 100) + '%"></i></span><span>' + o.seen + ' de 24 vistos</span></div></div>' +
+      '<div class="foot"><span class="btn pri"><span>' + I('next', 's') + 'Siguiente episodio</span><small>' + (o.ep + 1) + '</small></span></div>' +
+      '</div>';
+  }
+
+  function erow(n, desc, on, cls) {
+    return '<div class="erow' + (cls ? ' ' + cls : '') + '"><span class="n">Episodio ' + n + '</span><span class="d">' + desc +
+      '</span><span class="sw' + (on ? ' on' : '') + '"><i></i></span><span class="sl">Visto</span></div>';
+  }
+
+  function under(o) {
+    var head = '<div class="ephead"><h6>Episodios</h6><div class="rt">' +
+      '<div class="pick">' + I('sort', 'xs') + 'Mayor a menor' + I('down', 'xs') + '</div>' +
+      (o.jump
+        ? '<div class="find act">' + I('search', 's') + '17<span class="caret"></span><span class="enter">Enter</span></div>'
+        : '<div class="find">' + I('search', 's') + 'Ir al episodio…</div>') +
+      '</div></div>';
+    var rows;
+    if (o.jump) {
+      rows = erow(17, 'Servidores disponibles', false, 'open') +
+        '<div class="srvrow"><p class="lbl">Servidores</p>' + servers('HLS') + '</div>' +
+        '<div class="nav"><span class="btn">← Episodio anterior</span><span class="btn">Episodio siguiente →</span></div>';
+    } else {
+      var wave = I('wave', 'xs');
+      var cur = o.end
+        ? erow(12, 'Terminado <em>· marcado si el punto 1 dice sí</em>', true, 'cur')
+        : o.browser
+          ? erow(12, I('ext', 'xs') + 'Abierto en el navegador', false, 'cur')
+          : erow(12, wave + 'Reproduciendo · HLS', false, 'cur');
+      rows = erow(13, 'Siguiente para ti', false) + cur + erow(11, '', true) + erow(10, '', true) + erow(9, '', true);
+    }
+    return '<div class="under">' + head + rows + '</div>';
+  }
+
+  function video(o) {
+    var inner;
+    if (o.kind === 'end') {
+      inner = endCard(false);
+    } else if (o.kind === 'browser') {
+      inner = '<div class="card"><span class="ico">' + I('ext') + '</span><h4>Mega se abre en tu navegador</h4>' +
+        '<p class="tx">Este servidor no se puede ver dentro de la aplicación, así que el episodio 12 se ha abierto en una pestaña nueva. ' +
+        'También está en HLS y en MP4Upload, que sí se ven aquí.</p>' +
+        '<div class="row"><span class="btn pri">' + I('play', 's') + 'Ver aquí con HLS</span><span class="btn">Seguir en el navegador</span></div></div>';
+    } else if (o.kind === 'loading') {
+      inner = '<div class="loading"><span class="ring"></span><b>Cargando el episodio 17</b><span>HLS · AnimeAV1</span></div>';
+    } else {
+      inner = '<div class="scene"></div><div class="subs" style="font-size:' + (o.subs || 20) + 'px">—No pienso volver a arrodillarme.</div>';
+    }
+    return '<div class="video">' + inner + '</div>';
+  }
+
+  function endCard(hoverX) {
+    return '<div class="card end"><span class="x' + (hoverX ? ' hov' : '') + '" title="Cerrar el aviso">' + I('x', 's') + '</span>' +
+      '<h4>Has terminado el episodio 12</h4><p class="who">Ore dake Level Up na Ken · AnimeAV1 · HLS</p>' +
+      '<div class="mk">' + I('check', 's ok') + 'Marcado como visto · 12 de 24<em>solo si el punto 1 dice sí</em></div>' +
+      '<div class="row"><span class="btn">Volver a la ficha</span><span class="btn pri">' + I('play', 's') + 'Ver el episodio 13</span></div></div>';
+  }
+
+  function docked(o) {
+    return TBAR + '<div class="app">' + SIDE + '<div class="main"><div class="dock">' + info(o.info) +
+      '<div class="vcol">' + video(o.video) + bar(o.bar) + '</div></div>' + under(o.under) + '</div></div>';
+  }
+
+  function fullscreen(o) {
+    var cursor = o.cursor
+      ? '<svg class="cursor" style="left:' + o.cursor[0] + 'px;top:' + o.cursor[1] + 'px" viewBox="0 0 18 24"><path d="M1 1v19l5-5 3.5 7.5 3-1.4L9 13.8h7L1 1Z" fill="#FFFFFF" stroke="#000000" stroke-width="1.3" stroke-linejoin="round"/></svg>'
+      : '';
+    if (o.end) {
+      return '<div class="fs">' + endCard(true) +
+        bar({ pp: 'replay', pos: 100, t: '23:40', tot: '23:40', end: true, fs: true }) + cursor + '</div>';
+    }
+    return '<div class="fs' + (o.idle ? ' idle' : '') + '"><div class="letter"><div class="inner"><div class="scene"></div>' +
+      '<div class="subs" style="font-size:34px">—No pienso volver a arrodillarme.</div></div></div>' +
+      bar({ pp: 'pause', pos: 61, t: '14:32', tot: '23:40', fs: true, vol: !!o.vol }) + cursor + '</div>';
+  }
+
+  var VIEWS = {
+    'normal': function () {
+      return docked({ info: { label: 'Reproduciendo', ep: 12, srv: 'HLS', seen: 11 }, video: {},
+        bar: Object.assign({ vol: true }, PLAYING), under: {} });
+    },
+    'normal-plain': function () {
+      return docked({ info: { label: 'Reproduciendo', ep: 12, srv: 'HLS', seen: 11 }, video: {}, bar: PLAYING, under: {} });
+    },
+    'jump': function () {
+      return docked({ info: { label: 'Cargando', ep: 17, srv: 'HLS', seen: 11 }, video: { kind: 'loading' },
+        bar: { dim: true, pp: 'play' }, under: { jump: true } });
+    },
+    'end': function () {
+      return docked({ info: { label: 'Terminado', ep: 12, srv: 'HLS', seen: 12 }, video: { kind: 'end' },
+        bar: { pp: 'replay', pos: 100, t: '23:40', tot: '23:40', end: true }, under: { end: true } });
+    },
+    'browser': function () {
+      return docked({ info: { label: 'En el navegador', ep: 12, srv: 'Mega', seen: 11 }, video: { kind: 'browser' },
+        bar: { dim: true, pp: 'play' }, under: { browser: true } });
+    },
+    'fs-demo': function () { return fullscreen({ idle: true }); },
+    'fs-idle': function () { return fullscreen({ idle: true }); },
+    'fs-active': function () { return fullscreen({ idle: false, vol: true, cursor: [1318, 874] }); },
+    'fs-end': function () { return fullscreen({ end: true, cursor: [914, 352] }); }
+  };
+
+  var shots = Array.prototype.slice.call(document.querySelectorAll('[data-shot]'));
+  shots.forEach(function (shot) {
+    var theme = shot.getAttribute('data-theme') === 'light' ? ' lt' : '';
+    shot.innerHTML = '<div class="stage"><div class="frame ui' + theme + '">' + VIEWS[shot.getAttribute('data-view')]() + '</div></div>';
+  });
+
+  ['dark', 'light'].forEach(function (t) {
+    var el = document.getElementById('anat-' + t);
+    el.innerHTML = '<div class="pad ui' + (t === 'light' ? ' lt' : '') + '" style="background:var(--bg)"><div class="fr">' +
+      bar(Object.assign({ vol: true, n: true }, PLAYING)) + '</div></div>';
+  });
+
+  function fit() {
+    shots.forEach(function (shot) {
+      var stage = shot.querySelector('.stage');
+      var s = Math.max(0.2, Math.min(1, shot.clientWidth / 1440));
+      shot.style.setProperty('--s', s);
+      stage.style.width = Math.round(1440 * s) + 'px';
+      stage.style.height = Math.round(910 * s) + 'px';
+    });
+  }
+  fit();
+  window.addEventListener('resize', fit);
+  if (document.fonts && document.fonts.ready) { document.fonts.ready.then(fit); }
+
+  // ---- demostración: la barra aparece al mover el ratón y se va a los 5 s ----
+  var demo = document.getElementById('demo');
+  var fs = demo.querySelector('.fs');
+  var frame = demo.querySelector('.frame');
+  var text = document.getElementById('demo-text');
+  var meter = document.getElementById('demo-meter');
+  var HIDE_MS = 5000, last = 0, timer = null, raf = null;
+
+  function tick() {
+    var left = HIDE_MS - (Date.now() - last);
+    if (left <= 0) {
+      fs.classList.add('idle');
+      meter.style.width = '0';
+      text.textContent = 'Ratón quieto: la barra está oculta. Mueve el ratón sobre el vídeo.';
+      raf = null;
+      return;
+    }
+    meter.style.width = (left / HIDE_MS * 100) + '%';
+    text.textContent = 'Barra visible · se oculta en ' + Math.ceil(left / 1000) + ' s sin mover el ratón';
+    raf = requestAnimationFrame(tick);
+  }
+  function wake() {
+    last = Date.now();
+    fs.classList.remove('idle');
+    if (!raf) { raf = requestAnimationFrame(tick); }
+  }
+  fs.addEventListener('mousemove', wake);
+  fs.addEventListener('touchstart', wake, { passive: true });
+
+  var pp = fs.querySelector('.b.pp');
+  var playing = true;
+  pp.addEventListener('click', function () {
+    playing = !playing;
+    pp.innerHTML = I(playing ? 'pause' : 'play');
+    wake();
+  });
+
+  var dBtn = document.getElementById('demo-dark');
+  var lBtn = document.getElementById('demo-light');
+  function setDemo(light) {
+    frame.classList.toggle('lt', light);
+    dBtn.setAttribute('aria-pressed', String(!light));
+    lBtn.setAttribute('aria-pressed', String(light));
+  }
+  dBtn.addEventListener('click', function () { setDemo(false); });
+  lBtn.addEventListener('click', function () { setDemo(true); });
+})();
+</script>
+</body>
+</html>

@@ -2,9 +2,9 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-08-21 · rama `feature/ui-redisign` · la fase 9 que entonces estaba sin commitear entró en **`7606def`**; el documento no se ha revisado desde entonces |
-| **Última revisión** | 2026-08-16: `PROVIDER_ID` deja de ser una cadena y pasa a ser **`AnimeProviderId`** (§1); `provider_info()` nuevo; el fallback ahora **estampa** quién respondió (§5) |
-| **Cubre** | `src/APIs/common/animeProviderMgr.py`, `src/APIs/common/models.py`, `src/APIs/animeav1/animeav1.py`, `src/APIs/animeflv/animeflv.py`, `src/APIs/jkanime/jkanime.py` |
+| **Fecha** | 2026-10-20 · rama `feature/reproductor-embebido` · último commit de código **`047e5ea`** (fase 5 del reproductor) |
+| **Última revisión** | 2026-10-20 (**reproductor in-app**): **§9 nuevo**, los **hosters**: qué entrega cada uno, con qué cabeceras y con qué caducidad, por qué la resolución **no** es un método de `AnimeProvider` y cómo se diagnostica uno que dejó de resolver. §6 gana la fila que remite allí. JKAnime convierte en absolutas las URLs de servidor relativas (Okru, `urljoin`). Antes, 2026-08-16: `PROVIDER_ID` deja de ser una cadena y pasa a ser **`AnimeProviderId`** (§1); `provider_info()` nuevo; el fallback ahora **estampa** quién respondió (§5) |
+| **Cubre** | `src/APIs/common/animeProviderMgr.py`, `src/APIs/common/models.py`, `src/APIs/animeav1/animeav1.py`, `src/APIs/animeflv/animeflv.py`, `src/APIs/jkanime/jkanime.py`, `src/APIs/resolvers/` |
 
 Procedencia: ✅ verificado en ejecución contra los sitios reales el 2026-07-28 · 📖 leído en código ·
 ⚠️ sin verificar.
@@ -528,6 +528,7 @@ no a ojo.
 | **JKAnime**: fichas sin episodios pero con sinopsis | el POST a `/ajax/episodes/` da 419 (CSRF) o cambió el `<meta name="csrf-token">` | ver §3b |
 | **JKAnime**: la biblioteca se llena de fotogramas | se está leyendo `src` en vez de `data-animepic` | ver §3b |
 | **JKAnime**: el directorio sale de la Z a la A | falta `orden=asc` junto a `filtro=nombre` | ver §3b |
+| Hay servidores, pero uno que **se veía en la app ahora se abre en el navegador** | el **hoster** cambió, caducó la URL o faltan cabeceras: no es el proveedor | ver §9 |
 
 **Regla de oro**: si AnimeAV1 empieza a devolver campos vacíos, **el sospechoso es el payload de
 hidratación, no los selectores CSS**. En **JKAnime** la regla es distinta y depende de la
@@ -609,3 +610,82 @@ Pasos detallados con checklist en [11 §3](11-playbooks.md). Resumen:
 > ✅ **JKAnime (2026-08-06) es el ejemplo trabajado más completo de esta receta**, y el único que
 > ejercita los pasos 5 (traducción de géneros) y 7 (posición en el fallback). Su implementación está
 > en `jkanime.py` y el porqué de cada decisión, en §3b.
+
+---
+
+## 9. Hosters: de la URL del servidor al vídeo *(2026-10-20)*
+
+Un **proveedor** es el sitio que lista animes y episodios (AnimeAV1, JKAnime…). Un **hoster** es quien
+sirve el vídeo: zilla, MP4Upload, playmudos… `ServerInfo.url` es la URL del **reproductor incrustado**
+(*embed*) del hoster, no la del vídeo. Pasar de una a otra es **resolver**, y lo hace la capa
+`src/APIs/resolvers/`. Hasta el 2026-09-24 la app no resolvía nada: abría el *embed* en el navegador.
+
+### Por qué es una capa aparte y no un sexto método de `AnimeProvider`
+
+- **Un hoster no es de un proveedor.** MP4Upload lo embebe AnimeAV1 y lo embeben también los
+  proveedores pendientes (MonosChinos2, TioAnime). La resolución se indexa **por dominio del
+  hoster**, así que un resolutor escrito una vez sirve a todos.
+- **El *fallback* del manager no pinta nada aquí.** Si un hoster no resuelve, la salida es **el
+  navegador**, no preguntar a otro proveedor. Meterlo en el contrato habría arrastrado a la
+  resolución la semántica de «vacío = error» del manager ([trampa 12](10-invariantes-y-trampas.md)).
+- **`ServerInfo` no cambia**, y se resuelve **al pulsar**, no al listar: varias URLs de medio caducan
+  o van atadas a la IP ([trampa 45](10-invariantes-y-trampas.md)).
+
+Las dependencias de la capa están en [01 §2](01-arquitectura.md): solo stdlib, `requests` y ella
+misma. **No importa de `APIs.<sitio>` ni de `gui/`.**
+
+### La API
+
+| Pieza | Qué es |
+|---|---|
+| `MediaSource(url, headers, kind, expires_at)` (`base.py`) | El medio ya resuelto. `headers` hay que mandarlas en **cada** petición del medio, segmentos incluidos; `kind` es `"hls"` o `"mp4"`; `expires_at` es un *epoch* o `None` si la URL **no declara** caducidad |
+| `Resolver` (`base.py`) | ABC con dos métodos: `matches(url)` —**sin red**— y `resolve(url)`, que **nunca lanza** y devuelve `None` si no puede |
+| `registry.has_resolver(url)` | ¿Hay resolutor para su hoster? **Sin red**: es lo que pone la ↗ a los servidores que se abrirán fuera. Es una promesa *a priori*: uno con resolutor puede acabar igualmente en el navegador |
+| `registry.resolve(url)` | El único punto de entrada. **Sin caché a propósito** |
+| `url_host(url)`, `BROWSER_USER_AGENT`, `REQUEST_TIMEOUT` = 10 s (`base.py`) | Utilidades comunes. El UA está **duplicado a propósito** respecto a `jkanime.py` |
+
+«Nunca lanza» va en **dos capas**: cada resolutor captura `RequestException`, y `registry` captura
+cualquier otra excepción de `matches()` o `resolve()` y devuelve `None`.
+
+### Qué entrega cada hoster
+
+✅ Medido contra los sitios el 2026-09-24 (fase 1), 3 episodios por proveedor; zilla, el 2026-10-20.
+
+| Servidor (proveedor) | URL del *embed* | Resolutor y cómo | Medio | Cabeceras | Caducidad | Cobertura |
+|---|---|---|---|---|---|---|
+| **HLS** (AnimeAV1) | `player.zilla-networks.com/play/<hash 32 hex>` | `ZillaResolver`, **sintáctico**: `play/` → `m3u8/`, sin pedir la página | HLS **fMP4**, AV1 1080p | `Sec-Fetch-Site: same-origin` ([trampa 43](10-invariantes-y-trampas.md)) | no declarada | 0/3 el 2026-09-24 (**origen caído**, 522); ✅ vuelve el 2026-10-20 |
+| **MP4Upload** (AnimeAV1) | `www.mp4upload.com/embed-<id>.html` | `MP4UploadResolver`: baja el *embed* y saca la URL de `player.src({…})` de video.js | MP4 en `aN.mp4upload.com:183`, **AV1 1080p** (no H.264) | UA de navegador + `Referer: https://www.mp4upload.com/` ([trampa 44](10-invariantes-y-trampas.md)) | token de sesión, `None` | 3/3 |
+| **Desu**, **Magi** (JKAnime) | `jkanime.net/jkplayer/um?…` y `umv?…` | `JKPlayerResolver`: baja la página (con `Referer: https://jkanime.net/`) y busca el `.m3u8` **en claro** (`hls.loadSource(…)`); si no, dentro de los `atob()` | HLS **MPEG-TS** de `nika.playmudos.com`, H.264 720p, subtítulos incrustados | ninguna | `e=` → **~3 h** | 7/7 |
+| **Desuka** (JKAnime) | `jkanime.net/jkplayer/jk?…` | `JKPlayerResolver`: `url: '…'` de la página | MP4 de `jkplayers.com/stream/jkmedia/…` | **ninguna** — con `Referer` da **410** | **atado a la IP** del cliente | 1/1 |
+
+**Sin resolutor** (abren el navegador y llevan ↗): UPNShare, Voe, Mega, YourUpload, DoodStream,
+Netu, VidHide y StreamTape en AnimeAV1; Okru en JKAnime. Mega está bloqueado de verdad (cifrado de
+extremo a extremo); el resto, **aplazado** ([12 §4](12-deuda-tecnica-y-roadmap.md)).
+
+⚠️ **Okru llega con ruta relativa** (`/jkokru.php?u=…`). Hasta la fase 1 se abría tal cual y el
+navegador no sabía resolverla; ahora `JKAnime.get_anime_episode_servers()` la hace absoluta con
+`urljoin(f"{BASE_URL}/", …)` («B2» del plan del reproductor, que no es el B2 de [12 §4](12-deuda-tecnica-y-roadmap.md)). Sin un `Okru` real a mano, se verificó con HTML sintético.
+
+⚠️ **Cuesta en CPU**: el AV1 1080p de zilla y MP4Upload no tiene decodificación por hardware en la
+máquina de pruebas (GTX 1070) y va por software (dav1d): **0,2-0,33 núcleos**, sin un fotograma
+perdido. El H.264 de JKAnime va por `d3d11va`.
+
+### Diagnosticar un hoster que dejó de resolver
+
+Lo primero: **un hoster que falla no da error, abre el navegador** —es la degradación diseñada—.
+Lo que dice qué ha pasado es **la consola** (con `python src/app.py`; el `.exe` no la tiene,
+[trampa 18c](10-invariantes-y-trampas.md)) y **cuánto tarda en caer**:
+
+| Lo que ves | Lo que dice la consola | Causa probable | Qué hacer |
+|---|---|---|---|
+| Cae al navegador **al instante**, sin «Cargando» apreciable | `[zilla] URL de embed sin hash reconocible` · `[mp4upload] El embed no trae la URL del vídeo` · `[jkplayer] El reproductor um no trae ninguna URL .m3u8` | cambió el formato del *embed* o de su página | bajar **una vez** la página y comparar con la regex del resolutor ([09 §6h](09-verificacion-y-pruebas.md)) |
+| Igual, pero | `No se pudo descargar …` con **403** | Cloudflare | **parar**: no reintentar en bucle (la IP ya se bloqueó una vez, el 2026-08-23) |
+| «Cargando» un instante y navegador | `mpv no pudo reproducir el medio (error …)` | el medio rechaza la petición: cabeceras o caducidad | [trampas 43-45](10-invariantes-y-trampas.md) |
+| «Cargando» **~20 s** y navegador | idem, tras el `network-timeout` de 15 s | el origen del hoster está **caído** | esperar; no es el resolutor |
+| «Cargando» **30 s** y navegador | `El medio no ha empezado a verse en 30 s: …` y `[reproductor] …: El servidor tarda demasiado en entregar el vídeo` | el hoster **responde, pero lento** (zilla, 2026-10-20: ~70 s hasta abrir) | ya cae solo al navegador; si se repite, el hoster va lento ese día ([trampa 54](10-invariantes-y-trampas.md), B15 cerrada) |
+| **Todos** los servidores al navegador | `No se pudo cargar libmpv…` | falta la DLL | [trampa 18f](10-invariantes-y-trampas.md) |
+| Se ve, pero **a tirones** | — (mpv: `paused-for-cache`) | el hoster sirve por debajo del bitrate (MP4Upload, 110-260 KB/s el 2026-09-24) | nada en la app |
+| Navegador tras ver **un buen rato** | `El medio terminó en … : se trata como un corte del servidor` | el stream se cortó antes del final | [trampa 48](10-invariantes-y-trampas.md): no marca el episodio |
+
+**Regla de oro**: se arregla **el resolutor de ese hoster**, no el resto de la capa. Y añadir uno
+nuevo es [11 §9](11-playbooks.md).

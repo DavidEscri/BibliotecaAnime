@@ -1,14 +1,17 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "gui"
 __module__ = "main_window.py"
-__version__ = "0.5"
+__version__ = "0.6"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
+import ctypes
 import threading
+import tkinter
 import customtkinter as ctk
 
 from tkinter import messagebox
-from typing import List, Tuple
+from ctypes import wintypes
+from typing import Any, List, Optional, Tuple
 from PIL import Image, ImageSequence
 
 from APIs.animeav1.animeav1 import AnimeAV1Singleton
@@ -25,7 +28,7 @@ from gui.sidebarButtons.recentAnimes.recentAnimes import RecentAnimeButton
 from gui.sidebarButtons.searchAnimes.searchAnimes import SearchButton, AnimeSearch
 from gui.sidebarButtons.watchingAnimes.watchingAnimes import WatchingAnimeButton
 from gui.components.sidebar import Sidebar
-from gui.theme import Theme
+from gui.theme import Metrics, Theme
 
 from utils.utils import get_resource_path, download_images_progress, download_animes_poster
 
@@ -91,6 +94,8 @@ class MainWindow(ctk.CTk):
         self.images_path = get_resource_path("resources/images/recent_animes")
 
         self.load_sidebar_buttons()
+        self.protocol("WM_DELETE_WINDOW", self.__on_close)
+        self.bind("<Configure>", self.__on_window_configure, add="+")
         self.show_loading_screen()
 
     def __config_main_window(self):
@@ -116,9 +121,28 @@ class MainWindow(ctk.CTk):
         """
         self.sidebar_frame: Sidebar | None = None
         self.content_frame: ctk.CTkScrollableFrame = self.create_content_frame()
+        # Hermano de content_frame y no hijo: una superficie nativa dentro de un
+        # CTkScrollableFrame se desplaza con el lienzo. Nace oculto y con alto
+        # explícito, porque un CTkFrame vacío pide 200 × 200 y estiraría la fila.
+        self.player_frame: ctk.CTkFrame = ctk.CTkFrame(
+            self,
+            height=Metrics.PLAYER_VIDEO_H + Metrics.PLAYER_BAR_H,
+            corner_radius=0,
+            fg_color=Theme.BG
+        )
+        #: Quien tiene el reproductor abierto; su close() lo para y lo retira.
+        self.__player_owner: Optional[Any] = None
+        #: Geometría, maximizado y ancho mínimo de la barra lateral de antes de
+        #: la pantalla completa; None fuera de ella.
+        self.__fullscreen_restore: Optional[Tuple[str, bool, int]] = None
 
     def clear_frame(self):
-        """Destruye todos los widgets hijos del content_frame."""
+        """Destruye todos los widgets hijos del content_frame.
+
+        Cambiar de vista pasa siempre por aquí, así que también cierra el
+        reproductor si estaba abierto: si no, mpv seguiría sonando debajo.
+        """
+        self.close_player()
         for widget in self.content_frame.winfo_children():
             widget.destroy()
 
@@ -134,6 +158,147 @@ class MainWindow(ctk.CTk):
         main_frame.grid_rowconfigure(0, weight=1)
         main_frame.grid_columnconfigure(0, weight=1)
         return main_frame
+
+    # ------------------------------------------------------------------
+    # Reproductor acoplado encima de la ficha
+    # ------------------------------------------------------------------
+    def show_player_frame(self, owner: Any) -> ctk.CTkFrame:
+        """Muestra el panel del reproductor en la fila de encima de content_frame.
+
+        content_frame no se destruye: encoge y la ficha sigue debajo tal y como
+        estaba. Si otro dueño tenía el panel, se le cierra primero.
+
+        :param owner: Objeto con ``close_player()``, que para el reproductor, y
+            ``relayout_player()``, que lo reajusta al cambiar el tamaño de la ventana.
+        :return: El frame donde el dueño compone el panel.
+        """
+        if self.__player_owner is not None and self.__player_owner is not owner:
+            self.close_player()
+        self.__player_owner = owner
+        self.grid_rowconfigure(0, weight=0)
+        self.player_frame.grid(row=0, column=1, sticky="ew",
+                               padx=Metrics.CONTENT_PAD_X, pady=(Metrics.PLAYER_PAD_TOP, Metrics.PLAYER_PAD_BOTTOM))
+        self.content_frame.grid(row=1, column=1, rowspan=7, sticky=ctk.NSEW)
+        return self.player_frame
+
+    def hide_player_frame(self) -> None:
+        """Retira el panel del reproductor y devuelve a content_frame toda la columna.
+
+        La fila 0 recupera su peso: la configuración de rejilla sobrevive a que
+        se quiten sus widgets.
+        """
+        if self.__fullscreen_restore is not None:
+            self.exit_player_fullscreen()
+        self.__player_owner = None
+        for widget in self.player_frame.winfo_children():
+            widget.destroy()
+        self.player_frame.grid_remove()
+        self.content_frame.grid(row=0, column=1, rowspan=8, sticky=ctk.NSEW)
+        self.grid_rowconfigure(0, weight=1)
+
+    def close_player(self) -> None:
+        """Cierra el reproductor si hay uno abierto y retira su panel. Sin efecto si no lo hay."""
+        owner, self.__player_owner = self.__player_owner, None
+        if owner is not None:
+            try:
+                owner.close_player()
+            except Exception as exc:
+                print(f"Error al cerrar el reproductor: {exc}")
+        if self.player_frame.winfo_manager():
+            self.hide_player_frame()
+
+    def is_player_fullscreen(self) -> bool:
+        """:return: True mientras el reproductor ocupa la pantalla entera."""
+        return self.__fullscreen_restore is not None
+
+    def enter_player_fullscreen(self) -> None:
+        """Deja solo el panel del reproductor, a pantalla completa en el monitor de la ventana.
+
+        No usa ``-fullscreen``, que con dos monitores lleva la ventana al
+        principal: quita el marco y ocupa el rectángulo del monitor donde está.
+        """
+        if self.__fullscreen_restore is not None:
+            return
+        left, top, right, bottom = self.__monitor_rect()
+        was_zoomed = self.state() == "zoomed"
+        if was_zoomed:
+            self.state("normal")
+            self.update_idletasks()
+        # tkinter.Tk y no CTk: la de CTk aplica el escalado de DPI y el
+        # rectángulo del monitor ya viene en píxeles físicos.
+        saved_geometry = tkinter.Tk.wm_geometry(self)
+        sidebar_minsize = int(self.grid_columnconfigure(0).get("minsize", 0))
+        self.__fullscreen_restore = (saved_geometry, was_zoomed, sidebar_minsize)
+
+        if self.sidebar_frame is not None:
+            self.sidebar_frame.grid_remove()
+        self.content_frame.grid_remove()
+        # El minsize de la columna de la barra sobrevive a quitarla: sin esto
+        # quedaría una franja del ancho de la barra a la izquierda del vídeo.
+        self.grid_columnconfigure(0, minsize=0)
+        self.grid_rowconfigure(0, weight=1)
+        self.player_frame.grid(row=0, column=0, columnspan=2, rowspan=8, sticky="nsew", padx=0, pady=0)
+
+        self.overrideredirect(True)
+        tkinter.Tk.wm_geometry(self, f"{right - left}x{bottom - top}+{left}+{top}")
+        self.update_idletasks()
+
+    def exit_player_fullscreen(self) -> None:
+        """Vuelve de la pantalla completa a la ventana y la disposición de antes.
+
+        La barra lateral vuelve plegada o desplegada como estaba: ese estado es
+        suyo y aquí no se toca.
+        """
+        if self.__fullscreen_restore is None:
+            return
+        saved_geometry, was_zoomed, sidebar_minsize = self.__fullscreen_restore
+        self.__fullscreen_restore = None
+
+        self.overrideredirect(False)
+        tkinter.Tk.wm_geometry(self, saved_geometry)
+        if was_zoomed:
+            self.state("zoomed")
+
+        self.grid_columnconfigure(0, minsize=sidebar_minsize)
+        self.grid_rowconfigure(0, weight=0)
+        self.player_frame.grid(row=0, column=1, columnspan=1, rowspan=1, sticky="ew",
+                               padx=Metrics.CONTENT_PAD_X, pady=(Metrics.PLAYER_PAD_TOP, Metrics.PLAYER_PAD_BOTTOM))
+        self.content_frame.grid(row=1, column=1, rowspan=7, sticky=ctk.NSEW)
+        if self.sidebar_frame is not None:
+            self.sidebar_frame.grid()
+        self.update_idletasks()
+
+    def __monitor_rect(self) -> Tuple[int, int, int, int]:
+        """:return: (izquierda, arriba, derecha, abajo) del monitor donde está la ventana."""
+
+        class MonitorInfo(ctypes.Structure):
+            _fields_ = [("cbSize", wintypes.DWORD), ("rcMonitor", wintypes.RECT),
+                        ("rcWork", wintypes.RECT), ("dwFlags", wintypes.DWORD)]
+
+        try:
+            user32 = ctypes.windll.user32
+            user32.MonitorFromWindow.restype = wintypes.HANDLE
+            user32.MonitorFromWindow.argtypes = [wintypes.HWND, wintypes.DWORD]
+            # 2 = MONITOR_DEFAULTTONEAREST: el monitor que más ventana tiene.
+            monitor = user32.MonitorFromWindow(wintypes.HWND(int(self.wm_frame(), 16)), 2)
+            info = MonitorInfo()
+            info.cbSize = ctypes.sizeof(MonitorInfo)
+            if user32.GetMonitorInfoW(monitor, ctypes.byref(info)):
+                rect = info.rcMonitor
+                return rect.left, rect.top, rect.right, rect.bottom
+        except Exception as exc:
+            print(f"No se pudo leer el monitor de la ventana: {exc}")
+        return 0, 0, self.winfo_screenwidth(), self.winfo_screenheight()
+
+    def __on_window_configure(self, event) -> None:
+        """Reajusta el reproductor al cambiar el tamaño de la ventana, también solo en alto."""
+        if event.widget is self and self.__player_owner is not None:
+            self.__player_owner.relayout_player()
+
+    def __on_close(self) -> None:
+        """Cierra la aplicación parando antes el reproductor, para no dejar mpv vivo."""
+        self.close_player()
+        self.destroy()
 
     def load_sidebar_buttons(self) -> None:
         """Instancia las seis vistas y construye la barra lateral con ellas.

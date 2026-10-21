@@ -2,8 +2,8 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-09-01 · rama `feature/ui-redisign` · último commit **`a0e3f37`** (**abrir la ficha por un episodio**); **sin commitear**, solo esta tanda de documentación |
-| **Última revisión** | 2026-09-01 (**abrir la ficha por un episodio**): **§6e nuevo** —pulsar de verdad un botón que vive dentro de otro widget, que es lo único que destapa un `command` que no se ejecuta ([trampa 40](10-invariantes-y-trampas.md))—; §7.5 y §7.6 ganan la regresión de las tres acciones que llevan a un episodio. Antes, 2026-09-01 (**ancho de las fichas de género**): **§6d nuevo** —comprobar una medida de layout leyendo el widget en vez de mirarlo—, y §7.6 gana la regresión de las fichas solapadas. Antes, 2026-09-01 (**refresco de la banda «Retomar»**): **§6c nuevo** —cómo comprobar en tres tramos algo que sale a la red, escribe en la biblioteca y repinta un widget, sin tocar la BD real—, y §7.3 gana la regresión del anime en emisión. Antes, 2026-09-01 (**hover de la lista de episodios**): **§6b nuevo** —recorrer el hover con `SetCursorPos` de píxel en píxel, que es lo único que encuentra un `<Leave>` que no llega—, §7.9 gana el recorrido de la lista de episodios y §8 avisa de no matar la instancia que tenga abierta el usuario. Antes, 2026-08-31 (**fondo de la pantalla de carga**): §7.1 gana la comprobación del fondo del arranque —que a ojo se falla— y la receta de captura de §8 usa el título real de la ventana. Antes, 2026-08-16 (**columna `provider_id`**): **§3c nuevo** — las 8 tandas de comprobaciones de la fase 8, **351 sin fallos**; checklist de §7 puesto al día con lo que ha cambiado de comportamiento |
+| **Fecha** | 2026-10-20 · rama `feature/reproductor-embebido` · último commit de código **`047e5ea`** (fase 5 del reproductor) |
+| **Última revisión** | 2026-10-20 (**reproductor in-app**): **§6h nuevo** —probar la capa de resolución sin GUI, primero **sin red** y luego con **una** petición por hoster— y **§6i nuevo** —verificar el reproductor en la aplicación, con el arnés de las fases 3-5 y sus cuatro lecciones (el `Alt` suelto, el aviso modal, `faulthandler` y «bytes no es vídeo»)—; **§7.13 nuevo**, el checklist del reproductor; §7.9 deja de decir que los servidores congelan la ventana y que un servidor abre el navegador. Antes, 2026-09-01 (**abrir la ficha por un episodio**): **§6e nuevo** —pulsar de verdad un botón que vive dentro de otro widget, que es lo único que destapa un `command` que no se ejecuta ([trampa 40](10-invariantes-y-trampas.md))—; §7.5 y §7.6 ganan la regresión de las tres acciones que llevan a un episodio. Antes, 2026-09-01 (**ancho de las fichas de género**): **§6d nuevo** —comprobar una medida de layout leyendo el widget en vez de mirarlo—, y §7.6 gana la regresión de las fichas solapadas. Antes, 2026-09-01 (**refresco de la banda «Retomar»**): **§6c nuevo** —cómo comprobar en tres tramos algo que sale a la red, escribe en la biblioteca y repinta un widget, sin tocar la BD real—, y §7.3 gana la regresión del anime en emisión. Antes, 2026-09-01 (**hover de la lista de episodios**): **§6b nuevo** —recorrer el hover con `SetCursorPos` de píxel en píxel, que es lo único que encuentra un `<Leave>` que no llega—, §7.9 gana el recorrido de la lista de episodios y §8 avisa de no matar la instancia que tenga abierta el usuario. Antes, 2026-08-31 (**fondo de la pantalla de carga**): §7.1 gana la comprobación del fondo del arranque —que a ojo se falla— y la receta de captura de §8 usa el título real de la ventana. Antes, 2026-08-16 (**columna `provider_id`**): **§3c nuevo** — las 8 tandas de comprobaciones de la fase 8, **351 sin fallos**; checklist de §7 puesto al día con lo que ha cambiado de comportamiento |
 | **Cubre** | procedimiento; scripts ejecutados el 2026-07-28 contra el código de `src/` |
 
 Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ sin verificar.
@@ -720,6 +720,131 @@ pierde palabras.
 
 ---
 
+## 6h. Probar la capa de resolución sin GUI *(2026-10-20)*
+
+`APIs/resolvers/` no importa nada de la GUI ni de los proveedores, así que se prueba con Python a
+secas. **Dos pasadas, en este orden**, y la segunda solo si la primera sale limpia.
+
+**1) Sin red** — lo que tiene que funcionar aunque no haya conexión. `has_resolver()` no puede hacer
+ni una petición (es lo que pinta la ↗ al listar servidores), zilla resuelve sin red, y los otros dos
+devuelven `None` **sin lanzar**:
+
+```python
+# <scratchpad>/check_resolvers_offline.py
+# biblio_anime_env\Scripts\python.exe -I <scratchpad>\check_resolvers_offline.py
+import sys
+sys.path.insert(0, r"D:\Proyectos Python\BibliotecaAnime\src")
+import requests
+
+PETICIONES = []
+def _sin_red(*args, **kwargs):
+    PETICIONES.append(args[:1])
+    raise requests.ConnectionError("red bloqueada por la prueba")
+requests.get = _sin_red                       # los resolutores llaman a requests.get
+
+from APIs.resolvers import registry
+
+ZILLA = "https://player.zilla-networks.com/play/" + "0123456789abcdef" * 2
+casos = {
+    ZILLA: True,
+    "https://player.zilla-networks.com/play/corto": True,      # el dominio casa; resolve() dirá None
+    "https://www.mp4upload.com/embed-abc123.html": True,
+    "https://mp4upload.com/embed-abc123.html": True,           # sin www.
+    "https://jkanime.net/jkplayer/um?e=x&t=y": True,
+    "https://jkanime.net/jkplayer/umv?e=x&t=y": True,
+    "https://jkanime.net/jkplayer/jk?u=x": True,
+    "https://jkanime.net/jkokru.php?u=x": False,               # Okru: navegador
+    "https://mega.nz/embed/x": False,
+    "": False,
+    "esto no es una url": False,
+}
+for url, esperado in casos.items():
+    assert registry.has_resolver(url) is esperado, (url, esperado)
+assert not PETICIONES, "has_resolver() ha salido a la red"
+
+source = registry.resolve(ZILLA)
+assert source.kind == "hls" and source.url.endswith("/m3u8/" + "0123456789abcdef" * 2)
+assert source.headers == {"Sec-Fetch-Site": "same-origin"}
+assert registry.resolve("https://player.zilla-networks.com/play/corto") is None
+assert registry.resolve("https://www.mp4upload.com/embed-abc123.html") is None   # sin red: None, no excepción
+assert registry.resolve("https://jkanime.net/jkplayer/um?e=x") is None
+assert registry.resolve("https://mega.nz/embed/x") is None
+print("OK sin red:", len(casos), "casos de has_resolver, 0 peticiones")
+```
+
+✅ Ejecutado el 2026-10-20 (fase 6): pasa entero. La fase 1 hizo lo mismo con 12 casos el
+2026-09-24.
+
+**2) Con red, una vez por hoster** — 🔴 **sin bucles**: peticiones espaciadas 2-3 s, sin reintentos,
+y al primer 403 **se para** (la IP ya quedó bloqueada por Cloudflare el 2026-08-23). Lo que se
+comprueba en cada uno:
+
+| Hoster | Cómo se consigue una URL de *embed* | Qué tiene que salir |
+|---|---|---|
+| zilla (AnimeAV1 «HLS») | `get_anime_episode_servers(slug, n, provider_id=ANIMEAV1, strict=True)` | playlist 200 con `#EXTM3U` y `EXT-X-MAP`; un segmento **200 con** `Sec-Fetch-Site` y **403 sin** ella ([trampa 43](10-invariantes-y-trampas.md)) |
+| MP4Upload | idem, el servidor «MP4Upload» | `GET` del medio con `Range: bytes=0-15` → **206** y `ftyp` en los bytes 4-8; con el `Referer` de AnimeAV1 → **403** |
+| Desu / Magi (JKAnime) | idem con `provider_id=JKANIME` | 206/200 y `#EXTM3U`; `expires_at` unas 3 h por delante |
+| Desuka (JKAnime) | idem, el servidor «Desuka» | 206 y `ftyp` **sin** cabeceras; **410** con cualquier `Referer` ([trampa 44](10-invariantes-y-trampas.md)) |
+
+La pasada de zilla del 2026-10-20 fue un script de 30 líneas: `registry.resolve(play)` → `GET` del
+playlist con `source.headers` → primer segmento con y sin la cabecera, con `time.sleep(2-3)` entre
+cada paso.
+
+🔴 **Esto prueba que llegan bytes, no que se vea el vídeo.** «Bytes descargados» no es «vídeo
+reproducido»: para eso está §6i.
+
+---
+
+## 6i. Verificar el reproductor en la aplicación *(2026-10-20)*
+
+Es lo que hicieron las fases 3, 4 y 5 del reproductor. La regla: **si no se ha visto en pantalla, no
+está verificado**. Un `.m3u8` que responde 200 y un `ftyp` en los primeros bytes **no** dicen que mpv
+lo pinte.
+
+**El arnés**, en el scratchpad y nunca en el repo:
+
+1. **Copia de las dos BD** en un *sandbox* y **`get_resource_path` desviado** a él **antes** de
+   importar ningún módulo de la GUI: seis módulos hacen `from utils.utils import get_resource_path`
+   y se quedan con la función que hubiera al importarse. Así se lanza el `MainWindow` **del `src/`
+   real**, no una copia, y abrir fichas o terminar episodios —que **escriben**— cae en la copia.
+2. `webbrowser.open` **interceptado** (se apunta la URL), para comprobar la degradación sin abrir
+   pestañas en el navegador del usuario.
+3. `sha256` de la BD real **antes y después**.
+4. **Clics de verdad** (`SetCursorPos` + `mouse_event`), pero **solo** si `WindowFromPoint` da una
+   ventana de este proceso **y** `winfo_containing(x, y)` es el widget o uno de sus descendientes; si
+   no, se anota como descartado. `Esc` solo si el primer plano es nuestro.
+5. **Qué mirar en mpv** para dar por visto un episodio: que `time-pos` avance al ritmo del reloj, el
+   códec y la resolución (`video-codec`, `width`/`height`), `hwdec-current`, y
+   `frame-drop-count` a 0. Y una **captura** (`PrintWindow`, [§8](#capturar-la-ventana-de-la-app-sin-robar-el-foco)).
+
+**Cuatro lecciones que costaron caro**:
+
+- 🔴 **El primer intento mandó `Esc`, `q` y clics a la terminal del usuario** (fase 0, 2026-09-23):
+  estaba maximizada encima de la ventana de prueba, y el `Esc` interrumpió la sesión. De ahí el punto
+  4.
+- 🔴 **Un `Alt` suelto con la ventana ya en primer plano la mete en el bucle modal de menú de
+  Windows**, y el hilo de Tk se queda parado dentro de `mainloop` hasta el siguiente clic o tecla.
+  **Parece un cuelgue de la app y no lo es.** El truco de «`Alt` + `SetForegroundWindow`» solo se usa
+  si el primer plano **no** es nuestro.
+- **Con la portada vacía, la app saca un `messagebox` modal** («conexión lenta») que deshabilita la
+  ventana. Con `-topmost` el aviso queda tapado y **los clics no llegan a nada**. El arnés lo suprime
+  (`main_window.messagebox.showwarning`).
+- **`faulthandler.enable()` en Windows vuelca también excepciones ya manejadas**: `terminate()` de mpv
+  lanza y captura excepciones de LuaJIT (`0xe24c4a02`) que parecen cuelgues sin serlo; el proceso
+  sigue y sale con 0. Para diagnosticar un cuelgue de verdad, `faulthandler.dump_traceback_later()`,
+  que vuelca aunque Python esté parado.
+
+**Desde el `.exe`** (fase 5): compilar con `--distpath` y `--workpath` en el scratchpad —para no pisar
+el `dist/` del repo—, comprobar que la DLL **no** está en `%PATH%`, lanzarlo desde fuera del repo y
+mirar con `Get-Process -Module` que la `libmpv-2.dll` cargada es la de `_internal\vendor`
+([trampa 18f](10-invariantes-y-trampas.md)). El `.exe` crea su propia BD en su `_internal/resources/DB`:
+la del repo no se toca.
+
+⚠️ **El audio no lo puede comprobar quien no oye.** Que `aac` se decodifique y avance con el vídeo es
+todo lo que se puede medir; **oírlo** es cosa del usuario.
+
+---
+
 ## 7. Checklist de regresión manual por vista
 
 Sin tests automáticos, esto es lo que hay. Marca lo que compruebes.
@@ -879,15 +1004,19 @@ tema y el plegado no cambian de vista, así que se hacen dos pasadas de siete.
 - [ ] 🆕 El botón de orden dice **el orden que llega del proveedor**, no siempre «Mayor a menor».
 - [ ] Marcar el episodio 10 marca del 1 al 10; desmarcar el 5 desmarca **solo** el 5.
 - [ ] Clic en un episodio despliega los servidores debajo **sin empujar la lista**; volver a pulsar
-      los repliega (⚠️ congela la ventana mientras carga: es la única llamada HTTP que sigue en el
-      hilo de Tkinter, [07 C5](07-concurrencia-e-hilos.md)).
+      los repliega. 🆕 Mientras carga, la fila y el hueco dicen «Buscando servidores…» y **la ventana
+      se puede desplazar** (desde el 2026-09-24 la petición va en un hilo,
+      [07 C5](07-concurrencia-e-hilos.md)). Plegar mientras carga no pinta nada al llegar la respuesta.
 - [ ] 🆕 🔴 **Bajar el ratón despacio por toda la lista de episodios**: en cada momento hay **una
       sola** fila resaltada, y al sacar el ratón no queda ninguna. Si se quedan encendidas las que has
       recorrido, es la [trampa 37](10-invariantes-y-trampas.md) — y **deprisa no se reproduce**:
       hay que cruzar el separador de 1 px que hay entre filas ([§6b](#6b-recorrer-el-hover-con-el-puntero-2026-09-01)).
 - [ ] 🆕 Al **plegar** los servidores con el ratón encima, la fila se queda en color de hover, no
       apagada bajo el cursor.
-- [ ] Elegir un servidor abre el navegador.
+- [ ] 🆕 Los servidores que **no** se pueden ver dentro llevan **↗**; elegir uno de ellos abre el
+      navegador. Elegir uno sin ↗ abre el reproductor encima de la ficha (§7.13).
+- [ ] 🆕 Dos servidores con el mismo nombre salen como «Desu» y «Desu 2», y cada uno abre su URL
+      ([trampa 53](10-invariantes-y-trampas.md)).
 - [ ] Con la red caída, el clic muestra un **diálogo de error** y no deja la app muda.
 - [ ] **Identidad partida**: con JKAnime seleccionado, abrir un anime guardado desde AnimeAV1 debe
       sacar «⚠ En tu biblioteca: AnimeAV1» en ámbar y el botón «Actualizar a JKAnime».
@@ -929,6 +1058,57 @@ del scratchpad **antes** de construir `MainWindow`.
 - [ ] `SELECT COUNT(*) FROM ANIMES WHERE provider_id IS NULL` → cuenta que **solo baja**, nunca sube.
 - [ ] 🆕 `sha256` de `DB_Animes.db` idéntico si la sesión era de solo mirar.
 - [ ] `git grep -nE "#[0-9A-Fa-f]{6}" -- src/` devuelve **solo** `src/gui/theme.py`.
+
+### 7.13 Reproductor 🆕 *(2026-10-20)*
+
+Contra el [diseño aprobado](../plan-reproductor/DISENO-VISUAL.html). **Siempre sobre copia de la BD**
+si el anime está guardado: terminar un episodio escribe ([§6i](#6i-verificar-el-reproductor-en-la-aplicación-2026-10-20)).
+
+**Abrir y ver**
+- [ ] AnimeAV1: `HLS` (zilla) y `MP4Upload` **se ven** y **se oyen**. JKAnime: `Desu` y `Magi` igual.
+- [ ] El panel sale **encima** de la ficha, que sigue debajo desplazada hasta el episodio; la fila
+      dice «▮ Reproduciendo · <servidor>».
+- [ ] La columna de la izquierda: «← Volver a la ficha», estado, título, «**Episodio N** de M ·
+      servidor X», proveedor, fichas de servidor (la activa resaltada, las de fuera con ↗), progreso y
+      «Siguiente episodio».
+- [ ] La barra, en orden: anterior · −10 · play/pausa · +10 · siguiente · progreso · tiempo ·
+      volumen · pantalla completa. Pausa congela la imagen; ±10 saltan **10 s exactos**; soltar la
+      barra de progreso salta allí.
+- [ ] Volumen: clic silencia; al pasar el ratón sale el deslizador vertical y **se puede llegar a él**
+      sin que se cierre. El siguiente episodio suena al mismo volumen.
+
+**Degradación — lo que no puede romperse nunca**
+- [ ] 🔴 Un servidor con ↗ (UPNShare, Mega…) **abre el navegador** y el recuadro dice «X se abre en tu
+      navegador», con «Ver aquí con Y» si hay otro que sí se ve.
+- [ ] 🔴 Un servidor que no responde (zilla caído) cae al navegador a los **~20 s**. Uno que
+      responde **lento** cae a los **30 s** (`LOAD_TIMEOUT_S`, [trampa 54](10-invariantes-y-trampas.md)),
+      y mientras tanto la columna sigue respondiendo y se puede pulsar otro servidor.
+- [ ] 🔴 Sin `vendor/libmpv-2.dll`, la app arranca igual y **todo** servidor acaba en el navegador.
+
+**Navegar y terminar**
+- [ ] Anterior/siguiente cambian de episodio **por el mismo servidor** si lo tiene; en el primero,
+      «anterior» está apagado, y en el último, «siguiente» y «Siguiente episodio».
+- [ ] Al llegar al final: tarjeta «Has terminado el episodio N» con «Volver a la ficha» y «Ver el
+      episodio N+1». Si el anime **está guardado**, franja «✓ Marcado como visto · N de M» y la fila
+      marcada en la BD (acumulativo). Si **no** lo está, sin franja y **sin fila nueva**.
+- [ ] La ✕ retira el aviso y deja el último fotograma; play pasa a «repetir».
+- [ ] 🔴 «← Volver a la ficha» a mitad de episodio **no** saca la tarjeta de fin ni marca nada
+      ([trampa 47](10-invariantes-y-trampas.md)).
+
+**Pantalla completa**
+- [ ] Ocupa **el monitor donde está la ventana**, también el secundario ([trampa 51](10-invariantes-y-trampas.md)).
+- [ ] La barra flotante sale al mover el ratón y se va a los 5 s **con el cursor**; no se va con el
+      ratón encima ni con el volumen abierto.
+- [ ] `Alt+Tab` a otra aplicación: la barra **no** se queda flotando encima de ella.
+- [ ] El fin de episodio a pantalla completa saca la tarjeta centrada **y la barra**; `Esc` sale y la
+      tarjeta queda en el recuadro acoplado.
+- [ ] `Esc` devuelve la ventana a su sitio y tamaño, con la barra lateral como estaba (también
+      plegada).
+
+**Salir**
+- [ ] Cambiar de vista o cerrar la ventana con un episodio sonando: **deja de sonar**, y no quedan
+      procesos ni hilos de mpv.
+- [ ] La consola no tiene ni un `Traceback` ni un `invalid command name`.
 
 
 ## 8. Limpieza

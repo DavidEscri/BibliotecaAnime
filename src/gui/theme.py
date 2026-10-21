@@ -91,6 +91,11 @@ class Theme:
     #: Texto **sobre** BADGE_BG.
     BADGE_INK: ColorToken = ("#FFFFFF", "#FFFFFF")
 
+    #: Fondo de la superficie de vídeo y de sus tarjetas de estado. Es el mismo
+    #: en los dos temas: las bandas negras las pinta el reproductor y no cambian
+    #: con la apariencia.
+    VIDEO_BG: ColorToken = ("#000000", "#000000")
+
     # ------------------------------------------------------------------
     # Tipografía
     # ------------------------------------------------------------------
@@ -251,6 +256,21 @@ class Metrics:
     #: Hueco entre los cuatro botones de estado.
     STATUS_BUTTON_GAP: int = 10
     EPISODE_ROW_H: int = 52
+
+    #: Reproductor acoplado encima de la ficha: columna de información, hueco
+    #: hasta el vídeo, alto de la superficie a 1440 (806 × 453, 16:9) y barra.
+    PLAYER_INFO_W: int = 330
+    PLAYER_GAP: int = 24
+    PLAYER_PAD_TOP: int = 20
+    PLAYER_PAD_BOTTOM: int = 12
+    PLAYER_VIDEO_H: int = 453
+    PLAYER_BAR_H: int = 56
+    #: La barra flotante de pantalla completa.
+    PLAYER_FLOAT_BAR_H: int = 64
+    #: Lado de cada control de la barra, play/pausa incluido.
+    PLAYER_BUTTON: int = 38
+    #: Ancho de las tarjetas de estado del recuadro del vídeo.
+    PLAYER_CARD_W: int = 450
 
     #: Barra de progreso.
     PROGRESS_H: int = 4

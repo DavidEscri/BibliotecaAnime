@@ -1,7 +1,7 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "gui"
 __module__ = "anime_window.py"
-__version__ = "0.8"
+__version__ = "0.9"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 """Ficha de detalle de un anime: la pantalla desde la que se ve un episodio.
@@ -11,6 +11,10 @@ texto, y las filas de episodio muestran solo «Episodio N» con su línea de
 estado al lado. La ficha se puede abrir **por un episodio** (``focus_episode``):
 sale con esa fila desplegada, sus servidores a la vista y la ventana desplazada
 hasta ella.
+
+Pulsar un servidor abre el reproductor acoplado **encima** de la ficha, que se
+queda debajo tal cual. Si el hoster no se puede resolver o el vídeo no arranca,
+el episodio se abre en el navegador y el panel lo dice.
 
 Es el fichero donde confundir la identidad de visualización con la de
 persistencia (ver ``AnimeWindowViewer``) duplica filas en la biblioteca real.
@@ -28,8 +32,11 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 from APIs.common.models import AnimeInfo, AnimeProviderId, EpisodeInfo, ServerInfo
 from APIs.common.animeProviderMgr import AnimeProviderManager, AnimeProviderManagerSingleton
+from APIs.resolvers import registry
+from APIs.resolvers.base import MediaSource
 from dataPersistence.animesPersistence import AnimeStatus, AnimeRecord
 from gui.components.status_pill import StatusPill
+from gui.components.video_player import VideoPlayer, player_icon
 from gui.theme import Metrics, Theme
 from utils.utils import refactor_genre_text, get_anime_image, find_cached_poster_path, \
     load_rounded_image, download_anime_poster_by_status, move_anime_poster_by_status, \
@@ -117,14 +124,28 @@ EPISODE_SEARCH_W = 160
 #: cada redimensionado de la ventana repintaría las fichas decenas de veces.
 RELAYOUT_THRESHOLD = 8
 
-#: Espera antes de desplegar los servidores del episodio por el que se ha abierto
-#: la ficha. No es cosmética: `__toggle_servers_frame()` sale a la red **en el
-#: hilo de Tkinter**, así que sin este respiro la ventana se quedaría congelada
-#: con la ficha a medio pintar y el usuario no vería a qué está esperando.
+#: Espera antes de desplegar el episodio por el que se ha abierto la ficha y
+#: desplazarse hasta él: le da un turno al bucle de eventos para que la ficha se
+#: pinte entera antes de medir dónde ha caído la fila.
 FOCUS_DELAY_MS = 50
 #: Aire que se deja por encima de la fila a la que se desplaza la ficha. Pegarla
 #: al borde superior escondería que hay lista antes de ella.
 FOCUS_SCROLL_MARGIN = 24
+
+#: Columna de información del reproductor: separaciones entre bloques y el
+#: alto de las fichas de servidor y del botón «Siguiente episodio».
+PLAYER_BLOCK_GAP = 24
+PLAYER_CHIP_H = 30
+PLAYER_CHIP_GAP = 8
+PLAYER_NEXT_H = 44
+#: Qué dice la columna, y la fila del episodio que suena, en cada estado del reproductor.
+PLAYER_STATUS_LABELS = {
+    "loading": "Cargando",
+    "playing": "Reproduciendo",
+    "browser": "En el navegador",
+    "ended": "Terminado",
+    "unavailable": "Sin servidores",
+}
 
 
 # TODO: Al final de la lista de episodios nuevo frame del estilo. "Si te ha gustado One piece, te puede interesar..." y
@@ -315,6 +336,7 @@ class EpisodeRow(ctk.CTkFrame):
         self.episode_info = episode_info
         self.__on_click = on_click
         self.__expanded = False
+        self.__current = False
 
         self.grid_rowconfigure(0, minsize=Metrics.EPISODE_ROW_H)
         self.grid_columnconfigure(1, weight=1)
@@ -383,11 +405,22 @@ class EpisodeRow(ctk.CTkFrame):
     def set_expanded(self, expanded: bool) -> None:
         """Resalta la fila mientras sus servidores están desplegados."""
         self.__expanded = expanded
-        if expanded:
+        self.__paint_highlight()
+
+    def set_current(self, current: bool) -> None:
+        """Resalta la fila del episodio que está en el reproductor, esté desplegada o no."""
+        self.__current = current
+        self.__paint_highlight()
+
+    def __is_lit(self) -> bool:
+        return self.__expanded or self.__current
+
+    def __paint_highlight(self) -> None:
+        if self.__is_lit():
             self.configure(fg_color=Theme.CARD)
         else:
             self.configure(fg_color=Theme.CARD_HOVER if self.__pointer_inside() else Theme.TRANSPARENT)
-        self.number_label.configure(text_color=Theme.ACCENT if expanded else Theme.TXT)
+        self.number_label.configure(text_color=Theme.ACCENT if self.__is_lit() else Theme.TXT)
 
     # ------------------------------------------------------------------
     # Interacción
@@ -414,7 +447,7 @@ class EpisodeRow(ctk.CTkFrame):
         if previous is not None and previous is not self:
             previous.__release_hover()
         EpisodeRow.__hovered = self
-        if not self.__expanded:
+        if not self.__is_lit():
             self.configure(fg_color=Theme.CARD_HOVER)
 
     def __handle_leave(self, _event=None) -> None:
@@ -428,7 +461,7 @@ class EpisodeRow(ctk.CTkFrame):
         """Apaga el resaltado, lo pida esta fila o la que se enciende después."""
         if EpisodeRow.__hovered is self:
             EpisodeRow.__hovered = None
-        if not self.__expanded and self.winfo_exists():
+        if not self.__is_lit() and self.winfo_exists():
             self.configure(fg_color=Theme.TRANSPARENT)
 
     def __pointer_inside(self) -> bool:
@@ -532,7 +565,36 @@ class AnimeWindowViewer:
         self.__sort_button: Optional[ctk.CTkButton] = None
         self.__episode_rows: Dict[Any, EpisodeRow] = {}
         self.__servers_frames: Dict[Any, ctk.CTkFrame] = {}
+        #: Despliegue en vuelo de cada episodio (número que se compara al llegar la
+        #: respuesta) y la línea de apoyo que lleva mientras está desplegado.
+        self.__servers_requests: Dict[Any, int] = {}
+        self.__servers_states: Dict[Any, str] = {}
+        self.__servers_request_seq: int = 0
         self.search_entry: Optional[ctk.CTkEntry] = None
+
+        # --- Reproductor acoplado ------------------------------------------
+        self.__player: Optional[VideoPlayer] = None
+        self.__player_info: Optional[ctk.CTkFrame] = None
+        self.__player_status_label: Optional[ctk.CTkLabel] = None
+        self.__player_episode_label: Optional[ctk.CTkLabel] = None
+        self.__player_detail_label: Optional[ctk.CTkLabel] = None
+        self.__player_servers_frame: Optional[ctk.CTkFrame] = None
+        self.__player_seen_frame: Optional[ctk.CTkFrame] = None
+        self.__player_next_frame: Optional[ctk.CTkFrame] = None
+        self.__player_next_label: Optional[ctk.CTkLabel] = None
+        self.__player_next_number: Optional[ctk.CTkLabel] = None
+        #: Servidores y elegido con los que se pintaron las fichas de la columna.
+        self.__player_servers_key: Optional[Tuple[Tuple[Tuple[str, str], ...], Optional[str]]] = None
+        #: Episodio que está en el reproductor, sus servidores (etiqueta → URL),
+        #: el servidor elegido y el estado: loading, playing, browser o ended.
+        self.__playing_episode: Optional[EpisodeInfo] = None
+        self.__playing_servers: Dict[str, str] = {}
+        self.__playing_label: Optional[str] = None
+        self.__playing_status: Optional[str] = None
+        #: Servidores de este episodio que ya han acabado en el navegador.
+        self.__failed_servers: set = set()
+        #: Número de la última resolución pedida: una respuesta con otro número llega tarde.
+        self.__play_request_seq: int = 0
         #: Ancho con el que se midieron por última vez la sinopsis y las fichas de
         #: género. Sin esto, cada `<Configure>` las recolocaría otra vez.
         self.__laid_out_width: int = 0
@@ -623,9 +685,8 @@ class AnimeWindowViewer:
         self.__build_episodes(content)
 
         if self.__focus_episode is not None:
-            # Con after y no aquí: desplegar los servidores es una petición HTTP que
-            # va en el hilo de Tkinter, así que la ficha ya está pintada cuando la
-            # ventana se queda esperando, en vez de congelarse a medio dibujar.
+            # Con after y no aquí: desplazarse hasta la fila exige medirla, y eso
+            # solo es fiable con la ficha ya colocada.
             self.main_window.after(FOCUS_DELAY_MS, self.__focus_on_episode)
 
     def __build_sheet(self, content: ctk.CTkFrame) -> None:
@@ -808,27 +869,34 @@ class AnimeWindowViewer:
         self.__refresh_seen_bar()
 
     def __refresh_seen_bar(self) -> None:
-        """Repinta la barra con lo que hay marcado ahora mismo."""
-        if self.__seen_frame is None or not self.__seen_frame.winfo_exists():
+        """Repinta la barra de la ficha, y la de la columna del reproductor si está abierto."""
+        self.__paint_seen_bar(self.__seen_frame, SEEN_W)
+        self.__paint_seen_bar(self.__player_seen_frame, Metrics.PLAYER_INFO_W)
+
+    def __paint_seen_bar(self, frame: Optional[ctk.CTkFrame], block_width: int) -> None:
+        """Pinta «N de M vistos» con lo que hay marcado ahora mismo.
+
+        :param frame: Hueco donde va la barra; sin efecto si no existe.
+        :param block_width: Ancho del bloque entero, barra y leyenda.
+        """
+        if frame is None or not frame.winfo_exists():
             return
-        for widget in self.__seen_frame.winfo_children():
+        for widget in frame.winfo_children():
             widget.destroy()
 
         total = len(self.anime_info.episodes)
         if not total:
-            # Sin lista de episodios no hay total que prometer.
             return
         watched = sum(1 for episode in self.anime_info.episodes
                       if self.watched_status.get(episode.id, False))
 
         caption_text = f"{watched} de {total} vistos"
         caption_font = Theme.font(*Theme.T_SUB)
-        # El ancho de la barra se calcula, no se estira: el bloque entero mide
-        # SEEN_W y el texto se queda con lo que necesita.
-        bar_width = max(120, SEEN_W - caption_font.measure(caption_text) - SEEN_GAP)
+        # El ancho de la barra se calcula, no se estira: el texto se queda con lo que necesita.
+        bar_width = max(120, block_width - caption_font.measure(caption_text) - SEEN_GAP)
 
         progress = ctk.CTkProgressBar(
-            self.__seen_frame,
+            frame,
             width=bar_width,
             height=Metrics.PROGRESS_H,
             corner_radius=Metrics.PROGRESS_RADIUS,
@@ -839,14 +907,14 @@ class AnimeWindowViewer:
         progress.grid(row=0, column=0, sticky="w")
 
         caption = ctk.CTkLabel(
-            self.__seen_frame,
+            frame,
             text=caption_text,
             font=caption_font,
             text_color=Theme.TXT_3,
             anchor="w"
         )
         caption.grid(row=0, column=1, sticky="w", padx=(SEEN_GAP, 0))
-        self.__seen_frame.configure(height=SEEN_H)
+        frame.configure(height=SEEN_H)
 
     # ------------------------------------------------------------------
     # Proveedor de la ficha
@@ -1176,6 +1244,10 @@ class AnimeWindowViewer:
     def __after_status_change(self) -> None:
         """Repinta los botones y relee las listas cacheadas del hub para refrescar los contadores de la sidebar."""
         self.__refresh_status_buttons()
+        self.__refresh_hub_lists()
+
+    def __refresh_hub_lists(self) -> None:
+        """Relee de la BD las listas cacheadas del hub y repinta los contadores de la sidebar."""
         animes_persistence = self.main_window.animes_persistence
         self.main_window.favourite_animes = animes_persistence.get_favourite_animes()
         self.main_window.watching_animes = animes_persistence.get_watching_animes()
@@ -1372,6 +1444,8 @@ class AnimeWindowViewer:
             widget.destroy()
         self.__episode_rows.clear()
         self.__servers_frames.clear()
+        self.__servers_requests.clear()
+        self.__servers_states.clear()
 
         # Lo que hay marcado manda la BD, no lo que quedó en pantalla: si la ficha
         # lleva abierta un rato, esto la vuelve a poner de acuerdo con la fila.
@@ -1407,6 +1481,7 @@ class AnimeWindowViewer:
             # la impar de debajo: así desplegarlos no empuja nada ni obliga a
             # repintar la lista, y la fila impar mide cero mientras está vacía.
             row.grid(row=index * 2, column=0, sticky="ew")
+            row.set_current(self.__is_playing(episode_info.id))
             self.__episode_rows[episode_info.id] = row
 
         if showing_all and len(self.anime_info.episodes) > EPISODES_SHOWN:
@@ -1433,8 +1508,11 @@ class AnimeWindowViewer:
 
     def __episode_state_text(self, episode_info: EpisodeInfo, next_episode_id: Optional[Any]) -> str:
         """La línea de apoyo de una fila. Un episodio visto no dice nada: ya lo cuenta el interruptor."""
-        if episode_info.id in self.__servers_frames:
-            return "Servidores disponibles"
+        if self.__is_playing(episode_info.id):
+            return self.__playing_row_text()
+        servers_state = self.__servers_states.get(episode_info.id)
+        if servers_state:
+            return servers_state
         if self.watched_status.get(episode_info.id, False):
             return ""
         if next_episode_id is not None and episode_info.id == next_episode_id:
@@ -1449,6 +1527,7 @@ class AnimeWindowViewer:
                 continue
             row.set_watched(self.watched_status.get(episode_id, False))
             row.set_state_text(self.__episode_state_text(row.episode_info, next_episode_id))
+            row.set_current(self.__is_playing(episode_id))
 
     def __display_previous_and_next_episodes(self, episode_info: EpisodeInfo):
         """Los dos botones de navegación que salen al buscar un episodio suelto."""
@@ -1510,16 +1589,24 @@ class AnimeWindowViewer:
                   f"{self.anime_info.id}; la ficha se abre sin desplegar nada")
             return
 
-        if episode_info.id not in self.__episode_rows:
-            self.__display_episodes([episode_info])
-            self.__display_previous_and_next_episodes(episode_info)
-            if self.search_entry is not None and self.search_entry.winfo_exists():
-                self.search_entry.delete(0, "end")
-                self.search_entry.insert(0, str(episode_id))
-
+        self.__ensure_episode_row(episode_info)
         if episode_info.id not in self.__servers_frames:
-            self.__toggle_servers_frame(episode_info)
+            self.__toggle_servers_frame(episode_info, scroll_into_view=True)
         self.__scroll_to_episode(episode_info.id)
+
+    def __ensure_episode_row(self, episode_info: EpisodeInfo) -> None:
+        """Si el episodio no tiene fila en la lista, la deja con él solo y la navegación anterior/siguiente.
+
+        Es lo que pasa con los episodios fuera del corte de EPISODES_SHOWN, como
+        al buscarlos en «Ir al episodio…».
+        """
+        if episode_info.id in self.__episode_rows:
+            return
+        self.__display_episodes([episode_info])
+        self.__display_previous_and_next_episodes(episode_info)
+        if self.search_entry is not None and self.search_entry.winfo_exists():
+            self.search_entry.delete(0, "end")
+            self.search_entry.insert(0, str(episode_info.id))
 
     def __scroll_to_episode(self, episode_id: Any) -> None:
         """Desplaza el content_frame solo si la fila y sus servidores no caben ya en lo que se ve.
@@ -1591,12 +1678,21 @@ class AnimeWindowViewer:
             self.__display_previous_and_next_episodes(next_episode)
 
     def __toggle_episode_switch(self, episode_id: int):
+        """Marca o desmarca un episodio desde su interruptor.
+
+        :param episode_id: Episodio sobre el que actúa el interruptor.
+        """
+        self.__set_episode_watched(episode_id, not self.watched_status.get(episode_id, False))
+
+    def __set_episode_watched(self, episode_id: int, marking_as_watched: bool) -> bool:
         """Marca o desmarca un episodio. Marcar es acumulativo; desmarcar, no.
 
         Marcar el 5 marca del 1 al 5 y conserva los posteriores que ya estuvieran
         vistos; desmarcar el 3 desmarca solo el 3.
 
-        :param episode_id: Episodio sobre el que actúa el interruptor.
+        :param episode_id: Episodio que se marca o desmarca.
+        :param marking_as_watched: True para marcarlo, False para desmarcarlo.
+        :return: Si se guardó en la BD; False si el anime no tiene fila.
         """
         # Índice en orden real ascendente, no en el de la lista de la ficha (que
         # depende del botón de orden): "todos los anteriores" no puede depender
@@ -1606,9 +1702,8 @@ class AnimeWindowViewer:
             ep_index_asc = next(i for i, ep in enumerate(all_episodes_sorted) if ep.id == episode_id)
         except StopIteration:
             print(f"Error: Episodio con ID {episode_id} no encontrado.")
-            return
+            return False
 
-        marking_as_watched = not self.watched_status.get(episode_id, False)
         # IDs de todos los episodios hasta el marcado (inclusive) en orden real.
         episodes_up_to = {ep.id for ep in all_episodes_sorted[:ep_index_asc + 1]}
 
@@ -1639,75 +1734,696 @@ class AnimeWindowViewer:
         # el desplegable desviado son slugs distintos.
         if saved and marking_as_watched:
             self.main_window.user_persistence.push_last_watched_id(self.persistence_anime_id)
+        return saved
 
-    def __toggle_servers_frame(self, episode_info: EpisodeInfo):
-        """Despliega o repliega los servidores de un episodio, bajo su fila."""
-        row = self.__episode_rows.get(episode_info.id)
-        if episode_info.id in self.__servers_frames:
-            self.__servers_frames.pop(episode_info.id).destroy()
+    def __toggle_servers_frame(self, episode_info: EpisodeInfo, scroll_into_view: bool = False):
+        """Despliega o repliega los servidores de un episodio, bajo su fila.
+
+        Desplegar abre el hueco al momento con «Buscando servidores…» y pide la
+        lista en un hilo daemon; plegar es instantáneo y no sale a la red.
+        :param episode_info: Episodio de la fila pulsada.
+        :param scroll_into_view: Si al llegar los servidores hay que desplazar la
+            ficha para que se vean, como al abrirla por un episodio.
+        """
+        episode_id = episode_info.id
+        row = self.__episode_rows.get(episode_id)
+        if episode_id in self.__servers_frames:
+            self.__servers_frames.pop(episode_id).destroy()
+            # Sin su marca, la respuesta que siga en vuelo se descarta al llegar.
+            self.__servers_requests.pop(episode_id, None)
+            self.__servers_states.pop(episode_id, None)
             if row is not None and row.winfo_exists():
                 row.set_expanded(False)
                 row.set_state_text(self.__episode_state_text(episode_info,
                                                              self.__next_unwatched_episode_id()))
             return
 
-        # strict=True y provider_id explícito: episode_info.anime es el slug del
-        # proveedor que sirvió esta ficha, así que pedir los servidores a otro
-        # sitio con ese slug no devolvería nada útil.
-        #
-        # La petición va en el hilo de Tkinter; el cursor de espera es lo único
-        # que evita que la ventana parezca congelada sin explicar por qué.
-        self.main_window.configure(cursor="watch")
-        self.main_window.update_idletasks()
-        try:
-            servers_info: List[ServerInfo] = self.anime_provider_mgr.get_anime_episode_servers(
-                episode_info.anime,
-                episode_info.id,
-                provider_id=self.provider_id,
-                strict=True
-            )
-        finally:
-            self.main_window.configure(cursor="")
+        request = self.__open_servers_frame(episode_info)
+        provider_id = self.provider_id
 
-        if not servers_info:
-            provider_name = self.anime_provider_mgr.get_provider_name(self.provider_id)
-            print(f"[{provider_name}] Sin servidores para el episodio "
-                  f"{episode_info.id} de {episode_info.anime}")
-            messagebox.showinfo(
-                "Sin servidores disponibles",
-                f"{provider_name} no ofrece servidores para el episodio "
-                f"{episode_info.id}.\n\nPrueba a cambiar de proveedor en el "
-                f"desplegable de la barra lateral y vuelve a abrir el anime."
-            )
-            return
+        def _fetch():
+            servers_info = self.__fetch_servers(episode_info, provider_id)
+            self.main_window.after(0, self.__show_servers, episode_info, request, servers_info,
+                                   scroll_into_view)
 
+        threading.Thread(target=_fetch, daemon=True).start()
+
+    def __open_servers_frame(self, episode_info: EpisodeInfo) -> int:
+        """Abre bajo la fila el hueco de servidores con «Buscando servidores…», sin salir a la red.
+
+        :param episode_info: Episodio cuya fila se despliega.
+        :return: Número del despliegue, que hay que pasar a ``__show_servers``.
+        """
+        episode_id = episode_info.id
+        row = self.__episode_rows.get(episode_id)
         # La fila impar que hay justo debajo de la del episodio, reservada al
         # construir la lista: `grid_info()` dice en cuál cayó esta.
         grid_row = int(row.grid_info()["row"]) + 1 if row is not None else 1
         servers_frame = ctk.CTkFrame(self.__episodes_body, fg_color=Theme.CARD, corner_radius=8)
         servers_frame.grid(row=grid_row, column=0, sticky="ew", pady=(0, 8))
         servers_frame.grid_columnconfigure(0, weight=1)
-        self.__servers_frames[episode_info.id] = servers_frame
+        self.__servers_frames[episode_id] = servers_frame
+        self.__show_servers_message(servers_frame, "Buscando servidores…")
 
+        # Cada despliegue lleva su número: si el episodio se pliega, se vuelve a
+        # desplegar o la lista se repinta antes de que llegue la respuesta, su
+        # número deja de coincidir y la respuesta no pinta nada.
+        self.__servers_request_seq += 1
+        request = self.__servers_request_seq
+        self.__servers_requests[episode_id] = request
+        self.__servers_states[episode_id] = "Buscando servidores…"
         if row is not None and row.winfo_exists():
             row.set_expanded(True)
             row.set_state_text(self.__episode_state_text(episode_info, None))
+        return request
 
-        server_url_map = {server.server: server.url for server in servers_info}
-        server_button = ctk.CTkSegmentedButton(
+    def __fetch_servers(self, episode_info: EpisodeInfo,
+                        provider_id: AnimeProviderId | None) -> Optional[List[ServerInfo]]:
+        """Pide al proveedor los servidores de un episodio. Sale a la red: solo desde un hilo daemon.
+
+        strict=True y provider_id explícito: episode_info.anime es el slug del
+        proveedor que sirvió esta ficha, así que pedir los servidores a otro
+        sitio con ese slug no devolvería nada útil.
+        :return: Los servidores, o None si la petición falló.
+        """
+        try:
+            return self.anime_provider_mgr.get_anime_episode_servers(
+                episode_info.anime,
+                episode_info.id,
+                provider_id=provider_id,
+                strict=True
+            )
+        except Exception as exc:
+            print(f"Error al pedir los servidores del episodio {episode_info.id} "
+                  f"de {episode_info.anime}: {exc}")
+            return None
+
+    def __show_servers(self, episode_info: EpisodeInfo, request: int,
+                       servers_info: Optional[List[ServerInfo]], scroll_into_view: bool) -> None:
+        """Pinta en el hueco del episodio los servidores que acaban de llegar, o por qué no hay.
+
+        :param episode_info: Episodio cuyos servidores se pidieron.
+        :param request: Número del despliegue que hizo la petición.
+        :param servers_info: Servidores recibidos; vacío o ``None`` si no hay o falló.
+        :param scroll_into_view: Si hay que desplazar la ficha hasta el episodio.
+        """
+        episode_id = episode_info.id
+        if self.__servers_requests.get(episode_id) != request:
+            return
+        del self.__servers_requests[episode_id]
+        # La ficha puede haberse ido mientras cargaba: cambiar de pestaña destruye
+        # el hueco, y tocarlo reventaría con `invalid command name`.
+        servers_frame = self.__servers_frames.get(episode_id)
+        if servers_frame is None or not servers_frame.winfo_exists():
+            return
+        for child in servers_frame.winfo_children():
+            child.destroy()
+
+        if servers_info:
+            self.__servers_states[episode_id] = "Servidores disponibles"
+            server_url_map = self.__server_url_map(servers_info)
+            # Los que no se pueden ver aquí llevan ↗ antes de pulsarlos; se sabe sin red.
+            labels_by_text = {self.__server_text(label, url): label for label, url in server_url_map.items()}
+            server_button = ctk.CTkSegmentedButton(
+                servers_frame,
+                values=list(labels_by_text.keys()),
+                font=Theme.font(*Theme.T_UI),
+                fg_color=Theme.BG,
+                selected_color=Theme.ACCENT,
+                selected_hover_color=Theme.ACCENT,
+                unselected_color=Theme.BG,
+                unselected_hover_color=Theme.CARD_HOVER,
+                text_color=Theme.TXT_2
+            )
+            server_button.grid(row=0, column=0, sticky="w", padx=EPISODE_PAD_X, pady=14)
+            server_button.set(None)
+            server_button.configure(command=lambda selected: self.__play_video(
+                episode_info, server_url_map, labels_by_text[selected]))
+        else:
+            # El gestor no distingue «no hay» de «ha fallado»: los dos llegan vacíos.
+            provider_name = self.anime_provider_mgr.get_provider_name(self.provider_id)
+            print(f"[{provider_name}] Sin servidores para el episodio "
+                  f"{episode_info.id} de {episode_info.anime}")
+            self.__servers_states[episode_id] = "Sin servidores"
+            self.__show_servers_message(
+                servers_frame,
+                f"{provider_name} no ha devuelto servidores para este episodio · "
+                f"prueba con otro proveedor en el desplegable de la barra lateral"
+            )
+
+        row = self.__episode_rows.get(episode_id)
+        if row is not None and row.winfo_exists():
+            row.set_state_text(self.__episode_state_text(episode_info, None))
+        if scroll_into_view:
+            self.__scroll_to_episode(episode_id)
+
+    @staticmethod
+    def __show_servers_message(servers_frame: ctk.CTkFrame, text: str) -> None:
+        """Una línea de texto en el hueco de servidores, a la altura de los botones que sustituye."""
+        message = ctk.CTkLabel(
             servers_frame,
-            values=list(server_url_map.keys()),
+            text=text,
             font=Theme.font(*Theme.T_UI),
-            fg_color=Theme.BG,
-            selected_color=Theme.ACCENT,
-            selected_hover_color=Theme.ACCENT,
-            unselected_color=Theme.BG,
-            unselected_hover_color=Theme.CARD_HOVER,
-            text_color=Theme.TXT_2
+            text_color=Theme.TXT_3,
+            anchor="w",
+            justify="left"
         )
-        server_button.grid(row=0, column=0, sticky="w", padx=EPISODE_PAD_X, pady=14)
-        server_button.set(None)
-        server_button.configure(command=lambda selected: self.__play_video(server_url_map[selected]))
+        message.grid(row=0, column=0, sticky="w", padx=EPISODE_PAD_X, pady=14)
 
-    def __play_video(self, url):
+    @staticmethod
+    def __server_url_map(servers_info: List[ServerInfo]) -> Dict[str, str]:
+        """Asocia cada servidor a su URL, numerando los nombres repetidos («Desu 2»).
+
+        Un mismo episodio puede ofrecer varios servidores con el mismo nombre; con el
+        nombre tal cual como clave, el dict se quedaría solo con el último.
+        :param servers_info: Servidores del episodio, en el orden del proveedor.
+        :return: Diccionario etiqueta visible → URL, sin etiquetas repetidas.
+        """
+        server_url_map = {}
+        for server in servers_info:
+            label, number = server.server, 1
+            while label in server_url_map:
+                number += 1
+                label = f"{server.server} {number}"
+            server_url_map[label] = server.url
+        return server_url_map
+
+    @staticmethod
+    def __server_text(label: str, url: str) -> str:
+        """:return: La etiqueta del servidor, con ↗ si se abrirá en el navegador."""
+        return label if registry.has_resolver(url) else f"{label} ↗"
+
+    # ------------------------------------------------------------------
+    # Reproductor acoplado
+    # ------------------------------------------------------------------
+    def __is_playing(self, episode_id: Any) -> bool:
+        return self.__playing_episode is not None and self.__playing_episode.id == episode_id
+
+    def __playing_row_text(self) -> str:
+        """La línea de apoyo de la fila del episodio que está en el reproductor."""
+        if self.__playing_status == "browser":
+            return "↗ Abierto en el navegador"
+        if self.__playing_status == "ended":
+            return "Terminado"
+        if self.__playing_status == "unavailable":
+            return "Sin servidores"
+        status = PLAYER_STATUS_LABELS.get(self.__playing_status, "Cargando")
+        return f"▮ {status} · {self.__playing_label}" if self.__playing_label else f"▮ {status}"
+
+    def __play_video(self, episode_info: EpisodeInfo, servers: Dict[str, str], label: str) -> None:
+        """Reproduce un episodio por un servidor, encima de la ficha; si no se puede, en el navegador.
+
+        Resuelve el medio en un hilo daemon. Mientras tanto el panel enseña «Cargando»,
+        y una respuesta que llegue después de pedir otra cosa se descarta.
+        :param episode_info: Episodio que se quiere ver.
+        :param servers: Servidores del episodio, etiqueta visible → URL de embed.
+        :param label: Servidor elegido.
+        """
+        url = servers.get(label)
+        if not url:
+            return
+        if self.__player is None and not self.__open_player():
+            webbrowser.open(url)
+            return
+
+        if not self.__is_playing(episode_info.id):
+            self.__failed_servers = set()
+        self.__playing_episode = episode_info
+        self.__playing_servers = dict(servers)
+        self.__playing_label = label
+        self.__play_request_seq += 1
+        request = self.__play_request_seq
+
+        self.__player.stop_media()
+        self.__set_playing_status("loading")
+        provider_name = self.anime_provider_mgr.get_provider_name(self.provider_id)
+        self.__player.show_loading(f"Cargando el episodio {episode_info.id}", f"{label} · {provider_name}")
+        self.main_window.after(FOCUS_DELAY_MS, self.__scroll_to_episode, episode_info.id)
+
+        def _resolve():
+            try:
+                source = registry.resolve(url)
+            except Exception as exc:
+                print(f"Error al resolver {url}: {exc}")
+                source = None
+            self.main_window.after(0, self.__on_media_resolved, request, source)
+
+        threading.Thread(target=_resolve, daemon=True).start()
+
+    def __on_media_resolved(self, request: int, source: Optional[MediaSource]) -> None:
+        """Carga el medio resuelto, o cae al navegador si no hubo forma."""
+        if request != self.__play_request_seq or self.__player is None:
+            return
+        if source is None:
+            self.__fall_back_to_browser()
+            return
+        self.__player.play(source)
+
+    def __play_adjacent(self, step: int) -> None:
+        """Pasa al episodio anterior (``-1``) o al siguiente (``1``) del que está en el reproductor."""
+        if self.__playing_episode is None:
+            return
+        target = self.__adjacent_episode(self.__playing_episode.id, step)
+        if target is not None:
+            self.__play_episode(target)
+
+    def __play_episode(self, episode_info: EpisodeInfo) -> None:
+        """Cambia el reproductor a otro episodio, por el mismo servidor si lo tiene.
+
+        Pide los servidores del episodio y resuelve el medio en un hilo daemon: la
+        misma respuesta rellena el hueco de su fila en la lista y elige servidor.
+        Si no se resuelve ninguno, cae al navegador.
+        :param episode_info: Episodio que se quiere ver.
+        """
+        if self.__player is None:
+            return
+        previous_episode, preferred_label = self.__playing_episode, self.__playing_label
+        self.__failed_servers = set()
+        self.__playing_episode = episode_info
+        self.__playing_servers = {}
+        self.__play_request_seq += 1
+        request = self.__play_request_seq
+
+        self.__player.stop_media()
+        self.__set_playing_status("loading")
+        provider_name = self.anime_provider_mgr.get_provider_name(self.provider_id)
+        self.__player.show_loading(f"Cargando el episodio {episode_info.id}",
+                                   f"{preferred_label} · {provider_name}" if preferred_label else provider_name)
+
+        # La lista de debajo acompaña al reproductor: se pliega el episodio que
+        # sonaba y se despliega el nuevo, que es el que se verá al volver.
+        if (previous_episode is not None and previous_episode.id != episode_info.id
+                and previous_episode.id in self.__servers_frames):
+            self.__toggle_servers_frame(previous_episode)
+        self.__ensure_episode_row(episode_info)
+        servers_request = (None if episode_info.id in self.__servers_frames
+                           else self.__open_servers_frame(episode_info))
+        self.__refresh_episode_states()
+        self.main_window.after(FOCUS_DELAY_MS, self.__scroll_to_episode, episode_info.id)
+
+        provider_id = self.provider_id
+
+        def _load():
+            servers_info = self.__fetch_servers(episode_info, provider_id)
+            if servers_request is not None:
+                self.main_window.after(0, self.__show_servers, episode_info, servers_request, servers_info, True)
+            servers = self.__server_url_map(servers_info or [])
+            # El mismo servidor primero, y después los que se pueden ver aquí, en el
+            # orden del proveedor. Una petición por servidor, sin reintentos.
+            ordered = ([preferred_label] if preferred_label in servers else []) + \
+                      [label for label in servers if label != preferred_label]
+            candidates = [label for label in ordered if registry.has_resolver(servers[label])]
+            chosen, source = None, None
+            for label in candidates:
+                try:
+                    source = registry.resolve(servers[label])
+                except Exception as exc:
+                    print(f"Error al resolver {servers[label]}: {exc}")
+                    source = None
+                if source is not None:
+                    chosen = label
+                    break
+            self.main_window.after(0, self.__on_episode_resolved, request, servers, ordered, candidates,
+                                   chosen, source)
+
+        threading.Thread(target=_load, daemon=True).start()
+
+    def __on_episode_resolved(self, request: int, servers: Dict[str, str], ordered: List[str],
+                              tried: List[str], chosen: Optional[str], source: Optional[MediaSource]) -> None:
+        """Carga el episodio al que se ha navegado, o dice por qué no se puede ver aquí.
+
+        :param request: Número de la petición; si ya no es la última, no se hace nada.
+        :param servers: Servidores del episodio, etiqueta visible → URL.
+        :param ordered: Etiquetas en orden de preferencia.
+        :param tried: Las que se intentaron resolver.
+        :param chosen: La que se resolvió, o None.
+        :param source: El medio resuelto, o None.
+        """
+        if request != self.__play_request_seq or self.__player is None or self.__playing_episode is None:
+            return
+        self.__playing_servers = servers
+        if not servers:
+            self.__playing_label = None
+            self.__player.stop_media()
+            self.__set_playing_status("unavailable")
+            provider_name = self.anime_provider_mgr.get_provider_name(self.provider_id)
+            self.__player.show_message(
+                f"No hay servidores para el episodio {self.__playing_episode.id}",
+                f"{provider_name} no ha devuelto servidores para este episodio. Prueba con otro "
+                f"proveedor en el desplegable de la barra lateral.",
+                [("Volver a la ficha", self.main_window.close_player, False)],
+                icon="external"
+            )
+            return
+        if source is None:
+            # Se abre en el navegador el que se habría preferido; los ya intentados
+            # no se ofrecen como alternativa.
+            self.__playing_label = ordered[0]
+            self.__failed_servers.update(tried)
+            self.__fall_back_to_browser()
+            return
+        self.__playing_label = chosen
+        self.__refresh_player_info()
+        self.__player.play(source)
+
+    def __adjacent_episode(self, episode_id: Any, step: int) -> Optional[EpisodeInfo]:
+        """El episodio de al lado en orden real de número, entre todos los que lista el proveedor.
+
+        No se limita al corte de EPISODES_SHOWN: el que queda fuera se pinta solo en la lista.
+        :param episode_id: Episodio de referencia.
+        :param step: ``1`` para el siguiente, ``-1`` para el anterior.
+        :return: El episodio, o None si no hay ninguno en esa dirección.
+        """
+        if step > 0:
+            later = [episode for episode in self.anime_info.episodes if episode.id > episode_id]
+            return min(later, key=lambda episode: episode.id) if later else None
+        earlier = [episode for episode in self.anime_info.episodes if episode.id < episode_id]
+        return max(earlier, key=lambda episode: episode.id) if earlier else None
+
+    def __on_player_started(self) -> None:
+        self.__set_playing_status("playing")
+
+    def __on_player_ended(self) -> None:
+        """Fin de episodio: lo marca como visto si el anime está guardado y saca el aviso con las dos salidas."""
+        episode_info = self.__playing_episode
+        if self.__player is None or episode_info is None:
+            return
+        marked = self.__mark_finished_episode(episode_info.id)
+        self.__set_playing_status("ended")
+
+        provider_name = self.anime_provider_mgr.get_provider_name(self.provider_id)
+        subtitle = " · ".join(part for part in (self.anime_info.title, provider_name, self.__playing_label) if part)
+        check_note = None
+        if marked:
+            total = len(self.anime_info.episodes)
+            watched = sum(1 for episode in self.anime_info.episodes if self.watched_status.get(episode.id, False))
+            check_note = f"Marcado como visto · {watched} de {total}"
+        buttons = [("Volver a la ficha", self.main_window.close_player, False)]
+        following = self.__adjacent_episode(episode_info.id, 1)
+        if following is not None:
+            buttons.append((f"Ver el episodio {following.id}", lambda: self.__play_episode(following), True))
+        self.__player.show_message(f"Has terminado el episodio {episode_info.id}", "", buttons,
+                                   subtitle=subtitle, check_note=check_note, closable=True)
+
+    def __mark_finished_episode(self, episode_id: Any) -> bool:
+        """Marca como visto el episodio que acaba de terminar, con la semántica acumulativa de siempre.
+
+        Solo si el anime ya tiene fila en la biblioteca: terminar un episodio de
+        algo que no es tuyo no lo guarda. Usa la identidad de persistencia.
+        :param episode_id: Episodio que ha llegado al final.
+        :return: Si el episodio queda marcado en la BD.
+        """
+        persistence = self.main_window.animes_persistence
+        if persistence.get_anime_by_anime_id(self.persistence_anime_id) is None:
+            return False
+        # Lo que manda es la fila, no la memoria: si ya estaba visto, no se reescribe.
+        if episode_id in persistence.get_watched_episodes(self.persistence_anime_id):
+            return True
+        if not self.__set_episode_watched(episode_id, True):
+            return False
+        self.__refresh_hub_lists()
+        return True
+
+    def __on_player_error(self, reason: str) -> None:
+        print(f"[reproductor] {self.__playing_label}: {reason}; se abre en el navegador")
+        self.__fall_back_to_browser()
+
+    def __fall_back_to_browser(self) -> None:
+        """Abre el servidor en el navegador y lo dice en el recuadro del vídeo, con otro servidor que sí se ve aquí."""
+        episode_info, label = self.__playing_episode, self.__playing_label
+        if self.__player is None or episode_info is None or label is None:
+            return
+        url = self.__playing_servers.get(label, "")
+        had_resolver = registry.has_resolver(url)
+        self.__failed_servers.add(label)
         webbrowser.open(url)
+        self.__player.stop_media()
+        self.__set_playing_status("browser")
+
+        servers = self.__playing_servers
+        alternatives = [other for other, other_url in servers.items()
+                        if other not in self.__failed_servers and registry.has_resolver(other_url)]
+        body = (f"Este servidor no se puede ver dentro de la aplicación, así que el episodio "
+                f"{episode_info.id} se ha abierto en una pestaña nueva."
+                if not had_resolver else
+                f"No se ha podido cargar aquí, así que el episodio {episode_info.id} se ha abierto "
+                f"en una pestaña nueva.")
+        if alternatives:
+            names = (alternatives[0] if len(alternatives) == 1
+                     else ", ".join(alternatives[:-1]) + " y " + alternatives[-1])
+            body += f" También está en {names}, que sí se {'ve' if len(alternatives) == 1 else 'ven'} aquí."
+        buttons = []
+        if alternatives:
+            buttons.append((f"Ver aquí con {alternatives[0]}",
+                            lambda: self.__play_video(episode_info, servers, alternatives[0]), True))
+        buttons.append(("Seguir en el navegador", self.main_window.close_player, False))
+        self.__player.show_message(f"{label} se abre en tu navegador", body, buttons, icon="external")
+
+    def __set_playing_status(self, status: str) -> None:
+        """Pone el estado del reproductor en la columna de información y en la fila de la lista."""
+        self.__playing_status = status
+        if self.__player_status_label is not None and self.__player_status_label.winfo_exists():
+            self.__player_status_label.configure(text=PLAYER_STATUS_LABELS[status].upper())
+        self.__refresh_player_info()
+        self.__refresh_episode_states()
+
+    def __open_player(self) -> bool:
+        """Monta el panel encima de la ficha: la columna de información y el reproductor.
+
+        :return: False si no se pudo montar; quien llama cae al navegador.
+        """
+        try:
+            frame = self.main_window.show_player_frame(self)
+            frame.grid_columnconfigure(0, weight=0, minsize=Metrics.PLAYER_INFO_W)
+            frame.grid_columnconfigure(1, weight=1)
+            frame.grid_rowconfigure(0, weight=0)
+            self.__player_info = self.__build_player_info(frame)
+            self.__player_info.grid(row=0, column=0, sticky="ns")
+            self.__player = VideoPlayer(
+                frame,
+                on_error=self.__on_player_error,
+                on_started=self.__on_player_started,
+                on_end=self.__on_player_ended,
+                on_fullscreen_request=self.__set_player_fullscreen,
+                on_previous=lambda: self.__play_adjacent(-1),
+                on_next=lambda: self.__play_adjacent(1)
+            )
+            self.__player.grid(row=0, column=1, sticky="new", padx=(Metrics.PLAYER_GAP, 0))
+        except Exception as exc:
+            print(f"No se pudo abrir el reproductor: {exc}")
+            self.main_window.close_player()
+            return False
+        return True
+
+    def close_player(self) -> None:
+        """Para el reproductor y olvida el episodio que sonaba. El hub retira después el panel."""
+        self.__play_request_seq += 1
+        player, self.__player = self.__player, None
+        if player is not None:
+            player.close()
+        self.__player_info = None
+        self.__player_status_label = self.__player_episode_label = self.__player_detail_label = None
+        self.__player_servers_frame = self.__player_seen_frame = self.__player_next_number = None
+        self.__player_next_frame = self.__player_next_label = None
+        self.__player_servers_key = None
+        self.__playing_episode = None
+        self.__playing_status = None
+        self.__playing_label = None
+        self.__refresh_episode_states()
+
+    def relayout_player(self) -> None:
+        if self.__player is not None and self.__player.winfo_exists():
+            self.__player.relayout()
+
+    def __set_player_fullscreen(self, fullscreen: bool) -> None:
+        """Deja solo el vídeo a pantalla completa, o vuelve al panel acoplado encima de la ficha."""
+        if self.__player is None or self.__player_info is None:
+            return
+        frame = self.main_window.player_frame
+        if fullscreen:
+            self.__player_info.grid_remove()
+            frame.grid_columnconfigure(0, minsize=0)
+            frame.grid_rowconfigure(0, weight=1)
+            self.__player.grid_configure(sticky="nsew", padx=0)
+            self.main_window.enter_player_fullscreen()
+            self.__player.set_fullscreen(True)
+            return
+        self.__player.set_fullscreen(False)
+        self.main_window.exit_player_fullscreen()
+        frame.grid_rowconfigure(0, weight=0)
+        frame.grid_columnconfigure(0, minsize=Metrics.PLAYER_INFO_W)
+        self.__player.grid_configure(sticky="new", padx=(Metrics.PLAYER_GAP, 0))
+        self.__player_info.grid()
+        if self.__playing_episode is not None:
+            self.main_window.after(FOCUS_DELAY_MS, self.__scroll_to_episode, self.__playing_episode.id)
+
+    def __build_player_info(self, parent: ctk.CTkFrame) -> ctk.CTkFrame:
+        """La columna de la izquierda del vídeo: volver, qué suena, servidores, progreso y siguiente."""
+        info = ctk.CTkFrame(parent, width=Metrics.PLAYER_INFO_W, fg_color=Theme.TRANSPARENT)
+        info.grid_columnconfigure(0, weight=1, minsize=Metrics.PLAYER_INFO_W)
+        info.grid_rowconfigure(8, weight=1)
+
+        back_button = ctk.CTkButton(
+            info,
+            text="Volver a la ficha",
+            image=player_icon("left", 16),
+            width=1,
+            height=EPISODE_CONTROL_H,
+            corner_radius=Metrics.RADIUS_CONTROL,
+            font=Theme.font(*Theme.T_UI),
+            fg_color=Theme.CARD,
+            hover_color=Theme.CARD_HOVER,
+            text_color=Theme.TXT_2,
+            border_width=1,
+            border_color=Theme.LINE,
+            command=self.main_window.close_player
+        )
+        back_button.grid(row=0, column=0, sticky="w")
+
+        self.__player_status_label = ctk.CTkLabel(
+            info, text=PLAYER_STATUS_LABELS["loading"].upper(),
+            font=Theme.font(*Theme.T_LABEL), text_color=Theme.TXT_3, anchor="w", height=16
+        )
+        self.__player_status_label.grid(row=1, column=0, sticky="w", pady=(PLAYER_BLOCK_GAP, 6))
+
+        title_font = Theme.font(22, True)
+        title = ctk.CTkLabel(
+            info,
+            text=Theme.ellipsize(self.anime_info.title or "", title_font, Metrics.PLAYER_INFO_W),
+            font=title_font, text_color=Theme.TXT, anchor="w", justify="left"
+        )
+        title.grid(row=2, column=0, sticky="w")
+
+        meta = ctk.CTkFrame(info, height=1, fg_color=Theme.TRANSPARENT)
+        meta.grid(row=3, column=0, sticky="w", pady=(6, 0))
+        self.__player_episode_label = ctk.CTkLabel(meta, text="", font=Theme.font(Theme.T_SUB[0], True),
+                                                   text_color=Theme.TXT, height=18)
+        self.__player_episode_label.grid(row=0, column=0, sticky="w")
+        self.__player_detail_label = ctk.CTkLabel(meta, text="", font=Theme.font(*Theme.T_SUB),
+                                                  text_color=Theme.TXT_2, height=18)
+        self.__player_detail_label.grid(row=0, column=1, sticky="w")
+
+        provider_label = ctk.CTkLabel(info, text=self.__player_provider_text(),
+                                      font=Theme.font(12), text_color=Theme.TXT_3, anchor="w", height=16)
+        provider_label.grid(row=4, column=0, sticky="w", pady=(3, 0))
+
+        servers_caption = ctk.CTkLabel(info, text="SERVIDOR", font=Theme.font(*Theme.T_LABEL),
+                                       text_color=Theme.TXT_3, anchor="w", height=16)
+        servers_caption.grid(row=5, column=0, sticky="w", pady=(PLAYER_BLOCK_GAP, 8))
+        self.__player_servers_frame = ctk.CTkFrame(info, height=1, fg_color=Theme.TRANSPARENT)
+        self.__player_servers_frame.grid(row=6, column=0, sticky="w")
+
+        progress_block = ctk.CTkFrame(info, height=1, fg_color=Theme.TRANSPARENT)
+        progress_block.grid(row=7, column=0, sticky="ew", pady=(PLAYER_BLOCK_GAP, 0))
+        ctk.CTkLabel(progress_block, text="TU PROGRESO", font=Theme.font(*Theme.T_LABEL),
+                     text_color=Theme.TXT_3, anchor="w", height=16).grid(row=0, column=0, sticky="w", pady=(0, 8))
+        self.__player_seen_frame = ctk.CTkFrame(progress_block, height=1, fg_color=Theme.TRANSPARENT)
+        self.__player_seen_frame.grid(row=1, column=0, sticky="w")
+
+        # Un frame con dos etiquetas y no un CTkButton, porque el número va a la
+        # derecha. El clic se ata a los tres: los eventos de Tk no burbujean.
+        next_frame = ctk.CTkFrame(info, height=PLAYER_NEXT_H, corner_radius=9, fg_color=Theme.LINE)
+        next_frame.grid(row=9, column=0, sticky="ew", pady=(PLAYER_BLOCK_GAP, 0))
+        next_frame.grid_propagate(False)
+        next_frame.grid_rowconfigure(0, weight=1)
+        next_frame.grid_columnconfigure(0, weight=1)
+        self.__player_next_label = ctk.CTkLabel(next_frame, text="  Siguiente episodio",
+                                                image=player_icon("next", 16, Theme.TXT_3),
+                                                compound="left", font=Theme.font(Theme.T_UI[0], True),
+                                                text_color=Theme.TXT_3, fg_color=Theme.LINE)
+        self.__player_next_label.grid(row=0, column=0, sticky="w", padx=(16, 0))
+        self.__player_next_number = ctk.CTkLabel(next_frame, text="", font=Theme.font(12),
+                                                 text_color=Theme.TXT_3, fg_color=Theme.LINE)
+        self.__player_next_number.grid(row=0, column=1, sticky="e", padx=(0, 16))
+        for widget in (next_frame, self.__player_next_label, self.__player_next_number):
+            widget.bind("<Button-1>", lambda _event: self.__play_adjacent(1), add="+")
+        self.__player_next_frame = next_frame
+        return info
+
+    def __refresh_player_navigation(self) -> None:
+        """Enciende o apaga anterior/siguiente de la barra y «Siguiente episodio» de la columna."""
+        episode_info = self.__playing_episode
+        has_previous = episode_info is not None and self.__adjacent_episode(episode_info.id, -1) is not None
+        following = self.__adjacent_episode(episode_info.id, 1) if episode_info is not None else None
+        if self.__player is not None and self.__player.winfo_exists():
+            self.__player.set_navigation(has_previous, following is not None)
+
+        frame = self.__player_next_frame
+        if frame is None or not frame.winfo_exists():
+            return
+        enabled = following is not None
+        background = Theme.ACCENT if enabled else Theme.LINE
+        ink = Theme.ACCENT_INK if enabled else Theme.TXT_3
+        cursor = "hand2" if enabled else ""
+        frame.configure(fg_color=background, cursor=cursor)
+        self.__player_next_label.configure(fg_color=background, text_color=ink, cursor=cursor,
+                                           image=player_icon("next", 16, ink))
+        self.__player_next_number.configure(fg_color=background, text_color=ink, cursor=cursor,
+                                            text=str(following.id) if enabled else "")
+
+    def __player_provider_text(self) -> str:
+        """«AnimeAV1 · en tu biblioteca»: quién sirve lo que se ve y, si está guardado, de quién es la fila."""
+        provider_name = self.anime_provider_mgr.get_provider_name(self.provider_id)
+        if not self.__is_saved:
+            return provider_name
+        if self.__has_split_identity():
+            saved_name = (self.anime_provider_mgr.get_provider_name(self.__saved_provider_id)
+                          if self.__saved_provider_id is not None else "sin proveedor anotado")
+            return f"{provider_name} · tu fila es de {saved_name}"
+        return f"{provider_name} · en tu biblioteca"
+
+    def __refresh_player_info(self) -> None:
+        """Repinta en la columna el episodio, el servidor, las fichas de servidores y el progreso."""
+        episode_info = self.__playing_episode
+        if episode_info is None or self.__player_info is None or not self.__player_info.winfo_exists():
+            return
+        self.__player_episode_label.configure(text=f"Episodio {episode_info.id}")
+        server_text = f" · servidor {self.__playing_label}" if self.__playing_label else ""
+        self.__player_detail_label.configure(text=f" de {len(self.anime_info.episodes)}{server_text}")
+        self.__refresh_player_navigation()
+        self.__build_player_servers()
+        self.__refresh_seen_bar()
+
+    def __build_player_servers(self) -> None:
+        """Fichas de los servidores del episodio que suena, repartidas en líneas de 330 px."""
+        frame = self.__player_servers_frame
+        if frame is None or not frame.winfo_exists():
+            return
+        key = (tuple(self.__playing_servers.items()), self.__playing_label)
+        if key == self.__player_servers_key:
+            return
+        self.__player_servers_key = key
+        for child in frame.winfo_children():
+            child.destroy()
+
+        font = Theme.font(*Theme.T_UI)
+        bold = Theme.font(Theme.T_UI[0], True)
+        line: Optional[ctk.CTkFrame] = None
+        used = 0
+        for label, url in self.__playing_servers.items():
+            active = label == self.__playing_label
+            resolvable = registry.has_resolver(url)
+            text = label if resolvable else f"{label} ↗"
+            # Estimación del ancho que pinta CTkButton: texto, relleno y borde.
+            width = (bold if active else font).measure(text) + 26
+            if line is None or used + PLAYER_CHIP_GAP + width > Metrics.PLAYER_INFO_W:
+                first_line = line is None
+                line = ctk.CTkFrame(frame, height=1, fg_color=Theme.TRANSPARENT)
+                line.pack(anchor="w", pady=(0 if first_line else PLAYER_CHIP_GAP, 0))
+                used = 0
+            chip = ctk.CTkButton(
+                line,
+                text=text,
+                width=1,
+                height=PLAYER_CHIP_H,
+                corner_radius=Metrics.RADIUS_CONTROL,
+                font=bold if active else font,
+                fg_color=Theme.ACCENT_SOFT if active else Theme.CARD,
+                hover_color=Theme.ACCENT_SOFT if active else Theme.CARD_HOVER,
+                text_color=Theme.ACCENT if active else (Theme.TXT_2 if resolvable else Theme.TXT_3),
+                border_width=1,
+                border_color=Theme.ACCENT if active else Theme.LINE,
+                command=lambda chosen=label: self.__play_video(self.__playing_episode, self.__playing_servers, chosen)
+            )
+            chip.pack(side="left", padx=(0 if used == 0 else PLAYER_CHIP_GAP, 0))
+            used += width + (0 if used == 0 else PLAYER_CHIP_GAP)

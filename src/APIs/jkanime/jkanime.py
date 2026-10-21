@@ -20,7 +20,7 @@ import requests
 
 from typing import Dict, List, Optional, Tuple, Union
 from bs4 import BeautifulSoup
-from urllib.parse import urlencode, urlparse, quote
+from urllib.parse import urlencode, urljoin, urlparse, quote
 
 from APIs.common.animeProviderMgr import AnimeProvider
 from APIs.common.models import AnimeGenreFilter, AnimeOrderFilter, AnimeProviderId, ServerInfo, EpisodeInfo, AnimeInfo
@@ -202,10 +202,11 @@ class JKAnime(AnimeProvider):
             if src_match is None:
                 continue
             index = int(index_text)
+            # Algunos servidores (Okru) traen una ruta relativa al propio sitio.
             servers.append(
                 ServerInfo(
                     server=server_names.get(index, f"Opción {index + 1}"),
-                    url=src_match.group(1),
+                    url=urljoin(f"{BASE_URL}/", src_match.group(1)),
                 )
             )
 

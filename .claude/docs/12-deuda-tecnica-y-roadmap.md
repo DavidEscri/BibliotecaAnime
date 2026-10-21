@@ -2,15 +2,34 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-09-02 · rama `feature/ui-redisign` · último commit **`9083a32`**, con las rejillas adaptables **sin commitear** (abren **B13**). ⚠️ **Solo se ha revisado §4**: §1, §5, §6 y §7 siguen ancladas en el 2026-08-21 y sus recuentos y líneas están sin comprobar desde entonces |
+| **Fecha** | 2026-10-20 · rama `feature/reproductor-embebido` · último commit de código **`047e5ea`** (fase 5 del reproductor). Revisados §1 (bloque nuevo arriba), §2, §4 (filas nuevas y B4), §6 (orden sugerido) y §7; ⚠️ las anclas `:línea` de §4 anteriores a esta fecha **no se han reverificado** tras `2f8a51d` (comentarios, −400 líneas) |
 | **Cubre** | `src/**`, `.claude/CLAUDE.md`, `README.md`, `requirements.txt`, `MiBibliotecaAnime.spec`, `LICENSE`, `LEEME.txt`, `THIRD-PARTY-NOTICES.txt` |
-| **Última revisión** | 2026-09-02 (**rejillas adaptables**): **B13 nuevo** —cada repintado de la rejilla vuelve a leer y reescalar los JPG desde disco, ~350 ms para 16 celdas en el hilo de la interfaz—, hoy mitigado con una espera de coalescencia y no con una caché. Antes, 2026-09-01 (**refresco de la banda «Retomar»**): **B12 nuevo** —solo se refrescan las ≤3 filas de la portada; el resto de la biblioteca sigue enseñando el recuento del día que abriste su ficha—, y **B3 y B8 cerrados**: los tres hilos del buscador y los siete `time.sleep(0.1)` que describían **ya no existen en `src/`** desde el rediseño. Antes, 2026-08-18: §1 rehecho —la tanda de licencia ya está publicada— y **C10 cerrado del todo**: el árbol de directorios del `README.md` tenía dos erratas de copiar-pegar y omitía los ficheros legales. Antes, 2026-08-17 (**licencia y distribución**): **A3 y C11 cerrados** —`datas` ya no lleva datos de usuario y el `.spec` está por fin **verificado compilando**—, C10 cerrado a medias, **B11 abierto** (origen de los recursos gráficos) y §7 nueva |
+| **Última revisión** | 2026-10-21: **B2 y B15 cerrados** (§4 y orden sugerido); **L10 y L11 cerrados**, L4c corregido y **L12-L13** nuevos (§7), con la herramienta `tools/actualizar_libmpv.py`; el usuario **ha oído** los episodios, así que el reproductor queda verificado entero. Antes, 2026-10-20 (**reproductor in-app**): **B4 cerrado del todo** —era la **deuda nº 1** del roadmap: la petición de servidores salió del hilo de Tk el 2026-09-24—; **B14 nuevo**, los hosters que siguen abriendo el navegador; **B15 nuevo**, «Cargando» sin tope con un hoster lento; **C12 nuevo**, la DLL de libmpv fuera del repo; §2 reinventariado (**4** TODOs, en líneas nuevas); §6 con el reproductor hecho y la siguiente tarea; **§7** con lo que hizo la fase 5 sobre la GPL —**seis componentes más** en `THIRD-PARTY-NOTICES.txt`, la §6 de la GPL para la DLL **con una oferta de fuente**— y **L10** nuevo. Antes, 2026-09-02 (**rejillas adaptables**): **B13 nuevo** —cada repintado de la rejilla vuelve a leer y reescalar los JPG desde disco, ~350 ms para 16 celdas en el hilo de la interfaz—, hoy mitigado con una espera de coalescencia y no con una caché. Antes, 2026-09-01 (**refresco de la banda «Retomar»**): **B12 nuevo** —solo se refrescan las ≤3 filas de la portada; el resto de la biblioteca sigue enseñando el recuento del día que abriste su ficha—, y **B3 y B8 cerrados**: los tres hilos del buscador y los siete `time.sleep(0.1)` que describían **ya no existen en `src/`** desde el rediseño. Antes, 2026-08-18: §1 rehecho —la tanda de licencia ya está publicada— y **C10 cerrado del todo**: el árbol de directorios del `README.md` tenía dos erratas de copiar-pegar y omitía los ficheros legales. Antes, 2026-08-17 (**licencia y distribución**): **A3 y C11 cerrados** —`datas` ya no lleva datos de usuario y el `.spec` está por fin **verificado compilando**—, C10 cerrado a medias, **B11 abierto** (origen de los recursos gráficos) y §7 nueva |
 
 Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ sin verificar.
 
 ---
 
 ## 1. Estado del árbol de trabajo
+
+🆕 **2026-10-20 — rama `feature/reproductor-embebido`**, sin fusionar con `develop` ni con `main`.
+La creó el usuario con el plan del reproductor dentro y un merge de `develop` (`4ca436c`), y lleva un
+commit por fase:
+
+| Commit | Qué entró |
+|---|---|
+| `2f8a51d` | (antes del plan, vía `develop`) **comentarios de 30 módulos reescritos**, −400 líneas netas: desplazó las anclas `:línea` de casi toda esta documentación |
+| `b269d2a` | Fase 0 — *spike* de libmpv: `.gitignore` (+`vendor/`) y el estado del plan. `src/` sin tocar |
+| `9df7b18` | Fase 1 — capa `APIs/resolvers/`, y los «B1» y «B2» **del plan** (servidores repetidos y Okru relativo), que no son los B1 y B2 de §4 |
+| `3364a11` | Fase 2 — servidores fuera del hilo de Tk (cierra **B4** y la deuda nº 1) |
+| `beeb9ae` | Fase 3 — `VideoPlayer`, `player_frame` y la pantalla completa |
+| `84810fc` | Fase 4 — anterior/siguiente, tarjeta de fin y marcado como visto |
+| `047e5ea` | Fase 5 — `.spec`, `requirements.txt`, `README.md`, `LEEME.txt` y `THIRD-PARTY-NOTICES.txt` |
+
+Sin trackear siguen los mismos: los 4 PNG sin usar, `.vscode/`, `.claude/settings.local.json` y
+`.claude/plans/`. ⚠️ **`vendor/libmpv-2.dll` no aparece porque `vendor/` está en `.gitignore`** (C12).
+
+📜 **Estado a 2026-08-18** (lo que decía esta sección hasta el reproductor):
 
 ✅ **Árbol limpio y publicado.** `git status` sobre **`e337d20`** (rama `main`, tag **`v0.2.1`**),
 2026-08-18: sin ficheros modificados ni en el índice, y **`main == origin/main`** — 0 adelante,
@@ -68,14 +87,16 @@ antes del arreglo de A5. Se re-descargaron con el scraper corregido; copia previ
 
 ## 2. TODOs reales en el código
 
-✅ Inventario **rehecho con `git grep -n "TODO" -- src/` el 2026-08-21**. Son **4**, no 5:
+✅ Inventario **rehecho con `git grep -n "TODO" -- src/` el 2026-10-20**, mirando la salida. Siguen
+siendo **4**, los mismos, pero **en otras líneas**: los desplazaron `2f8a51d` y el reproductor. El
+plan del reproductor no abrió ni cerró ninguno.
 
 | # | Ubicación | Contenido | Documento afectado |
 |---|---|---|---|
-| 1 | `gui/anime_window.py:148` | Al final de la lista de episodios, frame «Si te ha gustado X, te puede interesar…» con 4 animes del mismo género | [06](06-gui-y-vistas.md), [03](03-flujos-de-ejecucion.md) |
-| 2 | `gui/anime_window.py:151` | Botón para alternar entre manga y anime | [06](06-gui-y-vistas.md), [01](01-arquitectura.md) |
-| 3 | `APIs/jkanime/jkanime.py:191` | Si el texto de búsqueda está vacío, buscar en `DIRECTORY_URL` en vez de en `SEARCH_URL` | [05 §3b](05-proveedores-y-scraping.md) |
-| 4 | `APIs/jkanime/jkanime.py:264` | Corregir `get_recent_animes` para no quedarse con todo lo que aparece en la portada | [05 §3b](05-proveedores-y-scraping.md) |
+| 1 | `gui/anime_window.py:151` | Al final de la lista de episodios, frame «Si te ha gustado X, te puede interesar…» con 4 animes del mismo género | [06](06-gui-y-vistas.md), [03](03-flujos-de-ejecucion.md) |
+| 2 | `gui/anime_window.py:154` | Botón para alternar entre manga y anime | [06](06-gui-y-vistas.md), [01](01-arquitectura.md) |
+| 3 | `APIs/jkanime/jkanime.py:156` | Si el texto de búsqueda está vacío, buscar en `DIRECTORY_URL` en vez de en `SEARCH_URL` | [05 §3b](05-proveedores-y-scraping.md) |
+| 4 | `APIs/jkanime/jkanime.py:217` | Corregir `get_recent_animes` para no quedarse con todo lo que aparece en la portada | [05 §3b](05-proveedores-y-scraping.md) |
 | ~~—~~ | ~~`gui/main_window.py:32`~~ | ✅ **Cerrado el 2026-08-20** (rediseño, fase 1): las pestañas pierden la palabra «Anime» y «Animes recientes» pasa a «Nuevos lanzamientos». Las etiquetas viven ahora en cada vista; el título de la barra dice «Mi Biblioteca» | [06 §3](06-gui-y-vistas.md) |
 | ~~—~~ | ~~`gui/main_window.py:31-34`~~ | ✅ **Cerrado el 2026-07-30**: selector de proveedor en la sidebar **y** en la ficha, con la preferencia persistida en la BD nueva `DB_user.db`. Ver **[13](13-selector-de-proveedor.md)** | **[13](13-selector-de-proveedor.md)**, [04 §0](04-modelo-de-datos.md), [05 §5b](05-proveedores-y-scraping.md) |
 
@@ -183,9 +204,9 @@ Auditado punto por punto. Donde el código contradice a `CLAUDE.md`, **gana el c
 
 | # | Problema | Dónde |
 |---|---|---|
-| B2 | La ordenación por géneros nunca se aplica (`str` vs enum) | `utilsButtons.py:341` |
+| ~~B2~~ | ~~La ordenación por géneros nunca se aplica (`str` vs enum)~~ ✅ **Cerrado el 2026-10-21**: ver [§4 → Resuelto](#-resuelto) | ~~`utilsButtons.py:341`~~ → `animesPersistence.py` (`get_anime_by_genre_and_order`) |
 | ~~B3~~ | ~~Guard antidoble-búsqueda inoperante (`.start()` → `None`)~~ ✅ **Desaparecido con el rediseño (2026-08-21)**: el buscador se quedó con **dos** hilos y un **contador de generación** en vez del guard; verificado el 2026-09-01 | ~~`searchAnimes.py:213,212,335`~~ → `searchAnimes.py:107, 329-330, 361` |
-| ~~B4~~ | ~~HTTP en el hilo de UI: servidores y clic desde 5 de las 6 vistas~~ ✅ **Casi cerrado (2026-08-16)**: los **6** puntos de clic van ya en hilo + `after(0,…)`. Queda **solo** la llamada de servidores — y desde el 2026-09-01 **molesta más**: abrir la ficha por un episodio la dispara sin que el usuario pulse nada | `anime_window.py:1851-1920` ([07 C5](07-concurrencia-e-hilos.md)) |
+| ~~B4~~ | ~~HTTP en el hilo de UI: servidores y clic desde 5 de las 6 vistas~~ ✅ **Cerrado del todo (2026-09-24, fase 2 del reproductor)**. Los 6 puntos de clic salieron el 2026-08-16; la llamada de servidores —la **deuda nº 1** del roadmap— el 2026-09-24, con número de despliegue para descartar respuestas viejas. ✅ Hueco máximo del bucle durante la petición: **0,03 s** | `anime_window.py:1739-1879` ([07 C5](07-concurrencia-e-hilos.md), [03 §8](03-flujos-de-ejecucion.md)) |
 | B6 | Las 4 listas cacheadas de `MainWindow` **no las usa nadie** | `main_window.py:87-93` vs `favouriteAnimes.py:77` |
 | B7 | `remove_from_finished` mueve a *pendiente* en BD pero **borra el póster sin recrearlo** en `pending/` | `anime_window.py:908-914` |
 | ~~B8~~ | ~~`time.sleep(0.1)` en el hilo de UI × 7~~ ✅ **Cerrado con el rediseño (2026-08-21)**: `git grep -n "time.sleep" -- src/` solo devuelve las dos esperas entre reintentos de scraping, que van en hilo daemon. Verificado el 2026-09-01 | [07 §5](07-concurrencia-e-hilos.md) |
@@ -264,6 +285,15 @@ Auditado punto por punto. Donde el código contradice a `CLAUDE.md`, **gana el c
 >   recuadro gris de `load_image`. ⚠️ Hoy no se da en los datos del usuario: 0 animes marcados sin
 >   póster en su carpeta.
 
+| **B14** 🆕 | **Hosters que siguen abriendo el navegador.** El reproductor solo resuelve zilla («HLS»), MP4Upload, y Desu, Magi y Desuka de JKAnime. **Aplazados**: Voe, Byse, YourUpload, StreamTape, VidHide, UPNShare, DoodStream y Netu; **bloqueado de verdad**: Mega (cifrado de extremo a extremo); y Okru, que solo llega en JKAnime. Funcionan —abren el navegador, como antes del plan—, pero llevan ↗. Cobertura medida el 2026-09-24: los resueltos cubren **7/7** episodios muestreados en cada proveedor | `APIs/resolvers/registry.py` · receta en [11 §9](11-playbooks.md), tabla en [05 §9](05-proveedores-y-scraping.md) |
+
+| ~~**B15**~~ | ✅ **Cerrada el 2026-10-21**: `LOAD_TIMEOUT_S = 30` en `video_player.py`, contado desde `play()` hasta el primer `playback-restart`; al vencer para mpv y llama a `on_error`. Verificado con el `VideoPlayer` real y un servidor local lento (error a los 30,0 s, mpv parado; sin falsos positivos con un medio que arranca en 0,2 s; el plazo se reinicia con cada `play()`). Lo que había: ~~**«Cargando» no tiene tope propio.**~~ El único plazo es el `network-timeout` de mpv (15 s **por petición**), así que un hoster que responde despacio deja la tarjeta de «Cargando» un minuto o más sin caer al navegador. ✅ Visto el 2026-10-20 con zilla: ~70 s hasta abrir el medio ([trampa 54](10-invariantes-y-trampas.md)). Arreglo: un plazo desde `play()` hasta el primer `playback-restart` que, al vencer, haga lo mismo que `on_error` | `video_player.py` (`play`, `__handle_event`), `anime_window.py` (`__on_player_error`) |
+
+> **B14 — por qué no es urgente.** Con zilla **o** MP4Upload en AnimeAV1, y Desu **o** Magi en
+> JKAnime, todo episodio muestreado se veía dentro. Lo que más valdría es un **segundo hoster por
+> proveedor que no dependa del mismo origen**: zilla estuvo caído **tres días** en septiembre, y
+> MP4Upload servía ese día a 110-260 KB/s, por debajo del bitrate de su propio AV1 1080p.
+
 ### 🟢 Baja
 
 | # | Problema | Dónde |
@@ -279,6 +309,7 @@ Auditado punto por punto. Donde el código contradice a `CLAUDE.md`, **gana el c
 | C9 | Comentario «24 primeros» donde el código dice 25 | `anime_window.py:492` |
 | ~~C10~~ | ~~`README.md` describe funciones inexistentes~~ ✅ **Cerrado del todo el 2026-08-18** (ver abajo) | §3 |
 | ~~C11~~ | ~~La BD del desarrollador se empaqueta en el `.exe`~~ ✅ **Cerrado el 2026-08-17** junto con A3 | `MiBibliotecaAnime.spec` |
+| **C12** 🆕 | **`libmpv-2.dll` no está en el repositorio** (120 MB, por encima del límite de GitHub; `vendor/` en `.gitignore`). Un clon limpio arranca —todo servidor abre el navegador— pero **no compila el `.exe`** sin el paso 4 del `README.md`. Si algún día pesa: Git LFS o un script de descarga que compruebe el sha256 | `.gitignore`, `MiBibliotecaAnime.spec:12-14`, [trampa 18f](10-invariantes-y-trampas.md) |
 
 > **C10 — el árbol de directorios del `README.md`** ✅ **cerrado el 2026-08-18**. El 2026-08-17 se
 > corrigieron los reclamos falsos (calificaciones, «dropeado», «100 % offline») y quedó pendiente el
@@ -304,9 +335,10 @@ Auditado punto por punto. Donde el código contradice a `CLAUDE.md`, **gana el c
 | B5 | **`AnimeWindowViewer(mw, None)` petaba** — el constructor iteraba `.episodes` sin guarda y las 6 vistas pasaban directo el retorno de `get_anime_info`, que es `None` si fallan todos los proveedores. Tkinter se tragaba el `AttributeError`: el clic no hacía nada y la app parecía colgada | 2026-07-30 `1bfdf0f` | `show_anime_info_error()` (`anime_window.py:200-216`) con log y `messagebox`; guarda en los 6 puntos de clic; contrato en el constructor (`:77-105`): `None` → `ValueError`, `episodes=None` → `dataclasses.replace` sobre **una copia**. Corregido además `recentAnimes.py`, que comprobaba el `None` pero caía de vuelta al objeto obsoleto con `.episodes` a `None`. ✅ Verificado simulando la caída total de proveedores |
 | A4 | **Póster a 20×20 al descargar** — la rama de red de `get_anime_image` construía el `CTkImage` sin `size=`, y ese parámetro (no el tamaño del PIL) es lo que se pinta; su defecto es `(20, 20)`, así que el `.resize()` se hacía y se tiraba | 2026-07-30 `83a8448` | `ctk.CTkImage(Image.open(...), size=image_size)` sin `.resize()`, igual que `load_image()`. Se añadió `timeout=_REQUEST_TIMEOUT`: era la única petición del módulo sin timeout y corre en el hilo de UI. `utils.py` v0.1 → v0.2. ✅ Verificado contra un póster real: `(195, 275)` |
 | B9 | **Stub muerto `WatchingAnimeButton`** — `watchingAnimes/__init__.py` definía una clase vacía con el mismo nombre que la real. `main_window.py:25` importa desde el **módulo**, así que nunca llegó a usarse, pero `from gui.sidebarButtons.watchingAnimes import WatchingAnimeButton` habría cogido el stub sin error de importación | 2026-08-07 `e6d1a73` | Fichero vaciado. ✅ Los **18** `__init__.py` de `src/` están hoy todos a 0 bytes. Ver [trampa 19](10-invariantes-y-trampas.md) |
+| B2 | **La ordenación por géneros nunca se aplicaba** — `get_anime_by_genre_and_order` comparaba `order` contra el **enum**, y su único llamante (`AccordionFilterButton`) le pasaba el `str` del desplegable. El llamante **desapareció con el rediseño** (2026-08-21), así que el método quedó sin uso, pero la trampa seguía armada: la vista «Buscar» y los tres proveedores manejan el orden como `value` | 2026-10-21 | El método acepta las dos formas (`order in (POR_DEFECTO, POR_DEFECTO.value)`), que es lo que hace el resto del código; firma `AnimeOrderFilter \| str`. ✅ Verificado sobre **copia** de la BD en los cuatro estados (14, 4, 21 y 4 filas): enum y `str` dan el mismo orden, descendente por coincidencias; sha256 de la BD real intacto. Trampa 6 |
 | B1 | **`get_anime_image` no buscaba en `watching/`** — provocaba una descarga redundante y, combinado con A4, el póster diminuto en la ficha de un anime que solo estuviera en «viendo» | 2026-07-30 `83a8448` | `watching` añadido a `subfolders` (`utils.py:168`), ahora las 6 categorías. ✅ Verificado con `one-piece-gyojin-touhen` (solo en `watching/` en la BD real): resuelve desde disco aun pasándole una URL inválida |
 
-> Los identificadores retirados (`A2`, `A4`, `A5`, `B1`, `B5`, `B9`) **no se reutilizan**: otros
+> Los identificadores retirados (`A2`, `A4`, `A5`, `B1`, `B2`, `B5`, `B9`) **no se reutilizan**: otros
 > documentos los citan.
 
 ---
@@ -382,9 +414,11 @@ la máquina del usuario, imposible de depurar sin logs (y `console=False` en el 
 clic**, el buscador de la biblioteca y la migración devuelven ya con `after(0, …)`
 ([07 C2](07-concurrencia-e-hilos.md)); los `after()` correctos pasan de 1 a **7**.
 
-⚠️ **Lo que sigue vivo** es el arranque, el buscador de la lupa y la llamada de servidores. Es código
-anterior y no se ha tocado en esta fase: la regla del proyecto es no propagar el patrón heredado, no
-reescribirlo de golpe.
+⚠️ **Lo que sigue vivo** es el arranque (hilo #3 de [07 §1](07-concurrencia-e-hilos.md)). 🆕 La llamada
+de servidores salió el 2026-09-24, y el reproductor trajo un hilo **ajeno** —el de eventos de mpv— con
+una regla más estricta todavía: ni `after()` ([07 §1b](07-concurrencia-e-hilos.md)). Es código
+anterior y no se ha tocado: la regla del proyecto es no propagar el patrón heredado, no reescribirlo
+de golpe.
 
 ---
 
@@ -399,10 +433,10 @@ Roadmap declarado en `.claude/CLAUDE.md` y `README.md:143-149`.
 | ~~**Selector de proveedor con preferencia persistida**~~ | ✅ **Hecho el 2026-07-30**: `userPersistence.py` (nuevo), `animeProviderMgr.py` v0.2, `main_window.py`, `anime_window.py` v0.2 y los 6 puntos de clic | — | **[13](13-selector-de-proveedor.md)** |
 | ~~**Separar «usar ahora» de «fijar como predeterminado»**~~ | ✅ **Hecho el 2026-08-06** con un **pin** junto al desplegable: `main_window.py` v0.2, `anime_window.py` v0.3 (se retira el selector de la ficha), `userPersistence.py` v0.2, 4 iconos nuevos | — | **[13 §12](13-selector-de-proveedor.md)** |
 | ~~**Columna `provider_id` en `ANIMES`**~~ | ✅ **Hecha el 2026-08-16**: `models.py` (`AnimeProviderId`, `ProviderInfo`), `animeProviderMgr.py` v0.3, `animesPersistence.py` v2.3, `main_window.py` v0.4, `anime_window.py` v0.6, `utilsButtons.py` v0.2, `utils.py` v0.3, los 3 proveedores y las 6 vistas | — | **[13 §14](13-selector-de-proveedor.md)**, [04 §8](04-modelo-de-datos.md) |
-| **Calificación personal en favoritos + ordenar por ella** | `AnimeField`, `AnimeRecord`, `anime_window.py`, `favouriteAnimes.py` | arreglar B2 (`str` vs enum); la migración ya es automática | [04](04-modelo-de-datos.md), [06](06-gui-y-vistas.md) |
+| **Calificación personal en favoritos + ordenar por ella** | `AnimeField`, `AnimeRecord`, `anime_window.py`, `favouriteAnimes.py` | ~~arreglar B2~~ ✅ (2026-10-21); la migración ya es automática | [04](04-modelo-de-datos.md), [06](06-gui-y-vistas.md) |
 | **Paginar favoritos/viendo/pendientes/finalizados de 10 en 10** | las 4 vistas de estado; reutilizar `searchAnimes.py:280-337` | extraer la paginación a `utilsButtons.py` | [06](06-gui-y-vistas.md), [03](03-flujos-de-ejecucion.md) |
 | **«Viendo» en cascada con el último capítulo visto** | `watchingAnimes.py` | ya está en BD (`last_watched_episode`) — barato | [06](06-gui-y-vistas.md) |
-| **Bloque «Si te ha gustado X…» (4 animes del mismo género)** | `anime_window.py:45-46`, `get_anime_by_genre_and_order` | arreglar B2 primero | [03](03-flujos-de-ejecucion.md), [06](06-gui-y-vistas.md) |
+| **Bloque «Si te ha gustado X…» (4 animes del mismo género)** | `anime_window.py:45-46`, `get_anime_by_genre_and_order` | ~~arreglar B2 primero~~ ✅ (2026-10-21) | [03](03-flujos-de-ejecucion.md), [06](06-gui-y-vistas.md) |
 | **Convivencia anime + manga** | 🔴 **transversal**: `models.py` (¿`MediaInfo`?, y `ProviderInfo` gana el tipo de medio), `AnimeProvider` (¿`MediaProvider`?), `AnimeField`, las 6 vistas, `anime_window.py:48` | decidir si se generalizan los modelos o se duplican | **todos** |
 | **Nuevos lanzamientos a dos columnas, 3 por fila, pósters grandes** | `recentAnimes.py:41,55-80`, tamaños de `utils.py:59,105,156` | el redimensionado a `(130,185)` está **hardcodeado en 4 sitios** | [06 §4](06-gui-y-vistas.md), [10](10-invariantes-y-trampas.md) |
 | **Filtro radio Animes/Mangas/Ambos en las 4 vistas** | `utilsButtons.AccordionFilterButton` | modelo de manga | [06](06-gui-y-vistas.md) |
@@ -430,13 +464,17 @@ que la lista avanza.**
    fila a otro proveedor** y el **aviso de duplicado** — porque elegir proveedor sin ellas convierte
    la biblioteca en un sitio donde el mismo anime puede acabar dos veces. Cerró **B4** (casi), **B10**
    y **R2**, y redujo **R3**.
-3. **Arreglar B2** — barato, y desbloquea dos puntos del roadmap (recomendaciones por género, ordenar
-   favoritos por calificación). **Es lo siguiente que queda barato.**
-4. **Sacar la llamada de servidores del hilo de Tkinter** — lo único que queda de B4, y ahora el
-   patrón está establecido en 8 sitios: es copiar y pegar. 🔺 **Sube de prioridad el 2026-09-01**: con
-   la apertura por episodio, esa petición se hace **al entrar en la ficha** desde «Viendo» o
-   «Pendientes», no solo cuando el usuario pulsa una fila. Hoy va envuelta en un `after(50 ms)` para
-   que al menos la ficha se pinte antes de congelarse.
+3. ~~**Arreglar B2**~~ — ✅ **hecho el 2026-10-21**. Para entonces el fallo ya no se veía: el
+   rediseño se había llevado su único llamante. Se arregló en la persistencia para que no reaparezca
+   con las recomendaciones por género.
+4. ~~**Sacar la llamada de servidores del hilo de Tkinter**~~ — ✅ **hecho el 2026-09-24**, como fase 2
+   del plan del reproductor, que la necesitaba antes de añadir una **segunda** petición en el mismo
+   punto (la resolución del medio).
+4b. ~~**Reproducir dentro de la aplicación**~~ — ✅ **hecho entre el 2026-09-23 y el 2026-10-20**, en
+   7 fases ([`plan-reproductor/`](../plan-reproductor/README.md)). No estaba en esta lista: se cruzó
+   por delante, igual que el rediseño. Deja **B14** (hosters sin resolver) y **C12** (la DLL fuera del
+   repo), y fuera de alcance a propósito: **recordar el minuto donde lo dejaste** (una columna más en
+   `ANIMES`, no pedida) y elegir calidad o subtítulos (los playlists no ofrecen alternativas).
 5. **Entonces** abordar la convivencia anime/manga, que es la refactorización grande. `ProviderInfo`
    ya tiene dónde llevar el tipo de medio, y `USER_SETTINGS` dónde guardar la preferencia.
 
@@ -468,8 +506,10 @@ había concedido ninguna licencia y el código era, por defecto, «todos los der
 | L1 | `LICENSE` con el texto GPL-3.0 íntegro (674 líneas) | raíz, `bec0fbc` | Sin él la *badge* no respaldaba nada |
 | L2 | Aviso de copyright a nombre del autor + sección «Licencia» | `README.md` | El `LICENSE` por sí solo no dice **de quién** es la obra; la §4 de la GPL obliga a conservar avisos, y no había ninguno que conservar |
 | L3 | `LEEME.txt` junto al `.exe` | raíz → `dist/` | **§6**: toda distribución binaria debe indicar cómo obtener el código fuente correspondiente |
-| L4 | `THIRD-PARTY-NOTICES.txt` (14 componentes) | raíz → `dist/` | MIT, BSD, Apache-2.0, HPND y MPL-2.0 **exigen** reproducir sus avisos en redistribuciones binarias |
+| L4 | `THIRD-PARTY-NOTICES.txt` (14 componentes; **20** desde el 2026-10-20) | raíz → `dist/` | MIT, BSD, Apache-2.0, HPND y MPL-2.0 **exigen** reproducir sus avisos en redistribuciones binarias |
 | L5 | Reclamos falsos corregidos | `README.md` | Ver §3: «100 % offline» y «sin dependencias web» en una app que vive del scraping |
+| 🆕 L4b | **Seis componentes más** en `THIRD-PARTY-NOTICES.txt` (fase 5 del reproductor, 2026-10-20): `python-mpv` y libmpv, que son nuevos, y **cuatro que ya viajaban** en el `.exe` sin aviso —brotli 1.1.0 (MIT), PySocks 1.7.1 (BSD-3), pyparsing 3.1.4 (MIT) y el `pkg_resources` de setuptools 63.2.0 (MIT)—. Contrastado contra el `PYZ-00.toc` del build nuevo **y** del anterior: los cuatro ya faltaban antes | raíz → `dist/` | Se descubrieron al contrastar el binario, no `requirements.txt` |
+| 🆕 L4c | **La §6 de la GPL para `libmpv-2.dll`**: los avisos dan la versión exacta y los enlaces al fuente de mpv (`6fd80b2003`), FFmpeg (`7d14defcc`) y la receta de compilación (`mpv-winbuild-cmake`, etiqueta `20260923`), **más una oferta de facilitar el fuente** si esos enlaces caen, pidiéndolo en las *Issues* del repositorio. `LEEME.txt` remite ahí. ✅ **Corregido el 2026-10-21**: decía que la receta daba «la versión exacta de cada biblioteca», y **no la da** (L12). Ahora cada biblioteca lleva su origen y su versión, exacta o reconstruida | `THIRD-PARTY-NOTICES.txt`, `LEEME.txt` | La DLL es GPL y viaja en binario: la §6 obliga a dar acceso al fuente correspondiente. ⚠️ **La oferta compromete al autor**: el usuario decidió el 2026-10-21 **mantenerla** (en vez de alojar copias). Cumplirla es posible porque cada versión está identificada |
 
 ### Compatibilidad de licencias ✅
 
@@ -487,6 +527,10 @@ PyInstaller mete de verdad en el binario**, no lo que declara `requirements.txt`
 | **certifi 2024.8.30** | **MPL-2.0** | ✅ vía cláusula 3.3 (*Secondary Licenses*) |
 | CPython, Tcl/Tk | PSF-2.0 / BSD-style | ✅ |
 | PyInstaller (bootloader) | GPL-2.0 **con excepción** | ✅ no contamina el `.exe` |
+| 🆕 brotli 1.1.0, pyparsing 3.1.4, setuptools 63.2.0 (`pkg_resources`) | MIT | ✅ |
+| 🆕 PySocks 1.7.1 | BSD-3-Clause | ✅ |
+| 🆕 **python-mpv 1.0.8** | **GPL-2.0-or-later o LGPL-2.1-or-later**, a elegir | ✅ (la ficha de la fase 5 lo daba por MIT: no lo es) |
+| 🆕 **libmpv-2.dll** (mpv `v0.41.0-1055-g6fd80b200` + FFmpeg `N-126773-g7d14defcc`) | **GPL-3.0-or-later en conjunto**: mpv compilado sin `-Dgpl=false` y FFmpeg con `--enable-gpl --enable-version3`, sin `nonfree` | ✅ misma licencia que el proyecto; obliga a la §6 (L4c) |
 
 Dos apuntes que costaron una comprobación extra:
 
@@ -503,7 +547,11 @@ Dos apuntes que costaron una comprobación extra:
 | L6 | Descargo de responsabilidad sobre el origen de los datos | 🟢 criterio, no obligación |
 | L7 | Cabeceras `SPDX-License-Identifier` de una línea en los `.py` | 🟢 cosmético |
 | L8 | Diálogo «Acerca de» con versión, copyright y licencia — lo sugiere el propio apéndice de la GPL para programas con GUI | 🟢 |
-| L9 | El generador de `THIRD-PARTY-NOTICES.txt` vive en el scratchpad, no en el repo | 🟢 el fichero caduca al tocar `requirements.txt` |
+| L9 | El generador de `THIRD-PARTY-NOTICES.txt` vive en el scratchpad, no en el repo. 🆕 La fase 5 usó otro, `notices_add.py`, que **añade** secciones en vez de regenerar desde cero: tampoco está en el repo. ✅ **La sección de libmpv sí tiene generador en el repo desde el 2026-10-21**: `tools/actualizar_libmpv.py` (ver L10). Lo de Python sigue a mano | 🟢 el fichero caduca al tocar `requirements.txt` |
+| ~~**L10**~~ | ~~**No se reproducen íntegros** los avisos de las ~45 bibliotecas enlazadas **dentro** de libmpv ni los de los paquetes que `pkg_resources` lleva vendorizados~~ ✅ **Cerrado el 2026-10-21.** Eran **89** fuentes, no ~45, más 3 submódulos y 71 crates de Rust (las de `subrandr`). La sección de libmpv la genera ahora `tools/actualizar_libmpv.py` entre marcas: lista cada biblioteca con origen, versión y nota, y reproduce **144 textos propios** (avisos MIT/BSD/ISC/zlib…, deduplicados) y **una sola copia** de cada licencia estándar (GPL-2.0, LGPL-2.0/2.1/3.0, Apache-2.0, MPL-2.0; la GPL-3.0 es el `LICENSE`). Los 9 paquetes de `pkg_resources` (versiones de su `vendored.txt`) van íntegros en la sección de setuptools. `THIRD-PARTY-NOTICES.txt`: 2 460 → 16 810 líneas | — |
+| ~~**L11**~~ | ~~**La receta de FFmpeg se leyó de `master`**~~ ✅ **Cerrado el 2026-10-21**: leída en la etiqueta `20260923` (commit `05a60b3c`): `--enable-gpl --enable-version3`, sin `--enable-nonfree`. La DLL lo confirma: lleva x264 y x265 y no lleva `fdk-aac` | — |
+| **L12** 🆕 | **Las versiones de las bibliotecas de la DLL son reconstruidas, no certificadas.** La receta clona cada una en la punta de su rama al compilar y no lo anota (ni la release ni la compilación de CI lo publican). La herramienta toma el último commit de esa rama **anterior al arranque de la compilación**; ✅ **coincide con el hash real de mpv y de FFmpeg** en las dos releases probadas (`20260923` y `20261020`), que son los únicos que se pueden contrastar. Los avisos lo dicen así y mantienen la **oferta escrita** como respaldo. La única forma de tenerlas certificadas sería compilar la DLL con versiones fijas | 🟢 asumido y declarado |
+| **L13** 🆕 | **No se ha auditado la compatibilidad de cada biblioteca por separado**: la del conjunto (GPL-3.0) se apoya en que FFmpeg se configura con `--enable-version3` y en las licencias de los ficheros. Casos a mirar si algún día importa: `davs2` (GPL-2, sin comprobar si «o posterior») y los submódulos, que pueden ser solo de pruebas | 🟢 |
 
 ⚠️ **`THIRD-PARTY-NOTICES.txt` caduca**: hay que regenerarlo cada vez que cambie una dependencia.
 El paso está en el playbook de empaquetado ([11 §6](11-playbooks.md)).

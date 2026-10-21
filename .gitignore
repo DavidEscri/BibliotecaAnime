@@ -153,3 +153,5 @@ fabric.properties
 
 # idea folder, uncomment if you don't need it
 # .idea
+# libmpv (120 MB, supera el límite de 100 MB de GitHub): se descarga aparte
+vendor/

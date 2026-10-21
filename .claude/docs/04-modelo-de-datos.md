@@ -495,6 +495,10 @@ coincidentes, descendente (`:294-302`).
 > comparación `order != AnimeOrderFilter.POR_DEFECTO` (`:294`) es entonces **siempre `True`** → *return*
 > en `:295` → **la ordenación por coincidencias nunca se aplica desde la GUI**. Con el enum sí
 > funciona. Trampa 6.
+>
+> ✅ **Resuelto el 2026-10-21**: el método acepta el orden como enum **o** como su `value`, que es
+> como lo maneja el resto del código. Hoy **no tiene llamantes**: `AccordionFilterButton` se fue con
+> el rediseño.
 
 ⚠️ El `LIKE` no está parametrizado (`:369`): los valores se interpolan en el SQL. Hoy es seguro
 porque solo pueden venir de `AnimeGenreFilter`, pero no aceptes ahí texto libre.
