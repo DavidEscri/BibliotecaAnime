@@ -10,6 +10,7 @@ import threading
 import tkinter as tk
 import customtkinter as ctk
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from typing import Callable
 from PIL import Image, ImageDraw
 from io import BytesIO
 import requests
@@ -145,16 +146,15 @@ def download_animes_poster(images_path, animes):
                 print(f"No se pudo borrar la imagen {image}: {e}")
                 continue
 
-def download_images_progress(images_path, recent_animes, progress_bar: ctk.CTkProgressBar, progress_label: ctk.CTkLabel):
-    """Descarga en paralelo los pósters que falten, actualizando una barra de progreso.
+def download_images_progress(images_path, recent_animes, on_progress: Callable[[float], None]):
+    """Descarga en paralelo los pósters que falten, avisando del progreso.
 
     El progreso ocupa el tramo 90-100%, pensado para encadenarse tras la carga
-    inicial de la app.
+    inicial de la app. on_progress se llama desde los hilos de descarga.
 
     :param images_path: Carpeta donde se cachean los pósters.
     :param recent_animes: Animes recientes cuyos pósters hay que asegurar.
-    :param progress_bar: Barra a actualizar conforme se completan descargas.
-    :param progress_label: Etiqueta de porcentaje asociada a la barra.
+    :param on_progress: Recibe la fracción completada conforme terminan las descargas.
     """
     if not os.path.exists(images_path):
         os.makedirs(images_path)
@@ -173,9 +173,7 @@ def download_images_progress(images_path, recent_animes, progress_bar: ctk.CTkPr
     lock = threading.Lock()
 
     def _update_progress():
-        progress_percentage = round(0.9 + (0.1 * completed_count[0] / total_images), 2)
-        progress_bar.set(progress_percentage)
-        progress_label.configure(text=f"{int(progress_percentage * 100)} %")
+        on_progress(round(0.9 + (0.1 * completed_count[0] / total_images), 2))
 
     _update_progress()
 

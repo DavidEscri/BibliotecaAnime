@@ -11,7 +11,7 @@ import customtkinter as ctk
 
 from tkinter import messagebox
 from ctypes import wintypes
-from typing import Any, List, Optional, Tuple
+from typing import Any, Callable, List, Optional, Tuple
 from PIL import Image, ImageSequence
 
 from APIs.animeav1.animeav1 import AnimeAV1Singleton
@@ -602,35 +602,57 @@ class MainWindow(ctk.CTk):
 
         update_gif()
 
-        threading.Thread(target=self.download_images_and_show_animes, args=(progress_bar, progress_label, loading_frame, ), daemon=True).start()
+        def paint_progress(fraction: float) -> None:
+            if progress_bar.winfo_exists():
+                progress_bar.set(fraction)
+                progress_label.configure(text=f"{int(fraction * 100)} %")
 
-    def download_images_and_show_animes(self, progress_bar: ctk.CTkProgressBar, progress_label: ctk.CTkLabel,
+        def set_progress(fraction: float) -> None:
+            # Llega desde el hilo de arranque y desde los de descarga: la barra se pinta en el de Tk.
+            self.after(0, paint_progress, fraction)
+
+        threading.Thread(target=self.download_images_and_show_animes, args=(set_progress, loading_frame),
+                         daemon=True).start()
+
+    def download_images_and_show_animes(self, on_progress: Callable[[float], None],
                                         loading_frame: ctk.CTkFrame):
-        """Completa el arranque: carga BD, pide estrenos, baja pósters y revela la portada.
+        """Parte lenta del arranque: carga la BD, pide los estrenos y baja sus pósters.
 
-        Corre en un hilo daemon. Retira la pantalla de carga tanto si hay
-        estrenos como si no, para no dejarla tapando la ventana para siempre.
+        Corre en un hilo daemon y no toca widgets: la portada la revela
+        __on_startup_loaded() en el hilo de Tkinter.
+
+        :param on_progress: Recibe la fracción completada, de 0 a 1.
+        :param loading_frame: Pantalla de carga que hay que retirar al terminar.
         """
-        self.load_animes(progress_bar, progress_label)
-        self.recent_animes = self.anime_provider_mgr.get_recent_animes()
-        if len(self.recent_animes) == 0:
-            loading_frame.destroy()
-            messagebox.showwarning("Aviso!",
-                                   "La conexión con los proveedores de anime es muy lenta, por lo que no se "
-                                   "pudieron obtener los animes recientes.")
-            self.refresh_sidebar_counts()
-            self.set_active_sidebar_destination(self.__recent_animes_button)
-            self.__recent_animes_button.show_frame()
-            return
-        progress_bar.set(0.9)
-        progress_label.configure(text="90 %")
-        download_images_progress(self.images_path, self.recent_animes, progress_bar, progress_label)
+        self.load_animes(on_progress)
+        recent_animes = self.anime_provider_mgr.get_recent_animes()
+        if recent_animes:
+            on_progress(0.9)
+            download_images_progress(self.images_path, recent_animes, on_progress)
+        self.after(0, self.__on_startup_loaded, recent_animes, loading_frame)
+
+    def __on_startup_loaded(self, recent_animes: List[AnimeInfo], loading_frame: ctk.CTkFrame) -> None:
+        """Parte de UI del arranque: retira la pantalla de carga y revela la portada.
+
+        La pantalla de carga se retira también cuando no hay estrenos, para no
+        dejarla tapando la ventana para siempre.
+
+        :param recent_animes: Estrenos obtenidos; vacío si ningún proveedor respondió.
+        :param loading_frame: Pantalla de carga que hay que retirar.
+        """
+        self.recent_animes = recent_animes
         # destroy() y no place_forget(): la pantalla de carga no se reutiliza, y
         # mientras siga viva su animación se sigue reprogramando con after().
         loading_frame.destroy()
+        if not recent_animes:
+            messagebox.showwarning("Aviso!",
+                                   "La conexión con los proveedores de anime es muy lenta, por lo que no se "
+                                   "pudieron obtener los animes recientes.")
         self.refresh_sidebar_counts()
         self.set_active_sidebar_destination(self.__recent_animes_button)
         self.__recent_animes_button.show_frame()
+        if not recent_animes:
+            return
 
         # Precarga el detalle de cada anime en segundo plano para que el clic
         # del usuario sea instantáneo en vez de bloquear la UI.
@@ -660,21 +682,17 @@ class MainWindow(ctk.CTk):
             except Exception as e:
                 print(f"Error al precargar info del anime {anime.id}: {e}")
 
-    def load_animes(self, progress_bar: ctk.CTkProgressBar, progress_label: ctk.CTkLabel):
-        """Carga desde BD las cuatro listas de biblioteca, actualizando la barra de progreso."""
+    def load_animes(self, on_progress: Callable[[float], None]):
+        """Carga desde BD las cuatro listas de biblioteca, avisando del progreso.
+
+        :param on_progress: Recibe la fracción completada, de 0,1 a 0,4.
+        """
         self.animes_persistence.start()
         self.favourite_animes = self.animes_persistence.get_favourite_animes()
-        progress_bar.set(0.1)
-        progress_label.configure(text="10 %")
+        on_progress(0.1)
         self.finished_animes = self.animes_persistence.get_finished_animes()
-        progress_bar.set(0.2)
-        progress_label.configure(text="20 %")
+        on_progress(0.2)
         self.watching_animes = self.animes_persistence.get_watching_animes()
-        progress_bar.set(0.3)
-        progress_label.configure(text="30 %")
+        on_progress(0.3)
         self.pending_animes = self.animes_persistence.get_pending_animes()
-        progress_bar.set(0.4)
-        progress_label.configure(text="40 %")
-        # Ya hay números que enseñar en la barra lateral, aunque siga oculta tras
-        # la pantalla de carga: cuando se revele, saldrá con los contadores puestos.
-        self.refresh_sidebar_counts()
+        on_progress(0.4)
