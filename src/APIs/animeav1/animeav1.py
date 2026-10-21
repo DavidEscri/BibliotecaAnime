@@ -37,6 +37,7 @@ def _fetch(url: str, **kwargs) -> requests.Response:
     :param kwargs: Argumentos adicionales para requests.get.
     :return: Respuesta HTTP con response.text ya en UTF-8.
     """
+    kwargs.setdefault("timeout", 10)
     response = requests.get(url, **kwargs)
     if "charset" not in response.headers.get("Content-Type", "").lower():
         response.encoding = "utf-8"

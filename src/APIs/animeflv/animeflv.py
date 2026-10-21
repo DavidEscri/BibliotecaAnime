@@ -45,7 +45,7 @@ class AnimeFLV(AnimeProvider):
         order_param = f"&order={order}" if order is not None else ""
         page_param = f"&page={page}" if page is not None else ""
         url = f"{BROWSE_URL}?{query_string}{order_param}{page_param}"
-        response = requests.get(url)
+        response = requests.get(url, timeout=10)
         soup = BeautifulSoup(response.text, "html.parser")
 
         pages = soup.select("div.Container div.NvCnAnm ul.pagination li")
@@ -94,7 +94,7 @@ class AnimeFLV(AnimeProvider):
         if params != "":
             url += f"?{params}"
 
-        response = requests.get(url)
+        response = requests.get(url, timeout=10)
         soup = BeautifulSoup(response.text, "html.parser")
 
         pages = soup.select("div.Container div.NvCnAnm ul.pagination li")
@@ -128,7 +128,7 @@ class AnimeFLV(AnimeProvider):
         :param episode_id: Número del episodio.
         :return: Lista de servidores disponibles.
         """
-        response = requests.get(f"{ANIME_VIDEO_URL}{anime_id}-{episode_id}")
+        response = requests.get(f"{ANIME_VIDEO_URL}{anime_id}-{episode_id}", timeout=10)
         soup = BeautifulSoup(response.text, "html.parser")
         scripts = soup.find_all("script")
 
