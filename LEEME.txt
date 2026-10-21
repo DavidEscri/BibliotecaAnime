@@ -57,8 +57,9 @@ Todas ellas son compatibles con la GPL-3.0, y sus avisos se reproducen
 El reproductor de vídeo integrado es libmpv (_internal/vendor/libmpv-2.dll),
 una compilación de mpv y FFmpeg distribuida bajo la GPL-3.0 o posterior. No
 es código de este proyecto, así que su código fuente no está en el repositorio
-de arriba: THIRD-PARTY-NOTICES.txt indica la versión exacta de mpv, de FFmpeg
-y de la receta de compilación, y dónde obtener el código fuente de cada una.
+de arriba: THIRD-PARTY-NOTICES.txt indica la versión de mpv, de FFmpeg y de
+cada biblioteca que incluye, dónde obtener su código fuente y cómo pedirlo si
+algún enlace deja de funcionar.
 
 
 -------------------------------------------------------------------------------

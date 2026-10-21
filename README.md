@@ -73,12 +73,17 @@ Los episodios se reproducen dentro de la aplicación con [mpv](https://mpv.io/),
 biblioteca `libmpv-2.dll`. Pesa unos 120 MB, más de lo que GitHub admite en un fichero, así que
 **no está en el repositorio** y hay que descargarla aparte:
 
+<!-- libmpv:inicio · generado por tools/actualizar_libmpv.py -->
 1. Descarga `mpv-dev-x86_64-20260923-git-6fd80b2003.7z` de
    [shinchiro/mpv-winbuild-cmake, versión 20260923](https://github.com/shinchiro/mpv-winbuild-cmake/releases/tag/20260923)
    (el build `x86_64` básico; el `-v3` exige un procesador con AVX2).
 2. Extrae `libmpv-2.dll` en la carpeta `vendor/` de la raíz del proyecto (`vendor/libmpv-2.dll`).
 3. Comprueba que es la versión validada: su SHA-256 debe ser
    `751131f81b5ce485d046ff08d1a44a93c5455be5135d53c0ab19c56780925ff0`.
+
+O hazlo todo de una vez con `python tools/actualizar_libmpv.py --tag 20260923 --apply`,
+que además la prueba y regenera sus avisos de licencia.
+<!-- libmpv:fin -->
 
 Sin la DLL la aplicación funciona igual, pero los episodios se abren en el navegador.
 
