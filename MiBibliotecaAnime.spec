@@ -1,14 +1,13 @@
 # -*- mode: python ; coding: utf-8 -*-
 
-APP_VERSION = "0.2.1"
+APP_VERSION = "0.2.2"
 
 block_cipher = None
 
 import os
 
-# libmpv no está en el repositorio (pesa ~120 MB): se descarga aparte, como
-# explica el README. Sin ella el .exe compilaría y abriría todo en el
-# navegador, así que se para aquí en vez de distribuir un reproductor mudo.
+# libmpv no está en el repositorio (pesa ~120 MB): se descarga aparte, como explica el README. Sin ella el .exe
+# compilaría y abriría todo en el navegador, así que se para aquí en vez de distribuir un reproductor mudo.
 _LIBMPV_DLL = 'vendor/libmpv-2.dll'
 if not os.path.isfile(os.path.join(SPECPATH, _LIBMPV_DLL)):
     raise SystemExit(f'Falta {_LIBMPV_DLL}: descárgala como indica el README (paso 4).')
@@ -16,8 +15,7 @@ if not os.path.isfile(os.path.join(SPECPATH, _LIBMPV_DLL)):
 a = Analysis(
     ['src/app.py'],
     pathex=['src'],
-    # Destino 'vendor', no '.': load_mpv() la busca en get_resource_path("vendor"),
-    # que en el .exe es _internal/vendor.
+    # Destino 'vendor', no '.': load_mpv() la busca en get_resource_path("vendor"), que en el .exe es _internal/vendor.
     binaries=[
         (_LIBMPV_DLL, 'vendor')
     ],
@@ -43,11 +41,6 @@ a = Analysis(
         'gui.sidebarButtons.recentAnimes.recentAnimes',
         'gui.sidebarButtons.searchAnimes.searchAnimes',
         'gui.sidebarButtons.watchingAnimes.watchingAnimes',
-        # Componentes compartidos y tokens visuales del rediseño. Entraron con las
-        # fases 1 a 9 y hay que declararlos uno a uno: PyInstaller sigue los
-        # imports desde `src/app.py`, pero este proyecto usa imports absolutos con
-        # raíz en `src` y el análisis estático no siempre los resuelve, que es por
-        # lo que las seis vistas llevan aquí desde siempre.
         'gui.theme',
         'gui.components.anime_row',
         'gui.components.empty_state',
@@ -66,8 +59,7 @@ a = Analysis(
         'utils.buttons.utilsButtons',
         'utils.db.sqlite',
         'utils.utils',
-        # El binding de libmpv: video_player lo importa dentro de load_mpv(),
-        # después de poner la DLL en la ruta, y el análisis estático no lo ve.
+        # El binding de libmpv: video_player lo importa dentro de load_mpv(), después de poner la DLL en la ruta, y el análisis estático no lo ve.
         'mpv'
     ],
     hookspath=[],
