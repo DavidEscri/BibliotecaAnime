@@ -231,33 +231,22 @@ def find_cached_poster_path(anime_id) -> str | None:
     return None
 
 
-def get_anime_image(anime, image_size: tuple[int, int] = (195, 275)) -> ctk.CTkImage:
-    """Carga el póster de un anime desde caché, o lo descarga si no está.
+def download_poster(poster_url: str) -> Image.Image | None:
+    """Descarga un póster sin tocar Tk, para poder hacerlo fuera del hilo de la interfaz.
 
-    :param anime: Anime cuyo póster se quiere.
-    :param image_size: Tamaño al que se pinta la imagen.
-    :return: Imagen lista para un widget CustomTkinter.
+    :param poster_url: URL del póster.
+    :return: La imagen descargada, o None si no se pudo bajar.
     """
-    image_path = find_cached_poster_path(anime.id)
-    if image_path is not None:
-        return load_image(image_path, image_size)
-    # size= no es opcional aquí: sin él, CTkImage pinta a 20x20 por defecto.
-    response = requests.get(anime.poster, timeout=_REQUEST_TIMEOUT)
-    return ctk.CTkImage(Image.open(BytesIO(response.content)), size=image_size)
-
-def load_image(image_path: str, image_size: tuple[int, int] = (130, 185)):
-    """Carga una imagen del disco al tamaño pedido, o un cuadro gris si no existe.
-
-    :param image_path: Ruta de la imagen.
-    :param image_size: Tamaño al que se pinta.
-    :return: Imagen lista para un widget CustomTkinter.
-    """
-    if os.path.exists(image_path):
-        return ctk.CTkImage(Image.open(image_path), size=image_size)
-    return ctk.CTkImage(Image.new('RGB', image_size, (200, 200, 200)), size=image_size)
+    try:
+        response = requests.get(poster_url, timeout=_REQUEST_TIMEOUT)
+        response.raise_for_status()
+        return Image.open(BytesIO(response.content))
+    except Exception as e:
+        print(f"No se pudo descargar el póster {poster_url}: {e}")
+        return None
 
 
-def load_rounded_image(image_path: str, image_size: tuple[int, int],
+def load_rounded_image(image_path: str | None, image_size: tuple[int, int],
                        radius: int = 0) -> ctk.CTkImage:
     """Carga un póster reducido al tamaño pedido con las esquinas redondeadas.
 
@@ -265,16 +254,25 @@ def load_rounded_image(image_path: str, image_size: tuple[int, int],
     desperdiciar la calidad de la caché. Redondea con una máscara alfa,
     porque CustomTkinter no recorta su propia image al corner_radius.
 
-    :param image_path: Ruta del póster.
+    :param image_path: Ruta del póster, o None si no hay ninguno.
     :param image_size: Tamaño al que se reduce.
     :param radius: Radio de las esquinas redondeadas; 0 para no redondear.
     :return: Imagen lista para un widget CustomTkinter, o un cuadro gris si el fichero no existe.
     """
-    if os.path.exists(image_path):
-        image = Image.open(image_path).convert("RGBA").resize(image_size, Image.LANCZOS)
-    else:
-        image = Image.new("RGBA", image_size, (200, 200, 200, 255))
+    if image_path is not None and os.path.exists(image_path):
+        return round_image(Image.open(image_path), image_size, radius)
+    return round_image(Image.new("RGBA", image_size, (200, 200, 200, 255)), image_size, radius)
 
+
+def round_image(image: Image.Image, image_size: tuple[int, int], radius: int = 0) -> ctk.CTkImage:
+    """Reduce una imagen ya cargada al tamaño pedido y le redondea las esquinas.
+
+    :param image: Imagen de origen, del disco o recién descargada.
+    :param image_size: Tamaño al que se reduce.
+    :param radius: Radio de las esquinas redondeadas; 0 para no redondear.
+    :return: Imagen lista para un widget CustomTkinter.
+    """
+    image = image.convert("RGBA").resize(image_size, Image.LANCZOS)
     if radius > 0:
         # La máscara va en escala de grises y se pega como canal alfa: lo que
         # queda fuera del rectángulo redondeado se vuelve transparente y deja ver

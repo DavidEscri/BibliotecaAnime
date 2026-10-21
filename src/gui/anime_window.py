@@ -29,6 +29,7 @@ import customtkinter as ctk
 from dataclasses import replace
 from tkinter import messagebox
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from PIL import Image
 
 from APIs.common.models import AnimeInfo, AnimeProviderId, EpisodeInfo, ServerInfo
 from APIs.common.animeProviderMgr import AnimeProviderManager, AnimeProviderManagerSingleton
@@ -38,8 +39,8 @@ from dataPersistence.animesPersistence import AnimeStatus, AnimeRecord
 from gui.components.status_pill import StatusPill
 from gui.components.video_player import VideoPlayer, player_icon
 from gui.theme import Metrics, Theme
-from utils.utils import refactor_genre_text, get_anime_image, find_cached_poster_path, \
-    load_rounded_image, download_anime_poster_by_status, move_anime_poster_by_status, \
+from utils.utils import refactor_genre_text, download_poster, find_cached_poster_path, \
+    load_rounded_image, round_image, download_anime_poster_by_status, move_anime_poster_by_status, \
     remove_anime_poster_by_status
 
 #: Similitud mínima entre títulos para avisar de que un anime que se va a
@@ -699,8 +700,7 @@ class AnimeWindowViewer:
         # alineados con su borde inferior.
         sheet.grid_rowconfigure(0, minsize=Metrics.SHEET_POSTER[1])
 
-        poster_label = ctk.CTkLabel(sheet, text="", image=self.__poster_image())
-        poster_label.grid(row=0, column=0, sticky="nw")
+        self.__build_poster(sheet)
 
         info = ctk.CTkFrame(sheet, fg_color=Theme.TRANSPARENT)
         info.grid(row=0, column=1, sticky="nsew", padx=(SHEET_GAP, 0))
@@ -719,19 +719,33 @@ class AnimeWindowViewer:
         # dependen el envuelto de la sinopsis y el de las fichas de género.
         info.bind("<Configure>", self.__on_info_configure)
 
-    def __poster_image(self) -> ctk.CTkImage:
+    def __build_poster(self, sheet: ctk.CTkFrame) -> None:
         """El póster a 248 x 372, con las esquinas redondeadas.
 
-        Se prefiere el fichero cacheado y solo se sale a la red cuando el anime
-        todavía no tiene póster en disco. La identidad usada es la de
-        persistencia: el fichero se llama como la fila guardada, no como el
-        slug que sirvió esta ficha.
+        Si todavía no está en disco se pinta el cuadro gris y se descarga en un
+        hilo. La identidad usada es la de persistencia: el fichero se llama como
+        la fila guardada, no como el slug que sirvió esta ficha.
+
+        :param sheet: Bloque de la ficha donde va el póster.
         """
         cached_path = find_cached_poster_path(self.persistence_anime_id)
+        poster_label = ctk.CTkLabel(sheet, text="", image=load_rounded_image(
+            cached_path, Metrics.SHEET_POSTER, Metrics.RADIUS_SHEET_POSTER))
+        poster_label.grid(row=0, column=0, sticky="nw")
         if cached_path is not None:
-            return load_rounded_image(cached_path, Metrics.SHEET_POSTER,
-                                      Metrics.RADIUS_SHEET_POSTER)
-        return get_anime_image(self.__persistence_anime_info(), Metrics.SHEET_POSTER)
+            return
+
+        def _show(poster: Image.Image):
+            if poster_label.winfo_exists():
+                poster_label.configure(image=round_image(poster, Metrics.SHEET_POSTER,
+                                                         Metrics.RADIUS_SHEET_POSTER))
+
+        def _download():
+            poster = download_poster(self.persistence_poster_url)
+            if poster is not None and self.main_window.winfo_exists():
+                self.main_window.after(0, _show, poster)
+
+        threading.Thread(target=_download, daemon=True).start()
 
     def __build_title(self, info: ctk.CTkFrame) -> None:
         """Título, sinopsis y fichas de género."""
