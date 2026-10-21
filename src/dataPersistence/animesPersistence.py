@@ -373,12 +373,18 @@ class AnimesPersistence(ServiceDB):
         self,
         status: AnimeStatus,
         genres: List[AnimeGenreFilter],
-        order:  AnimeOrderFilter,
+        order:  AnimeOrderFilter | str,
     ) -> List[AnimeRecord]:
         """Devuelve animes filtrados por estado, géneros y criterio de orden.
 
         Si se indican géneros y el orden es ``POR_DEFECTO``, los resultados
-        con más coincidencias de género aparecen primero.
+        con más coincidencias de género aparecen primero. El orden se acepta
+        como miembro del enum o como su ``value``, que es lo que usa la GUI.
+
+        :param status: Estado por el que filtrar.
+        :param genres: Géneros, de los que basta con que coincida uno.
+        :param order: Criterio de orden, como ``AnimeOrderFilter`` o su ``value``.
+        :return: Los animes que cumplen el filtro.
         """
         if genres:
             genre_conditions = " OR ".join(
@@ -397,7 +403,8 @@ class AnimesPersistence(ServiceDB):
 
         records = [AnimeRecord.from_db_dict(r) for r in rows]
 
-        if order != AnimeOrderFilter.POR_DEFECTO or not genres:
+        is_default_order = order in (AnimeOrderFilter.POR_DEFECTO, AnimeOrderFilter.POR_DEFECTO.value)
+        if not is_default_order or not genres:
             return records
 
         filter_genre_values = {g.value for g in genres}
