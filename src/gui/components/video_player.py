@@ -53,6 +53,9 @@ RING_STEP_MS = 80
 RING_SIZE = 34
 #: Segundos que mpv espera a un servidor que no responde antes de dar error.
 NETWORK_TIMEOUT_S = 15
+#: Segundos que puede tardar un medio en empezar a verse antes de darlo por fallido.
+#: El plazo de mpv cuenta por petición: un servidor que contesta todo despacio no lo agota.
+LOAD_TIMEOUT_S = 30
 
 #: `end-file.reason` de mpv que importan aquí: fin natural y error.
 END_REASON_EOF = 0
@@ -629,6 +632,7 @@ class VideoPlayer(ctk.CTkFrame):
         self.__source: Optional[MediaSource] = None
         self.__closed = False
         self.__poll_job: Optional[str] = None
+        self.__load_timeout_job: Optional[str] = None
         #: Lo que cuenta el hilo de mpv. Asignaciones sueltas: el GIL las hace atómicas.
         self.__mpv_position: Optional[float] = None
         self.__mpv_duration: Optional[float] = None
@@ -684,6 +688,7 @@ class VideoPlayer(ctk.CTkFrame):
         """
         if self.__closed:
             return
+        self.__cancel_load_timeout()
         if not self.__ensure_mpv():
             self.__on_error("No se ha podido iniciar el reproductor")
             return
@@ -707,10 +712,32 @@ class VideoPlayer(ctk.CTkFrame):
             print(f"mpv no aceptó el medio {source.url}: {exc}")
             self.__on_error("El reproductor no ha aceptado el medio")
             return
+        self.__load_timeout_job = self.after(LOAD_TIMEOUT_S * 1000, self.__on_load_timeout)
         self.__refresh_controls()
+
+    def __cancel_load_timeout(self) -> None:
+        if self.__load_timeout_job is not None:
+            try:
+                self.after_cancel(self.__load_timeout_job)
+            except tkinter.TclError:
+                pass
+            self.__load_timeout_job = None
+
+    def __on_load_timeout(self) -> None:
+        """El medio no ha empezado a verse en ``LOAD_TIMEOUT_S``: se para y se trata como un error.
+
+        Parar antes de avisar evita que un medio que arranca tarde suene detrás del aviso.
+        """
+        self.__load_timeout_job = None
+        if self.__closed or self.__started or self.__source is None:
+            return
+        print(f"El medio no ha empezado a verse en {LOAD_TIMEOUT_S} s: {self.__source.url}")
+        self.stop_media()
+        self.__on_error("El servidor tarda demasiado en entregar el vídeo")
 
     def stop_media(self) -> None:
         """Para el medio que suene, sin cerrar el reproductor."""
+        self.__cancel_load_timeout()
         self.__source = None
         self.__started = False
         self.__ended = False
@@ -730,6 +757,7 @@ class VideoPlayer(ctk.CTkFrame):
         self.__closed = True
         if self.__fullscreen:
             self.set_fullscreen(False)
+        self.__cancel_load_timeout()
         for job in (self.__poll_job, self.__ring_job, self.__idle_job, self.__foreground_job):
             if job is not None:
                 try:
@@ -836,6 +864,7 @@ class VideoPlayer(ctk.CTkFrame):
         elif kind == "playback-restart":
             if self.__file_active and not self.__started and self.__source is not None:
                 self.__started = True
+                self.__cancel_load_timeout()
                 self.hide_card()
                 if self.__on_started is not None:
                     self.__on_started()
