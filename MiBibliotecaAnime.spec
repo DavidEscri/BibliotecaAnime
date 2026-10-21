@@ -12,6 +12,27 @@ _LIBMPV_DLL = 'vendor/libmpv-2.dll'
 if not os.path.isfile(os.path.join(SPECPATH, _LIBMPV_DLL)):
     raise SystemExit(f'Falta {_LIBMPV_DLL}: descárgala como indica el README (paso 4).')
 
+# Los avisos de licencia y el paso 4 del README describen una DLL concreta. Si
+# se cambia la DLL sin pasar tools/actualizar_libmpv.py, el .exe saldría con
+# avisos de otra compilación: se comprueba que el sha256 coincide.
+import hashlib
+import re
+
+with open(os.path.join(SPECPATH, _LIBMPV_DLL), 'rb') as _dll:
+    _dll_sha = hashlib.sha256(_dll.read()).hexdigest()
+for _doc, _begin, _end, _pattern in (
+        ('THIRD-PARTY-NOTICES.txt', '#### INICIO libmpv', '#### FIN libmpv', r'SHA-256: ([0-9a-f]{64})'),
+        ('README.md', '<!-- libmpv:inicio', '<!-- libmpv:fin', r'`([0-9a-f]{64})`')):
+    with open(os.path.join(SPECPATH, _doc), encoding='utf-8-sig') as _file:
+        _text = _file.read()
+    _section = _text[_text.find(_begin):_text.find(_end)] if _begin in _text and _end in _text else ''
+    _found = re.search(_pattern, _section)
+    if _found is None or _found.group(1) != _dll_sha:
+        _problem = (f'describe la libmpv {_found.group(1)[:12]}… y {_LIBMPV_DLL} es la {_dll_sha[:12]}…'
+                    if _found else 'no tiene la sección de libmpv generada')
+        raise SystemExit(f'{_doc} {_problem}: pasa '
+                         f'"python tools/actualizar_libmpv.py --tag <etiqueta> --apply" antes de compilar.')
+
 a = Analysis(
     ['src/app.py'],
     pathex=['src'],
