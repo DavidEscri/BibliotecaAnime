@@ -2,8 +2,8 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-08-16 · **Commit** `a3d4331` (2026-08-17, rama `main`) · árbol **limpio** |
-| **Última revisión** | 2026-08-16 (**columna `provider_id`**): **§3c nuevo** — las 8 tandas de comprobaciones de la fase 8, **351 sin fallos**; checklist de §7 puesto al día con lo que ha cambiado de comportamiento |
+| **Fecha** | 2026-10-20 · rama `feature/reproductor-embebido` · último commit de código **`f3fc229`** (fase 5 del reproductor) |
+| **Última revisión** | 2026-10-20 (**reproductor in-app**): **§6h nuevo** —probar la capa de resolución sin GUI, primero **sin red** y luego con **una** petición por hoster— y **§6i nuevo** —verificar el reproductor en la aplicación, con el arnés de las fases 3-5 y sus cuatro lecciones (el `Alt` suelto, el aviso modal, `faulthandler` y «bytes no es vídeo»)—; **§7.13 nuevo**, el checklist del reproductor; §7.9 deja de decir que los servidores congelan la ventana y que un servidor abre el navegador. Antes, 2026-09-01 (**abrir la ficha por un episodio**): **§6e nuevo** —pulsar de verdad un botón que vive dentro de otro widget, que es lo único que destapa un `command` que no se ejecuta ([trampa 40](10-invariantes-y-trampas.md))—; §7.5 y §7.6 ganan la regresión de las tres acciones que llevan a un episodio. Antes, 2026-09-01 (**ancho de las fichas de género**): **§6d nuevo** —comprobar una medida de layout leyendo el widget en vez de mirarlo—, y §7.6 gana la regresión de las fichas solapadas. Antes, 2026-09-01 (**refresco de la banda «Retomar»**): **§6c nuevo** —cómo comprobar en tres tramos algo que sale a la red, escribe en la biblioteca y repinta un widget, sin tocar la BD real—, y §7.3 gana la regresión del anime en emisión. Antes, 2026-09-01 (**hover de la lista de episodios**): **§6b nuevo** —recorrer el hover con `SetCursorPos` de píxel en píxel, que es lo único que encuentra un `<Leave>` que no llega—, §7.9 gana el recorrido de la lista de episodios y §8 avisa de no matar la instancia que tenga abierta el usuario. Antes, 2026-08-31 (**fondo de la pantalla de carga**): §7.1 gana la comprobación del fondo del arranque —que a ojo se falla— y la receta de captura de §8 usa el título real de la ventana. Antes, 2026-08-16 (**columna `provider_id`**): **§3c nuevo** — las 8 tandas de comprobaciones de la fase 8, **351 sin fallos**; checklist de §7 puesto al día con lo que ha cambiado de comportamiento |
 | **Cubre** | procedimiento; scripts ejecutados el 2026-07-28 contra el código de `src/` |
 
 Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ sin verificar.
@@ -39,7 +39,7 @@ este documento asumen la raíz del repo.
 
 ✅ **Resultado esperado** (verificado el 2026-07-28): GIF de carga con barra de progreso →
 0 %→40 % (BD) → 90 % → 100 % (pósters) → rejilla de recientes y sidebar visible. Título de ventana
-«Mi Biblioteca de Anime». Único mensaje en consola:
+«**Mi Biblioteca**» — perdió el «de Anime» en la fase 1 del rediseño. Único mensaje en consola:
 
 ```
 No se pudo borrar la imagen Chi.: [WinError 2] El sistema no puede encontrar el archivo
@@ -267,7 +267,7 @@ repo**—, todos sobre una **copia** de la BD real. Sirven de plantilla para el 
 1. **Dobles de las dependencias que no se pueden ejercitar sin usuario.** `MessageBoxFalso` registra
    qué diálogo se abriría y devuelve la respuesta programada; `HiloFalso` ejecuta el `target` en el
    acto, así que un flujo con hilo + `after()` se prueba de forma **síncrona y determinista**.
-2. **CTk real, pero con la ventana oculta.** `root.withdraw()` + `get_anime_image` parcheada permite
+2. **CTk real, pero con la ventana oculta.** `root.withdraw()` + `get_anime_image` parcheada (⚠️ desde el 2026-10-21 se llama `download_poster` y solo la usa la ficha) permite
    comprobar el layout de verdad —a qué `row`/`column` fue cada widget— sin abrir una ventana.
    ⚠️ En una ventana oculta `winfo_width()` no vale: hay que **capturar el ancho en el momento de
    pintar**, no leerlo después.
@@ -438,7 +438,8 @@ Get-Process python | Select-Object Id, MainWindowTitle
 Stop-Process -Id <id>
 ```
 
-✅ **Verificado el 2026-07-28**: la ventana abre con título «Mi Biblioteca de Anime», el arranque
+✅ **Verificado el 2026-07-28**: la ventana abre con título «Mi Biblioteca de Anime» —hoy «Mi
+Biblioteca»—, el arranque
 completa, no hay traceback, y **`DB_Animes.db` no cambia de `LastWriteTime`** (el arranque solo lee).
 
 ⚠️ **Lo que NO se verificó con GUI** — requiere interacción manual y no se hizo:
@@ -453,145 +454,708 @@ Todo lo de esa lista está marcado como 📖 en el resto de documentos.
 
 ---
 
+## 6b. Recorrer el hover con el puntero *(2026-09-01)*
+
+Los fallos de hover **no se ven a ojo ni se reproducen con la mano**: dependen de por qué píxel
+cruzas y de a qué velocidad. La única forma honesta de comprobarlos es mover el puntero por programa
+y **contar** lo que queda encendido.
+
+La receta, que es la que encontró la [trampa 37](10-invariantes-y-trampas.md):
+
+1. Montar una ventana suelta en el scratchpad con **el componente real** —importado de `src`, no una
+   copia— repetido unas cuantas veces. No hace falta ni BD ni red: `EpisodeRow` solo necesita un
+   `EpisodeInfo` y dos *callbacks* vacíos.
+2. Mover el puntero con `ctypes.windll.user32.SetCursorPos(x, y)` y, tras cada paso, llamar a
+   `app.update()` unas cuantas veces con una pausa mínima, para que Tk procese los cruces.
+3. Después de cada paso, contar las filas con `fila.cget("fg_color") != Theme.TRANSPARENT`.
+   **Tiene que valer 1 dentro de la pila y 0 fuera.**
+4. Al terminar, **devolver el puntero donde estaba** (`GetCursorPos` antes, `SetCursorPos` después).
+
+Cuatro cosas que hacen la diferencia entre encontrar el fallo y darlo por bueno:
+
+- 🔴 **El paso tiene que ser de 1 px.** Con 2 px el recorrido se salta el separador de 1 px que hay
+  entre filas y **todo parece correcto**. La trampa 37 es invisible con pasos de 2.
+- **Salir de la pila también a pasos.** Teletransportar el puntero fuera de la ventana de un solo
+  `SetCursorPos` no genera cruce: la última fila se queda encendida y parece un fallo que no existe.
+  Un ratón de verdad no puede teletransportarse; la sonda sí.
+- **Recorrer varias columnas**: la del número, la del centro y la del interruptor. Un hijo sin `bind`
+  solo estorba en la banda que ocupa.
+- `app.winfo_containing(x, y)` dice **qué widget hay debajo del puntero**, con su ruta de Tk
+  (`.!ctkframe.!episoderow4.!ctkswitch.!ctkcanvas`). Es lo que enseña de un vistazo que los hijos de
+  un widget de CustomTkinter son nietos y hermanos, no lo que parece desde el código.
+
+✅ **Ejecutada el 2026-09-01** sobre `EpisodeRow`: recorridos de 1 px por tres columnas, saltos de 52,
+26 y 7 px, una diagonal de ~300 pasos, salidas por los dos laterales y entrada directa sobre el
+interruptor. Antes del arreglo: **5 filas encendidas de 5**, y seguían encendidas fuera de la pila.
+Después: **1 siempre, 0 al salir**. Ocho casos más de desplegar y plegar servidores con el puntero
+dentro y fuera, todos correctos.
+
+---
+
+## 6c. Comprobar un refresco que sale a la red **y** escribe en la biblioteca *(2026-09-01)*
+
+El refresco de la banda «Retomar» ([03 §11](03-flujos-de-ejecucion.md)) es de lo más incómodo de
+verificar que hay en el proyecto: encadena **red real**, una **escritura en la biblioteca del usuario**
+y un **repintado de widget**. Ninguna de las tres se puede probar con las otras dos delante.
+
+La receta que se usó, en **tres scripts separados**, ninguno de los cuales toca `DB_Animes.db`:
+
+**1) El camino de red, en solo lectura.** Se abren las dos BD con `sqlite3.connect("file:…?mode=ro",
+uri=True)` —así una escritura accidental **lanza** en vez de pasar desapercibida—, se leen los ids de
+`last_watched_anime_ids` y, por cada uno, se repite **la llamada exacta** del código:
+`get_anime_info_with_provider(anime_id, provider_id=<el de la fila>, strict=True)`. Se imprime
+`guardados vs. servidos` y lo que **haría** el código, sin hacerlo.
+✅ Los tres animes de la banda, servidos por `animeav1`: 1176 / 10 / 1, iguales a la fila.
+
+**2) La escritura, sobre copia.** `shutil.copy2` del `.db` al scratchpad y
+`animesPersistence.get_resource_path = lambda rel: <sandbox>/rel` **antes** de construir la
+persistencia —parchear el nombre en el módulo, no en `utils`, que ya está importado—. Sobre la copia
+se puede simular el domingo: quitarle a la fila su último episodio, comprobar qué dice la tarjeta, y
+correr la lógica de `_apply()`.
+✅ «Mushoku Tensei III» con 9 episodios y 9 vistos → **«Lo has visto entero · 9 episodios»**, barra
+al 100 %; tras el refresco, **«Siguiente: episodio 10 de 10»** y barra al 90 %. Y lo que **no** debe
+cambiar sigue igual: `watched_episodes` (1163 rangos expandidos en One Piece), `last_watched_episode`,
+los cuatro estados, título y póster.
+
+**3) El repintado, con la raíz de Tk oculta.** `root = ctk.CTk(); root.withdraw()`, se construye la
+`ResumeBand` **real** con filas leídas en modo `ro`, y se lee el resultado del widget en vez de
+mirarlo: `band.grid_slaves(row=1, column=i)[0]` da la tarjeta, y dentro, el pie y la barra.
+✅ `update_record()` con una fila de un episodio más → el pie pasa de «… de 10» a «… de 11» y la barra
+de 0,90 a 0,8182; con un `anime_id` que no está en la banda devuelve `False` y **no toca ninguna
+tarjeta**.
+
+Tres detalles que costaron un intento cada uno:
+
+- ⚠️ **`USER_SETTINGS` no tiene columnas `key` / `value`**, sino `setting_key` / `setting_value`.
+- ⚠️ **`EpisodeInfo` es `(id, anime)`**, no `(id, anime_id)`.
+- ⚠️ **`AnimeRecord.watched_episodes` es un `Set[int]`**, así que compararlo con una `list` da `False`
+  aunque el contenido sea idéntico. Un falso positivo de «se ha corrompido el campo» que asusta.
+- ⚠️ **No dobles la inversión.** `update_anime_episodes()` invierte lo que le des
+  ([trampa 4](10-invariantes-y-trampas.md)): hay que pasarle los episodios **en el orden del
+  proveedor** (ascendente en AnimeAV1), no ya invertidos, o la copia queda al revés y parece un fallo
+  del código.
+
+---
+
+## 6d. Comprobar una medida de layout leyendo el widget *(2026-09-01)*
+
+Un problema de anchos **no se comprueba mirando la ventana**: a ojo no se distingue «se solapan 8 px»
+de «el hueco es más pequeño de lo que debería», y menos aún se ve que una ficha sin seleccionar
+también sobre 6 px. Lo que hay que hacer es **preguntarle a Tk dónde ha puesto cada cosa**.
+
+La receta, que es la que encontró la [trampa 39](10-invariantes-y-trampas.md):
+
+1. `root = ctk.CTk(); root.withdraw()` y el **componente real** importado de `src` dentro de un marco
+   con el ancho que se quiera simular. Ocultar la raíz no impide medir: Tk calcula la geometría igual.
+2. **`root.update_idletasks()`**. Sin esto no hay nada que leer: el ancho pedido de un widget con
+   hijos en `grid` se recalcula en el *idle*, y hasta entonces `winfo_reqwidth()` devuelve el que se
+   pasó al constructor — justo el número equivocado que se quiere desmentir.
+3. Recuperar las fichas ya colocadas con `contenedor.place_slaves()` y quedarse con las del tipo que
+   interese (`isinstance(w, ctk.CTkButton)`).
+4. Comparar, por cada una, **lo contado con lo pintado**: `w.cget("width")` contra
+   `w.winfo_reqwidth()`. Cualquier diferencia es el fallo.
+5. Reconstruir las cajas —`(winfo_y(), winfo_x(), winfo_reqwidth())`—, ordenarlas y comprobar dos
+   cosas sobre las contiguas de la **misma fila**: que no se pisan (`x₁ + ancho₁ ≤ x₂`) y que el hueco
+   es **exactamente** el que dice la constante del componente.
+
+Y tres comprobaciones que salen casi gratis una vez montado:
+
+- que ninguna caja **desborda** por la derecha (`x + ancho > available`);
+- que el **alto pedido** por el marco (`cget("height")`) coincide con el real
+  (`max(y) + alto de la ficha`), que es lo que evita que la fila se coma lo que tiene debajo
+  ([trampa 29](10-invariantes-y-trampas.md));
+- repetir todo con **varios anchos** y **varios estados**, que es donde aparecen los casos raros.
+
+✅ **Ejecutada el 2026-09-01** sobre `GenreChips`. Antes del arreglo, con la fila colocada:
+
+```
+texto              contado  pintado  delta
+Acción (activa)         73       89    +16
+Más géneros (33)       125      141    +16
+Comedia                 69       75     +6
+```
+
+Después: **0 descuadres y 0 solapes** en 4 estados de selección (ninguna · una · tres · nombres
+largos) y con los **41 chips desplegados** en 4 anchos (1188 / 700 / 400 / 260), hueco siempre
+`CHIP_GAP` = 8, ningún desborde, y alto pedido = alto real en los cuatro (103, 140, 214, 362, 584).
+
+⚠️ **`place()` de CustomTkinter no acepta `width`**: `CTkBaseClass.place()` lanza `ValueError` si se
+lo pasas. No hay atajo para forzar el ancho desde fuera, así que **la única salida es que la cuenta
+esté bien**, y esta receta es la que lo demuestra.
+
+---
+
+## 6e. Pulsar de verdad un botón que vive dentro de otro widget *(2026-09-01)*
+
+Leer el código **no vale** para saber quién responde a un clic. `AnimeRow` excluía su píldora del
+clic de la fila con un `if widget is self.__action_button: continue` que se lee correctísimo, y aun
+así la píldora llevaba diez días sin ejecutar su `command` ([trampa 40](10-invariantes-y-trampas.md)).
+Lo que hay que hacer es **pulsarla y contar cuál de los dos manejadores ha corrido**.
+
+La receta, en dos mitades. La primera es estática y encuentra el fallo en un segundo:
+
+1. Montar el componente real con **dos espías distintos**, uno para `on_click` y otro para la acción.
+   Basta un `lambda x: lista.append(x)` cada uno; lo que importa es poder distinguirlos.
+2. Recorrer los descendientes y **leer la atadura como texto**: `w.bind("<Button-1>")` devuelve el
+   script de Tcl, y ahí se ve el nombre del manejador. Tres comprobaciones que caben en una línea:
+   - ningún widget **dentro** del botón debe llevar el manejador de la fila;
+   - todos ellos **sí** deben conservar el de la librería (`_clicked` para el clic, `_on_enter` /
+     `_on_leave` para el hover);
+   - y el de la fila debe estar además, no en lugar de aquél → es lo que da `add="+"`.
+
+La segunda mitad ejercita el gesto, y tiene **dos requisitos que no son negociables**:
+
+3. 🔴 **La raíz no puede estar retirada.** Con `root.withdraw()` no hay ningún widget mapeado y Tk
+   **no entrega** un `<Button-1>` sintético: la prueba pasa sin ejecutar nada. Se deja la ventana
+   visible y se aparta de la vista con `root.geometry("...+3000+3000")`. *(Al revés que §6d, donde
+   solo se mide y ocultar la raíz no estorba.)*
+4. 🔴 **Se pulsa el hijo interno, no el widget de CustomTkinter** — es la [trampa 35](10-invariantes-y-trampas.md).
+   La píldora es un `CTkButton`: hay que buscar dentro su `!label`, que es donde cae el ratón de
+   verdad porque tapa el marco entero. Lo mismo para el título de la fila: la `CTkLabel` es un marco y
+   su `Label` interno la cubre.
+5. Si el widget solo existe en hover —la píldora va con `grid_remove()`—, **encenderlo primero**
+   (`row._AnimeRow__handle_enter()`) y `update()` antes de pulsar.
+6. Comprobar las dos direcciones: clic en el botón → **solo** su acción; clic en el título → **solo**
+   `on_click`. Un fallo de este tipo se manifiesta como *las dos cosas* o como *la que no era*.
+
+Y una tercera mitad, si el botón cambia datos: **encadenarlo con la vista real**. Se instancian
+`WatchingAnimeButton` y `PendingAnimeButton` de verdad, con `open_saved_anime` sustituido por un espía
+y la persistencia doblada, y se pulsa la píldora de **cada fila real** de la biblioteca. Es lo que
+demuestra que «Empezar» mueve el anime *y* abre por el episodio 1, y no solo una de las dos.
+
+⚠️ **Una sola raíz de Tk para todo el script.** `Theme.font()` cachea los `CTkFont`, y un `CTkFont`
+muere con la raíz que lo creó: crear una segunda raíz revienta con
+`can't invoke "font" command: application has been destroyed` en la primera medida de texto.
+
+✅ **Ejecutada el 2026-09-01** sobre `AnimeRow` en sus dos formas (con y sin barra de progreso) y sobre
+las dos vistas enteras con las filas reales de la biblioteca. Antes del arreglo: clic en la píldora →
+`on_click` y **la acción no corría**. Después: 8 comprobaciones de ataduras + clic en píldora y en
+título correctos en las dos formas, los 2 animes de «Viendo» pidiendo sus episodios 1164 y 10, y los 5
+de «Pendientes» moviéndose *y* pidiendo el 1 con `force_ascending`. `DB_Animes.db` intacta (mismo
+hash antes y después).
+
+---
+
+## 6f. Comprobar que una rejilla se adapta al ancho *(2026-09-02)*
+
+Es el caso peor de «a ojo no se ve»: una rejilla que no se adapta y una que sí **se ven igual al
+tamaño con el que se diseñó**. La diferencia solo aparece al cambiar el tamaño de la ventana, y ahí
+la trampa es la contraria: se ve *algo* moverse y se da por bueno. Hay que **medir**.
+
+La receta, que es la que encontró y cerró la [trampa 41](10-invariantes-y-trampas.md):
+
+1. Reproducir la jerarquía **entera**, no solo el componente: raíz con `grid_columnconfigure(1,
+   weight=1)`, un marco de `Metrics.SIDEBAR_W` en la columna 0 y un **`CTkScrollableFrame`** en la 1.
+   El ancho útil sale de ahí y de ningún otro sitio; medir el componente suelto da otro número.
+2. 🔴 **La raíz no puede estar retirada**, igual que en §6e: `root.state("zoomed")` no hace nada sobre
+   una ventana sin mapear. Se deja visible.
+3. Encadenar los tamaños con **`root.after()`, no en línea recta**. Un cambio de geometría no llega
+   como una llamada: llega como un `<Configure>` por el bucle de eventos, y encima `PosterGrid` lo
+   pasa por su espera de `RELAYOUT_DELAY_MS`. Cada paso tiene que esperar **más** que esa espera;
+   800 ms van sobrados. Un `update_idletasks()` seguido de un `assert` no ve nada todavía.
+4. En cada tamaño, leer los números que importan y no la pantalla:
+   `content.winfo_width()`, `grid.winfo_width()`, `grid.columns`, `pager.page_size`,
+   `pager.page()` y las celdas agrupadas por su `grid_info()["row"]`.
+5. Afirmar sobre esos números:
+   - las columnas son **las esperadas** para ese ancho;
+   - `page_size == columnas * ROWS_PER_PAGE`, y **todas las filas de la página están llenas**;
+   - la última celda **no desborda**: `grid.winfo_x() + celda.winfo_x() + celda.winfo_width() ≤
+     content.winfo_width()`;
+   - el ítem que se estaba viendo **sigue en pantalla** tras el cambio. Ojo: lo que se conserva es el
+     **primer índice visible**, no el número de página — al pasar de 12 a 16 por página, la página 2
+     se convierte legítimamente en la 1.
+
+🔴 **Los tres tamaños no son tres: son cuatro.** Hay que **volver** al ancho grande después del
+estrecho, porque es ahí y solo ahí donde se ve si quedaron pesos de columna huérfanos
+([trampa 32](10-invariantes-y-trampas.md)).
+
+⚠️ **`root.geometry()` no des-maximiza una ventana.** Después de un `state("zoomed")` hay que hacer
+`state("normal")` **antes** de pedir un tamaño concreto, o se mide otra vez el maximizado y las
+comprobaciones pasan sin haber probado nada.
+
+⚠️ **Y hay que probar la variante sin el aviso.** «Buscar» no pasa `on_columns_changed`, así que
+recorre el camino contrario —se recoloca sola con los ítems que ya tenía— y ese camino no lo toca
+ninguna de las otras tres vistas.
+
+✅ **Ejecutada el 2026-09-02**, 14/14: 6 columnas a 1440 (idéntico al diseño, sin un solo repintado),
+8 maximizado con `page_size` 16, 3 a 1000 px sin pesos huérfanos, vuelta a 8, y «Buscar» pasando de 3
+a 8 columnas sola con sus 24 resultados intactos.
+
+**Y después, la aplicación de verdad.** Lo anterior demuestra el componente; que las cuatro vistas lo
+usan bien se comprueba lanzando `src/app.py` en segundo plano y manejándola desde PowerShell: se
+localiza la ventana por su título (`Get-Process | Where MainWindowTitle -eq "Mi Biblioteca"`) y con
+`user32.dll` vía `Add-Type` se tiene todo — `ShowWindow(h,3)` maximiza, `ShowWindow(h,9)` restaura,
+`MoveWindow` fija un tamaño, `SetCursorPos` + `mouse_event` pulsan en la barra lateral, `SendKeys`
+escribe en el buscador y `GetWindowRect` + `Graphics.CopyFromScreen` guardan un PNG que luego se
+mira. ⚠️ La ventana maximizada queda en `(-8,-8)`: la Y de un clic es la que se ve en la captura
+**+8**.
+
+---
+
+## 6g. Comprobar la normalización de la sinopsis *(2026-09-02)*
+
+`wrap_synopsis()` (`anime_window.py`) es texto puro: se importa y se prueba sin GUI, con
+`sys.path.insert(0, "src")` y `from gui.anime_window import wrap_synopsis`. Importar el módulo trae
+CustomTkinter, pero no crea ninguna raíz de Tk, así que no hace falta pantalla.
+
+Dos mitades, y hacen falta las dos:
+
+1. **Una tabla de casos construidos**, con el resultado esperado escrito a mano. Los que hay que
+   cubrir sí o sí: sin saltos · salto suelto · salto suelto con sangría · párrafo (`\n\n`) · párrafo
+   con un espacio en medio (`\n \n`) · tres saltos seguidos · **CRLF suelto y CRLF de párrafo** ·
+   CR clásico · espacios en los bordes · cadena vacía · `None`.
+   ⚠️ El CRLF **encontró un fallo real**: `\r\n\r\n` no lo reconocía ninguno de los dos patrones y
+   dejaba `Uno.\r \r Dos.`. Sin ese caso en la tabla habría entrado en el repositorio.
+2. **Las 35 sinopsis reales de `DB_Animes.db`**, en modo solo lectura, afirmando invariantes en vez de
+   resultados concretos:
+   - 🔴 **`salida.split() == entrada.split()`** — la normalización no puede perder ni inventar una
+     sola palabra. Es la comprobación que de verdad protege el texto del usuario;
+   - no queda ningún salto suelto (el propio `_SOFT_BREAK` no debe encontrar nada);
+   - no queda ningún `\r`;
+   - **cada párrafo es una sola línea lógica**: `"\n" not in parrafo` para todo
+     `salida.split("\n\n")`.
+
+✅ **Ejecutada el 2026-09-02**: 12/12 casos y las 35 sinopsis, de las que **5** cambian y ninguna
+pierde palabras.
+
+---
+
+## 6h. Probar la capa de resolución sin GUI *(2026-10-20)*
+
+`APIs/resolvers/` no importa nada de la GUI ni de los proveedores, así que se prueba con Python a
+secas. **Dos pasadas, en este orden**, y la segunda solo si la primera sale limpia.
+
+**1) Sin red** — lo que tiene que funcionar aunque no haya conexión. `has_resolver()` no puede hacer
+ni una petición (es lo que pinta la ↗ al listar servidores), zilla resuelve sin red, y los otros dos
+devuelven `None` **sin lanzar**:
+
+```python
+# <scratchpad>/check_resolvers_offline.py
+# biblio_anime_env\Scripts\python.exe -I <scratchpad>\check_resolvers_offline.py
+import sys
+sys.path.insert(0, r"D:\Proyectos Python\BibliotecaAnime\src")
+import requests
+
+PETICIONES = []
+def _sin_red(*args, **kwargs):
+    PETICIONES.append(args[:1])
+    raise requests.ConnectionError("red bloqueada por la prueba")
+requests.get = _sin_red                       # los resolutores llaman a requests.get
+
+from APIs.resolvers import registry
+
+ZILLA = "https://player.zilla-networks.com/play/" + "0123456789abcdef" * 2
+casos = {
+    ZILLA: True,
+    "https://player.zilla-networks.com/play/corto": True,      # el dominio casa; resolve() dirá None
+    "https://www.mp4upload.com/embed-abc123.html": True,
+    "https://mp4upload.com/embed-abc123.html": True,           # sin www.
+    "https://jkanime.net/jkplayer/um?e=x&t=y": True,
+    "https://jkanime.net/jkplayer/umv?e=x&t=y": True,
+    "https://jkanime.net/jkplayer/jk?u=x": True,
+    "https://jkanime.net/jkokru.php?u=x": False,               # Okru: navegador
+    "https://mega.nz/embed/x": False,
+    "": False,
+    "esto no es una url": False,
+}
+for url, esperado in casos.items():
+    assert registry.has_resolver(url) is esperado, (url, esperado)
+assert not PETICIONES, "has_resolver() ha salido a la red"
+
+source = registry.resolve(ZILLA)
+assert source.kind == "hls" and source.url.endswith("/m3u8/" + "0123456789abcdef" * 2)
+assert source.headers == {"Sec-Fetch-Site": "same-origin"}
+assert registry.resolve("https://player.zilla-networks.com/play/corto") is None
+assert registry.resolve("https://www.mp4upload.com/embed-abc123.html") is None   # sin red: None, no excepción
+assert registry.resolve("https://jkanime.net/jkplayer/um?e=x") is None
+assert registry.resolve("https://mega.nz/embed/x") is None
+print("OK sin red:", len(casos), "casos de has_resolver, 0 peticiones")
+```
+
+✅ Ejecutado el 2026-10-20 (fase 6): pasa entero. La fase 1 hizo lo mismo con 12 casos el
+2026-09-24.
+
+**2) Con red, una vez por hoster** — 🔴 **sin bucles**: peticiones espaciadas 2-3 s, sin reintentos,
+y al primer 403 **se para** (la IP ya quedó bloqueada por Cloudflare el 2026-08-23). Lo que se
+comprueba en cada uno:
+
+| Hoster | Cómo se consigue una URL de *embed* | Qué tiene que salir |
+|---|---|---|
+| zilla (AnimeAV1 «HLS») | `get_anime_episode_servers(slug, n, provider_id=ANIMEAV1, strict=True)` | playlist 200 con `#EXTM3U` y `EXT-X-MAP`; un segmento **200 con** `Sec-Fetch-Site` y **403 sin** ella ([trampa 43](10-invariantes-y-trampas.md)) |
+| MP4Upload | idem, el servidor «MP4Upload» | `GET` del medio con `Range: bytes=0-15` → **206** y `ftyp` en los bytes 4-8; con el `Referer` de AnimeAV1 → **403** |
+| Desu / Magi (JKAnime) | idem con `provider_id=JKANIME` | 206/200 y `#EXTM3U`; `expires_at` unas 3 h por delante |
+| Desuka (JKAnime) | idem, el servidor «Desuka» | 206 y `ftyp` **sin** cabeceras; **410** con cualquier `Referer` ([trampa 44](10-invariantes-y-trampas.md)) |
+
+La pasada de zilla del 2026-10-20 fue un script de 30 líneas: `registry.resolve(play)` → `GET` del
+playlist con `source.headers` → primer segmento con y sin la cabecera, con `time.sleep(2-3)` entre
+cada paso.
+
+🔴 **Esto prueba que llegan bytes, no que se vea el vídeo.** «Bytes descargados» no es «vídeo
+reproducido»: para eso está §6i.
+
+---
+
+## 6i. Verificar el reproductor en la aplicación *(2026-10-20)*
+
+Es lo que hicieron las fases 3, 4 y 5 del reproductor. La regla: **si no se ha visto en pantalla, no
+está verificado**. Un `.m3u8` que responde 200 y un `ftyp` en los primeros bytes **no** dicen que mpv
+lo pinte.
+
+**El arnés**, en el scratchpad y nunca en el repo:
+
+1. **Copia de las dos BD** en un *sandbox* y **`get_resource_path` desviado** a él **antes** de
+   importar ningún módulo de la GUI: seis módulos hacen `from utils.utils import get_resource_path`
+   y se quedan con la función que hubiera al importarse. Así se lanza el `MainWindow` **del `src/`
+   real**, no una copia, y abrir fichas o terminar episodios —que **escriben**— cae en la copia.
+2. `webbrowser.open` **interceptado** (se apunta la URL), para comprobar la degradación sin abrir
+   pestañas en el navegador del usuario.
+3. `sha256` de la BD real **antes y después**.
+4. **Clics de verdad** (`SetCursorPos` + `mouse_event`), pero **solo** si `WindowFromPoint` da una
+   ventana de este proceso **y** `winfo_containing(x, y)` es el widget o uno de sus descendientes; si
+   no, se anota como descartado. `Esc` solo si el primer plano es nuestro.
+5. **Qué mirar en mpv** para dar por visto un episodio: que `time-pos` avance al ritmo del reloj, el
+   códec y la resolución (`video-codec`, `width`/`height`), `hwdec-current`, y
+   `frame-drop-count` a 0. Y una **captura** (`PrintWindow`, [§8](#capturar-la-ventana-de-la-app-sin-robar-el-foco)).
+
+**Cuatro lecciones que costaron caro**:
+
+- 🔴 **El primer intento mandó `Esc`, `q` y clics a la terminal del usuario** (fase 0, 2026-09-23):
+  estaba maximizada encima de la ventana de prueba, y el `Esc` interrumpió la sesión. De ahí el punto
+  4.
+- 🔴 **Un `Alt` suelto con la ventana ya en primer plano la mete en el bucle modal de menú de
+  Windows**, y el hilo de Tk se queda parado dentro de `mainloop` hasta el siguiente clic o tecla.
+  **Parece un cuelgue de la app y no lo es.** El truco de «`Alt` + `SetForegroundWindow`» solo se usa
+  si el primer plano **no** es nuestro.
+- **Con la portada vacía, la app saca un `messagebox` modal** («conexión lenta») que deshabilita la
+  ventana. Con `-topmost` el aviso queda tapado y **los clics no llegan a nada**. El arnés lo suprime
+  (`main_window.messagebox.showwarning`).
+- **`faulthandler.enable()` en Windows vuelca también excepciones ya manejadas**: `terminate()` de mpv
+  lanza y captura excepciones de LuaJIT (`0xe24c4a02`) que parecen cuelgues sin serlo; el proceso
+  sigue y sale con 0. Para diagnosticar un cuelgue de verdad, `faulthandler.dump_traceback_later()`,
+  que vuelca aunque Python esté parado.
+
+**Desde el `.exe`** (fase 5): compilar con `--distpath` y `--workpath` en el scratchpad —para no pisar
+el `dist/` del repo—, comprobar que la DLL **no** está en `%PATH%`, lanzarlo desde fuera del repo y
+mirar con `Get-Process -Module` que la `libmpv-2.dll` cargada es la de `_internal\vendor`
+([trampa 18f](10-invariantes-y-trampas.md)). El `.exe` crea su propia BD en su `_internal/resources/DB`:
+la del repo no se toca.
+
+⚠️ **El audio no lo puede comprobar quien no oye.** Que `aac` se decodifique y avance con el vídeo es
+todo lo que se puede medir; **oírlo** es cosa del usuario.
+
+---
+
+## 6j. Medir fugas de memoria, widgets e imágenes *(2026-10-21)*
+
+Así se encontraron y se cerraron las [trampas 55-57](10-invariantes-y-trampas.md). Una prueba de humo
+**no** las ve: la app funciona igual, solo crecen la memoria y los handles.
+
+**Montaje**: un script en el scratchpad que copia `resources/` a un sandbox, parchea
+`utils.utils.get_resource_path` para todas las rutas `resources*` y **comprueba con `assert`** que las
+dos BD apuntan al sandbox. Después construye `MainWindow` y la maneja con `after()`, sin teclas
+sintéticas: `navigate_to()`, `open_saved_anime()`, `change_appearance_mode_event()`,
+`state("zoomed")` y un `VideoPlayer` con `av://lavfi:testsrc2` a volumen 0.
+
+**Qué medir en cada instantánea**, siempre tras `gc.collect()`:
+
+| Medida | Cómo |
+|---|---|
+| Memoria privada, WS y pico | `K32GetProcessMemoryInfo` por `ctypes` |
+| Handles GDI / USER | `GetGuiResources(proceso, 0 / 1)` |
+| Ventanas de Tk | un `proc` Tcl recursivo sobre `winfo children` |
+| Imágenes de Tk, `after` pendientes, comandos Tcl | `image names`, `after info`, `info commands` |
+| **Widgets zombis** | `tkinter.Misc` con `winfo_exists() == 0` en `gc.get_objects()` |
+| Callbacks por `CTkImage` | `len(img._configure_callback_list)`: más de 1 es un widget muerto retenido |
+| Registro de escalado | `sum(len(v) for v in ScalingTracker.window_widgets_dict.values())` |
+
+**Cómo leerlo**: lo que importa es que las cifras **no crezcan** entre la vuelta 1 y la 15, no su
+valor absoluto. Un suelo constante de zombis es normal: cada vista guarda en atributos sus últimos
+widgets. Para saber quién retiene un zombi, `gc.get_referrers()` sobre él, descartando su `__dict__`,
+su `children` y los de otros zombis. ⚠️ Una sonda que haga `zombies[:400]` se encuentra a sí misma:
+el slice es otra lista.
+
+**Valores de referencia** (2026-10-21, 75 cambios de vista, tras el arreglo):
+
+- memoria privada 57-59 MB, GDI 94, imágenes de Tk 20, 75 zombis, registro de escalado en 88, 2
+  `after`;
+- al final solo queda `MainThread`;
+- abrir el reproductor la primera vez suma ~55 MB **una vez**, que es la DLL al cargarse.
+
+Antes del arreglo: 49 → 239 MB y 6 893 zombis.
+
+**`bind_all`**: 50 ciclos de `bind_all` + `unbind_all` + `deletecommand` → los comandos Tcl no se
+mueven. Sin el `deletecommand`, +50.
+
+**Probar lo que el arreglo cambió en el hilo de Tk**: sustituir `download_poster` por una versión que
+duerma 2 s, para ver que la ficha se pinta antes y la descarga no corre en `MainThread`. Para la rama
+sin estrenos del arranque, parchear `get_recent_animes` para que devuelva `[]` y
+`messagebox.showwarning`, y comprobar en qué hilo corren `show_frame` y `CTkProgressBar.set`.
+
 ## 7. Checklist de regresión manual por vista
 
 Sin tests automáticos, esto es lo que hay. Marca lo que compruebes.
 
-### Arranque
+> ✅ **Reescrito el 2026-08-21** tras el rediseño de interfaz (fases 1-9). Lo que decía antes de
+> «Abrir filtro de animes», de los botones que cambian de texto o del GIF de búsqueda ya no existe.
+
+### 7.0 Las cuatro dimensiones
+
+El recorrido completo es **7 vistas × 2 temas × 2 estados de barra**. No es tanto como parece: el
+tema y el plegado no cambian de vista, así que se hacen dos pasadas de siete.
+
+| Dimensión | Valores |
+|---|---|
+| Vistas | Nuevos lanzamientos · Favoritos · Viendo · Pendientes · Finalizados · Buscar · Ficha |
+| Tema | `Light` · `Dark` · y **`System`**, que es el valor de fábrica |
+| Barra | desplegada (224 px) · plegada (84 px) |
+| Biblioteca | con datos · **vacía** (los estados vacíos solo se ven así) |
+
+### 7.1 Arranque
 - [ ] GIF + barra avanzan 0→40→90→100 %.
-- [ ] La sidebar aparece **solo** al terminar la carga.
-- [ ] Sin conexión: sale el `messagebox` de aviso y la vista de recientes vacía.
+- [ ] La barra lateral aparece **solo** al terminar la carga.
+- [ ] 🆕 **El fondo del arranque es uno solo, y el mismo que el de la portada.** Ni recuadro gris
+      alrededor del GIF, ni banda vertical a la izquierda. Es la
+      [trampa 36](10-invariantes-y-trampas.md), y **a ojo se falla**: capturar la ventana y muestrear
+      píxeles. Todo punto de fondo debe dar `#14161A` en oscuro y `#F4F5F7` en claro.
+- [ ] 🆕 **La pantalla de carga desaparece**. Si se queda, es la [trampa 33](10-invariantes-y-trampas.md).
+- [ ] 🔴 **Sin conexión**: sale el aviso, **la pantalla de carga se retira igual** y la portada
+      muestra su estado vacío con «Reintentar». Es el caso que nadie prueba y el que estuvo roto.
+- [ ] 🆕 La barra recuerda si la dejaste plegada (`sidebar_collapsed` en `DB_user.db`).
 
-### Animes recientes
-- [ ] Rejilla con ~20 pósters, título bajo cada uno.
-- [ ] Clic → cursor «watch» → ficha (instantánea si ya estaba precargada).
-- [ ] Redimensionar la ventana y volver a entrar: cambia el número de columnas.
+### 7.2 Barra lateral
+- [ ] Los seis destinos en este orden: Nuevos lanzamientos · Favoritos · Viendo · Pendientes ·
+      Finalizados · Buscar. **Ninguno lleva la palabra «Anime»**.
+- [ ] El activo tiene fondo `CARD` y la barrita de 2 px en `ACCENT` a la izquierda.
+- [ ] 🔴 **Los seis se ven**. Si salen en blanco, es la [trampa 29](10-invariantes-y-trampas.md).
+- [ ] Los contadores cuadran con lo que hay en cada pestaña.
+- [ ] 🆕 Marcar un estado desde la ficha **mueve el contador en el acto**
+      ([trampa 31](10-invariantes-y-trampas.md)).
+- [ ] Plegar (««»): la barra baja a 84 px, quedan los iconos a 48 × 48 y el contador pasa a globo
+      arriba a la derecha. El pie pierde las etiquetas y el desplegable de apariencia.
+- [ ] Desplegar la devuelve exactamente a como estaba.
+- [ ] El **pin** sale azul si el proveedor que usas es tu predeterminado, gris si te has desviado.
 
-### Favoritos / Finalizados / Viendo / Pendientes
-- [ ] Muestra los animes con ese flag.
-- [ ] ⚠️ Los pósters se leen de `resources/images/<categoría>/`; si faltan, salen **grises**.
-- [ ] «Abrir filtro de animes» despliega los 40 géneros y los 3 órdenes.
-- [ ] «Aplicar Filtros» filtra por género (⚠️ el **orden** no se aplica — trampa 6).
-- [ ] 🆕 El buscador encuentra **con el cable desenchufado**: es local. Escribir «one piece»
-      devuelve One Piece **con cualquiera de los tres proveedores seleccionado** (trampa 26).
-- [ ] 🆕 Con conexión, buscar «Solo Leveling» devuelve también «Ore dake Level Up na Ken» si lo
-      tienes guardado: eso solo lo aporta la búsqueda web, y **se suma**, nunca quita.
-- [ ] 🆕 Clic en un anime **NO congela la ventana**: cursor «watch» y la UI sigue respondiendo.
-- [ ] 🆕 Bajo el título de cada anime aparece **el proveedor** en gris; vacío si la fila no lo
-      declara (no debe poner «desconocido»).
+### 7.3 Nuevos lanzamientos
+- [ ] Rejilla de **6 columnas** a 1440, pósters de 176 × 264 con esquinas redondeadas.
+- [ ] Paginador de **12** al pie: «Mostrando 1-12 de 20».
+- [ ] 🆕 **Maximizada son 8 columnas y «Mostrando 1-16 de 20»**, con las dos filas llenas y sin
+      franja de fondo a la derecha. Al restaurar, vuelve a 6 y a 12.
+- [ ] Banda «Retomar donde lo dejaste» arriba con hasta **3** tarjetas, cada una con «Siguiente:
+      episodio N de M» y su barra de progreso.
+- [ ] 🆕 **La banda no se pinta si no hay nada que retomar**: ni etiqueta ni hueco.
+- [ ] Clic en una tarjeta de «Retomar» abre la ficha **del anime guardado**, no la de un homónimo.
+- [ ] Clic en la rejilla → cursor «watch» → ficha.
+- [ ] 🆕 **Un anime en emisión con capítulo nuevo se corrige solo**: con la fila desactualizada, al
+      entrar en la vista la tarjeta pasa de «Lo has visto entero» a «Siguiente: episodio N de N» en
+      un segundo o dos, **sin recargar la portada ni abrir la ficha**, y por consola sale
+      «*X* pasa de N a M episodios» ([trampa 38](10-invariantes-y-trampas.md)).
+- [ ] 🆕 **Sin conexión, la banda no se rompe ni se vacía**: las tarjetas siguen con el dato guardado
+      y no se escribe nada en la BD.
+- [ ] 🆕 **Salir de la vista mientras se piden los datos no revienta nada**: entrar y cambiar de
+      sección enseguida no debe dar `invalid command name …!ctkcanvas` por consola.
 
-### Buscador
-- [ ] Búsqueda por texto → GIF → rejilla + paginación.
-- [ ] Filtro por géneros + orden → resultados.
-- [ ] «Siguiente »» / «1» / última página navegan.
-- [ ] Salir del buscador y volver: se restaura la última búsqueda (`last_search_instance`).
-- [ ] ⚠️ Pulsar «Buscar» dos veces rápido lanza dos búsquedas (trampa/carrera C4).
+### 7.4 Favoritos
+- [ ] Rejilla de **5 columnas** a 1440, pósters de 216 × 324 — los más grandes de la aplicación.
+- [ ] Paginador de **10**.
+- [ ] 🆕 **Maximizada son 7 columnas y paginador de 14**, con las estrellas y el proveedor alineados
+      bajo cada título.
+- [ ] Cinco estrellas bajo cada título, con **medios puntos**, y la cifra a su derecha.
+- [ ] Pulsar la mitad izquierda de la tercera estrella pone 2,5; la derecha, 3,0.
+- [ ] 🔴 **Calificar NO reordena la rejilla**: el anime se queda donde estaba aunque el orden sea por
+      calificación. Si se recolocara, la segunda estrella caería sobre otro anime.
+- [ ] Volver a pulsar la misma calificación la **quita** (vuelve a «sin calificar», que no es cero).
+- [ ] El desplegable ofrece «Mi calificación» y «Título (A-Z)», y **la elección sobrevive al
+      reinicio** (`favourites_order`).
+- [ ] Ordenando por calificación, **lo no calificado va al final**, nunca primero.
+- [ ] 🆕 El sello sobre el póster dice qué **más** es el anime (Viendo / Pendiente / Finalizado), y
+      **nunca «Favorito»**: sería el dato repetido que prohíbe el diseño.
+- [ ] 🔴 **El sello se lee sobre una carátula blanca** (prueba con *Dragon Ball Daima*), en los dos
+      temas. Fondo oscuro opaco, texto blanco, color del estado solo en el glifo.
 
-### Ficha de detalle
-- [ ] Póster, título, sinopsis y géneros.
-- [ ] El póster se ve a tamaño correcto también en un anime que **solo** esté en «viendo»
-      (regresión de las trampas 15 y 16, resueltas en `83a8448`).
-- [ ] Sinopsis de AnimeAV1 **con tildes correctas** («título», no «tÃ­tulo») — regresión de la
-      trampa 14, resuelta en `94b497e`. Ver [05 §7](05-proveedores-y-scraping.md).
-- [ ] Con la red caída, hacer clic en un anime muestra un **diálogo de error** y no deja la app
-      muda — regresión de la trampa 10, resuelta en `1bfdf0f`.
-- [ ] Los 4 botones cambian de texto y de acción al pulsarlos.
-- [ ] Activar «viendo» desactiva «finalizado» y «pendiente» en la propia UI.
-- [ ] Aparecen **25** episodios como máximo.
-- [ ] Botón de orden alterna «Mayor a menor ↓» / «Menor a mayor ↑».
-- [ ] Buscar un número de episodio muestra ese episodio + navegación anterior/siguiente.
+### 7.5 Viendo
+- [ ] Cascada de una fila por anime, póster de 70 × 100, fila de 132 px.
+- [ ] **Sin paginador**: caben de una vez.
+- [ ] Panel de 290 px a la derecha con «Lo último que veías» y su botón.
+- [ ] 🆕 El panel recorre los **tres** identificadores guardados: si el más reciente ya no está en
+      esta pestaña, enseña el siguiente.
+- [ ] Barra de progreso y «N / M vistos» en cada fila.
+- [ ] **Hover**: la fila se resalta con `CARD_HOVER` y aparece la píldora «Episodio N →».
+- [ ] 🔴 **La píldora no se apaga al ir a pulsarla**, y la fila **no cambia de ancho**
+      ([trampa 34](10-invariantes-y-trampas.md)).
+- [ ] 🆕 **La píldora se colorea al pasar por encima** (`ACCENT_SOFT`), además de resaltarse la fila.
+      Hasta el 2026-09-01 no lo hacía: la fila le pisaba su hover ([trampa 40](10-invariantes-y-trampas.md)).
+- [ ] 🆕 **Pulsar «Episodio N →» abre la ficha con ese episodio desplegado**, no arriba del todo, y
+      con sus servidores a la vista.
+- [ ] 🆕 **«Seguir por el N» del panel hace lo mismo**; pulsar el **póster o el título** del panel
+      abre la ficha a secas.
+- [ ] 🔴 Con un anime largo (One Piece, episodio 1164), la ficha enseña **ese episodio solo**, con los
+      botones de anterior y siguiente y el número puesto en «Ir al episodio…»: cae fuera de los 25.
+- [ ] El proveedor de cada fila aparece a la derecha.
+
+### 7.6 Pendientes
+- [ ] Cascada con póster de 56 × 80, fila de 113 px, **sin barra de progreso**.
+- [ ] A la derecha, «N episodios · Proveedor».
+- [ ] Desplegable de orden: **Más cortos primero** (por defecto) · Más largos primero · Título (A-Z).
+- [ ] 🔴 **Lo que no tiene lista de episodios va al final en los dos sentidos**: «no se sabe cuánto
+      dura» no es «dura poco».
+- [ ] ⚠️ El orden **no** se persiste: al volver a entrar vuelve a «Más cortos primero».
+- [ ] 🔴 **Hover** → píldora «Empezar»; pulsarla **mueve el anime a «Viendo»** y **mueve los
+      contadores de la barra**. Hasta el 2026-09-01 **no movía nada**: su `command` no llegaba a
+      ejecutarse ([trampa 40](10-invariantes-y-trampas.md)). Compruébalo volviendo a «Pendientes»:
+      el anime ya no tiene que estar.
+- [ ] 🆕 Y abre la ficha **por el primer episodio**, desplegado y con sus servidores; la lista sale
+      **de menor a mayor** y el botón de orden dice «Menor a mayor ↑».
+- [ ] 🆕 Con el episodio 1 a la vista, la ficha **no se desplaza**: el póster y la sinopsis siguen
+      arriba. Solo se desplaza cuando el episodio no cabría en pantalla.
+
+### 7.7 Finalizados
+- [ ] Rejilla de **6** y paginador de **12** a 1440; **8 y 16** maximizada.
+- [ ] Sello «✓ N / M» sobre cada póster, arriba a la izquierda.
+- [ ] 🆕 Un finalizado **sin lista de episodios** dice «Finalizado», **no «0 / 0»**.
+- [ ] Los números son los **reales y sin corregir**: un «3 / 12» significa que lo marcaste a mano.
+
+### 7.8 Buscar
+- [ ] **No tiene título de vista**: el campo de 620 px con la lupa dentro *es* la cabecera.
+- [ ] Fila de fichas de género: 7 visibles + «Más géneros (33)».
+- [ ] Las fichas dicen **«Acción» y «Ciencia ficción», con tildes** (salen de `.name`, no de `.value`).
+- [ ] Tocar una ficha busca **en el acto**, sin botón de aplicar; la seleccionada pasa **primera**,
+      con `ACCENT_SOFT`, borde `ACCENT` y una ✕.
+- [ ] 🆕 **La ficha seleccionada no se mete encima de la de al lado**: la ✕ se ve entera y el hueco
+      hasta la siguiente es el mismo que entre dos fichas sin seleccionar. Probar con **varias**
+      activas a la vez y con la fila desplegada («Más géneros»), que es cuando envuelve en varias
+      líneas ([trampa 39](10-invariantes-y-trampas.md)).
+- [ ] 🆕 **Plegar la barra lateral re-envuelve las fichas** sin solaparlas ni desbordar por la
+      derecha, y sin meterse debajo del desplegable de orden.
+- [ ] 🔴 **Texto y géneros no se combinan: manda el último gesto.** Buscar por texto apaga las fichas;
+      tocar una ficha vacía el texto.
+- [ ] Mientras busca, la línea de estado dice «Buscando animes…» y la rejilla se vacía. **No hay GIF.**
+- [ ] La línea de resultados dice **quién respondió de verdad**: con una consulta que AnimeAV1 no
+      tenga, debe salir «… en JKAnime» (el fallback), no el proveedor del desplegable.
+- [ ] Sello «ya lo tienes» sobre los resultados guardados, **también cuando el slug no coincide** y
+      el cruce es por título.
+- [ ] 🔴 Abrir un resultado sellado y marcarle un estado **no crea una fila duplicada**
+      ([trampa 21](10-invariantes-y-trampas.md)).
+- [ ] Paginador: con un género («Acción») debe salir «Página 1 de 50» y los botones deben traer
+      resultados distintos.
+- [ ] Salir y volver: se restaura la última búsqueda sin repetir la petición.
+
+### 7.9 Ficha del anime
+- [ ] Póster de 248 × 372 redondeado, título a 30, sinopsis y fichas de género **con su contorno**.
+- [ ] Sinopsis de AnimeAV1 **con tildes correctas** («título», no «tÃ­tulo»).
+- [ ] 🆕 Los **4 botones de estado se encienden y se apagan**; ya no cambian de texto.
+- [ ] Encender «Viendo» apaga «Finalizado» y «Pendiente» en la propia interfaz.
+- [ ] Encendidos van con el color pastel de su estado; apagados, con borde `LINE`.
+- [ ] 🆕 Las filas de episodio dicen **«Episodio N»**, sin repetir el título del anime.
+- [ ] Aparecen **25** como máximo, y **la lista lo dice** cuando hay más.
+- [ ] 🆕 El botón de orden dice **el orden que llega del proveedor**, no siempre «Mayor a menor».
 - [ ] Marcar el episodio 10 marca del 1 al 10; desmarcar el 5 desmarca **solo** el 5.
-- [ ] Salir de la ficha y volver: el estado de los switches se restaura desde BD.
-- [ ] Clic en un episodio despliega los servidores (⚠️ congela la ventana mientras carga: es la
-      única llamada HTTP que sigue en el hilo de Tkinter, [07 C5](07-concurrencia-e-hilos.md)).
-- [ ] Elegir un servidor abre el navegador.
+- [ ] Clic en un episodio despliega los servidores debajo **sin empujar la lista**; volver a pulsar
+      los repliega. 🆕 Mientras carga, la fila y el hueco dicen «Buscando servidores…» y **la ventana
+      se puede desplazar** (desde el 2026-09-24 la petición va en un hilo,
+      [07 C5](07-concurrencia-e-hilos.md)). Plegar mientras carga no pinta nada al llegar la respuesta.
+- [ ] 🆕 🔴 **Bajar el ratón despacio por toda la lista de episodios**: en cada momento hay **una
+      sola** fila resaltada, y al sacar el ratón no queda ninguna. Si se quedan encendidas las que has
+      recorrido, es la [trampa 37](10-invariantes-y-trampas.md) — y **deprisa no se reproduce**:
+      hay que cruzar el separador de 1 px que hay entre filas ([§6b](#6b-recorrer-el-hover-con-el-puntero-2026-09-01)).
+- [ ] 🆕 Al **plegar** los servidores con el ratón encima, la fila se queda en color de hover, no
+      apagada bajo el cursor.
+- [ ] 🆕 Los servidores que **no** se pueden ver dentro llevan **↗**; elegir uno de ellos abre el
+      navegador. Elegir uno sin ↗ abre el reproductor encima de la ficha (§7.13).
+- [ ] 🆕 Dos servidores con el mismo nombre salen como «Desu» y «Desu 2», y cada uno abre su URL
+      ([trampa 53](10-invariantes-y-trampas.md)).
+- [ ] Con la red caída, el clic muestra un **diálogo de error** y no deja la app muda.
+- [ ] **Identidad partida**: con JKAnime seleccionado, abrir un anime guardado desde AnimeAV1 debe
+      sacar «⚠ En tu biblioteca: AnimeAV1» en ámbar y el botón «Actualizar a JKAnime».
+- [ ] Migrar **conserva los episodios vistos y las cuatro categorías**, y **no duplica**.
+- [ ] 🔴 **Salir de la ficha y entrar en otra vista**: la vista siguiente ocupa el ancho completo. Si
+      sale apretada a la izquierda, es la [trampa 32](10-invariantes-y-trampas.md).
 
-### Tema
-- [ ] Light / Dark / System cambian el aspecto.
-- [ ] ⚠️ Arrancando en modo oscuro, el texto de la sidebar nace **negro** hasta que se cambia a mano
-      (deuda observada en `utilsButtons.py:69`; **no** es un TODO del código — ver [06 §5](06-gui-y-vistas.md)).
+### 7.10 Estados vacíos 🆕
 
-### Proveedor JKAnime *(2026-08-06)*
+Solo se ven con la biblioteca vacía o sin red. La receta para provocarlos sin tocar tus datos está en
+[§3](#3-probar-la-persistencia--sobre-una-copia): repuntar las dos persistencias a ficheros nuevos
+del scratchpad **antes** de construir `MainWindow`.
 
-- [ ] El desplegable de la sidebar ofrece **tres** proveedores: AnimeAV1, JKAnime y AnimeFLV.
-- [ ] Al elegir **JKAnime**, la portada se recarga con sus animes recientes y **los pósters son
-      carátulas, no fotogramas de episodio** (trampa 23).
-- [ ] Abrir una ficha desde ahí: sinopsis, géneros y lista de episodios rellenos, y la etiqueta
-      «Proveedor» de la ficha dice **JKAnime**.
-- [ ] En esa ficha, un episodio ofrece servidores de vídeo con **nombres reales** (Desu, Magi…),
-      no «Opción 1».
-- [ ] Buscar algo desde la lupa con JKAnime activo: salen resultados y **no aparece paginación**
-      más allá de la primera página.
+- [ ] Las **6** vistas tienen icono, frase y un botón que lleva a alguna parte.
+- [ ] 🔴 **La portada no dice «no tienes nada»**: dice «No se han podido cargar los estrenos» y
+      ofrece «Reintentar». El catálogo no es del usuario.
+- [ ] «Buscar» **no ofrece «prueba con otro proveedor»**: el gestor ya los ha probado todos. Ofrece
+      borrar la búsqueda o quitar los filtros.
+- [ ] Los botones navegan de verdad y **la barra lateral marca el destino** al llegar.
 
-### Selector de proveedor y pin *(2026-07-30, reformado el 2026-08-06, [13](13-selector-de-proveedor.md))*
+### 7.11 Tema y plegado
+- [ ] `Light`, `Dark` y `System` cambian el aspecto **sin reiniciar** y sin dejar textos negros sobre
+      negro.
+- [ ] 🆕 El texto de la barra lateral nace correcto en los dos temas: los colores son tuplas
+      `(claro, oscuro)` y los resuelve CustomTkinter. *(La deuda que había aquí murió con la fase 1.)*
+- [ ] Texto sobre `ACCENT` legible en los dos temas (`ACCENT_INK`: blanco en claro, casi negro en
+      oscuro).
+- [ ] Con la barra **plegada**, las 7 vistas se ensanchan a 1 356 px y **nada se sale ni se recorta**.
+- [ ] 🆕 La sinopsis de la ficha **sí** se ensancha al plegar y al maximizar: usa todo el ancho de su
+      columna. *(Tenía tope de 74 caracteres hasta el 2026-09-02; se quitó porque dejaba una franja
+      vacía a la derecha.)*
+- [ ] 🆕 La sinopsis **envuelve al ancho de la ventana** y no conserva los renglones del proveedor,
+      pero **sí conserva sus párrafos**: «One Piece Film: Red» se lee en tres bloques separados por
+      una línea en blanco ([trampa 42](10-invariantes-y-trampas.md)).
 
-**Sidebar — desplegable**
-- [ ] Arranque con `DB_user.db` borrada: se crea, el desplegable muestra **AnimeAV1** y el pin nace
-      **gris**. El log debe decir «Sin proveedor fijado, se usa animeav1».
-- [ ] Cambiar de proveedor → la portada de recientes se repuebla y se navega a esa vista.
-- [ ] 🔴 **La prueba que da sentido a la reforma**: cambiar de proveedor **sin** tocar el pin, cerrar y
-      reabrir → la app arranca con el proveedor **anterior**, no con el que se probó, y
-      `SELECT * FROM USER_SETTINGS` no ha cambiado.
-
-**Sidebar — pin**
-- [ ] Con el desplegable desviado, el pin está **gris**; al pulsarlo se pone **azul** y la fila de
-      `USER_SETTINGS` pasa a ese proveedor. Cerrar y reabrir → arranca con él.
-- [ ] Pulsar el pin estando **azul** → se pone gris, `setting_value` queda a `NULL` y **el proveedor
-      en uso no cambia**. Cerrar y reabrir → arranca con AnimeAV1 (el del registro).
-- [ ] Cambiar el desplegable estando el pin azul → el pin pasa a gris **sin** escribir en BD.
-- [ ] Con `DB_user.db` no disponible, pulsar el pin avisa con `messagebox` y **no** se pone azul.
-- [ ] El bloque desplegable + pin no se solapa con el selector de apariencia (la fila 8 del sidebar es
-      el espaciador con `weight=1`) — compruébalo con una **captura**, que el layout no avisa por
-      consola.
-- [ ] En tema claro y en oscuro el pin se ve (usa `light_image`/`dark_image`, no `update_icon()`).
-
-**Ficha de detalle**
-- [ ] Abrir una ficha desde **cada una** de las 6 vistas: la etiqueta «Proveedor: X» dice quién sirvió
-      los datos. ⚠️ Ya **no** hay desplegable en la ficha.
-- [ ] La sinopsis **no** queda recortada por la derecha (trampa 22).
-- [ ] Desplegar servidores → son los del proveedor de la etiqueta (compruébalo por el dominio de la
-      URL); si ese proveedor no ofrece ninguno, sale un aviso y no un selector vacío.
-- [ ] `SELECT COUNT(*) FROM ANIMES` antes y después de toda la sesión → **el mismo número**.
-
-> 🗑️ Se han retirado las pruebas de «cambiar de proveedor dentro de la ficha»: ese control ya no
-> existe. La **trampa 21** sigue viva, y desde el 2026-08-16 **vuelve a poder dispararse a mano** —
-> ver el bloque siguiente.
-
-### Columna `provider_id` *(2026-08-16, [13 §14](13-selector-de-proveedor.md))*
-
-**Abrir un anime guardado**
-- [ ] Con **AnimeAV1** seleccionado (la referencia), abrir un anime guardado desde AnimeFLV: el bloque
-      dice `Proveedor: AnimeFLV` / `En tu biblioteca: AnimeFLV`, **en gris y sin ⚠**.
-- [ ] Con **JKAnime** seleccionado, el mismo anime: `Proveedor: JKAnime` /
-      `⚠ En tu biblioteca: AnimeFLV`, **en ámbar**. Los datos vienen de JKAnime.
-- [ ] 🔴 En ese estado, pulsar un botón de estado **no crea una fila nueva**:
-      `SELECT COUNT(*) FROM ANIMES` no cambia. Es la [trampa 21](10-invariantes-y-trampas.md), que
-      llegó a reintroducirse una vez.
-- [ ] Un anime guardado **antes** de existir la columna: al abrirlo por primera vez, su `provider_id`
-      pasa de `NULL` al proveedor que lo sirvió. Al reabrirlo, **no vuelve a escribirse**.
-
-**Migrar a otro proveedor**
-- [ ] El botón «Actualizar a X» aparece siempre que el proveedor seleccionado difiera del de la fila
-      — **no solo** cuando hay discrepancia. (Fue el fallo reportado por el usuario.)
-- [ ] Confirmar la migración: el diálogo enumera proveedor, identificador y título, y dice **cuántos
-      episodios vistos se conservan**.
-- [ ] Tras migrar: `anime_id` y `provider_id` cambiados, **`watched_episodes` idéntico**, los cuatro
-      estados intactos, y el póster sigue viéndose (renombrado, no re-descargado).
-- [ ] Si el `anime_id` destino ya lo ocupa otra fila → **aviso y no se toca nada**.
-- [ ] Si el proveedor destino no tiene el anime → `showinfo` y el anime sigue guardado igual.
-
-**Aviso de duplicado**
-- [ ] Abrir un anime desde un proveedor distinto al que lo guardó y pulsar «Añadir a favoritos»: sale
-      el aviso nombrando **«tu Biblioteca de Favoritos»** (la sección pulsada), dónde está el
-      duplicado y desde qué proveedor.
-- [ ] Aceptar crea de verdad la segunda fila; cancelar **no escribe nada**.
-
-**Regresión global**
+### 7.12 Regresión global
 - [ ] `SELECT COUNT(*) FROM ANIMES` antes y después de toda la sesión → el mismo número, salvo lo que
       hayas añadido a propósito.
 - [ ] `SELECT COUNT(*) FROM ANIMES WHERE provider_id IS NULL` → cuenta que **solo baja**, nunca sube.
+- [ ] 🆕 `sha256` de `DB_Animes.db` idéntico si la sesión era de solo mirar.
+- [ ] `git grep -nE "#[0-9A-Fa-f]{6}" -- src/` devuelve **solo** `src/gui/theme.py`.
 
----
+### 7.13 Reproductor 🆕 *(2026-10-20)*
+
+Contra el diseño aprobado. **Siempre sobre copia de la BD**
+si el anime está guardado: terminar un episodio escribe ([§6i](#6i-verificar-el-reproductor-en-la-aplicación-2026-10-20)).
+
+**Abrir y ver**
+- [ ] AnimeAV1: `HLS` (zilla) y `MP4Upload` **se ven** y **se oyen**. JKAnime: `Desu` y `Magi` igual.
+- [ ] El panel sale **encima** de la ficha, que sigue debajo desplazada hasta el episodio; la fila
+      dice «▮ Reproduciendo · <servidor>».
+- [ ] La columna de la izquierda: «← Volver a la ficha», estado, título, «**Episodio N** de M ·
+      servidor X», proveedor, fichas de servidor (la activa resaltada, las de fuera con ↗), progreso y
+      «Siguiente episodio».
+- [ ] La barra, en orden: anterior · −10 · play/pausa · +10 · siguiente · progreso · tiempo ·
+      volumen · pantalla completa. Pausa congela la imagen; ±10 saltan **10 s exactos**; soltar la
+      barra de progreso salta allí.
+- [ ] Volumen: clic silencia; al pasar el ratón sale el deslizador vertical y **se puede llegar a él**
+      sin que se cierre. El siguiente episodio suena al mismo volumen.
+
+**Degradación — lo que no puede romperse nunca**
+- [ ] 🔴 Un servidor con ↗ (UPNShare, Mega…) **abre el navegador** y el recuadro dice «X se abre en tu
+      navegador», con «Ver aquí con Y» si hay otro que sí se ve.
+- [ ] 🔴 Un servidor que no responde (zilla caído) cae al navegador a los **~20 s**. Uno que
+      responde **lento** cae a los **30 s** (`LOAD_TIMEOUT_S`, [trampa 54](10-invariantes-y-trampas.md)),
+      y mientras tanto la columna sigue respondiendo y se puede pulsar otro servidor.
+- [ ] 🔴 Sin `vendor/libmpv-2.dll`, la app arranca igual y **todo** servidor acaba en el navegador.
+
+**Navegar y terminar**
+- [ ] Anterior/siguiente cambian de episodio **por el mismo servidor** si lo tiene; en el primero,
+      «anterior» está apagado, y en el último, «siguiente» y «Siguiente episodio».
+- [ ] Al llegar al final: tarjeta «Has terminado el episodio N» con «Volver a la ficha» y «Ver el
+      episodio N+1». Si el anime **está guardado**, franja «✓ Marcado como visto · N de M» y la fila
+      marcada en la BD (acumulativo). Si **no** lo está, sin franja y **sin fila nueva**.
+- [ ] La ✕ retira el aviso y deja el último fotograma; play pasa a «repetir».
+- [ ] 🔴 «← Volver a la ficha» a mitad de episodio **no** saca la tarjeta de fin ni marca nada
+      ([trampa 47](10-invariantes-y-trampas.md)).
+
+**Pantalla completa**
+- [ ] Ocupa **el monitor donde está la ventana**, también el secundario ([trampa 51](10-invariantes-y-trampas.md)).
+- [ ] La barra flotante sale al mover el ratón y se va a los 5 s **con el cursor**; no se va con el
+      ratón encima ni con el volumen abierto.
+- [ ] `Alt+Tab` a otra aplicación: la barra **no** se queda flotando encima de ella.
+- [ ] El fin de episodio a pantalla completa saca la tarjeta centrada **y la barra**; `Esc` sale y la
+      tarjeta queda en el recuadro acoplado.
+- [ ] `Esc` devuelve la ventana a su sitio y tamaño, con la barra lateral como estaba (también
+      plegada).
+
+**Salir**
+- [ ] Cambiar de vista o cerrar la ventana con un episodio sonando: **deja de sonar**, y no quedan
+      procesos ni hilos de mpv.
+- [ ] La consola no tiene ni un `Traceback` ni un `invalid command name`.
+
 
 ## 8. Limpieza
 
@@ -611,6 +1175,19 @@ git status    # debe mostrar SOLO lo que tenías antes de empezar
 - ⚠️ Si has lanzado la app desde un script en segundo plano, **comprueba que no queda ningún proceso
   vivo**: `Get-Process python`. La app no termina sola y una instancia huérfana sigue sirviendo la
   ventana y bloqueando la BD.
+- 🔴 **Antes de matar nada, mira de quién es cada proceso.** El usuario puede tener la app abierta, y
+  `Get-Process` no distingue su instancia de la tuya. Cada lanzamiento deja **dos** procesos —el
+  `python.exe` del entorno virtual reejecuta `D:\Python\python.exe`—, así que hay que mirar la línea
+  de órdenes y la hora de creación antes de decidir:
+
+  ```powershell
+  Get-CimInstance Win32_Process -Filter "Name='python.exe'" |
+      Select-Object ProcessId, ParentProcessId, CreationDate, CommandLine | Format-List
+  ```
+
+  ⚠️ Y la captura por título (`MainWindowTitle -eq "Mi Biblioteca"`) coge **la primera que encuentre**:
+  con dos instancias abiertas puedes estar mirando la del usuario, que además lleva el código de antes
+  de tu cambio. Pasó el 2026-09-01.
 
 ### Capturar la ventana de la app sin robar el foco
 
@@ -618,7 +1195,7 @@ git status    # debe mostrar SOLO lo que tenías antes de empezar
 
 ```powershell
 # El objeto de Start-Process no publica MainWindowHandle con Tk: buscar por titulo.
-$win = Get-Process | Where-Object { $_.MainWindowTitle -eq "Mi Biblioteca de Anime" }
+$win = Get-Process | Where-Object { $_.MainWindowTitle -eq "Mi Biblioteca" }
 # Capturar con PrintWindow(h, hdc, 2) -> PW_RENDERFULLCONTENT: funciona aunque
 # la ventana este tapada y NO la trae al frente.
 ```

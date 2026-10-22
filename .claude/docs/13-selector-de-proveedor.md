@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-07-30 fases 1-6 (`a9b44ea`, `fd53056`) · 2026-08-06 fase 7: el pin · **2026-08-16 fase 8: la columna `provider_id`** · todo en **`main`**, la fase 8 en `a3d4331` |
+| **Fecha** | 2026-07-30 fases 1-6 (`a9b44ea`, `fd53056`) · 2026-08-06 fase 7: el pin · **2026-08-16 fase 8: la columna `provider_id`** (`a3d4331`, en `main`) · **2026-08-21: tres preferencias nuevas** del rediseño de interfaz (§4), en `feature/ui-redisign` |
 | **Estado** | ✅ **Cerrado del todo.** La fase 8 implementa la columna que quedaba diferida ([§14](#14-fase-8--la-columna-provider_id-2026-08-16)) |
 | **Cierra** | TODO #4 (borrado de `main_window.py`), el punto «Selector de proveedor con preferencia persistida» y el punto 2 del roadmap ([12 §6](12-deuda-tecnica-y-roadmap.md)) |
 | **Mitiga** | **R2** — dependencia de un único proveedor sano ([12 §5](12-deuda-tecnica-y-roadmap.md)) |
@@ -59,7 +59,7 @@ integren, el desplegable ofrezca proveedores de manga si lo que se está viendo 
 |---|---|
 | `AnimeInfo.id` es el **slug del sitio**, no un identificador universal | `models.py:120`, `animeav1.py:177`, `animeflv.py:179` |
 | La tabla `ANIMES` está **cauterizada a ese slug**: `anime_id` es la clave con la que se busca todo | `animesPersistence.py:308-317` |
-| `EpisodeInfo.anime` también es el slug, y es lo que se pasa a `get_anime_episode_servers` | `models.py:115`, `anime_window.py:1116-1121` |
+| `EpisodeInfo.anime` también es el slug, y es lo que se pasa a `get_anime_episode_servers` | `models.py:115`, `anime_window.py:1743-1745` (✅ reanclado el 2026-09-01) |
 | Los pósters en disco se llaman `{anime_id}.jpg` | `utils.py:57,83,153,192` |
 
 Consecuencia: **el mismo anime tiene un `id` distinto en cada proveedor.** AnimeAV1 sirve
@@ -187,7 +187,7 @@ Al cambiar de proveedor se sustituye la primera y **se congela la segunda**. As�
 Es una elección arbitraria pero estable y sin pérdida de datos.
 
 > 🆕 **Ampliación del 2026-08-16.** La identidad de persistencia ya no se deduce solo del `AnimeInfo`
-> de apertura: el constructor recibe **`anime_record`** (`anime_window.py:232-233`) y, si el slug
+> de apertura: el constructor recibe **`anime_record`** (`anime_window.py:277-278`) y, si el slug
 > guardado no coincide con el que se está viendo, manda el de la fila. Y ahora incluye el
 > **proveedor**, porque `persistence_anime_id` es un slug *suyo*: separarlos haría que la fila
 > guardase el proveedor equivocado.
@@ -238,8 +238,8 @@ que se suponía.
 
 | Llamante | Para qué |
 |---|---|
-| `open_saved_anime()` (`anime_window.py:167-189`) | Abrir un anime guardado cuando el desplegable está desviado: el slug guardado no vale en el proveedor elegido |
-| `__repair_to_target_provider()` (`anime_window.py:593-598`) | Localizar el anime en el proveedor destino antes de migrar la fila |
+| `open_saved_anime()` (`anime_window.py:256-334`) | Abrir un anime guardado cuando el desplegable está desviado: el slug guardado no vale en el proveedor elegido |
+| `__repair_to_target_provider()` (`anime_window.py:1088-1134`) | Localizar el anime en el proveedor destino antes de migrar la fila |
 
 Los dos construyen la referencia **a mano** (`AnimeInfo(id=…, title=…, poster=…)`), sin
 `provider_id`: es el único `AnimeInfo` del sistema que no pasa por el manager, y por eso su
@@ -292,12 +292,35 @@ Módulo nuevo: **`src/dataPersistence/userPersistence.py`**. Espeja la estructur
 > Se evita a propósito llamar a las columnas `key` y `value`: no son palabras reservadas en SQLite,
 > pero `VALUES` sí lo es y la confusión no aporta nada.
 
-### Claves previstas
+### Claves reconocidas
 
-| Clave | Valor | Estado |
-|---|---|---|
-| `default_anime_provider` | `PROVIDER_ID` (`"animeav1"`, `"animeflv"`, …) | **Se implementa ahora** |
-| `default_manga_provider` | `PROVIDER_ID` del proveedor de manga | 🔮 Reservada, ver [§10](#10-preparación-para-la-convivencia-animemanga) |
+🔴 **Las claves no son cadenas libres.** `get_setting()` y `set_setting()` reciben un
+**`UserSettingKey`** (`userPersistence.py:40`), así que **añadir una preferencia es añadir un miembro
+a ese enum** — igual que añadir un proveedor es añadir un miembro a `AnimeProviderId`. Lo que no hace
+falta es tocar el esquema ni migrar: la tabla es clave/valor.
+
+| Miembro de `UserSettingKey` | Clave persistida | Valor | Desde |
+|---|---|---|---|
+| `DEFAULT_ANIME_PROVIDER` | `default_anime_provider` | `AnimeProviderId.value` (`"animeav1"`, `"jkanime"`, …) | 2026-07-30 |
+| `SIDEBAR_COLLAPSED` 🆕 | `sidebar_collapsed` | `"0"` desplegada · `"1"` plegada | rediseño, fase 1 |
+| `LAST_WATCHED_ANIME_IDS` 🆕 | `last_watched_anime_ids` | hasta **3** `anime_id` separados por comas, el más reciente primero | rediseño, fase 2 |
+| `FAVOURITES_ORDER` 🆕 | `favourites_order` | `"rating"` o `"title"` | rediseño, fase 5 |
+| *(reservada)* | `default_manga_provider` | `PROVIDER_ID` del proveedor de manga | 🔮 ver [§10](#10-preparación-para-la-convivencia-animemanga) |
+
+Cada una tiene su **par tipado** en `UserPersistence`, para que la GUI no maneje cadenas sueltas:
+`get_sidebar_collapsed()` / `set_sidebar_collapsed(bool)`,
+`get_last_watched_ids()` / `push_last_watched_id(anime_id)`,
+`get_favourites_order()` / `set_favourites_order(str)`.
+
+Tres detalles que no son obvios:
+
+- **`last_watched_anime_ids` guarda identificadores, no filas.** Quien la pinte tiene que tolerar que
+  el anime ya no esté en la biblioteca (`get_anime_by_anime_id()` → `None`) y **descartarlo en
+  silencio**. Lo hacen la banda «Retomar» de la portada y el panel lateral de «Viendo».
+- **El panel de «Viendo» recorre los tres**, no solo el primero: si el más reciente ya no está en esa
+  pestaña —porque lo marcaste como finalizado—, el siguiente también es algo que estabas viendo.
+- **El orden de «Pendientes» NO se persiste**, aunque el de «Favoritos» sí. Vive en memoria; si se
+  quiere recordar, es un miembro más de `UserSettingKey`.
 
 ### API pública de `UserPersistence`
 
@@ -309,6 +332,12 @@ set_setting(key, value) -> bool           # UPSERT (INSERT … ON CONFLICT DO UP
 get_all_settings() -> Dict[str, str]
 get_default_provider_id() -> str|None     # atajo tipado sobre get_setting
 set_default_provider_id(provider_id)      # atajo tipado sobre set_setting
+get_sidebar_collapsed() -> bool           # 🆕 rediseño, fase 1
+set_sidebar_collapsed(collapsed) -> bool
+get_last_watched_ids() -> List[str]       # 🆕 rediseño, fase 2 (como mucho 3)
+push_last_watched_id(anime_id) -> bool    #    lo pone el primero y recorta a 3
+get_favourites_order() -> str             # 🆕 rediseño, fase 5 ("rating" | "title")
+set_favourites_order(order) -> bool
 ```
 
 Más `UserPersistenceSingleton`, con el mismo patrón que el resto: `__new__` devuelve la **instancia
@@ -464,7 +493,7 @@ ficha.
 
 *Consecuencia*: el caso 1 sobre un anime guardado necesita **re-resolver** por título, o sea
 `resolve_anime_in_provider()` ([D6](#d6--resolución-cross-provider-por-búsqueda-de-título--similitud)) — el método que la fase 7 dejó sin ningún llamante en la
-GUI. ✅ **Aquí volvió**, y en dos sitios: `open_saved_anime()` (`anime_window.py:167-189`) y el botón
+GUI. ✅ **Aquí volvió**, y en dos sitios: `open_saved_anime()` (`anime_window.py:256-334`) y el botón
 «Actualizar a …» (`:593-598`).
 
 ### Lo que costó de verdad, frente a lo estimado
@@ -686,7 +715,7 @@ comprobaciones ([09](09-verificacion-y-pruebas.md)).
 
 ### Las tres funcionalidades que trajo la columna
 
-**1. Abrir cada anime por su proveedor.** `open_saved_anime()` (`anime_window.py:108-193`) es hoy el
+**1. Abrir cada anime por su proveedor.** `open_saved_anime()` (`anime_window.py:256-334`) es hoy el
 punto de entrada único de las 4 vistas de estado, que antes repetían las mismas líneas. Además de
 elegir el proveedor, saca la petición HTTP del hilo de Tkinter — la ventana se quedaba congelada
 segundos enteros con los animes cuyo slug el predeterminado ya no reconoce, porque AnimeAV1 reintenta

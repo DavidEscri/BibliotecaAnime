@@ -1,27 +1,64 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "sidebarButtons"
 __module__ = "searchAnimes.py"
-__version__ = "0.2"
+__version__ = "0.4"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
+
+"""«Buscar»: la única pestaña que trae cosas de fuera, y la única que puede duplicarte la biblioteca.
+
+Tres piezas propias: el campo grande de arriba (hace de cabecera); las fichas
+de género (GenreChips), que muestran el filtro activo sin abrir nada; y el
+sello «ya lo tienes» sobre cada resultado guardado.
+
+El sello se resuelve en local y sin petición extra: la biblioteca entera cabe
+en memoria y se cruza por slug y, si no, por título normalizado, porque el
+slug solo coincide cuando la fila la guardó el mismo proveedor que responde.
+
+La paginación aquí no es la de las otras vistas: quien trocea es el sitio
+web, no el paginador. Cada página es una petición nueva, y solo se sabe cuál
+es la última, no cuántos resultados hay en total.
+"""
 
 import os
 import threading
-import time
 import customtkinter as ctk
 
 from dataclasses import dataclass
-from typing import List, Union
-from PIL import Image, ImageSequence
+from typing import Dict, List, Optional, Tuple, Union
 
-from APIs.common.models import AnimeGenreFilter, AnimeOrderFilter, AnimeInfo, AnimeProviderId
 from APIs.common.animeProviderMgr import AnimeProviderManager, AnimeProviderManagerSingleton
-from gui.anime_window import AnimeWindowViewer, show_anime_info_error
+from APIs.common.models import AnimeGenreFilter, AnimeOrderFilter, AnimeInfo, AnimeProviderId
+from dataPersistence.animesPersistence import (AnimeRecord, AnimeStatus, AnimesPersistence,
+                                               AnimesPersistenceSingleton)
+from gui.anime_window import AnimeWindowViewer, find_saved_duplicate, show_anime_info_error
+from gui.components.empty_state import EmptyState, glyph as empty_glyph
+from gui.components.genre_chips import GenreChips
+from gui.components.order_menu import OrderMenu
+from gui.components.pager import Pager
+from gui.components.poster_grid import PosterGrid, PosterItem
+from gui.components.status_pill import StatusPill
+from gui.theme import Metrics, Theme
 from utils.buttons import utilsButtons
-from utils.utils import refactor_genre_text, load_image, get_resource_path, download_animes_poster
+from utils.utils import (download_animes_poster, find_cached_poster_path, get_resource_path,
+                         load_dual_image, refactor_genre_text)
+
+#: Texto de cada criterio de ordenación. Vive aquí y no en el enum porque es
+#: texto de interfaz: renombrar una opción no puede cambiar lo que se le pide al
+#: proveedor, que es el `value`.
+ORDER_LABELS: Dict[str, str] = {
+    AnimeOrderFilter.POR_DEFECTO.value:    "Orden: por defecto",
+    AnimeOrderFilter.ALFABÉTICAMENTE.value: "Orden: alfabético",
+    AnimeOrderFilter.CALIFICACIÓN.value:   "Orden: calificación",
+}
 
 
 @dataclass
 class AnimeSearch:
+    """La última búsqueda hecha, para poder volver a la pestaña y encontrarla igual.
+
+    La guarda ``MainWindow.last_search_instance``: es estado del hub, no de la
+    vista, porque la vista se destruye entera cada vez que se cambia de pestaña.
+    """
     animes: List[AnimeInfo]
     last_page: int
     current_page: int = 1
@@ -31,323 +68,496 @@ class AnimeSearch:
 
 
 class SearchButton(utilsButtons.SidebarButton):
+    """El buscador: catálogo del proveedor, con aviso de lo que ya es tuyo."""
+
+    #: Ancho del campo de búsqueda.
+    QUERY_W: int = 620
+    #: Alto del campo de búsqueda.
+    QUERY_H: int = 46
+    #: Radio del campo. No es una píldora: el diseño le pone 10.
+    QUERY_RADIUS: int = 10
+    #: Tamaño de página del paginador. En esta vista **no se usa para cortar
+    #: nada** —quien trocea es el proveedor—, pero `Pager` lo pide en el
+    #: constructor; se deja el 12 de las rejillas de seis columnas.
+    PAGE_SIZE: int = 12
+
     def __init__(self, main_window, icon_path, row, column):
         icon_path_light = icon_path_dark = os.path.join(icon_path, "buscar.png")
-        super().__init__(main_window.sidebar_frame, "BUSCADOR DE ANIMES", row, column, self.__show_buscador, icon_path_light, icon_path_dark)
+        super().__init__(main_window.sidebar_frame, "Buscar", row, column, self.show_frame, icon_path_light, icon_path_dark)
 
         self.main_window = main_window
         self.anime_provider_mgr: AnimeProviderManager = AnimeProviderManagerSingleton()
-        self.__episodes_filter_frame: ctk.CTkFrame | None = None
-        self.__pagination_frame: ctk.CTkFrame | None = None
+        self.animes_persistence: AnimesPersistence = AnimesPersistenceSingleton()
+        self.__icon_path = icon_path
 
-        # Géneros de ejemplo (debes usar tu enum de géneros reales)
-        anime_genres: List[AnimeGenreFilter] = list(AnimeGenreFilter)
-        self.selected_genres = []
-        self.genre_vars = {genre: ctk.BooleanVar() for genre in anime_genres}
+        # --- Estado de la búsqueda en curso -------------------------------
+        self.__query: str = ""
+        self.__genres: List[AnimeGenreFilter] = []
+        self.__order: str = AnimeOrderFilter.POR_DEFECTO.value
+        #: Cada petición lleva su número. Solo pinta la última: sin esto, una
+        #: búsqueda lenta repintaría encima de otra más reciente ya en pantalla.
+        self.__generation: int = 0
+        #: Lo que hay pintado ahora, por clave de celda. De aquí sale el
+        #: `AnimeInfo` y el `AnimeRecord` al abrir una ficha.
+        self.__displayed: Dict[str, Tuple[AnimeInfo, Optional[AnimeRecord]]] = {}
 
-        self.order_options: List[AnimeOrderFilter] = list(AnimeOrderFilter)
-        self.selected_order = ctk.StringVar(value=AnimeOrderFilter.POR_DEFECTO.value)
-        self.__current_search_thread: threading.Thread | None = None
-        self.__loading_frame: ctk.CTkFrame | None = None
+        # --- Widgets de la vista ------------------------------------------
+        self.__query_entry: Optional[ctk.CTkEntry] = None
+        self.__chips: Optional[GenreChips] = None
+        self.__order_menu: Optional[OrderMenu] = None
+        self.__results_label: Optional[ctk.CTkLabel] = None
+        self.__poster_grid: Optional[PosterGrid] = None
+        self.__pager: Optional[Pager] = None
+        #: Estado vacío de «sin resultados». Se construye y se destruye en cada
+        #: búsqueda porque su frase nombra la consulta, que cambia.
+        self.__empty_state: Optional[EmptyState] = None
 
-    def save_anime_search(self, anime_list: List[AnimeInfo], last_page: int, current_page: int, text_query: str):
-        self.main_window.last_search_instance = AnimeSearch(
-            animes=anime_list,
-            last_page=last_page,
-            current_page=current_page,
-            text_query=text_query,
-            genre_filters=self.selected_genres,
-            order_filter=self.selected_order.get()
-        )
-
+    # ------------------------------------------------------------------
+    # Construcción de la vista
+    # ------------------------------------------------------------------
     def show_frame(self):
         self.main_window.clear_frame()
-        self.__show_buscador()
+        self.__show_browser()
 
-    def __show_buscador(self):
-        self.main_window.clear_frame()
-        time.sleep(0.1)
+    def __show_browser(self):
+        content = self.main_window.content_frame
+        content.grid_columnconfigure(0, weight=1)
 
-        # Crear un frame para el buscador
-        search_frame = ctk.CTkFrame(self.main_window.content_frame)
-        search_frame.grid(row=0, column=0, columnspan=3, pady=10, padx=5)
+        self.__build_query_box(content)
+        self.__build_filters(content)
 
-        search_label = ctk.CTkLabel(
-            search_frame,
-            text="Buscar Anime:",
-            font=ctk.CTkFont(size=20, weight="bold"),
-            anchor=ctk.W
+        self.__results_label = ctk.CTkLabel(
+            content,
+            text="Busca por título, o elige un género para explorar el catálogo",
+            font=Theme.font(*Theme.T_SUB),
+            text_color=Theme.TXT_3,
+            anchor="w"
         )
-        search_label.grid(row=0, column=0, padx=3, pady=5, sticky=ctk.W)
+        self.__results_label.grid(row=2, column=0, sticky="w",
+                                  padx=Metrics.CONTENT_PAD_X, pady=(16, 14))
 
-        # Barra de búsqueda
-        search_entry = ctk.CTkEntry(
-            search_frame,
-            width=self.main_window.content_frame.winfo_width() - 340,
+        # Sin on_columns_changed, al revés que las vistas de rejilla paginadas:
+        # aquí el contenido de una página lo decide el proveedor, no el ancho,
+        # así que la rejilla solo se recoloca con los resultados que ya tiene.
+        self.__poster_grid = PosterGrid(content, columns=6, poster_size=Metrics.GRID6_POSTER,
+                                        on_click=self.__on_anime_click)
+        self.__poster_grid.grid(row=3, column=0, sticky="ew", padx=(PosterGrid.OUTER_PAD_X, 0))
+
+        # La fila 4 la ocupa el estado vacío cuando hace falta; el paginador baja
+        # a la 5 para que no tengan que compartir celda.
+        self.__pager = Pager(content, page_size=self.PAGE_SIZE, on_page=self.__on_page_changed)
+        self.__pager.grid(row=5, column=0, sticky="ew",
+                          padx=Metrics.CONTENT_PAD_X, pady=(4, 24))
+        # Nace escondido: un paginador recién colocado no se ha repintado todavía
+        # y se quedaría ocupando su fila, vacío, hasta la primera búsqueda.
+        self.__pager.set_pages(1, 1)
+
+        self.__restore_last_search()
+
+    def __build_query_box(self, content: ctk.CTkFrame) -> None:
+        """El campo grande de arriba: marco con borde de acento, lupa y entrada.
+
+        Es un marco y no un ``CTkEntry`` suelto porque el diseño mete la lupa
+        **dentro** de la caja, y una entrada de Tk no admite adornos interiores.
+        """
+        query_row = ctk.CTkFrame(content, height=1, fg_color=Theme.TRANSPARENT)
+        query_row.grid(row=0, column=0, sticky="w",
+                       padx=Metrics.CONTENT_PAD_X, pady=(22, 0))
+
+        query_frame = ctk.CTkFrame(
+            query_row,
+            width=self.QUERY_W,
+            height=self.QUERY_H,
+            corner_radius=self.QUERY_RADIUS,
+            fg_color=Theme.CARD,
+            border_width=1,
+            border_color=Theme.ACCENT
         )
-        search_entry.grid(row=0, column=1, padx=5, pady=5, sticky=ctk.W)
+        query_frame.grid(row=0, column=0, sticky="w")
+        # Sin esto el marco encoge hasta el tamaño de sus hijos y la caja pierde
+        # los 620 x 46 del diseño.
+        query_frame.grid_propagate(False)
+        query_frame.grid_columnconfigure(1, weight=1)
+        query_frame.grid_rowconfigure(0, weight=1)
 
-        # Botón de buscar
-        search_button = utilsButtons.SearchButton(
-            parent_frame=search_frame,
-            search_command=self.__search_anime,
-            search_entry=search_entry
+        search_icon = load_dual_image(
+            os.path.join(self.__icon_path, "buscar.png"),
+            os.path.join(self.__icon_path, "buscar.png"),
+            (16, 16)
         )
-        search_button.grid(row=0, column=2, padx=(10, 5), pady=5, sticky=ctk.W)
+        icon_label = ctk.CTkLabel(query_frame, text="", image=search_icon)
+        icon_label.grid(row=0, column=0, padx=(16, 11))
+        icon_label.bind("<Button-1>", lambda _event: self.__on_query_submitted())
+        icon_label.configure(cursor="hand2")
 
-        genre_filter_frame = ctk.CTkFrame(self.main_window.content_frame)
-        genre_filter_frame.grid(row=1, column=0, columnspan=2, pady=10, padx=10)
-        # Filtro de géneros (multiselección en 4 filas de 10 columnas)
-        genre_filter_label = ctk.CTkLabel(
-            genre_filter_frame,
-            text="Filtrar por género:",
-            font=ctk.CTkFont(size=20, weight="bold")
+        self.__query_entry = ctk.CTkEntry(
+            query_frame,
+            placeholder_text="Buscar un anime…",
+            border_width=0,
+            fg_color=Theme.TRANSPARENT,
+            font=Theme.font(*Theme.T_BODY),
+            text_color=Theme.TXT,
+            placeholder_text_color=Theme.TXT_3
         )
-        genre_filter_label.grid(row=0, column=0, columnspan=2, padx=3, pady=5, sticky="w")
+        self.__query_entry.grid(row=0, column=1, sticky="ew", padx=(0, 16))
+        self.__query_entry.bind("<Return>", lambda _event: self.__on_query_submitted())
 
-        for idx, (genre, var) in enumerate(self.genre_vars.items()):
-            row = idx // 10
-            col = idx % 10
-            genre_checkButton = ctk.CTkCheckBox(
-                genre_filter_frame,
-                text=refactor_genre_text(genre.value),
-                variable=var
-            )
-            genre_checkButton.grid(row=row+1, column=col, padx=6, pady=2, sticky="w")
-
-        # Filtro de ordenación (opción de multiselección en 1 fila de 3 columnas)
-        order_filter_frame = ctk.CTkFrame(self.main_window.content_frame)
-        order_filter_frame.grid(row=3, column=0, padx=5, pady=5, sticky="w")
-
-        order_filter_label = ctk.CTkLabel(
-            order_filter_frame,
-            text="Orden:",
-            font=ctk.CTkFont(size=20, weight="bold")
+        # El botón no está en el diseño, que enseña la caja sola con el cursor
+        # dentro. Se conserva porque quitarlo dejaría la búsqueda accesible solo
+        # con Enter, y eso sí sería una función menos que hoy.
+        search_button = ctk.CTkButton(
+            query_row,
+            text="Buscar",
+            width=96,
+            height=self.QUERY_H,
+            corner_radius=self.QUERY_RADIUS,
+            font=Theme.font(*Theme.T_UI),
+            fg_color=Theme.ACCENT,
+            hover_color=Theme.ACCENT,
+            text_color=Theme.ACCENT_INK,
+            command=self.__on_query_submitted
         )
-        order_filter_label.grid(row=0, column=0, padx=5, pady=5, sticky="w")
+        search_button.grid(row=0, column=1, sticky="w", padx=(12, 0))
 
-        for idx, order in enumerate(self.order_options):
-            row = idx // 10
-            col = idx % 10
-            order_radioButton = ctk.CTkRadioButton(
-                order_filter_frame,
-                text=refactor_genre_text(order.name),
-                variable=self.selected_order,
-                value=order.value
-            )
-            order_radioButton.grid(row=row+1, column=col, padx=5, pady=2, sticky="w")
+    def __build_filters(self, content: ctk.CTkFrame) -> None:
+        """Fila de fichas de género a la izquierda y control de orden a la derecha."""
+        filters_frame = ctk.CTkFrame(content, height=1, fg_color=Theme.TRANSPARENT)
+        filters_frame.grid(row=1, column=0, sticky="ew",
+                           padx=Metrics.CONTENT_PAD_X, pady=(16, 0))
+        filters_frame.grid_columnconfigure(0, weight=1)
 
-        # Botón para aplicar los filtros
-        apply_filters_button = utilsButtons.ApplyFiltersButton(
-            parent_frame=self.main_window.content_frame,
-            apply_filter_command=self.__apply_filters
+        # El ancho de envuelto se descuenta del que ocupa el control de orden: si
+        # las fichas ocuparan la fila entera, la última de cada línea se metería
+        # debajo del desplegable.
+        self.__chips = GenreChips(filters_frame, on_change=self.__on_genres_changed)
+        self.__chips.grid(row=0, column=0, sticky="ew", padx=(0, 200))
+
+        self.__order_menu = OrderMenu(
+            filters_frame,
+            values=list(ORDER_LABELS.values()),
+            command=self.__on_order_changed,
+            width=186,
+            height=GenreChips.CHIP_H,
+            corner_radius=Metrics.pill_radius(GenreChips.CHIP_H),
+            font=Theme.font(*Theme.T_META),
+            text_color=Theme.TXT_2
         )
-        apply_filters_button.grid(row=4, column=0, columnspan=2, padx=(10, 15), pady=(10, 20), sticky="ew")
+        self.__order_menu.set(ORDER_LABELS[self.__order])
+        self.__order_menu.grid(row=0, column=1, sticky="ne")
 
-        if self.main_window.last_search_instance is not None:
-            self.selected_genres = self.main_window.last_search_instance.genre_filters
-            self.selected_order.set(self.main_window.last_search_instance.order_filter)
-            self.__display_animes(
-                animes=self.main_window.last_search_instance.animes,
-                last_page=self.main_window.last_search_instance.last_page,
-                current_page=self.main_window.last_search_instance.current_page,
-                text_query=self.main_window.last_search_instance.text_query
-            )
+    def __restore_last_search(self) -> None:
+        """Repinta la última búsqueda al volver a entrar en la pestaña.
 
-    def __search_anime(self, search_entry: ctk.CTkEntry):
-        if self.__current_search_thread and self.__current_search_thread.is_alive():
+        No se relanza la petición: lo que se guardó son los resultados, así que
+        volver a «Buscar» no vuelve a molestar al sitio.
+        """
+        last_search: Optional[AnimeSearch] = self.main_window.last_search_instance
+        if last_search is None:
             return
-        search_text = search_entry.get()
-        self.__show_loading_frame(text_entry=search_text)
+        self.__query = last_search.text_query or ""
+        self.__genres = list(last_search.genre_filters or [])
+        self.__order = last_search.order_filter or AnimeOrderFilter.POR_DEFECTO.value
 
-    def __apply_filters(self):
-        if self.__current_search_thread and self.__current_search_thread.is_alive():
+        if self.__query:
+            self.__query_entry.insert(0, self.__query)
+        self.__chips.set_selected(self.__genres)
+        self.__order_menu.set(ORDER_LABELS.get(self.__order, ORDER_LABELS[AnimeOrderFilter.POR_DEFECTO.value]))
+        self.__display_results(last_search.animes, last_search.last_page,
+                               last_search.current_page, self.__generation)
+
+    # ------------------------------------------------------------------
+    # Gestos del usuario
+    # ------------------------------------------------------------------
+    def __on_query_submitted(self) -> None:
+        """Buscar por texto. Vacía los géneros: el contrato no combina las dos búsquedas.
+
+        ``search_animes_by_query`` y ``search_animes_by_genres_and_order`` son dos
+        métodos distintos y ninguno acepta lo del otro, así que dejar las fichas
+        encendidas mientras se busca por texto enseñaría un filtro que no se está
+        aplicando. Manda el último gesto.
+        """
+        self.__query = self.__query_entry.get().strip()
+        if self.__query and self.__chips.selected():
+            self.__genres = []
+            self.__chips.set_selected([])
+        self.__launch_search(page=1)
+
+    def __on_genres_changed(self, genres: List[AnimeGenreFilter]) -> None:
+        """Filtrar por género. Vacía el texto, por el mismo motivo que el de arriba."""
+        self.__genres = genres
+        if self.__query:
+            self.__query = ""
+            self.__query_entry.delete(0, "end")
+        self.__launch_search(page=1)
+
+    def __on_order_changed(self, label: str) -> None:
+        """Cambia el criterio de orden y relanza la búsqueda por género."""
+        for order_value, order_label in ORDER_LABELS.items():
+            if order_label == label:
+                self.__order = order_value
+                break
+        # El orden es del catálogo, no de una búsqueda por texto: el contrato solo
+        # lo acepta en `search_animes_by_genres_and_order`.
+        if self.__query:
+            self.__query = ""
+            self.__query_entry.delete(0, "end")
+        self.__launch_search(page=1)
+
+    def __on_page_changed(self, page: int) -> None:
+        """Cada página es una petición nueva: quien trocea es el sitio."""
+        self.__launch_search(page=page)
+
+    # ------------------------------------------------------------------
+    # Búsqueda
+    # ------------------------------------------------------------------
+    def __launch_search(self, page: int = 1) -> None:
+        """Saca la petición del hilo de Tkinter y vuelve con ``after(0, …)``."""
+        self.__generation += 1
+        generation = self.__generation
+        query, genres, order = self.__query, list(self.__genres), self.__order
+
+        self.__set_status("Buscando animes…")
+        self.__poster_grid.clear()
+        self.__displayed.clear()
+        self.__pager.set_pages(1, 1)
+        # Si no, el «Sin resultados» de la búsqueda anterior se queda debajo del
+        # «Buscando animes…» de la nueva.
+        self.__clear_empty_state()
+
+        def _search():
+            if query:
+                animes, last_page = self.anime_provider_mgr.search_animes_by_query(query, page)
+            else:
+                animes, last_page = self.anime_provider_mgr.search_animes_by_genres_and_order(
+                    genres, order, page)
+            # Las carátulas se bajan aquí, que ya es el hilo secundario: son
+            # peticiones HTTP y no pueden ir en el de la interfaz.
+            download_animes_poster(get_resource_path("resources/images/search"), animes)
+            self.main_window.after(0, self.__display_results, animes, last_page, page, generation)
+
+        threading.Thread(target=_search, daemon=True).start()
+
+    def __display_results(self, animes: List[AnimeInfo], last_page: int,
+                          page: int, generation: int) -> None:
+        """Pinta una página de resultados. **Ya en el hilo de Tkinter.**"""
+        # Dos guardas, y las dos hacen falta: la primera descarta respuestas de
+        # búsquedas que ya no son la actual; la segunda, respuestas que llegan
+        # cuando el usuario ya se ha ido a otra pestaña y la rejilla no existe
+        # (es lo que reventaba con `invalid command name ...!ctkcanvas`).
+        if generation != self.__generation:
             return
-        self.selected_genres = [genre for genre, var in self.genre_vars.items() if var.get()]
-        self.__show_loading_frame()
+        if self.__poster_grid is None or not self.__poster_grid.winfo_exists():
+            return
 
-    def __show_loading_frame(self, text_entry: str = None, page: int = 1):
-        if self.__loading_frame is not None and self.__loading_frame.winfo_exists():
-            self.__loading_frame.grid_forget()
-        if self.__episodes_filter_frame is not None and self.__episodes_filter_frame.winfo_exists():
-            self.__episodes_filter_frame.grid_forget()
-        if self.__pagination_frame is not None and self.__pagination_frame.winfo_exists():
-            self.__pagination_frame.grid_forget()
+        self.__save_anime_search(animes, last_page, page)
 
-        self.__loading_frame = ctk.CTkFrame(self.main_window.content_frame)
-        self.__loading_frame.grid(row=6, column=0, columnspan=3, padx=5, pady=10, sticky="ew")
+        saved_by_slug, saved_records = self.__saved_index()
+        items: List[PosterItem] = []
+        self.__displayed = {}
+        for anime in animes:
+            anime_record = self.__saved_record(anime, saved_by_slug, saved_records)
+            key = str(anime.id)
+            self.__displayed[key] = (anime, anime_record)
+            items.append(self.__poster_item(key, anime, anime_record))
 
-        # Mostrar el texto de "Cargando biblioteca de anime"
-        loading_label = ctk.CTkLabel(
-            self.__loading_frame,
-            text="Buscando animes...",
-            font=ctk.CTkFont(size=24, weight="bold")
+        self.__poster_grid.show(items)
+        self.__pager.set_pages(last_page, page)
+        self.__set_status(self.__results_text(animes, items))
+        self.__refresh_empty_state(animes)
+
+    def __save_anime_search(self, animes: List[AnimeInfo], last_page: int, page: int) -> None:
+        self.main_window.last_search_instance = AnimeSearch(
+            animes=animes,
+            last_page=last_page,
+            current_page=page,
+            text_query=self.__query,
+            genre_filters=list(self.__genres),
+            order_filter=self.__order
         )
-        loading_label.pack(pady=20)
 
-        # Cargar y mostrar el GIF con todos los frames
-        loading_image_path = get_resource_path("resources/images/utils/loading-image.gif")
-        gif_image = Image.open(loading_image_path)
-        gif_frames = [ctk.CTkImage(frame.copy(), size=(300, 300)) for frame in ImageSequence.Iterator(gif_image)]
-        loading_image_label = ctk.CTkLabel(self.__loading_frame, text="")
-        loading_image_label.pack(pady=20)
+    def __results_text(self, animes: List[AnimeInfo], items: List[PosterItem]) -> str:
+        """«34 resultados en AnimeAV1 · 2 ya están en tu biblioteca».
 
-        def update_gif(frame=0):
-            if self.__loading_frame and self.__loading_frame.winfo_exists() and loading_image_label.winfo_exists():
-                loading_image_label.configure(image=gif_frames[frame])
-                frame = (frame + 1) % len(gif_frames)  # Continuar en bucle
-                self.after(100, update_gif, frame)  # Controla la velocidad de cambio de frame (100 ms)
+        El proveedor sale de los propios resultados y no del desplegable: el
+        manager estampa en cada ``AnimeInfo`` quién respondió, así que cuando
+        entra el fallback la línea dice el sitio de verdad y no el que se pidió.
+        """
+        if not animes:
+            # Sin resultados quien habla es el estado vacío; repetirlo aquí sería dato duplicado.
+            return ""
 
-        update_gif()
+        provider_name = self.__serving_provider_name(animes)
 
-        if text_entry == "" or text_entry is not None:
-            self.__current_search_thread = threading.Thread(
-                target=self.__search_anime_by_query,
-                args=(text_entry, page,),
-                daemon=True
-            ).start()
+        total = len(animes)
+        results = "1 resultado" if total == 1 else f"{total} resultados"
+        text = f"{results} en {provider_name}"
+        saved = sum(1 for item in items if item.badge)
+        if saved:
+            text += (" · 1 ya está en tu biblioteca" if saved == 1
+                     else f" · {saved} ya están en tu biblioteca")
+        if self.__genres:
+            text += " · " + ", ".join(refactor_genre_text(genre.name) for genre in self.__genres)
+        return text
+
+    def __serving_provider_name(self, animes: List[AnimeInfo]) -> str:
+        """Quién ha servido estos resultados. Sin resultados, el seleccionado."""
+        provider_id: Optional[AnimeProviderId] = next(
+            (anime.provider_id for anime in animes if anime.provider_id is not None), None)
+        if provider_id is None:
+            provider_id = self.anime_provider_mgr.get_default_provider_id()
+        return self.anime_provider_mgr.get_provider_name(provider_id)
+
+    def __set_status(self, text: str) -> None:
+        if self.__results_label is not None and self.__results_label.winfo_exists():
+            self.__results_label.configure(text=text)
+
+    # ------------------------------------------------------------------
+    # Estado vacío
+    # ------------------------------------------------------------------
+    def __refresh_empty_state(self, animes: List[AnimeInfo]) -> None:
+        """Pone o quita el estado vacío según haya resultados o no.
+
+        Se reconstruye en vez de reconfigurarse porque la frase nombra la
+        consulta y la acción depende de si lo que estrecha la búsqueda es el
+        texto o los géneros.
+        """
+        self.__clear_empty_state()
+        if animes:
+            return
+
+        # No se ofrece "probar con otro proveedor": call_with_fallback() ya
+        # recorrió el registro entero, así que llegar aquí significa que todos
+        # han respondido vacío. Lo único que puede cambiar el resultado es
+        # soltar lo que estrecha la consulta.
+        if self.__query:
+            message = f"Sin resultados para «{self.__query}»"
+            action_text = "Borrar la búsqueda"
+        elif self.__genres:
+            genres = ", ".join(refactor_genre_text(genre.name) for genre in self.__genres)
+            message = f"Sin resultados para {genres}"
+            action_text = "Quitar los filtros"
         else:
-            self.__current_search_thread = threading.Thread(
-                target=self.__search_anime_by_filter,
-                args=(page,),
-                daemon=True
-            ).start()
+            message = "Sin resultados"
+            action_text = None
 
-    def __search_anime_by_query(self, text_entry: str, page: int = 1):
-        animes_query, last_page = self.anime_provider_mgr.search_animes_by_query(text_entry, page)
-        self.__display_animes(animes_query, last_page, current_page=page, text_query=text_entry)
-
-    def __search_anime_by_filter(self, page: int = 1):
-        animes_filter, last_page = self.anime_provider_mgr.search_animes_by_genres_and_order(self.selected_genres, self.selected_order.get(), page)
-        self.__display_animes(animes_filter, last_page, current_page=page)
-
-    def __display_animes(self, animes: List[AnimeInfo], last_page: int, current_page: int = 1, text_query: str = None):
-        self.save_anime_search(anime_list=animes, last_page=last_page, current_page=current_page, text_query=text_query)
-
-        search_images_path = get_resource_path("resources/images/search")
-        download_animes_poster(search_images_path, animes)
-
-        if self.__loading_frame is not None and self.__loading_frame.winfo_exists():
-            self.__loading_frame.grid_forget()
-        if self.__pagination_frame is not None and self.__pagination_frame.winfo_exists():
-            self.__pagination_frame.grid_forget()
-
-        self.__episodes_filter_frame = ctk.CTkFrame(self.main_window.content_frame)
-        self.__episodes_filter_frame.grid(row=5, column=0, padx=5, pady=10, sticky="w")
-
-        num_columns = max(1, self.main_window.content_frame.winfo_width() // 150)
-        for index, anime in enumerate(animes):
-            row = index // num_columns
-            column = index % num_columns
-
-            img_file = f"{anime.id}.jpg"
-            image = load_image(os.path.join(search_images_path, img_file))
-
-            img_label = ctk.CTkLabel(
-                self.__episodes_filter_frame,
-                text="",
-                image=image
-            )
-            img_label.grid(row=row * 2, column=column, padx=10, pady=(20, 0), sticky=ctk.NSEW)  # Posicionar con relleno
-
-            img_label.bind("<Button-1>",
-                           lambda e, anime_id=anime.id, provider_id=anime.provider_id:
-                           self.__on_anime_click(anime_id, provider_id))
-
-            # Título del anime
-            title_label = ctk.CTkLabel(
-                self.__episodes_filter_frame,
-                text=anime.title,
-                font=ctk.CTkFont(size=14),
-                wraplength=120,
-                justify="center"
-            )
-            title_label.grid(row=(row * 2) + 1, column=column, padx=10, pady=(5, 10), sticky=ctk.N)  # Posicionar con relleno
-
-        self.__display_pagination_buttons(last_page, current_page, text_query)
-
-    def __display_pagination_buttons(self, last_page: int, current_page: int, text_query: str):
-        # Frame de paginación
-        self.__pagination_frame = ctk.CTkFrame(self.main_window.content_frame)
-        self.__pagination_frame.grid(row=6, column=0, columnspan=3, padx=5, pady=5, sticky="ew")
-
-        total_columns = 8  # Anterior (1), Primera pagina (2), Intermedias paginas (3-6), Ultima pagina (7), Siguiente (8)
-        for i in range(total_columns):
-            self.__pagination_frame.grid_columnconfigure(i, weight=1)
-
-        # Botón de página anterior
-        prev_button = ctk.CTkButton(
-            self.__pagination_frame,
-            text="« Anterior",
-            state="disabled" if current_page == 1 else "normal",
-            command=lambda: self.__load_page(current_page - 1, text_query)
+        providers = len(self.anime_provider_mgr.list_providers_info())
+        empty_state = EmptyState(
+            self.main_window.content_frame,
+            message,
+            icon=empty_glyph("search"),
+            hint=(f"Han respondido los {providers} proveedores y ninguno lo tiene."
+                  if providers > 1 else "El proveedor no tiene nada que encaje."),
+            action_text=action_text,
+            on_action=self.__clear_search
         )
-        prev_button.grid(row=0, column=0, padx=(10, 5), pady=5, sticky="ew")
+        empty_state.grid(row=4, column=0, pady=(28, 0))
+        self.__empty_state = empty_state
 
-        # Botón de primera página
-        first_page_button = ctk.CTkButton(
-            self.__pagination_frame,
-            text="1",
-            state="disabled" if current_page == 1 else "normal",
-            command=lambda: self.__load_page(1, text_query)
+    def __clear_empty_state(self) -> None:
+        """Quita el estado vacío, si lo hay."""
+        if self.__empty_state is not None and self.__empty_state.winfo_exists():
+            self.__empty_state.destroy()
+        self.__empty_state = None
+
+    def __clear_search(self) -> None:
+        """Deja la pestaña como recién abierta: sin texto, sin géneros y sin rejilla."""
+        self.__query = ""
+        self.__genres = []
+        if self.__query_entry is not None and self.__query_entry.winfo_exists():
+            self.__query_entry.delete(0, "end")
+        self.__chips.set_selected([])
+        # Se incrementa la generación para que una respuesta en vuelo no repinte
+        # la rejilla que se acaba de vaciar.
+        self.__generation += 1
+        self.__poster_grid.clear()
+        self.__displayed.clear()
+        self.__pager.set_pages(1, 1)
+        self.main_window.last_search_instance = None
+        # Sin estado vacío: la pestaña recién abierta no es «no hay resultados»,
+        # es «todavía no has pedido nada». Lo que invita a pedirlo es el campo de
+        # arriba, y la línea de estado ya lo dice.
+        self.__clear_empty_state()
+        self.__set_status("Busca por título, o elige un género para explorar el catálogo")
+
+    # ------------------------------------------------------------------
+    # El sello «ya lo tienes»
+    # ------------------------------------------------------------------
+    def __saved_index(self) -> Tuple[Dict[str, AnimeRecord], List[AnimeRecord]]:
+        """La biblioteca entera, indexada para cruzarla con los resultados.
+
+        Una sola consulta a SQLite por página pintada y **ninguna petición de
+        red**: la biblioteca son decenas de filas y cabe de sobra en memoria.
+        """
+        anime_records = self.animes_persistence.get_all_animes()
+        return {str(record.anime_id): record for record in anime_records}, anime_records
+
+    def __saved_record(self, anime: AnimeInfo, saved_by_slug: Dict[str, AnimeRecord],
+                       saved_records: List[AnimeRecord]) -> Optional[AnimeRecord]:
+        """La fila con la que este resultado está guardado, si lo está.
+
+        Primero por *slug*, que es exacto pero solo acierta si la fila la guardó
+        el mismo proveedor que ha respondido; después por título normalizado, que
+        es lo único común entre sitios. La comparación por título es la de
+        ``find_saved_duplicate()`` —misma función y mismo umbral— para que el
+        sello y el aviso de duplicado de la ficha no puedan decir cosas distintas.
+        """
+        record = saved_by_slug.get(str(anime.id))
+        if record is not None:
+            return record
+        return find_saved_duplicate(saved_records, anime.title)
+
+    def __poster_item(self, key: str, anime: AnimeInfo,
+                      anime_record: Optional[AnimeRecord]) -> PosterItem:
+        """Traduce un resultado a una celda, con su sello si ya es tuyo."""
+        status = self.__saved_status(anime_record)
+        return PosterItem(
+            key=key,
+            title=anime.title,
+            poster_path=self.__poster_path(anime),
+            badge=StatusPill.text(status) if status is not None else None,
+            badge_status=status
         )
-        first_page_button.grid(row=0, column=1, padx=(5, 30), pady=5, sticky="ew")
 
-        # Páginas intermedias
-        start_page = max(2, current_page)
-        end_page = min(start_page + 3, last_page - 1)
-        col_index = 2
-        for page in range(start_page, end_page + 1):
-            page_button = ctk.CTkButton(
-                self.__pagination_frame,
-                text=str(page),
-                state="disabled" if page == current_page else "normal",
-                command=lambda p=page: self.__load_page(p, text_query)
-            )
-            page_button.grid(row=0, column=col_index, padx=5, pady=5, sticky="ew")
-            col_index += 1
+    @staticmethod
+    def __saved_status(anime_record: Optional[AnimeRecord]) -> Optional[AnimeStatus]:
+        """Qué dice el sello: el estado excluyente de la fila y, si no tiene, «Favorito».
 
-        # Botón de última página
-        last_page_button = ctk.CTkButton(
-            self.__pagination_frame,
-            text=str(last_page),
-            state="disabled" if current_page == last_page else "normal",
-            command=lambda: self.__load_page(last_page, text_query)
-        )
-        last_page_button.grid(row=0, column=6, padx=(30, 5), pady=5, sticky="ew")
+        :param anime_record: Fila guardada del resultado, o None si no está en la biblioteca.
+        :return: Estado a mostrar, o None si no está guardado.
+        """
+        if anime_record is None:
+            return None
+        status = StatusPill.other_status(anime_record)
+        if status is not None:
+            return status
+        return AnimeStatus.FAVOURITE if anime_record.is_favourite else None
 
-        # Botón de página siguiente
-        next_button = ctk.CTkButton(
-            self.__pagination_frame,
-            text="Siguiente »",
-            state="disabled" if current_page == last_page else "normal",
-            command=lambda: self.__load_page(current_page + 1, text_query)
-        )
-        next_button.grid(row=0, column=7, padx=(5, 10), pady=5, sticky="ew")
+    @staticmethod
+    def __poster_path(anime: AnimeInfo) -> Optional[str]:
+        """La carátula recién bajada a `search/`, o la que ya hubiera cacheada."""
+        search_path = os.path.join(get_resource_path("resources/images/search"), f"{anime.id}.jpg")
+        if os.path.exists(search_path):
+            return search_path
+        return find_cached_poster_path(anime.id)
 
-    def __load_page(self, page: int, text_query: str):
-        if self.__current_search_thread and self.__current_search_thread.is_alive():
-            return
-        self.__current_search_thread = threading.Thread(
-            target=self.__search_and_display_animes,
-            args=(page, text_query),
-            daemon=True
-        ).start()
-
-    def __search_and_display_animes(self, page, text_query: str = None):
-        self.__show_loading_frame(text_entry=text_query, page=page)
-
-    def __on_anime_click(self, anime_id: Union[str, int], provider_id: AnimeProviderId = None):
+    # ------------------------------------------------------------------
+    # Navegación
+    # ------------------------------------------------------------------
+    def __on_anime_click(self, key: Union[str, int]):
         """Abre la ficha de un resultado de búsqueda.
 
-        No usa `open_saved_anime()` porque un resultado de búsqueda no tiene por
-        qué estar en la biblioteca: aquí el proveedor no se decide, ya se sabe —es
-        el que sirvió la búsqueda—, así que se pasa tal cual y el fallback solo
-        entra si ese sitio falla.
+        No usa open_saved_anime(): aquí el proveedor ya se sabe, es el que
+        sirvió la búsqueda. Cuando el resultado ya está guardado se pasa
+        también su anime_record, para que la ficha use la identidad de la
+        fila y no cree una duplicada si el slug del resultado es de otro sitio.
 
-        :param anime_id: slug del anime en `provider_id`.
-        :param provider_id: proveedor que sirvió el resultado; None si no consta.
+        :param key: Clave de la celda pulsada, tal y como se guardó en __displayed.
         """
+        anime, anime_record = self.__displayed.get(str(key), (None, None))
+        if anime is None:
+            return
+        anime_id, provider_id = anime.id, anime.provider_id
+
         self.main_window.configure(cursor="watch")
         self.main_window.update_idletasks()
 
@@ -359,7 +569,8 @@ class SearchButton(utilsButtons.SidebarButton):
             if anime_clicked is None:
                 show_anime_info_error(anime_id)
                 return
-            AnimeWindowViewer(self.main_window, anime_clicked, served_by).display_anime_info()
+            AnimeWindowViewer(self.main_window, anime_clicked, served_by,
+                              anime_record=anime_record).display_anime_info()
 
         def _load_and_show():
             anime_clicked, served_by = self.anime_provider_mgr.get_anime_info_with_provider(
@@ -370,4 +581,3 @@ class SearchButton(utilsButtons.SidebarButton):
             target=_load_and_show,
             daemon=True
         ).start()
-        

@@ -2,9 +2,9 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-08-17 · **Commit** `e337d20` (rama `main`, tag `v0.2.1`) · árbol **limpio** |
-| **Cubre** | los 19 módulos con contenido de `src/` + `MiBibliotecaAnime.spec` + `requirements.txt` |
-| **Última revisión** | 2026-08-17 (**licencia y empaquetado**): la trampa **18** se subdivide en **a-e** — **18d cerrada** (`datas` ya no lleva datos de usuario; PyInstaller **ignora en silencio las carpetas vacías**) y **18e nueva** (los destinos de `datas` caen dentro de `_internal/`, no junto al `.exe`). Antes, 2026-08-16 (**columna `provider_id`**): **3 trampas nuevas** (26, 27, 28), trampa **21 reescrita** —ahora se puede provocar a voluntad y la ficha la señala en pantalla—, trampas **4** y **13** ampliadas, y anclas de `anime_window.py` (647→1156) y `animesPersistence.py` reubicadas |
+| **Fecha** | 2026-10-21 · rama `feature/auditoria-rendimiento` · último commit de código **`3e50754`** (timeouts de la auditoría de rendimiento) |
+| **Cubre** | los **38** módulos con contenido de `src/` + `MiBibliotecaAnime.spec` + `requirements.txt` |
+| **Última revisión** | 2026-10-21 (**auditoría de rendimiento**): **3 trampas nuevas** (55-57) en un apartado propio, «Ciclo de vida de los widgets de CustomTkinter», las tres con el mismo patrón —algo de larga vida sigue apuntando a un widget ya destruido y lo retiene con todo su árbol—: un `CTkImage` que vive más que su widget (**55**, la fuga que crecía ~2,4 MB por cambio de vista), un `CTkOptionMenu` destruido que se queda en el registro de escalado (**56**) y `unbind_all()`, que no borra el comando de `bind_all()` (**57**). Las tres medidas y resueltas el mismo día, desde el código del proyecto y sin parchear CustomTkinter. Antes, 2026-10-20 (**reproductor in-app**, plan de 7 fases en `plan-reproductor/`): **12 trampas nuevas** (43-54) en un apartado propio, más la **18f** (la DLL de libmpv y dónde la busca `python-mpv`), que es de empaquetado y va con las demás de la 18. Tres familias: **hosters** (43-45: cabeceras que uno exige y otro rechaza, URLs que caducan o van atadas a la IP), **mpv** (46-48: sus eventos llegan en otro hilo, el final no es un evento y un corte parece un final) y **la superficie nativa dentro de Tk** (49-52), donde tres de las cinco **corrigen** lo que el plan daba por hecho: encima del vídeo **sí** se ve un widget hermano, y el ratón y el teclado **sí** llegan a Tk. La **54** —un hoster **lento** deja «Cargando» sin tope— salió en la propia prueba de humo de la fase 6 y sigue **abierta**. La **53** es el bug de los servidores repetidos («B1» del plan del reproductor, que **no** es el B1 de [12 §4](12-deuda-tecnica-y-roadmap.md)), ya resuelto. Antes, 2026-09-02 (**rejillas adaptables y sinopsis**): **2 trampas nuevas**, las dos con el mismo patrón —un widget que *parece* medir el sitio que tiene y no lo mide—: la **41**, una rejilla colocada con `sticky="w"` mide **su propio contenido**, así que calcular columnas de su ancho es un punto fijo que nunca cambia; y la **42**, `wraplength` **no puede deshacer un `\n`** que traiga el texto, por ancha que sea la ventana. Las dos estuvieron vivas y calladas desde el rediseño. La **32** gana su segunda mitad: los pesos `uniform` de `PosterGrid` también sobreviven a destruir las celdas. Antes, 2026-09-01 (**abrir la ficha por un episodio**): trampa **40** nueva —un `bind()` sin `add="+"` **borra** el manejador que el widget ya tenía, y excluir un botón de un recorrido **no excluye su interior**—, en un apartado propio; es la que explica por qué «Empezar» **nunca** movió un anime a «Viendo». La **37** gana la corrección de por qué `AnimeRow` sigue sin sufrirla. Antes, 2026-09-01 (**ancho de las fichas de género**): trampa **39** nueva —un `CTkButton` no respeta el `width` que se le pide: su rejilla interna propaga tamaño y el ancho *pedido* gana—, en un apartado propio, con la aritmética exacta de lo que reserva por dentro. Antes, 2026-09-01 (**refresco de la banda «Retomar»**): trampa **38** nueva —una fila guardada no refresca sus episodios sola, así que un anime en emisión miente hasta que abres su ficha—, **resuelta solo para las ≤3 tarjetas de la portada** y viva en el resto de la biblioteca. Antes, 2026-09-01 (**hover de la lista de episodios**): trampa **37** nueva —un hijo sin `bind` es una salida de la que no llega ningún `<Leave>`, la complementaria de la **34**—, con la nota de que **no se reproduce moviendo el ratón deprisa**. Antes, 2026-08-31 (**fondo de la pantalla de carga**): trampa **36** nueva —un widget sin `fg_color` sale del gris por defecto de CustomTkinter, no de `Theme`—, con el `minsize` que sobrevive a `grid_forget()` y el GIF transparente como medias trampas; la **33** gana un aviso: el comentario que la anclaba en el código ya no está. Antes, 2026-08-21 (**rediseño de interfaz**): **7 trampas nuevas** (29-35), todas de CustomTkinter y de layout, en un apartado propio; la **33** nace ya resuelta. La trampa **22** queda cerrada: la ficha ya no calcula anchos a mano. Antes, 2026-08-17 (**licencia y empaquetado**): la trampa **18** se subdivide en **a-e** — **18d cerrada** (`datas` ya no lleva datos de usuario; PyInstaller **ignora en silencio las carpetas vacías**) y **18e nueva** (los destinos de `datas` caen dentro de `_internal/`, no junto al `.exe`). Antes, 2026-08-16 (**columna `provider_id`**): **3 trampas nuevas** (26, 27, 28), trampa **21 reescrita** —ahora se puede provocar a voluntad y la ficha la señala en pantalla—, trampas **4** y **13** ampliadas, y anclas de `anime_window.py` (647→1156) y `animesPersistence.py` reubicadas |
 
 Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ sin verificar.
 
@@ -137,7 +137,15 @@ SQL se ejecutó sin excepción».
 
 ---
 
-### 6. `get_anime_by_genre_and_order` recibe un `str` donde espera un enum ✅
+### 6. `get_anime_by_genre_and_order` recibe un `str` donde espera un enum ✅ *(resuelta, 2026-10-21)*
+
+> ✅ **Resuelta en la persistencia.** El llamante de abajo **desapareció con el rediseño**
+> (2026-08-21), así que desde entonces el método no tiene llamantes y el fallo no se veía. Pero el
+> resto del código —la vista «Buscar» y los tres proveedores— maneja el orden como **`value`**
+> (`str`), así que el siguiente que lo usara caería igual. Desde el 2026-10-21 el método **acepta las
+> dos formas** (`order in (POR_DEFECTO, POR_DEFECTO.value)`). ✅ Verificado sobre copia de la BD en
+> los cuatro estados: con el enum y con el `str` sale el mismo orden por coincidencias. Lo de abajo es
+> la historia.
 
 `AccordionFilterButton.__apply_filters` (`utilsButtons.py:341`) pasa `self.selected_order.get()` →
 `"default"`. La comparación `order != AnimeOrderFilter.POR_DEFECTO` (`animesPersistence.py:384`) es
@@ -149,7 +157,8 @@ se aplica desde la GUI**.
 **Síntoma**: el filtro por género funciona, pero los resultados salen en orden de inserción en BD.
 
 **Al arreglarlo**: convierte en el llamante (`AnimeOrderFilter(self.selected_order.get())`) **o**
-compara por valor en la persistencia — no ambos.
+compara por valor en la persistencia — no ambos. *(Se eligió lo segundo: es lo que hace el resto del
+código.)*
 
 ---
 
@@ -168,7 +177,7 @@ los switches están todos apagados. **Sin ningún mensaje.**
 
 ### 8. Solo se muestran los **25** primeros episodios 📖
 
-`anime_window.py:408` → `self.anime_info.episodes[:25]`. (El comentario de `:447` dice «24»; el
+`anime_window.py:453` → `self.anime_info.episodes[:25]`. (El comentario de `:447` dice «24»; el
 código dice 25.)
 
 **Interactúa con la trampa 4**: ✅ con AnimeAV1 (ascendente) verás los episodios **1-25**; con
@@ -203,13 +212,13 @@ pasaban directamente el resultado de `get_anime_info`, que devuelve `None` cuand
 proveedores. Síntoma: `AttributeError: 'NoneType' object has no attribute 'episodes'`, que Tkinter se
 tragaba — así que el clic simplemente **no hacía nada**, sin ningún mensaje.
 
-**Contrato vigente** (📖 `anime_window.py:30-64`), en tres capas:
+**Contrato vigente** (📖 `anime_window.py:30-65`), en tres capas:
 
 | Capa | Dónde | Qué hace |
 |---|---|---|
-| Aviso al usuario | `show_anime_info_error()` `anime_window.py:30-46` | `print` + `messagebox.showerror` |
-| Guarda en los 6 clics | `favouriteAnimes.py:132-134` y homólogos | `if anime_clicked is None: show_anime_info_error(...); return` |
-| Contrato del constructor | `anime_window.py:77-105` | `None` → `ValueError`; `episodes=None` → `replace(…, episodes=[])` |
+| Aviso al usuario | `show_anime_info_error()` `anime_window.py:200-216` | `print` + `messagebox.showerror` |
+| Guarda en los 6 clics | `favouriteAnimes.py:134-139` y homólogos | `if anime_clicked is None: show_anime_info_error(...); return` |
+| Contrato del constructor | `anime_window.py:78-106` | `None` → `ValueError`; `episodes=None` → `replace(…, episodes=[])` |
 
 **Si lo rompes**: al añadir una vista nueva, olvidar la guarda devuelve el síntoma original. La única
 señal será el `ValueError` en consola, porque Tkinter sigue tragándose la excepción del callback.
@@ -222,7 +231,7 @@ precargado para siempre.
 > **Corrección a la versión anterior de esta trampa**: decía que `recentAnimes.py` «sí lo comprueba
 > antes». Solo a medias — comprobaba el `None` pero luego caía de vuelta al objeto obsoleto, cuyo
 > `.episodes` es precisamente `None`, así que petaba igual por la otra puerta. Ahora muestra el error y
-> no abre la ficha (`recentAnimes.py:90-101`), y además restaura el cursor `watch` antes de cualquier
+> no abre la ficha (`recentAnimes.py:92-107`), y además restaura el cursor `watch` antes de cualquier
 > salida — antes se quedaba clavado si la construcción de la ficha fallaba.
 
 ✅ Verificado el 2026-07-30 simulando la caída total de proveedores sobre el `__on_anime_click` real de
@@ -367,7 +376,7 @@ cuadradito diminuto, **no un error**.
 225×350 conservado.
 
 > En el mismo cambio se añadió `timeout=_REQUEST_TIMEOUT`: era la única petición del módulo sin timeout
-> y corre **en el hilo de UI** (`anime_window.py:173`), así que un servidor de imágenes colgado
+> y corre **en el hilo de UI** (`anime_window.py:218`), así que un servidor de imágenes colgado
 > congelaba la aplicación indefinidamente.
 
 ---
@@ -379,7 +388,7 @@ directorio que no corresponda a un anime de la lista recibida.
 
 **Consecuencias verificadas**:
 
-- ✅ `resources/images/search` se **vacía en cada búsqueda** (`searchAnimes.py:229`).
+- ✅ `resources/images/search` se **vacía en cada búsqueda** (`searchAnimes.py:236`).
 - ✅ `load_image` (`utils.py:181`) deja el fichero **abierto** (PIL perezoso) → `os.remove` lanza
   `PermissionError` en Windows mientras el `CTkImage` viva. Está capturado, así que solo imprime.
 - ✅ En la caché real del usuario hay un huérfano `Chi.` (0 bytes) que `os.listdir` lista pero
@@ -470,6 +479,33 @@ for _legal_file in ('LICENSE', 'LEEME.txt', 'THIRD-PARTY-NOTICES.txt'):
 binaria cumpla la GPL-3.0 (§4 avisos, §6 oferta de código fuente) y las licencias MIT/BSD/Apache/MPL
 de las dependencias. En `_internal/` no cumplirían su función.
 
+**f) `libmpv-2.dll` va en `binaries` con destino `vendor`, y `python-mpv` no la busca ahí** ✅
+*(añadida el 2026-10-20, fases 0 y 5 del reproductor)*
+
+**Por qué**: `python-mpv` localiza la DLL con `ctypes.util.find_library`, que en Windows **solo mira
+`%PATH%`**, no la carpeta del script ni la del `.exe`. Sin ella en la ruta, `import mpv` lanza
+`OSError: Cannot find mpv-1.dll, mpv-2.dll or libmpv-2.dll`. Por eso `load_mpv()`
+(`video_player.py:68`) antepone `get_resource_path("vendor")` a `os.environ["PATH"]` —y la pasa a
+`os.add_dll_directory()` para sus dependencias— **antes** del `import`.
+
+Y en el `.exe` esa ruta es `_internal/vendor`, por la misma mecánica que la **18e**: el destino de
+`binaries` cae dentro de `_internal/`. De ahí que el `.spec` diga `('vendor/libmpv-2.dll', 'vendor')`
+y no `'.'`, como proponía el plan. Con `'.'` la DLL acabaría en `_internal/` a secas y `load_mpv()` no
+la vería sin tocar `src/` (⚠️ esa variante no se compiló).
+
+**Síntoma observable**: **ningún error**. El `.exe` arranca perfecto, la ficha monta el panel del
+reproductor y **todos los servidores acaban en el navegador** con la tarjeta «No se ha podido cargar
+aquí». `load_mpv()` no lanza —es la degradación diseñada— y su `print` no se ve, porque el `.exe` va
+con `console=False` (**18c**). Parece que han caído todos los hosters a la vez.
+
+**Además**: la DLL **no está en el repositorio** (120 MB, por encima del límite de GitHub; `vendor/`
+está en `.gitignore`). Un clon limpio no puede compilar sin el paso 4 del `README.md`, y por eso el
+`.spec` **para con `SystemExit`** si falta, en vez de compilar un `.exe` que lo abriría todo fuera.
+
+**Cómo comprobarlo**: con el `.exe` reproduciendo, `Get-Process -Module` del proceso tiene que
+listar `…\_internal\vendor\libmpv-2.dll`. ✅ Verificado el 2026-10-20 desde una carpeta fuera del
+repo y **sin la DLL en `%PATH%`**.
+
 ---
 
 ### ~~19. `watchingAnimes/__init__.py` contiene un stub que suplanta la clase real~~ ✅ **Resuelto (2026-08-07, `e6d1a73`)**
@@ -543,7 +579,7 @@ Con la columna `provider_id` hay **tres** formas de partir la identidad, no una:
 | **Migración a medias** | — | imposible hoy: `__confirm_and_migrate` reconstruye la ficha entera al terminar |
 
 La segunda es nueva y es la peligrosa: `open_saved_anime()` **re-localiza el anime por título** en el
-proveedor elegido (`anime_window.py:167-189`), así que `anime_info.id` es directamente el slug de otro
+proveedor elegido (`anime_window.py:212-234`), así que `anime_info.id` es directamente el slug de otro
 sitio.
 
 > 🔴 **Esto reintrodujo el bug una vez, durante la propia fase 4.** `open_saved_anime()` construía el
@@ -712,7 +748,7 @@ AnimeAV1 (`one-piece`) porque en su día lo añadiste dos veces; migras el prime
 
 | Capa | Línea | Qué hace |
 |---|---|---|
-| GUI | `anime_window.py:625-635` | Comprueba antes y lo **explica** con un diálogo: «ya hay otra entrada de este anime en X» |
+| GUI | `anime_window.py:670-680` | Comprueba antes y lo **explica** con un diálogo: «ya hay otra entrada de este anime en X» |
 | Persistencia | `animesPersistence.py:478-481` | Vuelve a comprobarlo y devuelve `False` |
 
 La segunda no es redundante: `migrate_anime_identity` es pública y no puede fiarse de que quien la
@@ -720,6 +756,927 @@ llame haya mirado. La primera existe porque un `False` a secas no le dice nada a
 
 **Invariante**: cualquier escritura que cambie `anime_id` de una fila existente comprueba primero que
 el destino esté libre. La BD no lo va a hacer por ti.
+
+---
+
+---
+
+## Rediseño de interfaz *(añadidas 2026-08-21, fases 1-9; la 36, el 2026-08-31; la 37, el 2026-09-01)*
+
+Siete trampas de **CustomTkinter y de layout**. Ninguna da error: todas se manifiestan como algo que
+sale mal colocado, invisible o parpadeando, y todas costaron al menos una tarde.
+
+### 29. Un `CTkFrame` sin hijos conserva 200 × 200 como tamaño pedido 🔴 ✅
+
+Un marco vacío —o que solo tiene widgets colocados con `place()`, que no piden sitio— **no mide
+cero**: conserva el tamaño por defecto de `CTkFrame` y **estira la fila o la columna que lo
+contenga**.
+
+**Síntoma observable**: la barra lateral salió **con los seis destinos en blanco y sin ningún
+error**. La barrita de acento de 2 px inflaba la fila del ítem a 200 px; el marco se quedaba en 38 px
+por fuera, pero su rejilla interna centraba icono y etiqueta en `y=86`, **fuera de la parte visible**.
+
+**Invariante**: todo `CTkFrame` decorativo, todavía vacío, o cuyos hijos van con `place()`, necesita
+`height=` explícito. `ViewHeader.controls_frame` nace con `height=1` por esto, y `GenreChips.show()`
+se fija el alto a mano.
+
+**Hermana de la anterior**: el alto de una fila se fija con **`grid_rowconfigure(..., minsize=)`**, no
+con `height=` + `grid_propagate(False)`. Medido: esa combinación deja el marco al alto pedido por
+fuera, pero su rejilla interna sigue centrando los hijos como si midiera 200.
+
+**Y el ancho fijo necesita dos cosas**: `grid_propagate(False)` **y** `minsize` en la columna del
+padre. Solo con el primero, la rejilla de `MainWindow` le roba píxeles a la barra cuando el contenido
+pide más ancho del que cabe — medido, 219 px en vez de 224.
+
+---
+
+### 30. `wraplength` no limita a dos líneas, y un `CTkLabel` no se recorta a su `height` 🔴 ✅
+
+`wraplength` envuelve **todas** las líneas que necesite el texto, y el `CTkLabel` **crece** por
+encima de su `height` en vez de recortarse. Reservar alto no sirve de nada.
+
+**Síntoma observable**: un título de anime de tres líneas desnivelaba la fila entera de la rejilla, y
+las celdas de debajo bailaban.
+
+**Invariante**: **todo título de ancho fijo pasa por `Theme.ellipsize(texto, fuente, ancho,
+líneas)`**, que reproduce el reparto por palabras de Tk midiendo con `font.measure()` y corta la
+última línea con puntos suspensivos. Aplica a `AnimeRow`, a las tres rejillas y a la ficha.
+
+---
+
+### 31. Los contadores de la barra salen de listas que solo se llenan al arrancar 🔴 ✅
+
+`MainWindow.recent_animes`, `favourite_animes`, `watching_animes`, `pending_animes` y
+`finished_animes` son **cachés en memoria** que se pueblan en `load_animes()`.
+`refresh_sidebar_counts()` hace `len()` sobre ellas: **no consulta la BD**.
+
+**Síntoma observable**: cambiar un estado movía la fila en la BD y en la vista, pero el número de la
+barra lateral seguía diciendo lo de antes hasta el siguiente arranque.
+
+**Invariante**: quien cambie un estado **relee las listas afectadas del hub y solo después** llama a
+`refresh_sidebar_counts()`. Lo hacen «Empezar» (`pendingAnimes.py`) y la ficha (`anime_window.py`,
+desde la fase 8).
+
+---
+
+### 32. La configuración de rejilla del `content_frame` sobrevive a `clear_frame()` 🔴 ✅
+
+`clear_frame()` destruye los **hijos**, no la configuración de filas y columnas del contenedor. Y una
+columna **con peso y sin widgets también recibe el espacio sobrante**.
+
+**Síntoma observable**: después de visitar la ficha —que repartía peso entre cuatro columnas y cuatro
+filas—, la vista siguiente pintaba todo apretado en una columna 0 estrecha, con la mitad derecha de
+la pantalla en blanco.
+
+**Invariante**: toda vista que reparta peso entre varias columnas o filas **tiene que devolverlo a
+cero al salir**. Hoy solo la ficha reparte; si otra lo hace, hereda la obligación.
+
+> 🆕 **Segunda mitad, 2026-09-02**: lo mismo pasa **dentro** de un componente. Desde que
+> `PosterGrid` calcula sus columnas del ancho, le da `weight=1` y un grupo `uniform` a cada una — y
+> esos pesos sobreviven a destruir las celdas igual que los del `content_frame`. Al pasar de 8
+> columnas a 3, las cinco que sobran seguirían reclamando su parte del ancho y los tres pósters
+> saldrían apiñados a la izquierda de una fila vacía. Por eso `__configure_columns()` no solo pone
+> peso: **se lo quita** a `range(columnas, self.__weighted_columns)`. Quien añada otro componente que
+> configure columnas según los datos hereda la obligación de destejerlo.
+
+---
+
+### 33. La pantalla de carga solo se retiraba si había estrenos 🔴 ✅ *(resuelta 2026-08-21)*
+
+`download_images_and_show_animes()` llamaba a `loading_frame.place_forget()` **únicamente en la rama
+de éxito**. Con la lista de estrenos vacía, la función avisaba, pintaba la portada por debajo y
+volvía **sin retirar la pantalla de carga**.
+
+**Síntoma observable**: un arranque sin conexión —o con los tres proveedores caídos— dejaba el GIF de
+carga tapando la portada **para siempre**, y el estado vacío de «Nuevos lanzamientos» no llegaba a
+verse nunca. Solo aparece si se prueba el arranque **sin red**, que es justo lo que nadie prueba.
+
+**Y una segunda mitad**: `place_forget()` **no destruye**. El widget seguía vivo, así que
+`update_gif()` se reprogramaba con `after(100, …)` durante toda la sesión, repintando un GIF de
+400 × 400 cada décima de segundo por detrás de la aplicación.
+
+**Invariante**: la pantalla de carga se **`destroy()`** —no se esconde— y se retira en **todas** las
+salidas de la función. La animación comprueba `winfo_exists()` antes de repintarse; sin esa guarda,
+destruir el marco produce `invalid command name`.
+
+> ⚠️ **El comentario que anclaba esta trampa dentro de `update_gif()` ya no está en el código**
+> (2026-08-31). El invariante sigue vigente y la guarda `winfo_exists()` sigue ahí, pero quien lea
+> `show_loading_screen()` ya no encuentra escrito por qué. Ese mismo arranque tenía **otro** defecto
+> visual, independiente de éste: la **trampa 36**, más abajo.
+
+---
+
+### 34. Un `<Leave>` no significa que el ratón se haya ido 🔴 ✅
+
+Tk manda `<Leave>` al marco **también cuando el puntero pasa a uno de sus propios hijos**.
+
+**Síntoma observable**: la fila parpadeaba al mover el ratón por encima, y la píldora de acción
+(«Empezar», «Episodio N →») **se apagaba justo al ir a pulsarla**, porque el puntero entraba en ella
+saliendo del marco.
+
+**Invariante**: antes de apagar un estado de hover, comprobar dónde está el puntero de verdad.
+`AnimeRow.__pointer_inside()` compara `winfo_pointerxy()` con el rectángulo real de la fila. Vale
+para cualquier fila o tarjeta con acción en hover.
+
+**Hermana**: el hueco de la acción **se reserva siempre**, con tamaño fijo y `grid_propagate(False)`;
+la píldora solo se muestra y se esconde. Si se creara al entrar el ratón, la fila cambiaría de ancho
+bajo el cursor.
+
+🔴 **Léela junto a la trampa 37**:
+esta trampa dice que sobran `<Leave>`, y la otra que **faltan**. Comprobar el puntero antes de apagar
+—lo que arregla ésta— es justo lo que hace que un `<Leave>` que no llega deje la fila encendida para
+siempre. Las dos se arreglan juntas o no se arregla ninguna.
+
+---
+
+### 35. `bind()` y `event_generate()` no hablan del mismo widget en CustomTkinter 🔴 ✅
+
+Un widget de CustomTkinter es un marco de Tk con hijos dentro, y `bind()` **reenvía** el atajo a esos
+hijos: `CTkFrame.bind()` va a su `_canvas`; `CTkLabel.bind()`, al `_label` **y** al canvas;
+`CTkEntry.bind()`, al `_entry`; `CTkButton.bind()`, al canvas y a sus etiquetas.
+
+Con el ratón real da igual —lo que se toca es el canvas—, pero **`widget.event_generate()` sobre el
+objeto CTk no dispara nada**.
+
+**Síntoma observable**: una prueba automática que emite `<Return>` sobre un `CTkEntry`, o `<Enter>`
+sobre una fila, «pasa» sin que ocurra nada, y se da por verificado algo que no se ha ejecutado.
+
+**Invariante**: para ejercitar un gesto sin ratón, emitir sobre el **hijo interno**
+(`entry._entry.event_generate(...)`) o —mejor— invocar directamente el `command` o el manejador.
+
+**Tres más de CustomTkinter**, de la misma familia:
+
+- Un `CTkFrame` con `fg_color="transparent"` **no pinta su borde**: no dibuja su rectángulo, y con él
+  se va el `border_width`. Y aunque se le dé color, **una etiqueta transparente encima lo tapa**. La
+  receta que funciona: marco con `fg_color=BG` + borde, y la etiqueta **dentro**, más baja que él.
+- CustomTkinter **rechaza `width=` y `height=` dentro de `place()`** con un `ValueError`, al revés
+  que Tk pelado: el tamaño se le da al construir el widget.
+- CustomTkinter **no redondea la `image` de un widget** por mucho `corner_radius` que tenga. El
+  recorte hay que traerlo hecho desde PIL (`load_rounded_image()`).
+
+---
+
+### 36. Un widget sin `fg_color` no es del tema de la aplicación 🔴 ✅ *(resuelta 2026-08-31)*
+
+**Por qué**: un **marco** sin `fg_color` **no nace transparente ni hereda del padre** — eso solo lo
+hace `CTkLabel`. Toma el color de la paleta de la librería (`blue.json`), que no es la de `Theme`:
+
+| Widget | `fg_color` por defecto (claro, oscuro) |
+|---|---|
+| `CTkFrame` | `gray86` / `gray17` → `#DBDBDB` / `#2B2B2B` |
+| `CTk` (la raíz) | `gray92` / `gray14` → `#EBEBEB` / `#242424` |
+| `CTkProgressBar` | canal `#939BA2` / `#4A4D50`, progreso `#3B8ED0` / `#1F6AA5` |
+| `CTkLabel` | `transparent` — **este sí** hereda |
+
+Un widget al que se le olvide el `fg_color` **no falla ni avisa**: sale de otro color y ya.
+
+Le pasaba a la pantalla de carga: `loading_frame` era un `CTkFrame(self, corner_radius=0)` a secas,
+del tamaño justo de su contenido. El arranque enseñaba **tres fondos a la vez**, medidos sobre la
+captura:
+
+| Zona | Color | De dónde salía |
+|---|---|---|
+| El bloque de carga | `#2B2B2B` | gris por defecto de `CTkFrame` |
+| Franja izquierda de 224 px | `#242424` | gris por defecto de la raíz `CTk` |
+| El resto de la ventana | `#14161A` | `Theme.BG`, el bueno |
+
+**Síntoma observable**: al arrancar, el título «Cargando biblioteca de anime», el GIF y la barra
+salen dentro de un **rectángulo gris recortado** sobre el fondo de la aplicación, con una **banda
+vertical** de un tercer gris a la izquierda. Ningún error por consola. Se ve en los dos temas.
+
+**Y dos medias trampas más, las dos silenciosas:**
+
+- **El GIF no tiene fondo propio.** `loading-image.gif` es paleta con `transparency = 1`: Tk compone
+  su alfa contra el fondo del `CTkLabel` que lo sostiene. Cambiarle el color al marco **le cambia el
+  fondo al GIF**; buscar el problema dentro del `.gif` es perder la tarde.
+- **El `minsize` de una columna sobrevive a `grid_forget()`.** `Sidebar` reserva la columna 0 con
+  `grid_columnconfigure(0, weight=0, minsize=width)` (`sidebar.py:418`). `show_loading_screen()`
+  retira la barra con `grid_forget()`, pero la columna **sigue midiendo 224 px**, y en esa franja se
+  ve el fondo de la raíz de Tk. Retirar un widget no libera el hueco que su columna tiene reservado.
+
+**Invariante**: **todo marco de fondo lleva su `fg_color` explícito**, salido de `Theme`, y eso
+incluye la **raíz de Tk** (`self.configure(fg_color=Theme.BG)` en `__config_main_window()`,
+`main_window.py:104`). Lo mismo para el canal de un `CTkProgressBar` (`fg_color` + `progress_color`)
+y para el `text_color` de una etiqueta. La comprobación de `git grep -nE "#[0-9A-Fa-f]{6}" -- src/`
+**no detecta esto**: el defecto no es un literal de color, es la **ausencia** de uno.
+
+**Cómo comprobarlo**: capturar la ventana durante el arranque y muestrear píxeles, no mirarla a ojo
+—dos grises oscuros parecidos se distinguen mal—. Con la app en marcha, todos los puntos de fondo
+deben dar `#14161A` en oscuro y `#F4F5F7` en claro ([09 §7.1](09-verificacion-y-pruebas.md)).
+
+**De paso**: el bloque se centraba con `x = winfo_width() * 2.5`, y `winfo_width()` vale **1** antes
+de que la ventana esté dibujada. Acertaba por casualidad. Hoy se centra con
+`place(relx=0.5, rely=0.5, anchor=CENTER)` dentro de un marco transparente.
+
+---
+
+### 37. Un hijo sin `bind` es un agujero por el que el hover se queda encendido 🔴 ✅ *(resuelta 2026-09-01)*
+
+Es **la complementaria de la trampa 34**: aquella dice que un `<Leave>` de más no significa que el
+ratón se haya ido; ésta, que **hay salidas de las que no llega ningún `<Leave>`**.
+
+**Por qué**, en tres pasos que hay que encadenar para verlo:
+
+1. `CTkFrame.bind()` **no ata al marco**: ata a su `_canvas` interno
+   (trampa 35).
+2. Ese canvas es **hermano** de los demás hijos del marco, **no su ancestro**.
+3. Tk manda los *leaves* virtuales solo a los **ancestros** del widget que se abandona. Así que si el
+   puntero sale de la fila **desde un hijo que no tiene `bind`**, el canvas —que ya recibió su
+   `<Leave>` al entrar el puntero en ese hijo, y lo ignoró por la trampa 34— **no recibe ninguno
+   más**. Nadie apaga la fila.
+
+Le pasaba a `EpisodeRow` (`anime_window.py:311-469`), que ataba el hover a la fila y a sus dos
+etiquetas y dejaba fuera **el interruptor «Visto» y el separador de 1 px**. El separador va con
+`place(rely=1.0, relwidth=1.0)`: ocupa **toda la última fila de píxeles** de cada episodio, así que
+bajar de un episodio al siguiente **obliga a cruzarlo**.
+
+**Síntoma observable**: pasar el ratón por **un solo** episodio y salir funciona. **Recorrer la
+lista** deja encendidos todos los episodios por los que has pasado, y siguen encendidos con el ratón
+fuera de la ventana; volver a entrar y salir de uno lo apaga solo a él. Ningún error por consola.
+
+⚠️ **Y no se reproduce moviendo el ratón deprisa**: un salto de 2 px se salta el separador y todo
+parece correcto. Hace falta el paso de **1 px** —un ratón lento de verdad— para cruzarlo.
+
+**Invariante**: el **hover se ata a todos los hijos** del widget que se resalta; el **clic**, solo a
+los que deban responder a él. En `EpisodeRow` son dos bucles distintos y a propósito
+(`anime_window.py:420-435`): el interruptor recibe `<Enter>` / `<Leave>` pero **no** `<Button-1>`,
+porque tiene su propio comando y marcar un episodio no debe abrir sus servidores.
+
+**Y un cinturón además de los tirantes**: `EpisodeRow.__hovered` (`anime_window.py:325`) es un
+atributo **de clase** con la fila resaltada; la que se enciende apaga a la anterior
+(`__handle_enter` → `__release_hover`). Aunque en el futuro se pierda un `<Leave>`, **no puede haber
+dos filas encendidas a la vez**.
+
+**Por qué `AnimeRow` no lo sufre**: su separador está **fuera** del cuerpo que se resalta
+(`anime_row.py:143-144` lo mete en la fila, no en `__body`), y `__bind_interactions()` ata el hover a
+**todos** los descendientes de `__body` — píldora de acción incluida, con su canvas y su etiqueta
+dentro. No es suerte: es la estructura. `EpisodeRow` metió el separador **dentro** con `place()` para
+no gastar una fila de rejilla, y ahí nació el agujero.
+
+⚠️ **Que el hover llegue a todos no significa que el clic también**, y desde el 2026-09-01 son dos
+listas distintas: el clic **salta la píldora entera** ([trampa 40](#40-un-bind-sin-add-borra-el-manejador-que-el-widget-ya-tenía---resuelta-2026-09-01)).
+Quitarle también el hover reabriría este agujero por la píldora.
+
+**Cómo comprobarlo**: no a ojo y no con la mano. Se monta una pila de `EpisodeRow` reales en una
+ventana suelta y se recorre con `SetCursorPos` **de píxel en píxel**, contando cuántas filas tienen
+`fg_color != Theme.TRANSPARENT` en cada paso ([09 §6b](09-verificacion-y-pruebas.md)). Debe ser
+**siempre 1**, y **0** al salir de la pila. Antes del arreglo daba **5 de 5**, y la primera se quedaba
+pegada exactamente en el píxel del separador.
+
+**Hermana, del mismo arreglo**: al **plegar** los servidores, `set_expanded(False)` devolvía la fila
+a `TRANSPARENT` aunque el puntero siguiera encima — el resaltado se apagaba justo debajo del ratón.
+Ahora consulta `__pointer_inside()` (`anime_window.py:489-496`).
+
+---
+
+## Frescura de los datos guardados *(añadida 2026-09-01)*
+
+### 38. Una fila guardada no refresca sus episodios sola 🔴 ✅ *(resuelta solo en la portada, 2026-09-01)*
+
+`ANIMES.episodes` es una **foto del día en que abriste la ficha de ese anime**, no «los episodios que
+hay». Durante mucho tiempo el **único** sitio que la reescribía fue `__load_anime_status()`
+(`anime_window.py:647-648`), y solo al abrir la ficha.
+
+**Síntoma observable**: un anime **en emisión** miente cuando sale un capítulo nuevo. El caso real que
+la destapó: «One Piece» y «Mushoku Tensei III» estrenan los domingos; abriendo la aplicación ese mismo
+domingo, la banda «Retomar donde lo dejaste» decía **«Lo has visto entero»** con el capítulo nuevo ya
+publicado. Entrabas en el anime —lo que reescribía la fila— y al volver a la portada ya salía bien.
+Ningún error por consola: el dato es coherente, solo viejo.
+
+✅ **Reproducida sobre copia** el 2026-09-01: fila con 9 episodios y los 9 vistos, proveedor sirviendo
+10 → tarjeta «Lo has visto entero · 9 episodios», barra al 100 %.
+
+**Resuelta a medias.** Desde `704e894`, `RecentAnimeButton.__refresh_resume_episodes()`
+(`recentAnimes.py:137-186`) relee los episodios **de las ≤3 filas de la banda** al entrar en la
+portada ([03 §11](03-flujos-de-ejecucion.md)). Lo que **sigue mintiendo**, con el mismo síntoma:
+
+| Dónde | Qué enseña de más |
+|---|---|
+| Barras de `AnimeRow` en «Viendo» y «Pendientes» | todo lo que **no** esté en la banda |
+| Subtítulo «N animes a medias · **M episodios pendientes**» (`watchingAnimes.py:162`) | el total es el guardado |
+| Sello «vistos / totales» de «Finalizados» | idem |
+| `SidePanel` de «Viendo» | se salva por casualidad: enseña el primero de `last_watched_anime_ids`, que suele estar en la banda |
+
+**Invariante**: `AnimeRecord.episodes` responde «cuántos episodios servía el proveedor **la última vez
+que miré**». Cualquier vista que presente un total, un porcentaje o un «lo has visto entero» está
+afirmando algo que puede llevar días caducado.
+
+🔴 **Y ampliarlo no es gratis.** Refrescar más filas significa **escribir en la biblioteca del usuario
+sin que lo haya pedido**, y ahí entra la **trampa 27** (más arriba, en «Columna `provider_id`»):
+el mismo *slug* puede existir en otro sitio con otra cuenta de episodios, así que la petición tiene
+que ir con **`strict=True`** —al proveedor de la fila y a ninguno más— y **no escribir nunca** si la
+respuesta viene vacía. Es justo al revés que `open_saved_anime()`, que sí quiere *fallback* porque
+solo lee. Quien extienda esto a «Viendo» debe copiar esas dos precauciones, no el patrón de abrir una
+ficha.
+
+---
+
+## Medir un widget de CustomTkinter *(añadida 2026-09-01)*
+
+### 39. Un `CTkButton` no respeta el `width` que se le pide 🔴 ✅ *(resuelta 2026-09-01)*
+
+Pasarle `width=` a un `CTkButton` fija el ancho **del marco**, no el del widget. Por dentro es un
+`tkinter.Frame` con una rejilla de 5×5 (`ctk_button.py::_create_grid`) y **propagación de tamaño
+activada**: si esa rejilla necesita más, el ancho *pedido* del botón pasa a ser el suyo. Y cuando el
+botón se coloca con `place(x=…)` sin ancho explícito, Tk lo pinta a su ancho **pedido**.
+
+No hay forma de forzarlo desde fuera: `CTkBaseClass.place()` **lanza `ValueError`** si le pasas
+`width` o `height` («must be passed to the constructor»), así que la única salida es **contar bien**.
+
+Lo que la rejilla reserva y no aparece en ningún sitio:
+
+| Concepto | px | De dónde sale |
+|---|---|---|
+| Columnas 0 y 4 | `max(corner_radius, border_width + 1, border_spacing)` por lado | `_create_grid()`. En una **píldora manda el radio**: 14 px con `CHIP_H = 29` |
+| Etiqueta del texto | 1 por lado | la crea con `padx=0, pady=0, **borderwidth=1**` |
+| Hueco texto ↔ icono | `CTkButton._image_label_spacing` = **6** | `minsize` de la columna 2, solo si hay texto **e** imagen |
+| Etiqueta del icono | 2 por lado | se crea sin argumentos → `borderwidth` 2 por defecto de Tk. Su `padx` **no** cuenta: Tk solo se lo suma al texto |
+
+**Síntoma observable**: en «Buscar», **al seleccionar un género la ficha se metía encima de la de al
+lado y le tapaba la ✕**. Ningún error. Lo delataba la selección porque es la que más sobra: la
+seleccionada estrena icono, y de paso va en negrita.
+
+✅ **Medido** el 2026-09-01, con la raíz de Tk oculta, comparando `cget("width")` con
+`winfo_reqwidth()` de cada ficha ya colocada:
+
+```
+texto              contado  pintado  delta
+Acción (activa)         73       89    +16   ← se come los 8 px de CHIP_GAP y solapa 8
+Más géneros (33)       125      141    +16   ← también lleva glifo
+Comedia                 69       75     +6   ← quedaba 2 px de hueco: no se ve
+```
+
+Una ficha sin icono sobraba 6 px y aún dejaba hueco; **al seleccionarla el sobrante saltaba a 16 y se
+comía la separación entera**. Como las seleccionadas se pintan **las primeras** y `place()` apila
+encima lo que se coloca después, quien tapaba la ✕ era la ficha siguiente.
+
+**Invariante**: quien coloque `CTkButton` con `place()` y lleve él mismo la cuenta del ancho tiene que
+sumar la rejilla interna, no solo `font.measure(texto)` y su propio relleno. Y el relleno efectivo es
+`max(el del diseño, corner_radius)`: pedir menos no encoge nada.
+
+**Resuelta** en `GenreChips.__chip_width()` (`genre_chips.py:278-301`, con las tres constantes en
+`:57-69`), que suma las cuatro filas de la tabla y pregunta al `CTkImage` por su `size` en vez de
+recalcularlo. ✅ Verificado: 4 estados de
+selección y los 41 chips desplegados en 4 anchos → **0 descuadres, 0 solapes, hueco exactamente
+`CHIP_GAP`**, y el alto pedido por el marco coincide al píxel con el real. ✅ Confirmado también
+**mirando la aplicación** por el usuario.
+
+⚠️ **Los números salen de customtkinter 5.2.2.** Si algún día sube la versión, lo primero que hay que
+volver a medir es esto: el síntoma no da error y no lo detecta ningún `grep`.
+
+**Primas hermanas**: la **29** (un `CTkFrame` no mide cero) y la **30** (un `CTkLabel` no se recorta a
+su `height`). Las tres son la misma idea — **en CustomTkinter, `width` y `height` son una petición, no
+un contrato**.
+
+⚠️ **La ficha de detalle se libra por otro camino**: `__place_genre_tags()` (`anime_window.py:828-893`)
+también envuelve fichas con `place()`, pero las suyas son `CTkFrame` con la etiqueta **dentro**, y un
+hijo colocado con `place()` **no** propaga tamaño al padre. Por eso ahí el `width=` sí se respeta.
+
+---
+
+## Atar eventos encima de CustomTkinter *(añadida 2026-09-01)*
+
+### 40. Un `bind()` sin `add="+"` borra el manejador que el widget ya tenía 🔴 ✅ *(resuelta 2026-09-01)*
+
+Es la **tercera** de la familia de la [trampa 35](#35-bind-y-event_generate-no-hablan-del-mismo-widget-en-customtkinter--)
+y la [trampa 37](#37-un-hijo-sin-bind-es-un-agujero-por-el-que-el-hover-se-queda-encendido---resuelta-2026-09-01):
+todas salen de que **un widget de CustomTkinter es un marco de Tk con hijos dentro**, y de que el
+código de la aplicación trata ese marco como si fuera un widget atómico.
+
+**Por qué**, dos hechos que por separado son inofensivos y juntos borran una funcionalidad entera:
+
+1. **`bind(seq, func)` sin `add="+"` sustituye**, no suma. Es Tk, no CustomTkinter, y está
+   documentado — pero no se piensa en ello cuando se ata un manejador propio a un widget ajeno.
+2. **Excluir un widget de un recorrido no excluye su interior.** Un `CTkButton` es un marco con un
+   `CTkCanvas` y un `Label` dentro, y CustomTkinter monta **ahí** sus manejadores: `_clicked` en
+   `<Button-1>` y su hover en `<Enter>` / `<Leave>`. Esos dos hijos **no son** el botón, así que un
+   `if widget is boton: continue` los deja pasar — y son justo donde cae el ratón, porque tapan el
+   marco entero.
+
+Le pasaba a `AnimeRow.__bind_interactions()` (`anime_row.py:278-312`), que recorre los descendientes
+de `__body` para atarles el clic de la fila —los eventos de Tk no burbujean— y saltaba **solo**
+`self.__action_button`. Resultado: la fila **pisaba el `_clicked` de su propia píldora**.
+
+Se ve en una línea, comparando la atadura antes y después de que la fila haga su `bind()`:
+
+```
+CTkButton recién creado:   canvas -> ..._clicked...    label -> ..._clicked...
+tras un bind() de la fila: canvas -> ...<lambda>...    label -> ...<lambda>...
+con add="+":               canvas -> ..._clicked... y luego ...<lambda>...
+```
+
+**Síntoma observable**: la píldora se pinta, se resalta al pasar por encima y **responde al clic**…
+pero ejecutando el `on_click` de la fila en vez de su propio `command`. Como los dos abrían la ficha
+del mismo anime, durante diez días **pareció que funcionaba**. Lo que no funcionaba, y nadie
+relacionó, es que **«Empezar» no movía el anime a «Viendo»**: esa parte vive en la acción, que no se
+ejecutaba nunca. Ningún error por consola, y el anime abría su ficha con normalidad.
+
+Salió a la luz el 2026-09-01, al hacer que la acción y el clic dejaran de hacer lo mismo
+([03 §12](03-flujos-de-ejecucion.md)): la píldora prometía llevar a un episodio y llevaba al anime.
+
+**Invariante**, dos mitades:
+
+- **Para excluir un widget de un recorrido recursivo, hay que excluir su subárbol**, no el widget.
+  `self.__descendants(self.__action_button)` y `not in`, no `is not`.
+- **Todo lo que se ate encima de un widget de CustomTkinter va con `add="+"`.** No hay forma de saber
+  desde fuera si la librería ya puso algo suyo ahí, y perderlo no da error: da un widget que parece
+  entero y no lo está.
+
+⚠️ **El hover sigue atándose a la píldora entera, y tiene que seguir así**: si un hijo suyo se queda
+sin `<Leave>`, salir de la fila por ahí deja el resaltado encendido para siempre — la
+[trampa 37](#37-un-hijo-sin-bind-es-un-agujero-por-el-que-el-hover-se-queda-encendido---resuelta-2026-09-01)
+otra vez. Por eso el arreglo **no** es quitarle las ataduras a la píldora: es `add="+"` en el hover y
+el subárbol fuera del clic.
+
+**De paso se recuperó su hover propio**: `AnimeRow` también estaba pisando el `<Enter>` / `<Leave>`
+que CustomTkinter monta en el canvas y la etiqueta, así que la píldora nunca se pintó con su
+`hover_color`. Nadie lo había notado porque la fila entera se resalta al mismo tiempo.
+
+**Los otros cinco sitios que atan clics están bien**, y por la misma razón: `poster_grid.py:394`,
+`resume_card.py:138`, `sidebar.py:145`, `side_panel.py:174` y `EpisodeRow`
+(`anime_window.py:446-454`) atan a **listas explícitas** de marcos y etiquetas y no entran en ningún
+botón. `AnimeRow` era el único que recorría en profundidad. Y `SidePanel` deja el botón fuera **a
+mano** y con un comentario que lo dice — por eso «Seguir por el N» fue el único de los tres que
+funcionó a la primera.
+
+**Cómo comprobarlo**: [09 §6e](09-verificacion-y-pruebas.md#6e-pulsar-de-verdad-un-botón-que-vive-dentro-de-otro-widget-2026-09-01). No basta con leer el código; se pulsa
+el interior de la píldora y se cuenta **cuál de los dos manejadores ha corrido**.
+
+---
+
+## Medir el sitio que tienes *(añadida 2026-09-02)*
+
+Las dos de este apartado son el mismo error visto desde dos capas: **un widget que parece que se
+adapta al espacio disponible y en realidad nunca llega a mirarlo.** Ninguna da error, ninguna se ve
+a 1440 —el tamaño con el que se diseñó y con el que se prueba— y las dos aparecen en cuanto alguien
+maximiza la ventana.
+
+### 41. Una rejilla con `sticky="w"` mide su propio contenido, no el hueco que tiene 🔴 ✅ *(resuelta 2026-09-02)*
+
+**Por qué**: `sticky` no decide solo dónde se pega un widget, decide **cuánto mide**. Con
+`sticky="ew"` la celda de la rejilla lo estira hasta el ancho que le toca; sin la `e` y la `w`, el
+widget se queda con su **tamaño pedido**, que es el de lo que él mismo ha pintado. `winfo_width()`
+devuelve entonces el ancho del contenido, no el del contenedor.
+
+Es inofensivo mientras nadie lo consulte. Deja de serlo en cuanto **el propio widget calcula algo a
+partir de ese número**: `columnas = ancho // (póster + hueco)` sobre un ancho que sale de haber
+pintado esas mismas columnas es un **punto fijo**. La cuenta se hace, sale bien, y siempre devuelve
+lo que ya había.
+
+```
+sticky="w"   ancho = 6 * 196 = 1176  ->  1176 // 196 = 6  ->  pinta 6  ->  ancho = 1176  ...
+sticky="ew"  ancho = 1662 (el de la ventana)  ->  1662 // 196 = 8  ->  pinta 8
+```
+
+**Síntoma observable**: al maximizar, las cuatro vistas de rejilla —Nuevos lanzamientos, Favoritos,
+Finalizados y Buscar— seguían pintando 6 y 5 columnas pegadas a la izquierda, con **casi 500 px de
+fondo vacío a la derecha**. Las de cascada (Viendo, Pendientes) sí se ensanchaban, porque sus filas
+ya iban con `sticky="ew"` — y esa diferencia entre vistas es justo lo que hacía que pareciera un
+descuido de una vista concreta y no una regla que faltaba.
+
+Estuvo así desde el rediseño (2026-08-21) hasta el 2026-09-02. No dio ni un error: una franja de
+fondo del color correcto es indistinguible de una decisión de diseño.
+
+**Invariante**, en dos mitades y las dos obligatorias:
+
+- **Quien mida su contenedor tiene que estar estirado hasta él.** `sticky="ew"` en el widget **y**
+  `weight` en la columna del padre. Si falta cualquiera de las dos, la medida es del contenido.
+- **Lo que sobra del reparto entero hay que repartirlo**, o vuelve la franja vacía —más pequeña, pero
+  vuelve—. `weight=1` + un mismo `uniform` en las columnas en uso y la celda con `sticky="n"`: la
+  celda queda centrada en su columna y el sobrante sale como huecos iguales. Es el equivalente en Tk
+  de `repeat(auto-fill, minmax(póster, 1fr))`.
+  ⚠️ Y hay que **quitar** el peso al encoger: [trampa 32](#32-la-configuración-de-rejilla-del-content_frame-sobrevive-a-clear_frame--).
+
+⚠️ **La fórmula descuenta el margen izquierdo y no el derecho**, y no es un descuido: a 1440 el
+diseño deja el último póster a ~11 px del borde, no a 28. Reservar los 28 por simetría daría **5**
+columnas a 1440 y sería una regresión respecto al propio diseño. El margen derecho lo acaba poniendo
+el reparto del sobrante.
+
+⚠️ **Repintar es caro**: cada celda abre su JPG y lo reescala con PIL, y son ~350 ms para 16 celdas
+**en el hilo de la interfaz**. Por eso `__on_configure()` descarta todo `<Configure>` que no cambie
+el número de columnas —el reparto del sobrante lo hace Tk gratis— y los que quedan pasan por una
+espera de `RELAYOUT_DELAY_MS`, que junta un arrastre entero en un solo repintado.
+
+**Cómo comprobarlo**: [09 §6f](09-verificacion-y-pruebas.md#6f-comprobar-que-una-rejilla-se-adapta-al-ancho-2026-09-02). Leer el código no vale: hay
+que **medir** `winfo_width()` de la rejilla a dos tamaños de ventana y ver que el número cambia.
+
+---
+
+### 42. `wraplength` no puede deshacer un `\n` que traiga el texto 🔴 ✅ *(resuelta 2026-09-02)*
+
+**Por qué**: `wraplength` dice **dónde se puede** partir una línea, no dónde hay que juntarlas. Un
+`\n` dentro del texto es un corte **incondicional**: Tk lo respeta con cualquier `wraplength` y con
+cualquier ancho de ventana. No hay opción de `CTkLabel` que lo desactive.
+
+Y la sinopsis llega con saltos propios del sitio: AnimeAV1 los trae escapados dentro de su payload de
+hidratación y `animeav1.py:206` los convierte en saltos de verdad (`.replace('\\n', '\n')`), que es
+lo correcto — el modelo guarda el texto que escribió su autor.
+
+**Síntoma observable**: la sinopsis de la ficha conservaba los renglones del proveedor **por ancha
+que fuera la ventana**, mientras el título y las fichas de género de al lado sí se reajustaban. ✅ En
+la biblioteca real son **13 de 35** sinopsis: 18 saltos dobles y 2 sueltos.
+
+Lo confuso es que `__relayout_text()` **sí** recalculaba el `wraplength` en cada `<Configure>`, así
+que el código parecía correcto y el fallo parecía de layout. No lo era: era del texto.
+
+**Invariante**: **todo texto que venga de la red y se pinte con `wraplength` pasa por una
+normalización antes de llegar al widget.** Hoy lo hace `wrap_synopsis()` (`anime_window.py`).
+
+⚠️ **Normalizar no es aplastar.** La regla es la del HTML y se eligió mirando los datos: un salto
+suelto es un corte de renglón y se vuelve espacio; **dos son un párrafo y se conservan**, porque los
+puso quien redactó el texto. Colapsarlo todo a un bloque también quita el síntoma, y de paso quita
+información.
+
+⚠️ **Se hace al pintar, no al raspar.** `AnimeInfo.synopsis` sigue siendo el texto íntegro del
+proveedor —cómo se reparte en renglones es cosa de la GUI—, y así salen bien también las filas que ya
+estaban guardadas, sin migrar la BD.
+
+**Cómo comprobarlo**: [09 §6g](09-verificacion-y-pruebas.md#6g-comprobar-la-normalización-de-la-sinopsis-2026-09-02). Se compara `texto.split()`
+antes y después: la normalización no puede perder ni inventar una sola palabra.
+
+---
+
+## Reproductor in-app *(añadidas 2026-10-20, fases 0-5 del plan del reproductor)*
+
+Lo que tienen en común casi todas: **fallan cayendo al navegador**, que es la degradación
+diseñada (`plan-reproductor/README.md`, regla 2). Así que el
+síntoma típico **no** es un error, sino «este servidor se abre fuera cuando debería verse aquí», y
+eso se confunde fácilmente con que el hoster haya cambiado. Antes de tocar un resolutor, descarta
+las de este apartado.
+
+La capa y el reproductor se describen en [06 §12](06-gui-y-vistas.md) y
+[05 §9](05-proveedores-y-scraping.md); el flujo entero, en [03 §13](03-flujos-de-ejecucion.md).
+
+### 43. Los segmentos de zilla dan 403 sin `Sec-Fetch-Site: same-origin` 🔴 ✅
+
+**Por qué**: el playlist `https://player.zilla-networks.com/m3u8/<hash>` (el servidor «HLS» de
+AnimeAV1) responde 200 a cualquiera. Los **segmentos** —`segs/<hash>/NNN.html`, que pese a la
+extensión son fMP4 y empiezan por `styp`— exigen la cabecera `Sec-Fetch-Site: same-origin`,
+**exactamente con ese valor**. Es la forma que tiene el sitio de comprobar que la petición sale de su
+propio reproductor.
+
+**Síntoma observable**: mpv baja el playlist, pide el primer segmento, recibe 403 y acaba en
+`end-file` con `reason=4`. En pantalla, la tarjeta de «Cargando» dura un instante y el episodio **se
+abre en el navegador** con «No se ha podido cargar aquí». Parece que zilla está caído, y no lo está.
+
+⚠️ **No confundirlo con una caída real**, que también pasa (tres días seguidos en septiembre de
+2026, con **522** de Cloudflare): entonces mpv espera el `network-timeout` de 15 s y la caída al
+navegador tarda **~20 s**. **Instantáneo → cabecera; ~20 s → origen caído.** Y si responde, pero
+**despacio**, cae a los **30 s**, por el tope propio del reproductor: [trampa 54](#54-un-hoster-lento-deja-cargando-sin-tope---resuelta-2026-10-21).
+
+**Invariante**: las cabeceras viajan en `MediaSource.headers` y `VideoPlayer.play()`
+(`video_player.py:680`) las pasa a mpv como `http_header_fields` —todas salvo `User-Agent`, que va a
+su propiedad—. El cliente `curl` de mpv las aplica a **cada** petición, playlist y segmentos. Nunca
+se ponen solo en la petición del playlist.
+
+**Cómo comprobarlo**: un segmento con y sin la cabecera ([09 §6h](09-verificacion-y-pruebas.md)).
+✅ 2026-09-23 contra un servidor local con la misma regla (los segmentos llegan con la cabecera) y ✅
+2026-10-20 contra zilla real: **200 con ella, 403 sin ella**, y `dandadan` ep. 1 visto en la app.
+
+---
+
+### 44. Cada hoster quiere sus cabeceras, y lo que uno exige otro lo rechaza 🔴 ✅
+
+**Por qué**: no hay una política de cabeceras común que valga para todos:
+
+| Medio | Cabeceras que funcionan | Lo que lo rompe |
+|---|---|---|
+| zilla (HLS de AnimeAV1) | `Sec-Fetch-Site: same-origin` | quitarla → 403 en los segmentos ([43](#43-los-segmentos-de-zilla-dan-403-sin-sec-fetch-site-same-origin--)) |
+| MP4Upload | UA de navegador + `Referer: https://www.mp4upload.com/` (**el suyo**) | el `Referer` del sitio que lo embebe (`https://animeav1.com/`) → **403** |
+| `jkplayers.com` (`/jkplayer/jk`, «Desuka») | **ninguna** | **cualquier `Referer` → 410 Gone** |
+| `playmudos` (`/jkplayer/um` y `umv`, «Desu» y «Magi») | ninguna | — |
+
+**Síntoma observable**: añadir una cabecera «por si acaso» en un sitio común —en `base.py` o en
+`VideoPlayer.play()`— **rompe en silencio un hoster que funcionaba**. Un `Referer` genérico deja
+Desuka cayendo al navegador sin un solo error.
+
+**Invariante**: las cabeceras son del **resolutor** que conoce el hoster, y el reproductor manda
+**exactamente** las de `MediaSource.headers`, ni una más. Por eso `base.py` no tiene cabeceras por
+defecto, y por eso el UA de navegador está **duplicado a propósito** en `base.py` respecto a
+`jkanime.py`: la capa de resolución no importa de `APIs.<sitio>` ([01](01-arquitectura.md)).
+
+✅ Medido el 2026-09-24 (fase 1): `jkplayers` con `Referer` → 410; MP4Upload con el de AnimeAV1 →
+403 y con el suyo → 206.
+
+---
+
+### 45. Una URL de medio no se guarda: caduca o va atada a tu IP 🔴 ✅
+
+**Por qué**:
+
+- **playmudos** (Desu, Magi) lleva un parámetro `e=` que es un *epoch* **~3 h** después de
+  resolver. El resolutor lo copia a `MediaSource.expires_at`.
+- **`jkplayers.com`** (Desuka) **incrusta la IP pública del cliente en el path**: se resuelve en una
+  máquina y no se reproduce en otra, ni en la misma tras cambiar de red o encender una VPN.
+- **MP4Upload** lleva un token en el path que no declara caducidad (`expires_at=None`) y parece de
+  sesión.
+
+⚠️ `expires_at=None` significa «la URL no la declara», **no** «no caduca».
+
+**Síntoma observable**: funciona en el momento y falla horas después, al día siguiente o tras una
+VPN, siempre como 403 o 410 y siempre cayendo al navegador.
+
+**Invariante**: se resuelve **al pulsar el servidor**, nunca al listarlos —`ServerInfo` guarda la
+URL del *embed*, no la del medio— y `registry` **no tiene caché a propósito**. No guardes un
+`MediaSource` para reutilizarlo.
+
+⚠️ **La única reutilización que hay** es «repetir» con el episodio terminado, que vuelve a cargar el
+mismo `MediaSource` (`VideoPlayer.toggle_pause()`). Tras horas parado en la tarjeta de fin, repetir
+fallaría y caería al navegador. No se ha visto; se deduce del código.
+
+---
+
+### 46. Los eventos de mpv llegan en su hilo, y desde ahí ni `after()` es seguro 🔴
+
+**Por qué**: los observadores (`observe_property`) y los callbacks de evento (`event_callback`) de
+`python-mpv` se ejecutan en el hilo **`MPVEventHandlerThread`** (✅ fase 0), no en el de Tk. Tocar
+un widget desde ahí es la regla de siempre ([07](07-concurrencia-e-hilos.md)). Lo nuevo es que
+**tampoco** basta con `after(0, …)`, la receta del resto de la aplicación. `after()` llamado desde
+otro hilo **espera** a que el hilo de Tk lo atienda, y `terminate()`, llamado desde Tk al cerrar el
+reproductor, **espera** a que acabe el hilo de eventos. Si coinciden, se esperan el uno al otro.
+
+**Síntoma**: la aplicación se congela al cerrar el reproductor («← Volver a la ficha», cambiar de
+vista o cerrar la ventana). Con `time-pos` llegando a 13-24 veces por segundo, «si coinciden» es
+casi siempre. ⚠️ **No se ha reproducido aposta**: el diseño lo evitó desde la fase 3. Lo que sí está
+medido es que `after(0)` **funciona** mientras nadie cierre (24 repintados/s sin errores en la fase
+0), y eso es justo lo que hace que la trampa parezca innecesaria.
+
+**Invariante**: los callbacks de mpv **solo asignan atributos** (posición, duración, pausa) **o
+meten en una `queue.Queue`** (`start-file`, `playback-restart`, `end-file`, `eof`). El hilo de Tk los
+recoge con un sondeo cada `POLL_MS` = 100 ms (`VideoPlayer.__poll`, `video_player.py:816`). Si
+añades un observador, sigue ese patrón. Los callbacks hacia el dueño (`on_started`, `on_end`,
+`on_error`) ya llegan en el hilo de Tk.
+
+---
+
+### 47. El final de un vídeo no es un evento: `end-file` llega también al parar, y con `keep-open` no llega al terminar 🔴 ✅
+
+**Por qué**, en dos mitades:
+
+- `end-file.reason` vale **0** al llegar al final, **2** al `stop()` **y** al cargar otro medio
+  encima, **3** al `terminate()` y **4** con error (✅ fase 0). Parar a mano y cambiar de servidor
+  dan el mismo código, y el `end-file` del medio anterior puede llegar **después** de haber pedido el
+  nuevo.
+- El reproductor va con **`keep-open=yes`**, porque sin él la superficie se queda **negra** al
+  terminar y la ✕ de la tarjeta de fin no tendría último fotograma que enseñar. Y con `keep-open` el
+  final **no manda `end-file`**: llega `eof-reached=True` con el medio en pausa (✅ fase 4, *spike*
+  con `lavfi`).
+
+**Síntoma observable**: si se trata cualquier `end-file` como fin, sale la tarjeta de «Has terminado»
+al volver a la ficha o al cambiar de servidor, **y el episodio se marca como visto en la
+biblioteca**. Si se espera solo `reason == 0`, la tarjeta no sale nunca y no se marca nada.
+
+**Invariante** (`__handle_event`, `video_player.py:832`): el fin es `eof-reached`, con
+`end-file` / `reason 0` de respaldo, y **solo** si el medio había empezado (`playback-restart`). Un
+`end-file` que llega antes del `start-file` del medio nuevo es del anterior y se ignora
+(`__awaiting_start`). `reason 4` es error → navegador.
+
+---
+
+### 48. Un fin de fichero a mitad de episodio es un corte, no el final 🔴 📖
+
+**Por qué**: un servidor que corta el stream a mitad deja a mpv en fin de fichero, **igual que el
+final de verdad**. Y desde la fase 4 el final **escribe en la biblioteca**: marca el episodio como
+visto, con la semántica acumulativa ([trampa 9](#9-el-marcado-de-episodios-es-acumulativo-el-desmarcado-unitario-)).
+
+**Síntoma** (si se quita la guarda): un episodio que se corta en el minuto 8 queda marcado como visto,
+**y con él todos los anteriores**.
+
+**Invariante**: `__reach_end()` (`video_player.py:860`) compara posición y duración. Si faltan más
+de `END_TOLERANCE_S` = 15 s, lo trata como error (`on_error` → navegador) y **no marca nada**.
+📖 Rama leída, **no ejecutada**: en las pruebas ningún servidor cortó.
+
+---
+
+### 49. Un widget dentro del frame del vídeo no se ve; uno hermano encima, sí 🔴 ✅
+
+**Por qué**: mpv pinta en la ventana nativa del frame cuyo `winfo_id()` recibe como `wid`. Los
+**hijos** de ese frame quedan tapados (**0 %** de sus píxeles visibles, ✅ fase 0). Un **hermano**
+—mismo padre, misma celda, `lift()`— **sí** se ve (92 %), y opaco, porque Tk no tiene transparencia
+por widget.
+
+Esto **corrige** a la investigación, que decía «ningún widget encima del vídeo». Es lo que hace
+posibles las tarjetas: en `VideoPlayer`, `__card_frame` es hermano de `__surface` dentro de
+`__stage`. La de «Cargando» va **encima** de la superficie mapeada, porque mpv necesita la ventana
+puesta para crear su salida de vídeo. Las tarjetas finales sí quitan la superficie
+(`grid_remove()`).
+
+Por la misma razón el panel **no vive dentro del `CTkScrollableFrame`**. `player_frame`
+(`main_window.py:127`) es hermano de `content_frame`: fila 0 y fila 1 de la columna de contenido.
+⚠️ El síntoma que se temía allí —el vídeo pintándose fuera del área visible— **no aparece** (✅
+fase 0: la superficie se recorta y se desplaza con el lienzo), pero el vídeo se iría con el scroll de
+la ficha, que no es lo que pide el diseño.
+
+**Síntoma observable**: un control creado **dentro** de `__surface` se ve hasta que mpv pinta el
+primer fotograma, y luego desaparece.
+
+**Invariante**: nada dentro de `__surface`. Lo que vaya encima va como **hermano** en `__stage`, y
+opaco. Lo que tenga que flotar sobre la imagen a pantalla completa son ventanas aparte
+([52](#52-la-barra-flotante-y-el-deslizador-de-volumen-son-ventanas-aparte-siempre-encima--)).
+
+---
+
+### 50. El ratón y el teclado sobre el vídeo llegan a Tk, no a mpv 🔴 ✅
+
+**Por qué**: al revés de lo que esperaba el plan. Con `input-vo-keyboard` encendido **o** apagado,
+39-40 de 40 `<Motion>` sobre el vídeo llegan al frame de Tk; `Esc` y `q` los recibe `bind_all`; los
+*bindings* de mpv y su propiedad `mouse-pos` **no reciben nada** (✅ fase 0). Además, libmpv trae
+**apagados** `input-default-bindings`, `input-vo-keyboard` y `osc`: no hay atajos propios, ni `Esc`,
+ni la `q` que cierra, ni barra en pantalla.
+
+**Consecuencias**:
+
+- «Mover el ratón muestra la barra» y el `Esc` de salir se atan **en Tk**, como en cualquier otro
+  widget. No hace falta pasar nada desde el hilo de mpv.
+- **`cursor-autohide` no sirve**, porque mpv no ve el ratón. El cursor lo oculta Tk con `cursor="none"`
+  sobre `__stage`, `__surface` y `__card_frame` (`__set_cursor_hidden`, `video_player.py:1222`).
+- `<Motion>` se ata **dos veces** por widget, con `tkinter.Frame.bind` y con el `bind` de CTk
+  (`video_player.py:673-675`), porque `CTkFrame.bind()` solo ata el lienzo interno
+  ([trampa 35](#35-bind-y-event_generate-no-hablan-del-mismo-widget-en-customtkinter--)). ⚠️ No se
+  probó a quitar una de las dos.
+
+**Síntoma**: un atajo definido en mpv no hace nada; con `cursor-autohide` el cursor no se oculta
+nunca.
+
+---
+
+### 51. `-fullscreen` lleva la ventana al monitor principal 🔴 ✅
+
+**Por qué**: `attributes("-fullscreen", True)` movió la ventana del monitor secundario (`2028, 91`)
+al principal (`0, 0, 1920, 1080`), y al salir la devolvió a su sitio (✅ fase 0). También acabaron en
+el principal `-fullscreen` seguido de `geometry` y `geometry` seguido de `-fullscreen`. Quitar el
+marco con `SetWindowLong` colocaba bien, pero descolocaba la ventana al salir.
+
+**Síntoma observable**: con dos monitores, «pantalla completa» sale en el que no estás mirando.
+
+**Invariante**: `MainWindow.enter_player_fullscreen()` (`main_window.py:214`) **no** usa
+`-fullscreen`:
+
+1. Lee el rectángulo del monitor de la ventana con `MonitorFromWindow(…, MONITOR_DEFAULTTONEAREST)` y
+   `GetMonitorInfoW`.
+2. Pone `overrideredirect(True)` y la geometría con **`tkinter.Tk.wm_geometry`**, no con la de CTk,
+   que aplica el escalado de DPI a un rectángulo que ya viene en píxeles físicos.
+3. Guarda la geometría, el maximizado y el `minsize` de la columna de la barra lateral, y pone ese
+   `minsize` a 0. Sin eso quedaría una franja a la izquierda del vídeo, porque ese `minsize`
+   **sobrevive a quitar la barra** ([trampa 36](#36-un-widget-sin-fg_color-no-es-del-tema-de-la-aplicación---resuelta-2026-08-31)).
+   `exit_player_fullscreen()` lo restaura todo.
+
+⚠️ En la aplicación solo se probó en el monitor **principal**. La receta se probó en el secundario
+con la ventana de la fase 0.
+
+---
+
+### 52. La barra flotante y el deslizador de volumen son ventanas aparte, siempre encima 🔴 ✅
+
+**Por qué**: a pantalla completa no hay rejilla donde poner la barra sin encoger el vídeo. Por decisión
+del usuario es un `Toplevel` sin marco y con `-topmost`, igual que el deslizador de volumen
+(`_VolumePopup`). Ser ventanas aparte trae tres problemas, los tres vistos:
+
+| Problema | Síntoma | Remedio |
+|---|---|---|
+| **`-topmost` sobrevive a `Alt+Tab`** | la barra se queda flotando **encima de la otra aplicación** (✅ visto encima de la terminal) | `__check_foreground()` (`video_player.py:1210`) mira `GetForegroundWindow()` cada `FOREGROUND_CHECK_MS` = 150 ms y la retira si el primer plano no es de este proceso. `__on_motion` tampoco la saca en ese caso |
+| **Mostrarla con `update_idletasks()`** | **el primer clic sobre la barra se pierde**: no está mapeada del todo | `update()` al crearla y al volver a enseñarla |
+| **Salir del icono hacia el deslizador dispara `<Leave>`** | el deslizador **se cierra** al ir a por él | margen de `VOLUME_GRACE_MS` = 300 ms (`schedule_volume_check`, `video_player.py:554`), y solo se cierra si el puntero no está ni en el icono ni en el deslizador |
+
+**Invariante**: cualquier ventana flotante nueva tiene que pasar por las tres guardas: retirarse
+cuando el primer plano no es nuestro, mostrarse con `update()` y tener margen de gracia para llegar a
+ella.
+
+---
+
+### 53. Dos servidores con el mismo nombre se pisan en un dict ✅ *(resuelta 2026-09-24, «B1» del plan del reproductor)*
+
+**Por qué**: un mismo episodio de JKAnime puede ofrecer varios «Desu» con URLs distintas (cambian
+`t=` y `op=`). Un `{s.server: s.url for s in servers}` se queda solo con el último.
+
+**Síntoma**: sale un único «Desu» y el otro es inaccesible, o pulsar «Desu» abre la URL de otro.
+
+**Invariante**: todo mapa etiqueta → URL pasa por `AnimeWindowViewer.__server_url_map()`
+(`anime_window.py:1894`), que numera los repetidos («Desu», «Desu 2»). La columna del reproductor y
+la navegación entre episodios —que prefiere **el mismo nombre** de servidor— usan esas etiquetas.
+Si vuelve a aparecer un `{s.server: …}` en `src/`, es este bug. ✅ Visto con One Piece ep. 1 de
+JKAnime: 5 botones, y cada uno abre su URL.
+
+---
+
+### 54. Un hoster lento deja «Cargando» sin tope 🔴 ✅ *(resuelta, 2026-10-21)*
+
+> ✅ **Resuelta el 2026-10-21** (deuda **B15**): `VideoPlayer` lleva un plazo propio,
+> **`LOAD_TIMEOUT_S = 30`**, contado desde `play()` hasta el primer `playback-restart`. Si vence, para
+> mpv **antes** de avisar —para que un medio que arranca tarde no suene detrás de la tarjeta— y llama a
+> `on_error` («El servidor tarda demasiado en entregar el vídeo»): navegador y tarjeta con otro
+> servidor, como cualquier error. Se cancela al empezar, en `stop_media()` y en `close()`, y cada
+> `play()` lo reinicia. 30 s es ~10 veces un arranque normal (2-4 s) y queda **por encima** de los
+> ~20 s con los que ya cae un servidor caído, así que solo actúa sobre los lentos. ✅ Verificado con el
+> `VideoPlayer` real y un servidor local que gotea un byte cada 3 s: error a los **30,0 s** con mpv
+> parado; un medio que arranca en 0,2 s no dispara nada en 40 s; y un segundo `play()` a los 15 s
+> lleva el vencimiento a los **45,0 s**. Lo de abajo es la historia.
+
+**Por qué**: el único plazo que hay es el `network-timeout` de mpv (15 s), y cuenta **por petición**,
+no para el arranque entero. Un servidor que contesta cada petición en menos de 15 s —pero contesta a
+todas despacio— nunca da error: mpv sigue abriendo el medio y la tarjeta de «Cargando» sigue puesta.
+La aplicación **no tiene un tope propio** para pasar de «Cargando» a otra cosa.
+
+**Síntoma observable**: ✅ visto en la prueba de humo de la fase 6 (2026-10-20) con `dandadan` ep. 1
+por `HLS`. El log de mpv: el playlist de zilla tardó **13 s** (a `requests`, un minuto antes, **0,4 s**),
+el segmento `init` 6 s, y la sonda del formato **47 s** más; el medio se abrió a los **~70 s**. Durante
+todo ese rato, «Cargando el episodio 1» y ningún aviso. La degradación al navegador **no llega**,
+porque técnicamente nada ha fallado. Ese mismo día AnimeAV1 tampoco dio la portada.
+
+**Lo que salva al usuario hoy**: la columna sigue viva —puede pulsar otro servidor o «← Volver a la
+ficha»— y la petición nueva deja obsoleta la vieja (número de petición). No se queda atrapado; se
+queda **sin saber** si esperar.
+
+**Lo que falta** (deuda **B15**, [12 §4](12-deuda-tecnica-y-roadmap.md)): un plazo propio de la
+aplicación para la tarjeta de «Cargando» —contado desde `play()` hasta el primer `playback-restart`—
+que, al vencer, haga lo mismo que un error: navegador y tarjeta con otro servidor. 🔴 Cambia `src/` y
+**no es de la fase de documentación**: queda para una tarea aparte.
+
+**Cómo comprobarlo**: el log de mpv (`log_handler` + `loglevel="v"`) dice cuánto tarda cada
+`curl: Opening …`; si cada una baja de 15 s y la suma pasa de 20, es esto y no una caída.
+
+---
+
+## Ciclo de vida de los widgets de CustomTkinter *(añadidas 2026-10-21, auditoría de rendimiento)*
+
+Las tres se destaparon midiendo, no usando la aplicación: **no se ve nada raro** y la velocidad apenas
+cambia, solo crecen la memoria, los handles GDI y las imágenes de Tk con cada cambio de vista. El
+patrón común: algo que vive toda la sesión sigue apuntando a un widget destruido, y ese widget retiene
+a su `master`, el `master` a sus pósters, y así hasta la vista entera. Cómo se midió y con qué:
+[09 §6j](09-verificacion-y-pruebas.md).
+
+### 55. Un `CTkImage` que vive más que su widget lo retiene, con todo su árbol 🔴 ✅ *(resuelta 2026-10-21)*
+
+**Por qué**: `CTkLabel` y `CTkButton` se apuntan en la lista de callbacks del `CTkImage` que reciben
+(`_update_image`), y su `destroy()` **no se desapunta** —CustomTkinter 5.2.2, `ctk_label.py:146` y
+`ctk_button.py:178`—, aunque su `configure(image=…)` sí lo hace con la imagen vieja. Así que un
+`CTkImage` que sobrevive al widget lo mantiene vivo, y por la cadena de `master` también a la celda,
+a la rejilla y a sus pósters.
+
+**Síntoma**: ✅ medido, 75 cambios de vista → memoria privada de **49 a 239 MB**, GDI de 133 a 441,
+imágenes de Tk de 59 a 367 y **6 893 widgets muertos** en memoria; ~2,4 MB más por cambio de vista. Una
+estrella de 14 × 14 acumulaba **705** callbacks de widgets destruidos. Extrapolando, el tope de 10 000
+GDI por proceso llegaría hacia los ~2 200 cambios de vista (⚠️ no reproducido).
+
+**Dónde estaba**, en tres formas:
+
+- las cinco cachés de iconos (`rating_stars`, `status_pill`, `empty_state`, `genre_chips` y
+  `video_player`, con su aro de «Cargando») guardaban **el `CTkImage`** a nivel de módulo y lo
+  compartían entre todos los widgets de la sesión;
+- `PosterItem.badge_icon` metía un `CTkImage` en un dato que la vista conserva para paginar;
+- `PosterGrid.__images`, en la rejilla ya destruida que la vista sigue guardando en un atributo.
+
+**Invariante**: **un `CTkImage` no sobrevive a sus widgets.**
+
+- Las cachés guardan **el dibujo PIL** (claro, oscuro), que es lo caro, y devuelven un `CTkImage`
+  **nuevo** en cada llamada.
+- Los datos llevan el **estado**, no la imagen: `PosterItem.badge_status`, y la rejilla dibuja el
+  glifo.
+- Compartir un `CTkImage` solo vale **dentro de un componente que muere entero**: `RatingStars`
+  reparte sus ≤3 imágenes entre sus cinco estrellas, y `_ring_frames()` da una lista nueva por
+  tarjeta.
+- Un componente que guarda imágenes las suelta en su `destroy()` (`PosterGrid`).
+
+**Cómo comprobarlo**: tras varias vueltas por las vistas, `len(img._configure_callback_list)` de cada
+`CTkImage` vivo debe ser 1, y los `tkinter.Misc` con `winfo_exists() == 0` en `gc.get_objects()` no
+deben crecer. ✅ Tras el arreglo, 75 cambios de vista: memoria privada **57-59 MB** plana, GDI 94,
+imágenes de Tk 20 y **75 zombis constantes**. Esos 75 son los últimos widgets que cada vista guarda en
+atributos (`__poster_grid`, `__pager`…), acotados. ⚠️ Una caché nueva de `CTkImage` a nivel de
+módulo reintroduce la fuga entera, y no se nota en una prueba de humo.
+
+---
+
+### 56. Un `CTkOptionMenu` destruido se queda en el registro de escalado ✅ *(resuelta 2026-10-21)*
+
+**Por qué**: el menú desplegable que lleva dentro, `DropdownMenu`
+(`core_widget_classes/dropdown_menu.py:46-52`), no llama a `CTkScalingBaseClass.destroy()` al
+destruirse. Su `_set_scaling` se queda en `ScalingTracker.window_widgets_dict` para siempre, y con él
+el desplegable y su árbol.
+
+**Síntoma**: ✅ +3 entradas en el registro de escalado por cada vuelta por las vistas, una por cada
+desplegable de orden (Favoritos, Pendientes y Buscar); 44-45 `DropdownMenu` muertos tras 15 vueltas.
+
+**Invariante**: un desplegable que **se destruye** es un `OrderMenu`
+(`gui/components/order_menu.py`), cuyo `destroy()` saca su menú del registro. Un `ctk.CTkOptionMenu` a
+secas solo vale en widgets que viven toda la sesión, como los dos de la barra lateral. ✅ Tras el
+arreglo, el registro se queda en 88 entradas en las 15 vueltas.
+
+---
+
+### 57. `unbind_all()` no borra el comando que creó `bind_all()` ✅ *(resuelta 2026-10-21)*
+
+**Por qué**: tkinter registra el callable de `bind_all()` y de `bind_class()` como **comando Tcl sin
+limpieza** (`needcleanup=0`, `tkinter/__init__.py:1435`), y `unbind_all()` (`:1437`) solo quita la
+atadura. El comando, y lo que referencie, vive hasta que muere la raíz. Un `bind()` normal no lo sufre:
+sus comandos se borran al destruir el widget.
+
+**Síntoma**: cada entrada en pantalla completa dejaba un `VideoPlayer` vivo, con su árbol, porque el
+comando era el método ligado `__on_escape`. ✅ Reproducido con la misma secuencia: 50 ciclos → **+50
+comandos Tcl y 50 objetos vivos**.
+
+**Invariante**: guardar el *funcid* que devuelve `bind_all()` y llamar a `deletecommand(funcid)` tras
+`unbind_all()`, como hace `VideoPlayer.set_fullscreen()` con `__escape_funcid`. ✅ Tras el arreglo, 50
+ciclos → +0 comandos. ⚠️ La pantalla completa real no se ha vuelto a probar a mano después del cambio.
 
 ---
 

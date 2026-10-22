@@ -46,13 +46,20 @@ COMPONENTES DE TERCEROS
 -------------------------------------------------------------------------------
 
 Este ejecutable incorpora bibliotecas de terceros (requests, Pillow,
-customtkinter, BeautifulSoup, Tcl/Tk y el intérprete de Python, entre otras),
-cada una con su propia licencia y su propio copyright.
+customtkinter, BeautifulSoup, python-mpv, Tcl/Tk y el intérprete de Python,
+entre otras), cada una con su propia licencia y su propio copyright.
 
 Todas ellas son compatibles con la GPL-3.0, y sus avisos se reproducen
 íntegramente en el fichero:
 
     THIRD-PARTY-NOTICES.txt
+
+El reproductor de vídeo integrado es libmpv (_internal/vendor/libmpv-2.dll),
+una compilación de mpv y FFmpeg distribuida bajo la GPL-3.0 o posterior. No
+es código de este proyecto, así que su código fuente no está en el repositorio
+de arriba: THIRD-PARTY-NOTICES.txt indica la versión de mpv, de FFmpeg y de
+cada biblioteca que incluye, dónde obtener su código fuente y cómo pedirlo si
+algún enlace deja de funcionar.
 
 
 -------------------------------------------------------------------------------

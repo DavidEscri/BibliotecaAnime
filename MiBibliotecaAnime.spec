@@ -1,13 +1,45 @@
 # -*- mode: python ; coding: utf-8 -*-
 
-APP_VERSION = "0.2.1"
+APP_VERSION = "0.4.2"
 
 block_cipher = None
+
+import os
+
+# libmpv no está en el repositorio (pesa ~120 MB): se descarga aparte, como explica el README. Sin ella el .exe
+# compilaría y abriría todo en el navegador, así que se para aquí en vez de distribuir un reproductor mudo.
+_LIBMPV_DLL = 'vendor/libmpv-2.dll'
+if not os.path.isfile(os.path.join(SPECPATH, _LIBMPV_DLL)):
+    raise SystemExit(f'Falta {_LIBMPV_DLL}: descárgala como indica el README (paso 4).')
+
+# Los avisos de licencia y el paso 4 del README describen una DLL concreta. Si
+# se cambia la DLL sin pasar tools/actualizar_libmpv.py, el .exe saldría con
+# avisos de otra compilación: se comprueba que el sha256 coincide.
+import hashlib
+import re
+
+with open(os.path.join(SPECPATH, _LIBMPV_DLL), 'rb') as _dll:
+    _dll_sha = hashlib.sha256(_dll.read()).hexdigest()
+for _doc, _begin, _end, _pattern in (
+        ('THIRD-PARTY-NOTICES.txt', '#### INICIO libmpv', '#### FIN libmpv', r'SHA-256: ([0-9a-f]{64})'),
+        ('README.md', '<!-- libmpv:inicio', '<!-- libmpv:fin', r'`([0-9a-f]{64})`')):
+    with open(os.path.join(SPECPATH, _doc), encoding='utf-8-sig') as _file:
+        _text = _file.read()
+    _section = _text[_text.find(_begin):_text.find(_end)] if _begin in _text and _end in _text else ''
+    _found = re.search(_pattern, _section)
+    if _found is None or _found.group(1) != _dll_sha:
+        _problem = (f'describe la libmpv {_found.group(1)[:12]}… y {_LIBMPV_DLL} es la {_dll_sha[:12]}…'
+                    if _found else 'no tiene la sección de libmpv generada')
+        raise SystemExit(f'{_doc} {_problem}: pasa '
+                         f'"python tools/actualizar_libmpv.py --tag <etiqueta> --apply" antes de compilar.')
 
 a = Analysis(
     ['src/app.py'],
     pathex=['src'],
-    binaries=[],
+    # Destino 'vendor', no '.': load_mpv() la busca en get_resource_path("vendor"), que en el .exe es _internal/vendor.
+    binaries=[
+        (_LIBMPV_DLL, 'vendor')
+    ],
     datas=[
         ('resources/images/utils', 'resources/images/utils')
     ],
@@ -17,6 +49,11 @@ a = Analysis(
         'APIs.jkanime.jkanime',
         'APIs.common.animeProviderMgr',
         'APIs.common.models',
+        'APIs.resolvers.base',
+        'APIs.resolvers.jkplayer',
+        'APIs.resolvers.mp4upload',
+        'APIs.resolvers.registry',
+        'APIs.resolvers.zilla',
         'dataPersistence.animesPersistence',
         'dataPersistence.userPersistence',
         'gui.sidebarButtons.favouriteAnimes.favouriteAnimes',
@@ -25,11 +62,27 @@ a = Analysis(
         'gui.sidebarButtons.recentAnimes.recentAnimes',
         'gui.sidebarButtons.searchAnimes.searchAnimes',
         'gui.sidebarButtons.watchingAnimes.watchingAnimes',
+        'gui.theme',
+        'gui.components.anime_row',
+        'gui.components.empty_state',
+        'gui.components.genre_chips',
+        'gui.components.order_menu',
+        'gui.components.pager',
+        'gui.components.poster_grid',
+        'gui.components.rating_stars',
+        'gui.components.resume_card',
+        'gui.components.side_panel',
+        'gui.components.sidebar',
+        'gui.components.status_pill',
+        'gui.components.video_player',
+        'gui.components.view_header',
         'gui.anime_window',
         'gui.main_window',
         'utils.buttons.utilsButtons',
         'utils.db.sqlite',
-        'utils.utils'
+        'utils.utils',
+        # El binding de libmpv: video_player lo importa dentro de load_mpv(), después de poner la DLL en la ruta, y el análisis estático no lo ve.
+        'mpv'
     ],
     hookspath=[],
     runtime_hooks=[],
@@ -77,7 +130,6 @@ coll = COLLECT(
 # distribuir binarios y a indicar cómo obtener el código fuente
 # correspondiente, y las licencias MIT/BSD/Apache/MPL de las dependencias
 # exigen reproducir sus avisos de copyright en cualquier redistribución.
-import os
 import shutil
 
 _dist_dir = os.path.join(DISTPATH, f'MiBibliotecaAnime_v{APP_VERSION}')

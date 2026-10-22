@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-08-16 · **Commit** `a3d4331` (2026-08-17, rama `main`) · árbol **limpio** |
+| **Fecha** | 2026-08-21 · rama `feature/ui-redisign` · la fase 9 que entonces estaba sin commitear entró en **`bd2cd14`**; el documento no se ha revisado desde entonces |
 | **Última revisión** | 2026-08-16 — **`provider_id` implementada**: columna nueva en `ANIMES` (§2, §3), `AnimeProviderId` y `ProviderInfo` en `models.py` (§1b), `migrate_anime_identity()` y `get_all_animes()` (§8). La migración automática se ha ejecutado **sobre la BD real** por primera vez (§3) |
 | **Cubre** | `src/APIs/common/models.py`, `src/dataPersistence/animesPersistence.py`, `src/dataPersistence/userPersistence.py`, `src/utils/db/sqlite.py` |
 
@@ -116,7 +116,7 @@ que acordarse de nada.
 > ⚠️ **No hay conversión de vuelta.** Por eso las vistas de favoritos/finalizados/viendo/pendientes,
 > que tienen `AnimeRecord`, siguen haciendo una petición de red al hacer clic en un anime en vez de
 > reutilizar lo que ya tienen en BD. Lo que sí ha cambiado (2026-08-16) es **a quién** se le pide: las
-> cuatro vistas llaman a `open_saved_anime()` (`anime_window.py:108-193`), que usa el `provider_id` de
+> cuatro vistas llaman a `open_saved_anime()` (`anime_window.py:256-334`), que usa el `provider_id` de
 > la fila en vez de disparar el fallback a ciegas.
 
 ---
@@ -229,13 +229,34 @@ CREATE TABLE "ANIMES" (
   id INTEGER, provider_id VARCHAR(50), anime_id VARCHAR(100), title VARCHAR(100),
   poster_url VARCHAR(200), synopsis TEXT, genres JSON, episodes JSON, watched_episodes JSON,
   last_watched_episode INTEGER, is_favourite BOOLEAN, is_watching BOOLEAN,
-  is_finished BOOLEAN, is_pending BOOLEAN,
+  is_finished BOOLEAN, is_pending BOOLEAN, rating INTEGER,
   PRIMARY KEY (id AUTOINCREMENT)
 )
 ```
 
 Coincide **exactamente** con `AnimeField`, en orden y en tipos declarados. Las comillas de `"ANIMES"`
 son la firma de una tabla reconstruida por `validate_db_integrity()`.
+
+### 3b. `rating` — la calificación personal 🆕 *(2026-08-20, rediseño fase 5)*
+
+`RATING = ("rating", "INTEGER")` es el **decimoquinto** miembro de `AnimeField` y va **al final** a
+propósito: así `validate_db_integrity()` lo resuelve por la vía barata —`ALTER TABLE ADD COLUMN`, sin
+reconstruir la tabla ni mover datos— en vez de por la cara, que es lo que tocó con `provider_id`.
+
+| | |
+|---|---|
+| **Escala** | entero **0-10**, dos puntos por estrella. `AnimeRecord.RATING_MAX = 10` es el tope |
+| **`NULL` no es 0** | «sin calificar» y «cero estrellas» son cosas distintas. Es lo que permite mandar lo no calificado **al final** del orden por calificación en vez de al principio |
+| **Por qué entero** | evita flotantes en SQLite y en la comparación del orden. Media estrella es 1, no 0.5 |
+| **Quién escribe** | `update_anime_rating(anime_id, rating)`. La única vista que lo toca es «Favoritos» |
+| **Cómo se borra** | volviendo a pulsar la misma calificación. No hay botón de quitar |
+
+✅ **Migración ejecutada de verdad sobre la biblioteca real el 2026-08-20**: **29 filas antes y 29
+después**, y las **14 columnas anteriores × 29 filas = 406 valores idénticos**, comparados uno a uno
+**por nombre de columna**. La copia previa quedó en `resources/DB/backups/DB_Animes_20260820_224943.db`.
+
+⚠️ Como con cualquier campo nuevo: **la migración es automática, la serialización no**. `rating` hubo
+que añadirlo a mano a `to_db_dict()` y a `from_db_dict()` ([11 §2](11-playbooks.md)).
 
 ### La migración automática, ejecutada de verdad ✅
 
@@ -474,6 +495,10 @@ coincidentes, descendente (`:294-302`).
 > comparación `order != AnimeOrderFilter.POR_DEFECTO` (`:294`) es entonces **siempre `True`** → *return*
 > en `:295` → **la ordenación por coincidencias nunca se aplica desde la GUI**. Con el enum sí
 > funciona. Trampa 6.
+>
+> ✅ **Resuelto el 2026-10-21**: el método acepta el orden como enum **o** como su `value`, que es
+> como lo maneja el resto del código. Hoy **no tiene llamantes**: `AccordionFilterButton` se fue con
+> el rediseño.
 
 ⚠️ El `LIKE` no está parametrizado (`:369`): los valores se interpolan en el SQL. Hoy es seguro
 porque solo pueden venir de `AnimeGenreFilter`, pero no aceptes ahí texto libre.
@@ -498,7 +523,7 @@ No hubo script de migración de datos. El `provider_id` de las filas antiguas se
 
 | Puerta | Línea | Cuándo dispara |
 |---|---|---|
-| Abrir la ficha | `anime_window.py:341-345` | Cada vez que se abre un anime guardado |
+| Abrir la ficha | `anime_window.py:386-390` | Cada vez que se abre un anime guardado |
 | Marcar un estado | `animesPersistence.py:643-644` (dentro de `_set_status`) | Al pulsar favoritos/viendo/… sobre una fila que ya existía |
 
 La segunda es redundante con la primera en el flujo normal —para pulsar un estado hay que tener la
@@ -539,6 +564,6 @@ estados; el destino ocupado devuelve `False` sin tocar nada. ✅ Y **en producci
 ### `get_all_animes()`
 
 📖 `:319-331`. `SELECT *` sin filtro. Existe para la detección de duplicados por título
-(`find_saved_duplicate`, `anime_window.py:69-105`), que necesita ver **también** las filas sin ningún
+(`find_saved_duplicate`, `anime_window.py:70-106`), que necesita ver **también** las filas sin ningún
 estado activo: siguen ocupando una fila, y si no se miran se acaba creando un duplicado de algo que ya
 está. Es la única consulta de la clase que no filtra por estado ni por id.

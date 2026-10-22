@@ -2,18 +2,23 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-08-16 · **Commit** `a3d4331` (2026-08-17, rama `main`) · árbol **limpio** |
-| **Última revisión** | 2026-08-16 (**columna `provider_id`**): §3 pasa de 2 caminos a **3, todos asíncronos**; **flujo 10 nuevo** (migrar una fila a otro proveedor); anclas de `anime_window.py` reubicadas tras crecer a 1 155 líneas |
-| **Cubre** | `main_window.py`, `anime_window.py`, `recentAnimes.py`, `searchAnimes.py`, las 4 vistas de estado, `animeProviderMgr.py`, `animesPersistence.py`, `utils.py` |
+| **Fecha** | 2026-10-20 · rama `feature/reproductor-embebido` · último commit de código **`f3fc229`** (fase 5 del reproductor) |
+| **Última revisión** | 2026-10-20 (**reproductor in-app**): **flujo 13 nuevo** —reproducir un episodio dentro de la aplicación, con **13b** (anterior/siguiente) y **13c** (pantalla completa y cierre)— y el antiguo §13 pasa a **§14**; **§8 reescrito**: la petición de servidores ya va en un hilo daemon (cerró la deuda nº 1) y lleva número de despliegue; la convención de hilos gana 🎞️ (el hilo de eventos de mpv); §12 reanclado. Antes, 2026-09-01 (**abrir la ficha por un episodio**): **flujo 12 nuevo** —las tres acciones que prometen un episodio lo cumplen: la ficha sale con esa fila desplegada—, y el antiguo §12 pasa a **§13**; §3 gana el parámetro `focus_episode` y §8 deja de ser siempre cosa del usuario. Antes, 2026-09-01 (**refresco de la banda «Retomar»**): **flujo 11 nuevo** —la portada relee los episodios de lo que estás viendo al entrar—, y el antiguo §11 pasa a **§12**. Antes, 2026-08-31 (**fondo de la pantalla de carga**): §1 reanclado entero contra el código real y corregido —seguía diciendo `place_forget()`, que la fase 9 cambió a `destroy()`— y con la nota del fondo `Theme.BG`. Antes, 2026-08-16 (**columna `provider_id`**): §3 pasa de 2 caminos a **3, todos asíncronos**; **flujo 10 nuevo** (migrar una fila a otro proveedor); anclas de `anime_window.py` reubicadas tras crecer a 1 155 líneas |
+| **Cubre** | `main_window.py`, `anime_window.py`, `recentAnimes.py`, `resume_card.py`, `searchAnimes.py`, las 4 vistas de estado, `animeProviderMgr.py`, `animesPersistence.py`, `utils.py`, `video_player.py`, `APIs/resolvers/` |
 
 Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ sin verificar.
-**Convención de hilos**: 🖥️ = hilo de Tkinter (UI) · 🧵 = hilo daemon · ⚙️ = worker del `ThreadPoolExecutor`.
+**Convención de hilos**: 🖥️ = hilo de Tkinter (UI) · 🧵 = hilo daemon · ⚙️ = worker del `ThreadPoolExecutor` · 🎞️ = hilo de eventos de mpv (`MPVEventHandlerThread`).
+
+> ⚠️ **Anclas `:línea` anteriores al 2026-10-20**: el commit `cbd2721` («Actualización comentarios
+> del proyecto», justo antes del plan del reproductor) reescribió los comentarios de 30 módulos con
+> **−400 líneas netas**. Las anclas de §8, §12 y §13 están al día; las de los demás flujos pueden ir
+> desplazadas. Búscalas por nombre de función.
 
 ---
 
 ## 1. Arranque y pantalla de carga
 
-✅ Verificado: la app arranca, abre la ventana «Mi Biblioteca de Anime» y muestra los recientes sin
+✅ Verificado: la app arranca, abre la ventana «Mi Biblioteca» y muestra los recientes sin
 traceback.
 
 ```mermaid
@@ -29,37 +34,40 @@ sequenceDiagram
 
     U->>APP: python src/app.py
     APP->>MW: MainWindow()
-    MW->>MW: __config_main_window() :100-111
-    MW->>MW: __config_main_frames() :113-116
-    MW->>MGR: register(AnimeAV1, default=True) :47
-    MW->>MGR: register(JKAnime) :48
-    MW->>MGR: register(AnimeFLV) :49
-    MW->>MW: __registry_default_provider_id = get_default_provider_id() :65-66
-    MW->>MW: __apply_saved_provider_preference() :68
-    MW->>MW: load_sidebar_buttons() :154-238
-    MW->>MW: show_loading_screen() :440
-    MW->>MW: sidebar_frame.grid_forget() :441
-    Note over MW: GIF + barra a 0 %#59; update_gif se reprograma con self.after(100,...) :474
-    MW->>T: Thread(download_images_and_show_animes).start() :479
+    MW->>MW: __config_main_window() :96-108 (incluye fg_color=Theme.BG :104)
+    MW->>MW: __config_main_frames() :110-116
+    MW->>MGR: register(AnimeAV1, default=True) :46
+    MW->>MGR: register(JKAnime) :47
+    MW->>MGR: register(AnimeFLV) :48
+    MW->>MW: __registry_default_provider_id = get_default_provider_id() :63
+    MW->>MW: __apply_saved_provider_preference() :64
+    MW->>MW: load_sidebar_buttons() :136-177
+    MW->>MW: show_loading_screen() :412
+    MW->>MW: sidebar_frame.grid_forget() :413
+    Note over MW: loading_frame cubre la ventana entera con Theme.BG :414-415#59;<br/>GIF + barra a 0 %#59; update_gif se reprograma con self.after(100,...) :458
+    MW->>T: Thread(download_images_and_show_animes).start() :463
     APP->>MW: mainloop()
 
-    T->>P: load_animes() :483 → start() :265
+    T->>P: load_animes() :467 → start() :265
     P-->>T: favourite/finished/watching/pending
-    Note over T: progreso 10→40 % (:530-543)<br/>⚠️ progress_bar.set() desde hilo daemon
-    T->>MGR: get_recent_animes() :484
+    Note over T: progreso 10→40 % por on_progress<br/>🆕 la barra se pinta con after(0) en el hilo de Tk
+    T->>MGR: get_recent_animes() :468
     MGR->>NET: GET https://animeav1.com
     NET-->>MGR: HTML
     MGR-->>T: List[AnimeInfo] (20 elementos ✅)
 
-    alt lista vacía
-        T->>U: messagebox.showwarning(...) :486-488
-        T->>MW: __recent_animes_button.show_frame() :489
-    else lista con datos
-        T->>T: progress_bar.set(0.9) :491
-        T->>FS: download_images_progress(...) :493
-        T->>MW: loading_frame.place_forget() :494
-        T->>MW: __recent_animes_button.show_frame() :495
-        T->>T: Thread(__preload_recent_animes_info).start() :499-500
+    opt lista con datos
+        T->>FS: download_images_progress(..., on_progress) :631
+    end
+    T->>MW: after(0, __on_startup_loaded) :632
+    Note over MW: 🆕 2026-10-21: desde aquí, hilo de Tk
+    MW->>MW: loading_frame.destroy() :646
+    opt lista vacía
+        MW->>U: messagebox.showwarning(...)
+    end
+    MW->>MW: __recent_animes_button.show_frame()
+    opt lista con datos
+        MW->>T: Thread(__preload_recent_animes_info).start() :659
     end
 ```
 
@@ -67,9 +75,18 @@ sequenceDiagram
 
 - `show_frame()` de `RecentAnimeButton` (`recentAnimes.py:29-34`) **revela la sidebar** con
   `sidebar_frame.grid(...)` (`:31`) antes de pintar. Es el único sitio donde reaparece.
-- 📖 Los `progress_bar.set()` / `configure()` de `load_animes` (`main_window.py:530-543`) y el
-  `messagebox.showwarning` (`:486`) corren en **hilo daemon** ([07 §4](07-concurrencia-e-hilos.md)).
-- 🆕 El paso `__registry_default_provider_id` (`:65-66`) va **antes** de aplicar la preferencia
+- ✅ 🆕 Desde el 2026-10-21 **ningún** paso del arranque toca Tk desde el hilo daemon: el progreso
+  llega por un callback que programa el pintado con `after(0, …)`, y la portada la construye
+  `__on_startup_loaded()` en el hilo de Tk, en ~200 ms en vez de 860-1 000
+  ([07, C1](07-concurrencia-e-hilos.md)). Las anclas del diagrama anteriores a esa fecha no se han reverificado.
+- 🆕 **La pantalla de carga no es una tarjeta: es la ventana entera pintada de `Theme.BG`**
+  (`:414-415`), con el bloque —título, GIF y barra— centrado con `place(relx=0.5, rely=0.5)` dentro
+  de un marco transparente (`:417-418`). Antes era un `CTkFrame` del tamaño de su contenido y **sin
+  `fg_color`**, así que salía del gris por defecto de CustomTkinter y se recortaba como un rectángulo
+  sobre el fondo de la app. Es la [trampa 36](10-invariantes-y-trampas.md). ✅ Medido el 2026-08-31:
+  `#14161A` en los cinco puntos muestreados en oscuro y `#F4F5F7` en claro, iguales a los de la
+  portada ya cargada.
+- 🆕 El paso `__registry_default_provider_id` (`:63`) va **antes** de aplicar la preferencia
   guardada, y no es cosmético: `__apply_saved_provider_preference()` llama a `set_default()`, que lo
   pisaría. Es la referencia contra la que se mide si el desplegable está desviado
   ([13 §8](13-selector-de-proveedor.md)).
@@ -117,6 +134,11 @@ vuelven al hilo de Tkinter con `after(0, …)`; lo que cambia es **cómo se deci
 | **3b** Las 4 de estado | `provider_for_saved_anime()` — puede re-resolver por título | el slug es del proveedor que **guardó la fila** |
 | **3c** Buscador | el que sirvió el resultado | el slug es de **ese** sitio |
 
+🆕 **Y desde el 2026-09-01, con qué episodio se abre.** `open_saved_anime()` acepta `focus_episode=`
+y `force_ascending=`, que solo usa **3b**: las tres acciones que prometen un episodio en su texto
+dejan la ficha abierta por él. Eso es el [§12](#12-abrir-la-ficha-por-un-episodio--2026-09-01); aquí
+no cambia nada más — sin esos parámetros el flujo es exactamente el de antes.
+
 ### 3a. Desde «Animes recientes»
 
 ```mermaid
@@ -154,7 +176,7 @@ sequenceDiagram
 
 ### 3b. Desde favoritos / finalizados / viendo / pendientes 🆕
 
-📖 `open_saved_anime()` (`anime_window.py:108-193`). Las cuatro vistas se limitan a llamarlo.
+📖 `open_saved_anime()` (`anime_window.py:256-334`). Las cuatro vistas se limitan a llamarlo.
 
 ```mermaid
 sequenceDiagram
@@ -197,7 +219,7 @@ normal y la ficha muestra quién lo ha servido de verdad.
 
 ### 3c. Desde el buscador 🆕
 
-📖 `searchAnimes.py:344-382`. Igual que 3a en estructura, pero **arrastrando el `provider_id` del
+📖 `searchAnimes.py:351-389`. Igual que 3a en estructura, pero **arrastrando el `provider_id` del
 resultado** desde el `bind` del póster (`:254-259`):
 
 ```python
@@ -238,12 +260,13 @@ sequenceDiagram
         AW->>AW: watched_status[ep.id] = ep.id in watched :355-356
     end
     AW->>AW: __display_anime_info() :326 → clear_frame() + time.sleep(0.1) :359-360
-    AW->>FS: get_anime_image(__persistence_anime_info()) :378
+    AW->>FS: __build_poster() → find_cached_poster_path(persistence_anime_id) :722
     alt póster en alguna de las 6 carpetas de estado/caché
-        FS-->>AW: CTkImage (195,275)
+        FS-->>AW: load_rounded_image() a 248 × 372
     else no está en ninguna
-        AW->>NET: requests.get(anime.poster, timeout=10) (utils.py:195-196)
-        NET-->>AW: CTkImage (195,275) con size= explícito
+        AW->>AW: cuadro gris, y la ficha sigue pintándose
+        AW->>NET: 🆕 hilo daemon: download_poster(persistence_poster_url), timeout 10
+        NET-->>AW: after(0) → configure(image=round_image(...)) si la etiqueta sigue viva
     end
     AW->>AW: __show_provider_label() :428 → hasta 3 líneas 🆕
     AW->>AW: __show_anime_status() :429 → __display_anime_status() :716
@@ -261,7 +284,7 @@ algo que deba pasar por el hecho de abrir la ficha. Ver [04 §8](04-modelo-de-da
 
 ## 4. Marcar / desmarcar un episodio
 
-📖 `anime_window.py:1052-1105`. Es el flujo más delicado del proyecto.
+📖 `anime_window.py:1101-1154`. Es el flujo más delicado del proyecto.
 
 ```mermaid
 flowchart TD
@@ -309,7 +332,7 @@ flowchart TD
 
 ## 5. Cambios de estado (los 4 botones)
 
-📖 `anime_window.py:830-903` + `animesPersistence.py:594-684`. ✅ Máquina de estados verificada
+📖 `anime_window.py:879-952` + `animesPersistence.py:594-684`. ✅ Máquina de estados verificada
 completa sobre una copia de la BD.
 
 ```mermaid
@@ -355,7 +378,7 @@ anime no está en BD, ✅ `update_sql` devuelve `True` sin haber tocado nada. `a
 
 ⚠️ **El póster no se mueve de categoría.** Al hacer `remove_from_finished` el anime pasa a
 *pendiente* en BD (`:566-581`) pero su póster se borra de `finished/` y **no** se crea en `pending/`
-(`anime_window.py:859-865`) → la vista «pendientes» lo muestra en gris. Deuda B7 en
+(`anime_window.py:908-914`) → la vista «pendientes» lo muestra en gris. Deuda B7 en
 [12 §4](12-deuda-tecnica-y-roadmap.md).
 
 ---
@@ -436,40 +459,64 @@ El `1` es **una constante, no la última página real**: la paginación se colap
 
 ## 8. Obtención de servidores de un episodio
 
+✅ **Fuera del hilo de Tkinter desde el 2026-09-24** (fase 2 del reproductor): era la **deuda nº 1**
+del roadmap y el último sitio de la GUI que salía a la red desde el hilo de la interfaz. Lo dispara el
+usuario al pulsar la fila, abrir la ficha por un episodio
+([§12](#12-abrir-la-ficha-por-un-episodio--2026-09-01)) y cambiar de episodio desde el reproductor
+([§13](#13-reproducir-un-episodio-dentro-de-la-aplicación--2026-10-20)).
+
+📖 `anime_window.py:1739-1914`.
+
 ```mermaid
 sequenceDiagram
     participant U as Usuario
     participant AW as 🖥️ AnimeWindowViewer
+    participant T as 🧵 daemon (_fetch)
     participant MGR as AnimeProviderManager
-    participant AV1 as AnimeAV1
-    participant FLV as AnimeFLV
-    participant BR as Navegador
+    participant P as Proveedor de la ficha
 
-    U->>AW: clic en el botón del episodio (EpisodeButton :304-311)
-    AW->>AW: __toggle_servers_frame(ep, frames, row) :454
-    alt el frame ya estaba abierto
-        AW->>AW: destroy() + del :456-457
+    U->>AW: clic en la fila del episodio (EpisodeRow :313)
+    AW->>AW: __toggle_servers_frame(ep) :1739
+    alt el hueco ya estaba abierto
+        AW->>AW: destroy() + quitar su número de petición → plegado, sin red
     else
-        AW->>MGR: get_anime_episode_servers(ep.anime, ep.id) :459
-        Note over AW: ⚠️ HTTP EN EL HILO DE UI → la ventana se congela
-        MGR->>AV1: GET /media/{slug}/{n}
-        AV1->>AV1: __extract_svelte_payload :228-240
-        AV1->>AV1: regex embeds:…SUB:(\[…\]) :126
-        AV1-->>MGR: [ServerInfo(server, url)] ✅ 5 servidores
-        alt AnimeAV1 devuelve []
-            MGR->>FLV: get_anime_episode_servers(...)
-            Note over FLV: ✅ hoy devuelve [] — «var videos = {» ya no está
+        AW->>AW: __open_servers_frame(ep) :1771
+        Note over AW: hueco con «Buscando servidores…», fila con la misma línea<br/>y un número de despliegue (__servers_request_seq)
+        AW->>T: Thread(_fetch, daemon=True)
+        Note over AW: el bucle de eventos sigue libre: hueco máximo de 0,03 s ✅
+        T->>MGR: get_anime_episode_servers(ep.anime, ep.id, provider_id=…, strict=True) :1800
+        MGR->>P: GET de la página del episodio
+        P-->>MGR: [ServerInfo(server, url)]
+        MGR-->>T: List[ServerInfo] (o [] si falla: el gestor no distingue)
+        T->>AW: after(0, __show_servers, ep, número, servers) :1766
+        alt el número ya no coincide (plegado, redesplegado o lista repintada)
+            AW->>AW: se descarta la respuesta
+        else hay servidores
+            AW->>AW: __server_url_map() numera repetidos («Desu 2») — trampa 53
+            AW->>AW: CTkSegmentedButton; los que no tienen resolutor llevan ↗ :1847
+        else lista vacía
+            AW->>AW: «Sin servidores» en la fila y «X no ha devuelto servidores…» en el hueco
         end
-        MGR-->>AW: List[ServerInfo] (o [] si todos fallan)
-        AW->>AW: CTkSegmentedButton con los nombres :471-477
     end
-    U->>AW: elige servidor → __play_video(url) :481
-    AW->>BR: webbrowser.open(url)
+    U->>AW: elige servidor → __play_video(ep, servidores, etiqueta) → §13
 ```
 
-⚠️ `server_button.set(None)` (`:476`) se ejecuta **antes** de asignar el `command` (`:477`), así que no
-dispara la reproducción al construirse. Si `servers_info` viene vacío, el `CTkSegmentedButton` se crea
-sin valores y **no hay ningún aviso al usuario**.
+**Por qué `strict=True` y el `provider_id` de la ficha**: `ep.anime` es el *slug* del proveedor que
+sirvió la ficha, así que pedirle los servidores a otro sitio con ese slug no devuelve nada útil
+([trampa 21](10-invariantes-y-trampas.md)).
+
+**Por qué un número y no un candado**: se pueden tener varios episodios desplegados a la vez, como
+siempre. Cada despliegue lleva su número en `__servers_requests[episodio]`; plegar, redesplegar o
+repintar la lista lo cambia o lo quita, y `__show_servers` descarta la respuesta cuyo número no
+coincide. Así una respuesta lenta del episodio 3 nunca se pinta bajo el 5. ✅ Verificado con una
+respuesta tardía forzada de 3 s.
+
+⚠️ `server_button.set(None)` (`:1859`) va **antes** de asignar el `command` (`:1860`), así que no
+dispara la reproducción al construirse.
+
+Desaparecieron con la fase 2 el `cursor="watch"` y el `messagebox` de «Sin servidores disponibles».
+Abrir la ficha **entera** sigue parando el bucle **0,45-0,68 s**, pero eso es construir sus widgets en
+el hilo de Tk, no red ([07](07-concurrencia-e-hilos.md)).
 
 ---
 
@@ -500,7 +547,7 @@ flowchart TD
 | `download_images_progress` | idéntico + progreso `0.9 + 0.1·completados/total` (`:126`) |
 
 ⚠️ **La purga es agresiva**: `download_animes_poster` se usa también para `resources/images/search`
-(`searchAnimes.py:229`), así que **cada búsqueda borra los pósters de la búsqueda anterior**.
+(`searchAnimes.py:236`), así que **cada búsqueda borra los pósters de la búsqueda anterior**.
 
 ⚠️ **La purga puede fallar en Windows.** ✅ `load_image` (`utils.py:181`) hace `Image.open(path)` sin
 cerrar y PIL es perezoso: el fichero queda **abierto** mientras viva el `CTkImage` → `os.remove`
@@ -520,7 +567,7 @@ está verificado**.
 
 ## 10. Migrar un anime guardado a otro proveedor 🆕 *(2026-08-16)*
 
-📖 `anime_window.py:556-709`. Es el **único flujo que reescribe la identidad de una fila** de la
+📖 `anime_window.py:601-754`. Es el **único flujo que reescribe la identidad de una fila** de la
 biblioteca, y por eso es el que más comprobaciones lleva.
 
 ```mermaid
@@ -584,7 +631,310 @@ sequenceDiagram
 
 ---
 
-## 11. Flujos documentados en otro sitio
+## 11. Refrescar la banda «Retomar» al entrar en la portada 🆕 *(2026-09-01)*
+
+📖 `recentAnimes.py:90-94` y `:131-180`. Es el **único flujo que escribe en la biblioteca sin que el
+usuario haya pedido nada**, y por eso es el más conservador de todos: solo toca una columna, solo si
+el recuento cambia, y sin *fallback*.
+
+**El problema que resuelve**: la columna `episodes` de una fila solo se reescribía al abrir su ficha
+(`anime_window.py:648`). Un anime **en emisión** mentía en la portada hasta que entrabas en él: el
+capítulo que salió el domingo no existía todavía para la biblioteca, así que la tarjeta decía «Lo has
+visto entero» estando a uno de distancia. ✅ Reproducido sobre copia con Mushoku Tensei III: fila con
+9 episodios y 9 vistos, proveedor sirviendo 10.
+
+```mermaid
+sequenceDiagram
+    participant U as Usuario
+    participant RA as 🖥️ RecentAnimeButton
+    participant B as 🖥️ ResumeBand
+    participant T as 🧵 daemon
+    participant MGR as AnimeProviderManager
+    participant P as AnimesPersistence
+
+    U->>RA: entra en «Nuevos lanzamientos»
+    RA->>RA: __resume_records() :114-126
+    Note over RA,P: los ≤3 ids de last_watched_anime_ids → get_anime_by_anime_id()<br/>lo que ya no esté en la biblioteca se descarta en silencio
+    RA->>B: ResumeBand(records) :88
+    B->>U: tarjetas pintadas YA, con el dato guardado
+    opt has_content()
+        RA->>T: Thread(_fetch).start() :180
+    end
+
+    loop por cada fila de la banda (≤3)
+        T->>MGR: get_anime_info_with_provider(anime_id,<br/>provider_id=«el de la fila», strict=True) :171-172
+        MGR-->>T: (AnimeInfo | None, provider_id)
+        alt sin respuesta, o episodes vacío
+            Note over T: se descarta :173-176<br/>un corte de red NO puede vaciar la fila
+        else con episodios
+            T->>T: fresh_episodes.append((anime_id, episodes))
+        end
+    end
+    opt hay algo que aplicar
+        T->>RA: after(0, _apply, fresh_episodes) :178
+    end
+
+    RA->>RA: _apply() :147 — ya en 🖥️
+    alt la ventana se cerró
+        Note over RA: winfo_exists() → return :149-150
+    end
+    loop por cada (anime_id, episodes)
+        RA->>P: get_anime_by_anime_id(anime_id) :152
+        alt la fila ya no está, o mismo recuento
+            Note over RA: continue :153-154 — no se escribe nada
+        else difiere
+            RA->>P: update_anime_episodes(anime_id, episodes) :155
+            Note over P: SOLO la columna episodes.<br/>watched_episodes, estados y rating intactos
+            RA->>RA: print «X pasa de N a M episodios» :157-158
+            opt la banda sigue en pantalla
+                RA->>P: get_anime_by_anime_id(anime_id) :164
+                RA->>B: update_record(fila releída) :166
+                B->>B: busca la tarjeta por anime_id — resume_card.py:224-227
+                B->>U: pie y barra repintados — resume_card.py:143-157
+            end
+        end
+    end
+```
+
+**Cinco decisiones que se ven en el diagrama y conviene no revertir**:
+
+1. **Al entrar en la vista, no al arrancar.** Es donde se ve el dato; cuesta como mucho tres
+   peticiones y no retrasa el arranque. Cambiarlo a `MainWindow.__init__` volvería a pagar la espera
+   quien ni siquiera va a mirar la banda.
+2. **Las tarjetas se pintan antes de preguntar.** Se ven al instante con el dato guardado y se
+   corrigen solas un segundo después; esperar a la red dejaría la portada a medias.
+3. 🔴 **`strict=True`, al revés que `open_saved_anime()`** (§3b).
+   Aquí se escribe en la biblioteca sin que el usuario lo pida, y con *fallback* el mismo *slug*
+   puede existir en otro sitio con otra cuenta de episodios ([trampa 27](10-invariantes-y-trampas.md)):
+   quedarse con el dato viejo es recuperable, guardar el de otro anime no.
+4. **Se compara el recuento, no las listas.** Basta para «ha salido un capítulo», que es lo único que
+   se quiere detectar, y evita reescribir la fila en cada visita a la portada.
+5. **La tarjeta se repinta, no se recrea.** `ResumeCard.update_record()` toca el pie y la barra;
+   recrearla solo serviría para releer el póster del disco y hacer parpadear la banda entera. Y se
+   busca por `anime_id`, no por posición: entre que se piden los datos y llegan, la banda pudo
+   repintarse con otro reparto.
+
+⚠️ **La escritura sobrevive a que la banda se vaya.** Si el usuario cambia de vista mientras se piden
+los datos, `_apply()` **igualmente persiste** y solo se salta el repintado (`:162-163`): la próxima
+visita leerá el dato bueno.
+
+⚠️ **Solo se refrescan las ≤3 filas de la banda.** El resto de la biblioteca sigue con el dato del día
+que abriste su ficha ([trampa 38](10-invariantes-y-trampas.md)).
+
+---
+
+## 12. Abrir la ficha **por un episodio** 🆕 *(2026-09-01)*
+
+📖 `anime_window.py:1570` (`__focus_on_episode`) y `:1611` (`__scroll_to_episode`).
+No es un flujo nuevo de red: es el **§3 con un parámetro más**. Lo que cambia es lo que pasa
+*después* de pintar la ficha.
+
+**El problema que resuelve**: tres botones prometían un episodio concreto en su propio texto
+—«Episodio N →» y «Seguir por el N» en «Viendo», «Empezar» en «Pendientes»— y los tres llevaban al
+**anime**. El usuario aterrizaba arriba del todo y tenía que bajar, encontrar la fila y pulsarla para
+que aparecieran los servidores.
+
+**Quién lo pide y con qué**:
+
+| Acción | `focus_episode` | `force_ascending` |
+|---|---|---|
+| «Episodio N →» (`watchingAnimes.py:256-272`) | `resume_progress()` | no |
+| «Seguir por el N» (`watchingAnimes.py:109-119`) | idem — **mismo callback** | no |
+| «Empezar» (`pendingAnimes.py:292-328`) | `resume_progress()` | **sí** |
+
+🔴 **«Viendo» no fuerza el orden y «Empezar» sí, y no es un descuido.** El corte de 25 episodios
+(trampa 8) se aplica **sobre la lista tal y como llega**: con One Piece por el 1164 de 1176, servido
+de mayor a menor el episodio entra en los 25 que se pintan, y forzarlo a ascendente lo dejaría fuera.
+En «Empezar» el episodio es el primero, así que ascendente es justo lo que hace falta para que detrás
+vayan el 2 y el 3.
+
+```mermaid
+sequenceDiagram
+    participant U as Usuario
+    participant V as 🖥️ Vista (Viendo / Pendientes)
+    participant T as 🧵 daemon
+    participant W as 🖥️ AnimeWindowViewer
+    participant MGR as AnimeProviderManager
+
+    U->>V: pulsa la píldora
+    Note over V: resume_progress(record) → el mismo número que dice el botón
+    V->>T: open_saved_anime(anime_id, focus_episode=N, force_ascending=?)
+    T->>MGR: get_anime_info_with_provider(...)
+    MGR-->>T: AnimeInfo
+    T->>W: after(0, _show) → AnimeWindowViewer(..., focus_episode=N)
+    opt force_ascending y la lista llega descendente
+        Note over W: replace(anime_info, episodes=sorted(...)) :552-557<br/>sobre una COPIA: el AnimeInfo puede ser el cacheado del hub
+    end
+    W->>U: ficha pintada entera
+    W->>W: after(FOCUS_DELAY_MS=50, __focus_on_episode) :690
+
+    Note over W: los 50 ms dan un turno al bucle para que la ficha se pinte<br/>entera antes de medir dónde cae la fila (los servidores ya van en 🧵, §8)
+
+    alt el proveedor no lista ese episodio
+        Note over W: se anota por consola y la ficha se queda como está
+    else está entre los 25 que se pintan
+        W->>W: __toggle_servers_frame(episodio) → §8
+    else está FUERA del corte de 25
+        W->>W: __display_episodes([episodio]) + botones anterior/siguiente
+        Note over W: y el número se escribe en «Ir al episodio…»:<br/>es el mismo estado al que se llega buscándolo a mano
+        W->>W: __toggle_servers_frame(episodio) → §8
+    end
+    W->>W: __scroll_to_episode() :1611 — otra vez al llegar los servidores, porque el hueco crece
+    opt la fila y sus servidores NO caben en lo que se ve
+        W->>U: content_frame desplazado hasta la fila
+    end
+```
+
+**Los dos finales que no son el bueno**, y los dos son silenciosos a propósito:
+
+- **La ficha ya no está**: entre el `after` y su disparo caben 50 ms, y cambiar de pestaña destruye el
+  cuerpo de la lista. Se comprueba `winfo_exists()` y se abandona.
+- **El proveedor no lista ese episodio**: la biblioteca puede ir por delante de lo publicado. No es un
+  error — la ficha se abre normal y queda la línea por consola.
+
+⚠️ **`__focus_episode` se consume**: `__focus_on_episode()` lo pone a `None` en su primera línea. Es
+una **acción de apertura**, no un estado de la ficha; sin eso, cualquier repintado futuro volvería a
+desplegar servidores por su cuenta.
+
+⚠️ **El desplazamiento solo ocurre si hace falta.** Se compara la fila —y el marco de servidores que
+le acaba de nacer debajo— contra lo que se está viendo, y si cabe entero no se toca nada. Desplazar
+siempre tiraba fuera el póster y la sinopsis en el caso de «Empezar», donde el episodio 1 ya se veía.
+🔴 `CTkScrollableFrame` **no expone el desplazamiento** en customtkinter 5.2.2: hay que ir a su
+`_parent_canvas` ([trampa 39](10-invariantes-y-trampas.md) para el resto de sorpresas de medir un
+widget de esta librería).
+
+⚠️ **Para que esto llegue a ejecutarse hubo que arreglar antes `AnimeRow`**: su píldora nunca había
+ejecutado su propio `command` ([trampa 40](10-invariantes-y-trampas.md)). Dos de los tres botones de
+la tabla pasan por ahí.
+
+---
+
+## 13. Reproducir un episodio dentro de la aplicación 🆕 *(2026-10-20)*
+
+📖 `anime_window.py:1916-2430` (bloque «Reproductor acoplado»), `video_player.py` entero,
+`main_window.py:165-300` y `APIs/resolvers/`. ✅ Recorrido en pantalla en las fases 3, 4 y 5 del
+plan del reproductor: AnimeAV1 por `HLS` (zilla) y MP4Upload, JKAnime
+por Desu y Magi, también desde el `.exe`.
+
+Aquí aparece un **cuarto hilo**: 🎞️ = **`MPVEventHandlerThread`**, el hilo propio de `python-mpv`
+donde llegan sus eventos ([trampa 46](10-invariantes-y-trampas.md)).
+
+**Lo que no se negocia**: si algo falla —no hay resolutor, el resolutor no puede, mpv no carga o el
+medio da error—, **el episodio se abre en el navegador**, que es lo que hacía la aplicación antes de
+este flujo.
+
+```mermaid
+sequenceDiagram
+    participant U as Usuario
+    participant AW as 🖥️ AnimeWindowViewer
+    participant MW as 🖥️ MainWindow
+    participant T as 🧵 daemon (_resolve)
+    participant R as registry
+    participant VP as 🖥️ VideoPlayer
+    participant M as 🎞️ mpv
+    participant BR as Navegador
+
+    U->>AW: pulsa un servidor (lista de la ficha o columna del panel)
+    AW->>AW: __play_video(ep, servidores, etiqueta) :1933
+    opt primer servidor de esta ficha
+        AW->>MW: show_player_frame(self) :165
+        Note over MW: player_frame a la fila 0, content_frame a la fila 1:<br/>la ficha se queda debajo y encoge
+        AW->>VP: VideoPlayer(on_error, on_started, on_end, …) — sin mpv todavía
+        Note over AW: si no se puede montar → webbrowser.open(url) y fin
+    end
+    AW->>VP: stop_media() + show_loading("Cargando el episodio N")
+    AW->>T: Thread(_resolve, daemon=True) con número de petición
+    T->>R: registry.resolve(url_del_embed)
+    R-->>T: MediaSource(url, headers, kind, expires_at) o None
+    T->>AW: after(0, __on_media_resolved, número, source) :1973
+    alt número viejo (se pidió otra cosa entretanto)
+        AW->>AW: se descarta
+    else source es None
+        AW->>BR: __fall_back_to_browser() :2151 → webbrowser.open + tarjeta
+    else
+        AW->>VP: play(source) :680
+        VP->>VP: __ensure_mpv(): load_mpv() + MPV(wid=superficie) la primera vez
+        VP->>M: user_agent, http_header_fields, play(url)
+        M-->>VP: start-file · playback-restart · time-pos (a una cola o a atributos)
+        loop cada POLL_MS = 100 ms
+            VP->>VP: __poll() recoge la cola en 🖥️ y repinta la barra
+        end
+        VP->>AW: on_started → «REPRODUCIENDO» en la columna y en la fila
+    end
+    alt llega al final (eof-reached, o end-file con reason 0)
+        VP->>VP: __reach_end(): ¿faltan más de 15 s? → es un corte → on_error
+        VP->>AW: on_end → __on_player_ended() :2106
+        AW->>AW: __mark_finished_episode(): solo si el anime tiene fila
+        AW->>VP: show_message("Has terminado el episodio N", ✓ franja, ✕, botones)
+    else error (end-file con reason 4)
+        VP->>AW: on_error → __fall_back_to_browser() → navegador + tarjeta
+    end
+```
+
+**Tres cosas que el diagrama no dice**:
+
+- **Marcar como visto escribe en la biblioteca real**, y es una decisión del usuario (2026-10-20,
+  punto 1 del plan). Solo si el anime **ya tiene fila** —nunca crea una—, con la **identidad de la
+  fila guardada** (`persistence_anime_id`, [trampa 21](10-invariantes-y-trampas.md)) y la semántica
+  acumulativa de siempre ([trampa 9](10-invariantes-y-trampas.md)). Si ya estaba visto, no se
+  reescribe, pero la franja «Marcado como visto · N de M» sale igual.
+- **La tarjeta del navegador ofrece otro servidor**: «Ver aquí con X», con el primero de los que
+  tienen resolutor y **no** se han intentado ya (`__failed_servers`). «Seguir en el navegador» cierra
+  el panel.
+- **La ✕ de la tarjeta de fin** retira solo el aviso y deja a la vista el último fotograma, gracias a
+  `keep-open=yes` ([trampa 47](10-invariantes-y-trampas.md)). Play pasa a «repetir», que recarga el
+  medio.
+
+### 13b. Episodio anterior y siguiente
+
+Lo disparan los dos botones de la barra, «Siguiente episodio» de la columna y «Ver el episodio N+1»
+de la tarjeta de fin. Todos acaban en `__play_episode()` (`:1990`).
+
+```mermaid
+sequenceDiagram
+    participant AW as 🖥️ AnimeWindowViewer
+    participant T as 🧵 daemon (_load)
+    participant MGR as AnimeProviderManager
+    participant R as registry
+
+    AW->>AW: __adjacent_episode(id, ±1) — por número real, entre TODOS los episodios
+    AW->>AW: pliega la fila del que sonaba, despliega la del nuevo (se pinta sola si está fuera del corte de 25)
+    AW->>T: Thread(_load) con número de petición
+    T->>MGR: get_anime_episode_servers(..., strict=True)
+    T->>AW: after(0, __show_servers, …) — la MISMA respuesta rellena el hueco de la fila
+    loop el mismo nombre de servidor primero, luego los demás con resolutor
+        T->>R: resolve(url) — una petición por servidor, sin reintentos
+    end
+    T->>AW: after(0, __on_episode_resolved, …) :2051
+    alt no hay servidores
+        AW->>AW: tarjeta «No hay servidores para el episodio N» con «Volver a la ficha»
+    else ninguno se resolvió
+        AW->>AW: navegador con el preferido; los intentados no se ofrecen como alternativa
+    else
+        AW->>AW: play(source) — como en §13
+    end
+```
+
+«Anterior» y «siguiente» van por **orden real de número** (el mayor menor / el menor mayor), no por
+posición en la lista, así que el orden ascendente o descendente del proveedor no los afecta. Navegan
+**en cualquier estado**: cargando, reproduciendo, en la tarjeta del navegador o con el episodio
+terminado.
+
+### 13c. Pantalla completa y cierre
+
+- **Entrar** (botón de la barra): la ficha llama a `MainWindow.enter_player_fullscreen()` (`:214`),
+  que **no** usa `-fullscreen` ([trampa 51](10-invariantes-y-trampas.md)), y a
+  `VideoPlayer.set_fullscreen(True)`, que cambia la barra fija por la **flotante**: un `Toplevel` sin
+  marco que se oculta a los 5 s junto con el cursor ([trampa 52](10-invariantes-y-trampas.md)).
+  `Esc` va con `bind_all` y solo mientras dura.
+- **Cerrar el reproductor** pasa siempre por `MainWindow.close_player()` (`:199`), que llama al
+  `close_player()` del dueño. Lo disparan «← Volver a la ficha», «Seguir en el navegador», **cambiar
+  de vista** (`clear_frame()` lo llama primero) y **cerrar la ventana** (`WM_DELETE_WINDOW`). Así mpv
+  nunca se queda sonando debajo de otra vista. ✅ Tras cerrar solo queda `MainThread`.
+
+---
+
+## 14. Flujos documentados en otro sitio
 
 - **Cambio de tema claro/oscuro** (`main_window.py:428-438`) → [06 §5](06-gui-y-vistas.md).
 - **Semántica interna del fallback entre proveedores** → [05 §5](05-proveedores-y-scraping.md).

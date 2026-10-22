@@ -2,8 +2,8 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-08-16 · **Commit** `a3d4331` (2026-08-17, rama `main`) · árbol **limpio** |
-| **Última revisión** | 2026-08-16 (**columna `provider_id`**): `DB_user.db` incorporada al diagrama, **I9 nuevo** (el proveedor es un tipo, no una cadena), §5 con las dos BD y §7 corregido — sí hay migraciones y sí hay configuración persistida |
+| **Fecha** | 2026-10-20 · rama `feature/reproductor-embebido` · último commit de código **`f3fc229`** (fase 5 del reproductor) |
+| **Última revisión** | 2026-10-20 (**reproductor in-app**): la capa **`APIs/resolvers/`** entra en el diagrama y en la tabla de dependencias —solo stdlib, `requests` y ella misma; **no** la usa el manager; la llama la ficha—, junto con `VideoPlayer`, libmpv y los hosters; **I6 se cumple ya sin excepciones**; **I10** (la resolución no es un método de `AnimeProvider`) e **I11** (todo fallo de reproducción acaba en el navegador) nuevos; §6 gana `python-mpv` y la DLL. Antes, 2026-08-16 (**columna `provider_id`**): `DB_user.db` incorporada al diagrama, **I9 nuevo** (el proveedor es un tipo, no una cadena), §5 con las dos BD y §7 corregido — sí hay migraciones y sí hay configuración persistida |
 | **Cubre** | `src/app.py`, `src/APIs/**`, `src/dataPersistence/**`, `src/gui/**`, `src/utils/**` |
 
 Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ sin verificar.
@@ -23,6 +23,7 @@ graph TD
         VIEWS["sidebarButtons/*<br/>recent · favourite · finished<br/>watching · pending · search"]
         AW["anime_window.py<br/><b>AnimeWindowViewer</b><br/><i>ficha de detalle</i>"]
         BTN["utils/buttons/utilsButtons.py<br/><i>widgets reutilizables</i>"]
+        VP["components/video_player.py<br/><b>VideoPlayer · PlayerControls</b><br/><i>mpv incrustado</i>"]
     end
 
     subgraph L2["Dominio / acceso a datos"]
@@ -30,6 +31,7 @@ graph TD
         MODELS["APIs/common/models.py<br/><b>AnimeInfo · EpisodeInfo · ServerInfo</b><br/><b>AnimeProviderId · ProviderInfo</b><br/>AnimeGenreFilter · AnimeOrderFilter"]
         PERS["dataPersistence/animesPersistence.py<br/><b>AnimesPersistence · AnimeRecord</b>"]
         UPERS["dataPersistence/userPersistence.py<br/><b>UserPersistence</b><br/><i>preferencias</i>"]
+        RES["APIs/resolvers/<br/><b>registry · Resolver · MediaSource</b><br/>zilla · jkplayer · mp4upload"]
     end
 
     subgraph L3["Infraestructura"]
@@ -41,6 +43,9 @@ graph TD
     end
 
     NET(["Sitios web<br/>animeav1.com · jkanime.net · www3.animeflv.net"])
+    HOST(["Hosters de vídeo<br/>zilla · mp4upload · playmudos · jkplayers"])
+    MPV(["vendor/libmpv-2.dll<br/><i>vía python-mpv</i>"])
+    BR(["Navegador del sistema<br/><i>degradación</i>"])
     DB[("resources/DB/DB_Animes.db")]
     UDB[("resources/DB/DB_user.db")]
     FS[("resources/images/&lt;categoría&gt;/")]
@@ -80,16 +85,27 @@ graph TD
     AV1 -.->|removeprefix| UTL
     FLV -.->|removeprefix| UTL
     PERS -.->|get_resource_path| UTL
+    AW --> RES
+    AW --> VP
+    AW -.->|webbrowser.open| BR
+    VP -.->|MediaSource| RES
+    VP --> MPV
+    RES --> HOST
+    MPV --> HOST
 
     classDef gui fill:#dbeafe,stroke:#3b82f6
     classDef dom fill:#dcfce7,stroke:#22c55e
     classDef inf fill:#fef3c7,stroke:#f59e0b
     classDef ext fill:#f3e8ff,stroke:#a855f7
-    class MW,VIEWS,AW,BTN gui
-    class MGR,MODELS,PERS,UPERS dom
+    class MW,VIEWS,AW,BTN,VP gui
+    class MGR,MODELS,PERS,UPERS,RES dom
     class AV1,JK,FLV,SQL,UTL inf
-    class NET,DB,UDB,FS ext
+    class NET,DB,UDB,FS,HOST,MPV,BR ext
 ```
+
+> 🆕 **La capa de resolución no cuelga del manager** (2026-10-20): `AnimeProviderManager` no la conoce
+> y el *fallback* no interviene. La llama **la ficha**, con la URL de un `ServerInfo` que el manager
+> ya le dio, y si no resuelve, la ficha **abre el navegador** ([I10 e I11](#i10--la-resolución-es-una-capa-aparte-no-un-método-de-animeprovider--2026-10-20)).
 
 ---
 
@@ -102,10 +118,18 @@ graph TD
 | `gui/**` | `APIs.common.*`, `dataPersistence.*`, `utils.*` | `APIs.animeflv.*` / `APIs.animeav1.*` / `APIs.jkanime.*` **salvo `main_window.py`** |
 | `APIs/<sitio>/` | `APIs.common.*`, `utils.utils` | cualquier cosa de `gui/` o `dataPersistence/` |
 | `APIs/common/` | solo stdlib + `requests` | `utils.*`, `gui/**`, `dataPersistence/**` |
+| 🆕 `APIs/resolvers/` | solo stdlib + `requests` + **ella misma** | `APIs.<sitio>.*`, `APIs.common.*`, `gui/**`, `dataPersistence/**`, `utils.*` |
 | `dataPersistence/` | `APIs.common.models`, `utils.db.sqlite`, `utils.utils` | `gui/**`, `APIs/<sitio>/` |
 | `utils/db/sqlite.py` | solo stdlib (`os`, `sqlite3`) | todo lo demás |
 | `utils/utils.py` | stdlib + `PIL` + `requests` + `customtkinter` | `gui/**`, `APIs/**`, `dataPersistence/**` |
 | `utils/buttons/utilsButtons.py` | `APIs.common.models`, `dataPersistence.*`, `utils.utils` | `APIs/<sitio>/`, `gui/**` |
+
+🆕 **Quién importa `APIs.resolvers`** 📖: solo `gui/anime_window.py` (`registry` y `MediaSource`) y
+`gui/components/video_player.py` (`MediaSource`, como tipo). Ni el manager ni los proveedores. El UA
+de navegador está **duplicado a propósito** en `resolvers/base.py` respecto a `jkanime.py`: importarlo
+de allí ataría la capa a un proveedor concreto. ✅ Comprobado el 2026-10-20 con
+`git grep -n "APIs.resolvers" -- src/`: fuera de la propia capa, solo esas dos líneas de la GUI (al
+cerrar la fase 1 aún no había ninguna; las dos llegaron con la fase 3).
 
 **La única excepción legítima** 📖: `gui/main_window.py` importa los **tres** proveedores concretos
 para registrarlos. Es el *composition root*. Ningún otro módulo de `gui/` debe conocer un sitio
@@ -158,12 +182,27 @@ Tabla campo a campo en [04 §1](04-modelo-de-datos.md).
 vacían y repueblan (`main_window.py:141-152`).
 
 ### I6 — Nada de HTTP en el hilo de Tkinter
-📖 Toda petición va en un hilo daemon. Ver [07](07-concurrencia-e-hilos.md) — con las excepciones
-reales que incumplen esta regla hoy.
+📖 Toda petición va en un hilo daemon. ✅ **Sin excepciones desde el 2026-10-21**: la última que
+quedaba —el póster de la ficha cuando no estaba en disco, que nadie había contado— salió con la
+auditoría de rendimiento. La anterior, los servidores de un episodio, con la fase 2 del reproductor. Ver
+[07](07-concurrencia-e-hilos.md), que lleva el inventario de hilos y la regla aparte del hilo de mpv.
 
 ### I7 — El cwd es irrelevante
 ✅ `get_resource_path()` calcula la raíz del proyecto desde la ubicación de `src/utils/utils.py`,
 no desde el directorio de trabajo (`utils/utils.py:204-217`). Bajo PyInstaller usa `sys._MEIPASS`.
+
+### I10 — La resolución es una capa aparte, no un método de `AnimeProvider` 🆕 *(2026-10-20)*
+📖 Pasar de la URL de un servidor al vídeo es trabajo **del hoster**, no del proveedor: un mismo
+hoster lo embeben varios sitios, así que `APIs/resolvers/` se indexa por **dominio** y no por
+proveedor. Por eso no es un sexto método del contrato, `ServerInfo` no cambia y el manager no
+interviene. Detalle en [05 §9](05-proveedores-y-scraping.md).
+
+### I11 — Todo fallo de reproducción acaba en el navegador 🆕 *(2026-10-20)*
+✅ Si no hay resolutor, si el resolutor no puede, si libmpv no carga o si el medio da error, la ficha
+hace `webbrowser.open(url)` —lo que hacía la aplicación antes del reproductor— y lo dice en el
+recuadro del vídeo. **Ningún cambio puede dejar la reproducción peor que eso.** Las piezas no lanzan:
+`Resolver.resolve()` devuelve `None`, `load_mpv()` devuelve `None` y `VideoPlayer` convierte todo
+fallo en `on_error`.
 
 ### I8 — Una conexión SQLite por operación
 📖 `utils/db/sqlite.py` abre y cierra en cada método; no hay pool ni transacciones multi-sentencia
@@ -237,10 +276,16 @@ nada de animes. Por qué están separadas: [13 D1](13-selector-de-proveedor.md).
 
 📖 `requirements.txt`:
 `beautifulsoup4==4.12.3` · `Pillow==11.0.0` · `Requests==2.32.3` · `pyinstaller==6.11.0` ·
-`customtkinter==5.2.2` · `typing_extensions==4.12.2`
+`customtkinter==5.2.2` · `typing_extensions==4.12.2` · 🆕 `python-mpv==1.0.8`
 
-✅ **La lista está completa** (2026-07-28): `src/` no importa nada fuera de la stdlib y de esos seis
-paquetes.
+✅ **La lista está completa** (2026-07-28, revisada el 2026-10-20): `src/` no importa nada fuera de la
+stdlib y de esos siete paquetes.
+
+🆕 **Y una dependencia que no es de pip**: `vendor/libmpv-2.dll` (build `20260923` de
+`shinchiro/mpv-winbuild-cmake`, 120 MB), que **no está en el repositorio** —supera el límite de
+GitHub— y se descarga siguiendo el paso 4 del `README.md`. `python-mpv` la busca en `%PATH%`
+([trampa 18f](10-invariantes-y-trampas.md)). Sin ella la app funciona igual, pero todo servidor se
+abre en el navegador (I11).
 
 > **Histórico**: hasta 2026-07-28 `searchAnimes.py:15` hacía `from attr import dataclass`, del
 > paquete **`attrs`**, que no estaba declarado y solo existía en el entorno como transitiva de
