@@ -417,19 +417,32 @@ ficha: la deja pintándose **encima de la siguiente**, que es como se destapó (
 seleccionado tapada por la ficha de al lado, resuelto el 2026-09-01,
 [trampa 39](docs/10-invariantes-y-trampas.md)).
 
-🔴 **«Nuevos lanzamientos» es la única vista que sale a la red por datos que ya tiene guardados.** Al
-entrar, `__refresh_resume_episodes()` (`recentAnimes.py:137-186`) relee los episodios de las **≤3**
-filas de la banda «Retomar» y reescribe la columna `episodes` si el proveedor sirve más que la
-biblioteca. Sin eso, un anime **en emisión** decía «Lo has visto entero» desde que salía el capítulo
-nuevo hasta que abrías su ficha, que era el único sitio que refrescaba la fila
-([trampa 38](docs/10-invariantes-y-trampas.md), [`docs/03 §11`](docs/03-flujos-de-ejecucion.md)).
+🔴 **Los episodios guardados se refrescan solos, y ninguna vista espera por ello** (2026-10-27,
+cierra B12). `ANIMES.episodes` es el recuento del día en que abriste la ficha, así que un anime **en
+emisión** mentía en la banda «Retomar», en las barras de «Viendo» y en la duración de «Pendientes»
+([trampa 38](docs/10-invariantes-y-trampas.md)). Lo arregla **`EpisodeRefresher`**
+(`gui/episode_refresher.py`), un servicio sin interfaz que vive en `MainWindow.episode_refresher`:
+
+- **Cuándo**: `__on_startup_loaded()` encola «Viendo» + «Pendientes» **con la portada ya pintada**,
+  y la banda, «Viendo» y «Pendientes» piden las suyas **con prioridad** al entrar. Cada fila se
+  comprueba **una vez cada 30 min** (`FRESH_FOR_S`), así que cambiar de vista no repite peticiones.
+- **Cómo**: **un hilo por proveedor**, una petición detrás de otra dentro de cada sitio. Un
+  proveedor con **2 fallos seguidos** se deja de pedir esa media hora: AnimeFLV tarda 9 s por fila
+  en fallar, y AnimeAV1 no tiene por qué esperarlo.
+- **Qué ve el usuario**: la vista pinta **con lo guardado** y se suscribe (`subscribe()`); lo que
+  cambia se repinta **en el sitio** —`ResumeCard`/`AnimeRow`/`SidePanel.update_record()` y
+  `ViewHeader.set_subtitle()`—, nunca reconstruyendo. **«Pendientes» no se reordena** mientras la
+  miras. Entrar en «Viendo» cuesta lo mismo que antes (✅ 414-511 ms frente a 414-471 en `develop`).
+- **De regalo**: `open_saved_anime()` aprovecha la ficha que trajo el refresco (`cached_info()`, una
+  **copia**, porque la ficha reordena sus episodios en el sitio) y se ahorra la petición: ✅ One
+  Piece abre en 772 ms en vez de ~1 060. Solo si el desplegable **no** está desviado.
 
 ⚠️ Va con **`strict=True`** —al proveedor de la fila y a ninguno más—, al revés que
 `open_saved_anime()`. Aquí se **escribe en la biblioteca sin que el usuario lo pida**, y con
 *fallback* el mismo slug puede existir en otro sitio con otra cuenta de episodios
-([trampa 27](docs/10-invariantes-y-trampas.md)). Tampoco escribe nunca si la respuesta viene vacía:
-un corte de red no puede vaciar la lista guardada. **Copia esas dos precauciones** si extiendes el
-refresco a otra vista.
+([trampa 27](docs/10-invariantes-y-trampas.md)). Tampoco escribe nunca si la respuesta viene vacía,
+**relee la fila** antes de escribir —si entretanto cambió de proveedor, el dato ya no es suyo— y
+**se salta las filas sin `provider_id`**. Detalle en [`docs/03 §11`](docs/03-flujos-de-ejecucion.md).
 
 ⚠️ **Los contadores de la barra salen de las listas cacheadas del hub, y esas listas solo se llenan al
 arrancar.** Quien cambie un estado tiene que **releerlas** antes de llamar a
@@ -563,6 +576,9 @@ lo que daba por hecho la investigación previa. Detalle completo en
   [`docs/07 §1b`](docs/07-concurrencia-e-hilos.md)).
 - Una respuesta que puede llegar tarde lleva **número de petición** y se descarta si ya no es la última
   (servidores, resolución y cambio de episodio en la ficha).
+- 🆕 `EpisodeRefresher` (2026-10-27) lanza **como mucho un hilo daemon por proveedor**, que muere al
+  vaciar su cola; su estado compartido va bajo un `Lock`, y escribir en la BD y avisar a las vistas
+  vuelve al hilo de Tk con `after(0, …)`.
 - Para reprogramar trabajo en el hilo de UI, usar `self.after(delay, callback)`.
 - ⚠️ **El `time.sleep(0.1)` tras `clear_frame()` desapareció de las seis vistas.** Solo estaba para que
   `winfo_width()` no valiera 1 al calcular columnas; con rejillas de número fijo no se mide nada. **No
@@ -589,12 +605,12 @@ lo que daba por hecho la investigación previa. Detalle completo en
 
 ## Notas de mantenimiento
 
-- **`MiBibliotecaAnime.spec`**: `hiddenimports` tiene **38** nombres desde el 2026-10-21 —37 módulos
+- **`MiBibliotecaAnime.spec`**: `hiddenimports` tiene **39** nombres desde el 2026-10-27 —38 módulos
   de `src/` y `mpv`, que `video_player.py` importa **dentro** de `load_mpv()` y el análisis estático no
-  ve—. ✅ Auditado con AST en las dos direcciones: todos resuelven a ficheros reales y **ningún módulo
+  ve—. ✅ Auditado con AST en las dos direcciones el 2026-10-21: todos resuelven a ficheros reales y **ningún módulo
   de `src/` queda sin declarar** salvo `app.py`, que es el script de entrada. El reproductor añadió los
   cinco `APIs.resolvers.*` y `gui.components.video_player`; la auditoría de rendimiento,
-  `gui.components.order_menu`. 🔴 **Todo módulo nuevo bajo `src/` hay que
+  `gui.components.order_menu`; el refresco de episodios, `gui.episode_refresher`. 🔴 **Todo módulo nuevo bajo `src/` hay que
   declararlo aquí**, o el `.exe` compila y revienta al arrancar.
 - **`binaries`** lleva `('vendor/libmpv-2.dll', 'vendor')` —destino **`vendor`**, no `'.'`—, porque
   `load_mpv()` la busca en `get_resource_path("vendor")`, que en el `.exe` es `_internal/vendor`; y
@@ -723,9 +739,10 @@ Después, sin orden fijado. **El rediseño se llevó por delante buena parte de 
   3. ✅ ~~El orden de «Pendientes» **no se persiste**~~ — **cerrada el 2026-10-26**: se guarda en
      `USER_SETTINGS` (`pending_order`) como el de «Favoritos», con un código estable y no el texto del
      desplegable ([`docs/13 §4`](docs/13-selector-de-proveedor.md)).
-  4. **B12**: el refresco de episodios llega **solo a las ≤3 filas de la banda «Retomar»**. El resto
-     de la biblioteca sigue enseñando el recuento del día que abriste su ficha, así que las barras de
-     «Viendo» y «Pendientes» y el sello de «Finalizados» siguen mintiendo con los animes en emisión
+  4. ✅ ~~**B12**: el refresco de episodios llega **solo a las ≤3 filas de la banda «Retomar»**~~ —
+     **cerrada el 2026-10-27** con `EpisodeRefresher`: «Viendo» y «Pendientes» se refrescan en segundo
+     plano tras la portada y al entrar, y se repintan en el sitio. ⚠️ **«Finalizados» queda fuera a
+     propósito**: lo terminado casi nunca crece, y son 24 peticiones más
      ([trampa 38](docs/10-invariantes-y-trampas.md), [`docs/12 §4`](docs/12-deuda-tecnica-y-roadmap.md)).
   5. **B13**: cambiar de vista bloquea la interfaz **270-620 ms**. ✅ Rediagnosticada el 2026-10-21:
      ~70 % es crear los widgets de CustomTkinter (8-12 mil llamadas a Tcl por vista), y los JPG cuestan

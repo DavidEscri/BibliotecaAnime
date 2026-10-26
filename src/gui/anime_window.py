@@ -1,7 +1,7 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "gui"
 __module__ = "anime_window.py"
-__version__ = "0.10"
+__version__ = "0.11"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 """Ficha de detalle de un anime: la pantalla desde la que se ve un episodio.
@@ -243,7 +243,8 @@ def open_saved_anime(main_window, anime_id: Union[str, int],
 
     Punto de entrada único de las cuatro vistas de estado. El fallback sigue
     activo a propósito: fijar el proveedor de la fila impediría abrir animes
-    cuyo slug ya no responde en el proveedor que los guardó.
+    cuyo slug ya no responde en el proveedor que los guardó. Si el refresco de
+    episodios acaba de traer la ficha de ese proveedor, se abre sin salir a la red.
 
     :param main_window: Hub de la aplicación.
     :param anime_id: anime_id de la fila, el slug del proveedor que la guardó.
@@ -254,6 +255,16 @@ def open_saved_anime(main_window, anime_id: Union[str, int],
     """
     anime_record: AnimeRecord = main_window.animes_persistence.get_anime_by_anime_id(anime_id)
     provider_id, is_deviation = main_window.provider_for_saved_anime(anime_record.provider_id if anime_record is not None else None)
+
+    cached_info = None if is_deviation else main_window.episode_refresher.cached_info(anime_id, provider_id)
+    if cached_info is not None:
+        # after() y no una llamada directa: la ficha destruye la vista, y con ella
+        # el widget cuyo clic se está atendiendo ahora mismo.
+        main_window.after(0, lambda: AnimeWindowViewer(main_window, cached_info, provider_id,
+                                                       anime_record=anime_record,
+                                                       focus_episode=focus_episode,
+                                                       force_ascending=force_ascending).display_anime_info())
+        return
 
     main_window.configure(cursor="watch")
     # Evita que un segundo clic reentre aquí y lance un segundo hilo.

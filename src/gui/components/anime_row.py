@@ -1,7 +1,7 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "gui.components"
 __module__ = "anime_row.py"
-__version__ = "0.2"
+__version__ = "0.3"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 """Fila en cascada de una vista de biblioteca: la unidad de «Viendo» y «Pendientes».
@@ -113,7 +113,17 @@ class AnimeRow(ctk.CTkFrame):
         self.__on_click = on_click
         self.__action = action
         self.__text_width = text_width or self.TEXT_W
+        self.__show_progress = show_progress
+        self.__progress_frame: Optional[ctk.CTkFrame] = None
+        self.__progress_bar: Optional[ctk.CTkProgressBar] = None
+        self.__caption_label: Optional[ctk.CTkLabel] = None
+        self.__right: Optional[ctk.CTkFrame] = None
+        self.__provider_label: Optional[ctk.CTkLabel] = None
+        self.__meta_width: int = self.PROVIDER_W
+        self.__action_holder: Optional[ctk.CTkFrame] = None
         self.__action_button: Optional[ctk.CTkButton] = None
+        #: ``True`` desde que se atan los eventos: lo que se cree después hay que atarlo a mano.
+        self.__interactive: bool = False
         #: Tk no guarda referencia a la imagen de un widget: sin esto el recolector
         #: se la lleva y la fila sale sin póster.
         self.__image: Optional[ctk.CTkImage] = None
@@ -175,80 +185,95 @@ class AnimeRow(ctk.CTkFrame):
         if not show_progress:
             return
 
-        progress_frame = ctk.CTkFrame(middle, height=1, fg_color=Theme.TRANSPARENT)
-        progress_frame.grid(row=2, column=0, sticky="w", pady=(11, 0))
+        self.__progress_frame = ctk.CTkFrame(middle, height=1, fg_color=Theme.TRANSPARENT)
+        self.__progress_frame.grid(row=2, column=0, sticky="w", pady=(11, 0))
 
+        self.__caption_label = ctk.CTkLabel(
+            self.__progress_frame,
+            text="",
+            font=Theme.font(*Theme.T_META),
+            text_color=Theme.TXT_3,
+            anchor="w"
+        )
+        self.__caption_label.grid(row=0, column=1, padx=(11, 0))
+        self.__apply_progress()
+
+    def __apply_progress(self) -> None:
+        """Vuelca en la barra y en su texto lo que dice ``resume_progress()``.
+
+        La barra se crea la primera vez que hay un total que enseñar: una fila
+        sin lista de episodios no la lleva, y puede ganarla al refrescarse.
+        """
         _next_episode, total, fraction = resume_progress(self.anime_record)
-        if total:
-            watched = len(set(self.anime_record.watched_episodes) & set(self.anime_record.episodes))
-            progress_bar = ctk.CTkProgressBar(
-                progress_frame,
+        if not total:
+            last_watched = self.anime_record.last_watched_episode or 0
+            self.__caption_label.configure(
+                text=f"Último visto: episodio {last_watched}" if last_watched else "Sin episodios registrados")
+            return
+
+        if self.__progress_bar is None:
+            self.__progress_bar = ctk.CTkProgressBar(
+                self.__progress_frame,
                 width=self.PROGRESS_W,
                 height=Metrics.PROGRESS_H,
                 corner_radius=Metrics.PROGRESS_RADIUS,
                 fg_color=Theme.LINE,
                 progress_color=Theme.ACCENT
             )
-            progress_bar.set(fraction)
-            progress_bar.grid(row=0, column=0)
-            caption = f"{watched} de {total} episodios"
-        else:
-            # Fila sin lista de episodios (guardada antes de abrir su ficha): no
-            # hay total que prometer, así que tampoco se pinta barra.
-            last_watched = self.anime_record.last_watched_episode or 0
-            caption = f"Último visto: episodio {last_watched}" if last_watched else "Sin episodios registrados"
-
-        caption_label = ctk.CTkLabel(
-            progress_frame,
-            text=caption,
-            font=Theme.font(*Theme.T_META),
-            text_color=Theme.TXT_3,
-            anchor="w"
-        )
-        caption_label.grid(row=0, column=1, padx=(11, 0))
+            self.__progress_bar.grid(row=0, column=0)
+            if self.__interactive:
+                for widget in self.__descendants(self.__progress_bar):
+                    self.__bind_widget(widget, clickable=True)
+        self.__progress_bar.set(fraction)
+        watched = len(set(self.anime_record.watched_episodes) & set(self.anime_record.episodes))
+        self.__caption_label.configure(text=f"{watched} de {total} episodios")
 
     def __build_right(self, provider_name: Optional[str], meta_text: Optional[str]) -> None:
-        right = ctk.CTkFrame(self.__body, height=1, fg_color=Theme.TRANSPARENT)
-        right.grid(row=0, column=2, padx=(18, 12), sticky="e")
+        self.__right = ctk.CTkFrame(self.__body, height=1, fg_color=Theme.TRANSPARENT)
+        self.__right.grid(row=0, column=2, padx=(18, 12), sticky="e")
 
         # `meta_text` manda si viene: ya incluye el proveedor, así que no se
         # pintan los dos. El ancho es fijo en los dos casos para que la columna
         # quede a plomo de una fila a otra, y se recorta antes que desbordarlo.
-        meta_font = Theme.font(*Theme.T_META)
-        meta_width = self.META_W if meta_text else self.PROVIDER_W
-        provider_label = ctk.CTkLabel(
-            right,
-            text=Theme.ellipsize(meta_text or provider_name or "", meta_font, meta_width, 1),
-            width=meta_width,
-            font=meta_font,
+        self.__meta_width = self.META_W if meta_text else self.PROVIDER_W
+        self.__provider_label = ctk.CTkLabel(
+            self.__right,
+            text=Theme.ellipsize(meta_text or provider_name or "", Theme.font(*Theme.T_META), self.__meta_width, 1),
+            width=self.__meta_width,
+            font=Theme.font(*Theme.T_META),
             text_color=Theme.TXT_3,
             anchor="e"
         )
-        provider_label.grid(row=0, column=0, sticky="e")
+        self.__provider_label.grid(row=0, column=0, sticky="e")
 
-        if self.__action is None:
-            return
+        if self.__action is not None:
+            self.__build_action()
 
+    def __action_width(self) -> int:
+        """:return: Ancho del hueco de la acción: el mínimo del diseño o lo que pida su texto."""
+        return max(self.ACTION_W, Theme.font(12, True, False).measure(self.__action.text) + 30)
+
+    def __build_action(self) -> None:
+        """Crea la píldora de acción, oculta, en su hueco de la columna derecha."""
         # El hueco de la acción se reserva siempre para que la fila no se mueva
         # cuando aparece la píldora: el marco lleva tamaño propio y no encoge.
-        action_font = Theme.font(12, True, False)
-        holder = ctk.CTkFrame(
-            right,
-            width=max(self.ACTION_W, action_font.measure(self.__action.text) + 30),
+        self.__action_holder = ctk.CTkFrame(
+            self.__right,
+            width=self.__action_width(),
             height=self.ACTION_H,
             fg_color=Theme.TRANSPARENT
         )
-        holder.grid(row=0, column=1, padx=(14, 0))
-        holder.grid_propagate(False)
-        holder.grid_columnconfigure(0, weight=1)
-        holder.grid_rowconfigure(0, weight=1)
+        self.__action_holder.grid(row=0, column=1, padx=(14, 0))
+        self.__action_holder.grid_propagate(False)
+        self.__action_holder.grid_columnconfigure(0, weight=1)
+        self.__action_holder.grid_rowconfigure(0, weight=1)
 
         self.__action_button = ctk.CTkButton(
-            holder,
+            self.__action_holder,
             text=self.__action.text,
             height=self.ACTION_H,
             corner_radius=Metrics.pill_radius(self.ACTION_H),
-            font=action_font,
+            font=Theme.font(12, True, False),
             fg_color=Theme.TRANSPARENT,
             hover_color=Theme.ACCENT_SOFT,
             text_color=Theme.ACCENT,
@@ -265,25 +290,76 @@ class AnimeRow(ctk.CTkFrame):
         return " · ".join(refactor_genre_text(genre).upper() for genre in genres)
 
     # ------------------------------------------------------------------
+    # Actualización
+    # ------------------------------------------------------------------
+    def update_record(self, anime_record: AnimeRecord, action: Optional[RowAction],
+                      meta_text: Optional[str] = None) -> None:
+        """Repinta en el sitio lo que depende de los episodios, con una fila recién leída.
+
+        Título, géneros y póster no cambian, así que la fila no se recrea: eso
+        releería el póster del disco y la haría parpadear.
+
+        :param anime_record: Fila releída de la BD.
+        :param action: Acción que corresponde ahora; ``None`` la quita.
+        :param meta_text: Texto nuevo de la columna derecha; ``None`` lo deja como está.
+        """
+        self.anime_record = anime_record
+        if self.__show_progress:
+            self.__apply_progress()
+        if meta_text is not None:
+            self.__provider_label.configure(
+                text=Theme.ellipsize(meta_text, Theme.font(*Theme.T_META), self.__meta_width, 1))
+        self.__set_action(action)
+
+    def __set_action(self, action: Optional[RowAction]) -> None:
+        """Cambia, crea o quita la píldora de acción según ``action``."""
+        self.__action = action
+        if action is None:
+            if self.__action_holder is not None:
+                self.__action_holder.destroy()
+                self.__action_holder = self.__action_button = None
+            return
+
+        if self.__action_holder is not None:
+            self.__action_button.configure(text=action.text)
+            self.__action_holder.configure(width=self.__action_width())
+            return
+
+        self.__build_action()
+        action_widgets = self.__descendants(self.__action_button)
+        for widget in self.__descendants(self.__action_holder):
+            self.__bind_widget(widget, clickable=widget not in action_widgets)
+        if self.__pointer_inside():
+            self.__action_button.grid()
+
+    # ------------------------------------------------------------------
     # Interacción
     # ------------------------------------------------------------------
     def __bind_interactions(self) -> None:
         """Ata hover y clic a la fila y a todos sus hijos, ya que los eventos de Tk no burbujean.
 
         La píldora de acción queda fuera del clic, incluidos su canvas y su
-        label internos (que no son el botón). Todo lo que se ata a la píldora
-        usa ``add="+"`` para no pisar los manejadores propios de CustomTkinter.
+        label internos (que no son el botón).
         """
         action_widgets = (self.__descendants(self.__action_button)
                           if self.__action_button is not None else [])
         for widget in self.__descendants(self.__body):
-            # add="+": dentro de la píldora hay manejadores de CustomTkinter que
-            # no son nuestros y que no se pueden perder.
-            widget.bind("<Enter>", self.__handle_enter, add="+")
-            widget.bind("<Leave>", self.__handle_leave, add="+")
-            if self.__on_click is not None and widget not in action_widgets:
-                widget.bind("<Button-1>", self.__handle_click)
-                widget.configure(cursor="hand2")
+            self.__bind_widget(widget, clickable=widget not in action_widgets)
+        self.__interactive = True
+
+    def __bind_widget(self, widget, clickable: bool) -> None:
+        """Ata a un widget el hover de la fila y, si ``clickable``, su clic.
+
+        :param widget: Widget de la fila.
+        :param clickable: ``False`` para las piezas de la píldora de acción.
+        """
+        # add="+": dentro de la píldora hay manejadores de CustomTkinter que
+        # no son nuestros y que no se pueden perder.
+        widget.bind("<Enter>", self.__handle_enter, add="+")
+        widget.bind("<Leave>", self.__handle_leave, add="+")
+        if self.__on_click is not None and clickable:
+            widget.bind("<Button-1>", self.__handle_click)
+            widget.configure(cursor="hand2")
 
     def __descendants(self, widget) -> List[Any]:
         """:return: El widget y todos sus descendientes, recursivamente."""

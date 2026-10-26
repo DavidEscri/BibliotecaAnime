@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Fecha** | 2026-10-20 · rama `feature/reproductor-embebido` · último commit de código **`f3fc229`** (fase 5 del reproductor) |
-| **Última revisión** | 2026-10-20 (**reproductor in-app**): **flujo 13 nuevo** —reproducir un episodio dentro de la aplicación, con **13b** (anterior/siguiente) y **13c** (pantalla completa y cierre)— y el antiguo §13 pasa a **§14**; **§8 reescrito**: la petición de servidores ya va en un hilo daemon (cerró la deuda nº 1) y lleva número de despliegue; la convención de hilos gana 🎞️ (el hilo de eventos de mpv); §12 reanclado. Antes, 2026-09-01 (**abrir la ficha por un episodio**): **flujo 12 nuevo** —las tres acciones que prometen un episodio lo cumplen: la ficha sale con esa fila desplegada—, y el antiguo §12 pasa a **§13**; §3 gana el parámetro `focus_episode` y §8 deja de ser siempre cosa del usuario. Antes, 2026-09-01 (**refresco de la banda «Retomar»**): **flujo 11 nuevo** —la portada relee los episodios de lo que estás viendo al entrar—, y el antiguo §11 pasa a **§12**. Antes, 2026-08-31 (**fondo de la pantalla de carga**): §1 reanclado entero contra el código real y corregido —seguía diciendo `place_forget()`, que la fase 9 cambió a `destroy()`— y con la nota del fondo `Theme.BG`. Antes, 2026-08-16 (**columna `provider_id`**): §3 pasa de 2 caminos a **3, todos asíncronos**; **flujo 10 nuevo** (migrar una fila a otro proveedor); anclas de `anime_window.py` reubicadas tras crecer a 1 155 líneas |
+| **Última revisión** | 2026-10-27 (**refresco de episodios**): **§11 reescrito**: el refresco de episodios deja de ser cosa de la banda «Retomar» y pasa a `EpisodeRefresher`, que refresca también «Viendo» y «Pendientes» —tras la portada y al entrar—, con un hilo por proveedor, repintado en el sitio y la ficha cacheada para `open_saved_anime()`. Antes, 2026-10-20 (**reproductor in-app**): **flujo 13 nuevo** —reproducir un episodio dentro de la aplicación, con **13b** (anterior/siguiente) y **13c** (pantalla completa y cierre)— y el antiguo §13 pasa a **§14**; **§8 reescrito**: la petición de servidores ya va en un hilo daemon (cerró la deuda nº 1) y lleva número de despliegue; la convención de hilos gana 🎞️ (el hilo de eventos de mpv); §12 reanclado. Antes, 2026-09-01 (**abrir la ficha por un episodio**): **flujo 12 nuevo** —las tres acciones que prometen un episodio lo cumplen: la ficha sale con esa fila desplegada—, y el antiguo §12 pasa a **§13**; §3 gana el parámetro `focus_episode` y §8 deja de ser siempre cosa del usuario. Antes, 2026-09-01 (**refresco de la banda «Retomar»**): **flujo 11 nuevo** —la portada relee los episodios de lo que estás viendo al entrar—, y el antiguo §11 pasa a **§12**. Antes, 2026-08-31 (**fondo de la pantalla de carga**): §1 reanclado entero contra el código real y corregido —seguía diciendo `place_forget()`, que la fase 9 cambió a `destroy()`— y con la nota del fondo `Theme.BG`. Antes, 2026-08-16 (**columna `provider_id`**): §3 pasa de 2 caminos a **3, todos asíncronos**; **flujo 10 nuevo** (migrar una fila a otro proveedor); anclas de `anime_window.py` reubicadas tras crecer a 1 155 líneas |
 | **Cubre** | `main_window.py`, `anime_window.py`, `recentAnimes.py`, `resume_card.py`, `searchAnimes.py`, las 4 vistas de estado, `animeProviderMgr.py`, `animesPersistence.py`, `utils.py`, `video_player.py`, `APIs/resolvers/` |
 
 Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ sin verificar.
@@ -631,95 +631,103 @@ sequenceDiagram
 
 ---
 
-## 11. Refrescar la banda «Retomar» al entrar en la portada 🆕 *(2026-09-01)*
+## 11. Refrescar los episodios guardados 🆕 *(2026-09-01, ampliado el 2026-10-27)*
 
-📖 `recentAnimes.py:90-94` y `:131-180`. Es el **único flujo que escribe en la biblioteca sin que el
-usuario haya pedido nada**, y por eso es el más conservador de todos: solo toca una columna, solo si
-el recuento cambia, y sin *fallback*.
+📖 `gui/episode_refresher.py` (`EpisodeRefresher`). Es el **único flujo que escribe en la biblioteca
+sin que el usuario haya pedido nada**, y por eso es el más conservador de todos: solo toca una
+columna, solo si el recuento cambia, y sin *fallback*.
 
 **El problema que resuelve**: la columna `episodes` de una fila solo se reescribía al abrir su ficha
-(`anime_window.py:648`). Un anime **en emisión** mentía en la portada hasta que entrabas en él: el
-capítulo que salió el domingo no existía todavía para la biblioteca, así que la tarjeta decía «Lo has
-visto entero» estando a uno de distancia. ✅ Reproducido sobre copia con Mushoku Tensei III: fila con
-9 episodios y 9 vistos, proveedor sirviendo 10.
+(`anime_window.py:657-658`). Un anime **en emisión** mentía hasta que entrabas en él: el capítulo que
+salió el domingo no existía todavía para la biblioteca, así que la tarjeta decía «Lo has visto entero»
+estando a uno de distancia ([trampa 38](10-invariantes-y-trampas.md)). Hasta el 2026-10-27 solo lo
+arreglaba la banda «Retomar», con su propio hilo (`__refresh_resume_episodes`, ya retirado).
+
+**Quién lo pide**:
+
+| Quién | Cuándo | Qué filas | Prioridad |
+|---|---|---|---|
+| `MainWindow.__on_startup_loaded()` | con la portada **ya pintada**, junto a la precarga de estrenos | «Viendo» + «Pendientes» | normal |
+| `RecentAnimeButton` | al entrar | las ≤3 de la banda | `urgent=True` |
+| `WatchingAnimeButton` | al entrar | todo «Viendo» | `urgent=True` |
+| `PendingAnimeButton` | al entrar | todo «Pendientes», en el orden de pantalla | `urgent=True` |
 
 ```mermaid
 sequenceDiagram
-    participant U as Usuario
-    participant RA as 🖥️ RecentAnimeButton
-    participant B as 🖥️ ResumeBand
-    participant T as 🧵 daemon
+    participant V as 🖥️ Vista
+    participant R as EpisodeRefresher
+    participant T as 🧵 hilo del proveedor X
     participant MGR as AnimeProviderManager
     participant P as AnimesPersistence
 
-    U->>RA: entra en «Nuevos lanzamientos»
-    RA->>RA: __resume_records() :114-126
-    Note over RA,P: los ≤3 ids de last_watched_anime_ids → get_anime_by_anime_id()<br/>lo que ya no esté en la biblioteca se descarta en silencio
-    RA->>B: ResumeBand(records) :88
-    B->>U: tarjetas pintadas YA, con el dato guardado
-    opt has_content()
-        RA->>T: Thread(_fetch).start() :180
+    V->>V: pinta YA con lo guardado
+    V->>R: refresh(filas, urgent=True)
+    Note over R: con el Lock: se salta lo comprobado hace < 30 min,<br/>lo que está en curso, lo que no tiene provider_id<br/>y lo de un proveedor dado por caído.<br/>Lo urgente va delante de la cola de su proveedor
+    opt el proveedor X no tenía hilo
+        R->>T: Thread(__work, X).start()
     end
+    R-->>V: vuelve en ~1 ms
 
-    loop por cada fila de la banda (≤3)
-        T->>MGR: get_anime_info_with_provider(anime_id,<br/>provider_id=«el de la fila», strict=True) :171-172
-        MGR-->>T: (AnimeInfo | None, provider_id)
-        alt sin respuesta, o episodes vacío
-            Note over T: se descarta :173-176<br/>un corte de red NO puede vaciar la fila
+    loop mientras quede cola de X
+        T->>MGR: get_anime_info_with_provider(id, provider_id=X, strict=True)
+        MGR-->>T: (AnimeInfo | None, X)
+        alt sin respuesta o sin episodios
+            Note over T: no se escribe nada.<br/>2 fallos seguidos → X caído 30 min, se vacía su cola
         else con episodios
-            T->>T: fresh_episodes.append((anime_id, episodes))
+            T->>T: guarda la ficha para cached_info()
+            T->>R: after(0, __apply, id, X, episodes)
         end
     end
-    opt hay algo que aplicar
-        T->>RA: after(0, _apply, fresh_episodes) :178
-    end
+    Note over T: cola vacía → el hilo termina
 
-    RA->>RA: _apply() :147 — ya en 🖥️
-    alt la ventana se cerró
-        Note over RA: winfo_exists() → return :149-150
-    end
-    loop por cada (anime_id, episodes)
-        RA->>P: get_anime_by_anime_id(anime_id) :152
-        alt la fila ya no está, o mismo recuento
-            Note over RA: continue :153-154 — no se escribe nada
-        else difiere
-            RA->>P: update_anime_episodes(anime_id, episodes) :155
-            Note over P: SOLO la columna episodes.<br/>watched_episodes, estados y rating intactos
-            RA->>RA: print «X pasa de N a M episodios» :157-158
-            opt la banda sigue en pantalla
-                RA->>P: get_anime_by_anime_id(anime_id) :164
-                RA->>B: update_record(fila releída) :166
-                B->>B: busca la tarjeta por anime_id — resume_card.py:224-227
-                B->>U: pie y barra repintados — resume_card.py:143-157
-            end
-        end
+    R->>P: get_anime_by_anime_id(id) — ya en 🖥️
+    alt la fila ya no está, es de otro proveedor o tiene el mismo recuento
+        Note over R: no se escribe nada
+    else difiere
+        R->>P: update_anime_episodes(id, episodes)
+        Note over P: SOLO la columna episodes.<br/>watched_episodes, estados y rating intactos
+        R->>P: get_anime_by_anime_id(id)
+        R->>V: cada suscriptor(fila releída)
+        V->>V: si sigue en pantalla: update_record() en el sitio
     end
 ```
 
-**Cinco decisiones que se ven en el diagrama y conviene no revertir**:
+**Decisiones que conviene no revertir**:
 
-1. **Al entrar en la vista, no al arrancar.** Es donde se ve el dato; cuesta como mucho tres
-   peticiones y no retrasa el arranque. Cambiarlo a `MainWindow.__init__` volvería a pagar la espera
-   quien ni siquiera va a mirar la banda.
-2. **Las tarjetas se pintan antes de preguntar.** Se ven al instante con el dato guardado y se
-   corrigen solas un segundo después; esperar a la red dejaría la portada a medias.
-3. 🔴 **`strict=True`, al revés que `open_saved_anime()`** (§3b).
-   Aquí se escribe en la biblioteca sin que el usuario lo pida, y con *fallback* el mismo *slug*
-   puede existir en otro sitio con otra cuenta de episodios ([trampa 27](10-invariantes-y-trampas.md)):
-   quedarse con el dato viejo es recuperable, guardar el de otro anime no.
-4. **Se compara el recuento, no las listas.** Basta para «ha salido un capítulo», que es lo único que
-   se quiere detectar, y evita reescribir la fila en cada visita a la portada.
-5. **La tarjeta se repinta, no se recrea.** `ResumeCard.update_record()` toca el pie y la barra;
-   recrearla solo serviría para releer el póster del disco y hacer parpadear la banda entera. Y se
-   busca por `anime_id`, no por posición: entre que se piden los datos y llegan, la banda pudo
-   repintarse con otro reparto.
+1. **Ninguna vista espera a la red.** Pintan con lo guardado y se corrigen solas; `refresh()` solo
+   encola. ✅ Entrar en «Viendo» cuesta lo mismo que en `develop` (414-511 ms frente a 414-471).
+2. **El primer refresco va tras la portada, no en el arranque.** Así no retrasa nada, y cuando el
+   usuario entra en «Viendo» lo normal es que el dato ya esté al día y no haya nada que corregir
+   delante de él. Lo que sí hay que evitar es meterlo en `MainWindow.__init__` o en el hilo de carga.
+3. **Un hilo por proveedor, no un hilo por lote.** Dentro de un sitio, de una en una; entre sitios,
+   en paralelo. ✅ Medido el 2026-10-26: una fila de AnimeAV1 o JKAnime tarda 0,2-0,35 s, y una de
+   AnimeFLV, **9,2 s en fallar**. En lote, una fila de AnimeFLV retrasaba todas las demás.
+4. **Cada resultado se aplica en cuanto llega**, no al terminar la cola.
+5. 🔴 **`strict=True`, al revés que `open_saved_anime()`** (§3b). Aquí se escribe en la biblioteca sin
+   que el usuario lo pida, y con *fallback* el mismo *slug* puede existir en otro sitio con otra cuenta
+   de episodios ([trampa 27](10-invariantes-y-trampas.md)): quedarse con el dato viejo es recuperable,
+   guardar el de otro anime no.
+6. **Se relee la fila antes de escribir.** Entre la petición y la respuesta, la fila pudo borrarse o
+   reapuntarse con «Actualizar a X»; el dato solo vale para el proveedor al que se le pidió.
+7. **Se compara el recuento, no las listas.** Basta para «ha salido un capítulo».
+8. **Se repinta, no se recrea**, y se busca por `anime_id`, no por posición. `ResumeCard`, `AnimeRow`
+   y `SidePanel` tienen `update_record()`; `AnimeRow` crea la barra o la píldora si la fila no las
+   tenía. Recrear releería el póster del disco y haría parpadear la lista (y costaría lo de B13).
+9. **«Pendientes» no se reordena mientras la miras.** La fila se moverá en la siguiente visita.
 
-⚠️ **La escritura sobrevive a que la banda se vaya.** Si el usuario cambia de vista mientras se piden
-los datos, `_apply()` **igualmente persiste** y solo se salta el repintado (`:162-163`): la próxima
-visita leerá el dato bueno.
+**La ficha cacheada.** El refresco hace exactamente la petición que hará `open_saved_anime()` al
+pulsar la fila, así que guarda la ficha y la ofrece con `cached_info(anime_id, provider_id)` mientras
+siga fresca y sea del mismo proveedor. Devuelve una **copia** (5 ms con 1 180 episodios), porque
+`AnimeWindowViewer` reordena `anime_info.episodes` en el sitio. No se usa con el desplegable
+desviado: ahí hay que re-localizar por título. ✅ One Piece abre en 772 ms en vez de ~1 060; el resto
+es construir la ficha.
 
-⚠️ **Solo se refrescan las ≤3 filas de la banda.** El resto de la biblioteca sigue con el dato del día
-que abriste su ficha ([trampa 38](10-invariantes-y-trampas.md)).
+⚠️ **La escritura sobrevive a que la vista se vaya.** Si el usuario cambia de vista mientras se piden
+los datos, `__apply()` **igualmente persiste**, y cada suscriptor comprueba `winfo_exists()` antes de
+repintar: la próxima visita leerá el dato bueno.
+
+⚠️ **No se refresca «Finalizados»**, a propósito: lo terminado casi nunca crece, y serían 24
+peticiones más por arranque.
 
 ---
 

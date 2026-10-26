@@ -77,6 +77,7 @@ a = Analysis(
         'gui.components.video_player',
         'gui.components.view_header',
         'gui.anime_window',
+        'gui.episode_refresher',
         'gui.main_window',
         'utils.buttons.utilsButtons',
         'utils.db.sqlite',
