@@ -1,7 +1,7 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "gui"
 __module__ = "main_window.py"
-__version__ = "0.6"
+__version__ = "0.7"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 import ctypes
@@ -28,6 +28,7 @@ from gui.sidebarButtons.recentAnimes.recentAnimes import RecentAnimeButton
 from gui.sidebarButtons.searchAnimes.searchAnimes import SearchButton, AnimeSearch
 from gui.sidebarButtons.watchingAnimes.watchingAnimes import WatchingAnimeButton
 from gui.components.sidebar import Sidebar
+from gui.episode_refresher import EpisodeRefresher
 from gui.theme import Metrics, Theme
 
 from utils.utils import get_resource_path, download_images_progress, download_animes_poster
@@ -92,6 +93,9 @@ class MainWindow(ctk.CTk):
         self.pending_animes: List[AnimeRecord] = []
         self.last_search_instance: AnimeSearch | None = None
         self.images_path = get_resource_path("resources/images/recent_animes")
+        # Antes que las vistas: se suscriben a él al construirse.
+        self.episode_refresher: EpisodeRefresher = EpisodeRefresher(self, self.anime_provider_mgr,
+                                                                    self.animes_persistence)
 
         self.load_sidebar_buttons()
         self.protocol("WM_DELETE_WINDOW", self.__on_close)
@@ -661,6 +665,9 @@ class MainWindow(ctk.CTk):
             args=(self.__recent_animes_generation,),
             daemon=True
         ).start()
+        # Con la portada ya pintada no retrasa el arranque, y así «Viendo» y
+        # «Pendientes» encuentran el recuento al día cuando el usuario entra.
+        self.episode_refresher.refresh(self.watching_animes + self.pending_animes)
 
     def __preload_recent_animes_info(self, generation: int):
         """Rellena synopsis, géneros y episodios de los animes recientes, en segundo plano.

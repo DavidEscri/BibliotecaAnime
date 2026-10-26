@@ -1,7 +1,7 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "sidebarButtons"
 __module__ = "pendingAnimes.py"
-__version__ = "0.6"
+__version__ = "0.7"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 """«Pendientes»: la cola de lo que todavía no has empezado.
@@ -12,8 +12,9 @@ cabecera lleva orden por duración, y la fila una acción «Empezar» que mueve
 el anime a «Viendo» y abre su ficha por el primer episodio.
 
 Todo lo que se pinta sale de la biblioteca guardada: la vista funciona sin
-conexión. Solo salen a la red la búsqueda del proveedor (que se suma a la
-local), abrir una ficha y cachear el póster tras «Empezar».
+conexión y no espera a nadie. Al entrar pide a ``EpisodeRefresher`` que
+compruebe sus filas y repinta en el sitio las que cambien, **sin reordenar**:
+una fila que salta de sitio bajo el cursor no es un refresco silencioso.
 """
 
 import os
@@ -69,6 +70,12 @@ class PendingAnimeButton(utilsButtons.SidebarButton):
         #: Última lista pintada, sin ordenar. Hace falta para que cambiar el
         #: orden reordene **lo que hay en pantalla** y no deshaga la búsqueda.
         self.__displayed_animes: List[AnimeRecord] = []
+        self.__header: Optional[ViewHeader] = None
+        #: Filas de la cascada en pantalla, por ``anime_id``.
+        self.__rows: Dict[str, AnimeRow] = {}
+        #: Todo «Pendientes», no solo lo filtrado: de aquí sale el subtítulo.
+        self.__pending_animes: List[AnimeRecord] = []
+        main_window.episode_refresher.subscribe(self.__on_episodes_refreshed)
         # Buscador de la pestaña: coincidencias locales al instante, completadas
         # después con lo que encuentre el proveedor seleccionado.
         self.__search = utilsButtons.SavedAnimeSearch(
@@ -95,9 +102,12 @@ class PendingAnimeButton(utilsButtons.SidebarButton):
 
         self.__order = self.main_window.user_persistence.get_pending_order()
         pending_animes: List[AnimeRecord] = self.animes_persistence.get_pending_animes()
+        self.__pending_animes = pending_animes
+        self.__rows = {}
 
         header = ViewHeader(content, "Pendientes", self.__subtitle(pending_animes))
         header.grid(row=0, column=0, sticky="ew")
+        self.__header = header
         self.__build_controls(header)
 
         if not pending_animes:
@@ -117,6 +127,7 @@ class PendingAnimeButton(utilsButtons.SidebarButton):
         self.__list_frame.grid_columnconfigure(0, weight=1)
 
         self.__display_animes(pending_animes)
+        self.main_window.episode_refresher.refresh(self.__sort_animes(pending_animes), urgent=True)
 
     def __build_controls(self, header: ViewHeader) -> None:
         """Orden y buscador local, en la zona de controles de la cabecera."""
@@ -232,6 +243,7 @@ class PendingAnimeButton(utilsButtons.SidebarButton):
             return
         for widget in self.__list_frame.winfo_children():
             widget.destroy()
+        self.__rows = {}
 
         self.__displayed_animes = pending_animes
 
@@ -254,13 +266,42 @@ class PendingAnimeButton(utilsButtons.SidebarButton):
                 anime_record,
                 poster_size=Metrics.ROW_PENDING_POSTER,
                 show_progress=False,
-                action=RowAction("Empezar", self.__on_start_watching),
+                action=self.__row_action(),
                 on_click=self.__on_anime_click,
                 meta_text=self.__meta_text(anime_record),
                 text_width=self.TITLE_W,
                 show_separator=(index != last_index)
             )
             anime_row.grid(row=index, column=0, sticky="ew")
+            self.__rows[str(anime_record.anime_id)] = anime_row
+
+    def __row_action(self) -> RowAction:
+        """:return: La píldora «Empezar», la misma para todas las filas."""
+        return RowAction("Empezar", self.__on_start_watching)
+
+    def __on_episodes_refreshed(self, anime_record: AnimeRecord) -> None:
+        """Repinta en el sitio la duración de la fila y el subtítulo, si el anime está en la cola.
+
+        No reordena: la fila se moverá a su sitio en la siguiente visita.
+
+        :param anime_record: Fila ya releída de la BD.
+        """
+        anime_id = str(anime_record.anime_id)
+        if not any(str(record.anime_id) == anime_id for record in self.__pending_animes):
+            return
+
+        def _replace(records: List[AnimeRecord]) -> List[AnimeRecord]:
+            return [anime_record if str(record.anime_id) == anime_id else record for record in records]
+
+        self.__pending_animes = _replace(self.__pending_animes)
+        self.__displayed_animes = _replace(self.__displayed_animes)
+
+        if self.__header is not None and self.__header.winfo_exists():
+            self.__header.set_subtitle(self.__subtitle(self.__pending_animes))
+        anime_row = self.__rows.get(anime_id)
+        if anime_row is not None and anime_row.winfo_exists():
+            anime_row.update_record(anime_record, action=self.__row_action(),
+                                    meta_text=self.__meta_text(anime_record))
 
     # ------------------------------------------------------------------
     # Navegación y acciones
