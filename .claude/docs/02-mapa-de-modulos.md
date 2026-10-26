@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Fecha** | 2026-10-20 · rama `feature/reproductor-embebido` · último commit de código **`f3fc229`** (fase 5 del reproductor) |
-| **Última revisión** | 2026-10-20 (**reproductor in-app**): **7 módulos nuevos** —los 6 de `APIs/resolvers/` (5 con contenido + `__init__.py` vacío) y `gui/components/video_player.py`— con su ficha; `main_window.py` y `anime_window.py` ganan su bloque del reproductor; inventario **recontado de cero** (**13 676** líneas en **37** módulos) y con la convención de conteo corregida, porque el commit `cbd2721` dejó la mitad de los ficheros terminando en salto de línea. Antes, 2026-09-02 (**rejillas adaptables y sinopsis**): recuentos rehechos (**11 599 → 11 920**); `poster_grid.py` **234 → 396** —calcula sus columnas del ancho—, `anime_window.py` **1 875 → 1 924** con `wrap_synopsis()`, `pager.py` **247 → 277** con `set_page_size()`, y las cuatro vistas de rejilla ([trampas 41 y 42](10-invariantes-y-trampas.md)). Antes, 2026-09-01 (**abrir la ficha por un episodio**): recuentos rehechos (**11 430 → 11 599**); `anime_window.py` **1 745 → 1 875** con `focus_episode` / `force_ascending` y sus dos métodos nuevos, `anime_row.py` **333 → 349** con la corrección de sus ataduras ([trampa 40](10-invariantes-y-trampas.md)), y las dos vistas de cascada. Antes, 2026-09-01 (**ancho de las fichas de género**): recuentos rehechos (**11 403 → 11 430**); `genre_chips.py` **333 → 360** con la aritmética real del ancho de un `CTkButton` ([trampa 39](10-invariantes-y-trampas.md)). Antes, 2026-09-01 (**refresco de la banda «Retomar»**): recuentos rehechos (**11 309 → 11 403**); `resume_card.py` estrena `update_record()` en sus **dos** clases y `recentAnimes.py`, `__refresh_resume_episodes()`; la tabla de «cómo abre la ficha» reanclada, que iba ~125 líneas desplazada. Antes, 2026-09-01 (**hover de la lista de episodios**): **ficha de `EpisodeRow` nueva** —no la tenía—, y recuentos rehechos con la convención del documento explicada. Antes, 2026-08-31 (**fondo de la pantalla de carga**): ficha de `MainWindow` reanclada —sus líneas iban ~29 desplazadas—, `show_loading_screen()` descrito de verdad y `__config_main_window()` añadido. Antes, 2026-08-21 (**rediseño de interfaz**): **12 módulos nuevos** en `gui/` —`theme.py` y los 11 de `gui/components/`— con su ficha; recuentos rehechos (**6 245 → 11 309** líneas); `utilsButtons.py` pierde 5 clases y `main_window.py` gana `navigate_to()`. Antes, 2026-08-16 (**columna `provider_id`**): recuentos rehechos — el proyecto pasa de 5 460 a **6 245** líneas; fichas de `models.py`, `animeProviderMgr.py`, `animesPersistence.py`, `utils.py`, `utilsButtons.py`, `main_window.py` y `anime_window.py` actualizadas |
+| **Última revisión** | 2026-10-27 (**refresco de episodios**): **módulo nuevo `gui/episode_refresher.py`**; `AnimeRow` y `SidePanel` ganan `update_record()`, y `recentAnimes.py` pierde `__refresh_resume_episodes()`. Antes, 2026-10-20 (**reproductor in-app**): **7 módulos nuevos** —los 6 de `APIs/resolvers/` (5 con contenido + `__init__.py` vacío) y `gui/components/video_player.py`— con su ficha; `main_window.py` y `anime_window.py` ganan su bloque del reproductor; inventario **recontado de cero** (**13 676** líneas en **37** módulos) y con la convención de conteo corregida, porque el commit `cbd2721` dejó la mitad de los ficheros terminando en salto de línea. Antes, 2026-09-02 (**rejillas adaptables y sinopsis**): recuentos rehechos (**11 599 → 11 920**); `poster_grid.py` **234 → 396** —calcula sus columnas del ancho—, `anime_window.py` **1 875 → 1 924** con `wrap_synopsis()`, `pager.py` **247 → 277** con `set_page_size()`, y las cuatro vistas de rejilla ([trampas 41 y 42](10-invariantes-y-trampas.md)). Antes, 2026-09-01 (**abrir la ficha por un episodio**): recuentos rehechos (**11 430 → 11 599**); `anime_window.py` **1 745 → 1 875** con `focus_episode` / `force_ascending` y sus dos métodos nuevos, `anime_row.py` **333 → 349** con la corrección de sus ataduras ([trampa 40](10-invariantes-y-trampas.md)), y las dos vistas de cascada. Antes, 2026-09-01 (**ancho de las fichas de género**): recuentos rehechos (**11 403 → 11 430**); `genre_chips.py` **333 → 360** con la aritmética real del ancho de un `CTkButton` ([trampa 39](10-invariantes-y-trampas.md)). Antes, 2026-09-01 (**refresco de la banda «Retomar»**): recuentos rehechos (**11 309 → 11 403**); `resume_card.py` estrena `update_record()` en sus **dos** clases y `recentAnimes.py`, `__refresh_resume_episodes()`; la tabla de «cómo abre la ficha» reanclada, que iba ~125 líneas desplazada. Antes, 2026-09-01 (**hover de la lista de episodios**): **ficha de `EpisodeRow` nueva** —no la tenía—, y recuentos rehechos con la convención del documento explicada. Antes, 2026-08-31 (**fondo de la pantalla de carga**): ficha de `MainWindow` reanclada —sus líneas iban ~29 desplazadas—, `show_loading_screen()` descrito de verdad y `__config_main_window()` añadido. Antes, 2026-08-21 (**rediseño de interfaz**): **12 módulos nuevos** en `gui/` —`theme.py` y los 11 de `gui/components/`— con su ficha; recuentos rehechos (**6 245 → 11 309** líneas); `utilsButtons.py` pierde 5 clases y `main_window.py` gana `navigate_to()`. Antes, 2026-08-16 (**columna `provider_id`**): recuentos rehechos — el proyecto pasa de 5 460 a **6 245** líneas; fichas de `models.py`, `animeProviderMgr.py`, `animesPersistence.py`, `utils.py`, `utilsButtons.py`, `main_window.py` y `anime_window.py` actualizadas |
 | **Cubre** | los **57** ficheros `.py` de `src/` (**37** con contenido + **20** `__init__.py` vacíos) |
 
 Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ sin verificar.
@@ -511,8 +511,8 @@ nunca una copia del fichero.
 | `poster_grid.py` | `PosterGrid`, `PosterItem` | fase 2 | Rejilla que **calcula sus columnas del ancho** (`columns_that_fit()`); `columns` pasó a ser la referencia del diseño, no el número real. Sello con `place()` —el ítem trae `badge_status` y la rejilla dibuja el glifo 🆕—, pie y `extra_builder`. 🆕 Su `destroy()` suelta las imágenes ([trampa 55](10-invariantes-y-trampas.md)). 🔴 La vista **tiene** que colocarla con `sticky="ew"` ([trampa 41](10-invariantes-y-trampas.md)); `on_columns_changed` traspasa el repintado a quien lo pasa |
 | `pager.py` | `Pager` | fase 2 | `set_total()` (corta la lista) o `set_pages()` (pagina el proveedor). 🆕 `set_page_size()`, porque el tamaño de página sale de las columnas que quepan y conserva el **primer elemento visible**, no el número de página |
 | `resume_card.py` | `ResumeBand`, `ResumeCard`, `resume_progress()`, `resume_caption()` | fase 2 | `resume_progress()` es el **único** sitio donde se calcula por dónde ibas. 🆕 `update_record()` repinta el pie y la barra de **una** tarjeta sin recrear la banda |
-| `anime_row.py` | `AnimeRow`, `RowAction` | fase 3 | Fila en cascada con acción en hover. La comparten «Viendo» y «Pendientes». 🔴 `__bind_interactions()` (`:278-312`) ata el **hover** a todos los descendientes de `__body` y el **clic** a todos menos el **subárbol** de la píldora, con `add="+"` para no pisar lo que CustomTkinter monta dentro ([trampa 40](10-invariantes-y-trampas.md)) |
-| `side_panel.py` | `SidePanel` | fase 3 | Los 290 px de la derecha en «Viendo» |
+| `anime_row.py` | `AnimeRow`, `RowAction` | fase 3 | Fila en cascada con acción en hover. La comparten «Viendo» y «Pendientes». 🔴 `__bind_interactions()` ata el **hover** a todos los descendientes de `__body` y el **clic** a todos menos el **subárbol** de la píldora, con `add="+"` para no pisar lo que CustomTkinter monta dentro ([trampa 40](10-invariantes-y-trampas.md)). 🆕 `update_record(record, action, meta_text)` repinta barra, texto de la derecha y píldora en el sitio; si crea la barra o la píldora después de construirse, las ata con `__bind_widget()` igual que al principio |
+| `side_panel.py` | `SidePanel` | fase 3 | Los 290 px de la derecha en «Viendo». 🆕 `update_record()` repinta pie, barra, contador y botón |
 | `rating_stars.py` | `RatingStars` | fase 5 | Cinco estrellas con medios puntos, dibujadas con PIL |
 | `status_pill.py` | `StatusPill` | fase 5 | Texto, colores y glifo de los 4 estados. `other_status()`, `icon()` |
 | `genre_chips.py` | `GenreChips` | fase 7 | Fichas de género. Colocadas con `place()`, no con `grid()`, así que el componente **lleva a mano la cuenta del ancho** — y esa cuenta incluye lo que `CTkButton` reserva por dentro ([trampa 39](10-invariantes-y-trampas.md)) |
@@ -556,6 +556,31 @@ y el aro de «Cargando» con PIL.
 
 ⚠️ **Todo componente nuevo hay que declararlo en `hiddenimports` del `.spec`**, o el `.exe` no
 arranca ([11 §6](11-playbooks.md)).
+
+---
+
+## `src/gui/episode_refresher.py` 🆕 *(2026-10-27)*
+
+**Rol**: refresca en segundo plano la columna `episodes` de las filas guardadas y avisa a las vistas
+para que repinten en el sitio. Es el **único** sitio del proyecto que escribe en `ANIMES` **sin que el
+usuario haya pedido nada** ([03 §11](03-flujos-de-ejecucion.md), [trampa 38](10-invariantes-y-trampas.md)).
+
+**API pública** (`EpisodeRefresher`, una instancia en `MainWindow.episode_refresher`):
+
+| Símbolo | Qué hace |
+|---|---|
+| `refresh(records, urgent=False)` | Encola lo que no se haya comprobado en `FRESH_FOR_S` y vuelve en ~1 ms. Se salta las filas sin `provider_id`, las que ya están en curso y las de un proveedor caído. `urgent` las pone delante, en el orden dado |
+| `subscribe(listener)` | `listener(AnimeRecord)` en el hilo de Tk, con la fila **releída** tras escribirla |
+| `cached_info(anime_id, provider_id)` | Una **copia** de la ficha que trajo el refresco, si es de ese proveedor y sigue fresca; si no, `None`. La usa `open_saved_anime()` |
+| `FRESH_FOR_S` | 30 min: cuánto vale una comprobación, y cuánto se deja de pedir a un proveedor caído |
+| `PROVIDER_FAILURES_LIMIT` | 2 fallos seguidos dan el proveedor por caído |
+
+**Dependencias**: `APIs.common` (gestor y modelos) y `dataPersistence.animesPersistence`. **No importa
+nada de `gui/`** ni de CustomTkinter: de la ventana solo usa `after()` y `winfo_exists()`.
+
+**Efectos secundarios**: un hilo daemon **por proveedor** mientras tenga cola; peticiones con
+`strict=True`; `update_anime_episodes()` en el hilo de Tk, solo si el recuento cambió y la fila sigue
+siendo de ese proveedor.
 
 ---
 
@@ -746,11 +771,11 @@ seis. `recentAnimes.py` sigue siendo la única con `show_frame()` que revela la 
 `searchAnimes.py` añade `AnimeSearch` (`:24-31`, `dataclasses.dataclass` de la stdlib), paginación
 (`:273-330`) y un frame de carga con GIF (`:171-216`).
 
-🆕 **`recentAnimes.py` es también la única que refresca datos guardados** (`:131-180`,
-`__refresh_resume_episodes()`): al entrar en la vista relee los episodios de las ≤3 filas de la banda
-«Retomar» y reescribe la columna `episodes` si el proveedor sirve más que la biblioteca. Es el único
-sitio del proyecto que escribe en `ANIMES` **sin que el usuario haya pedido nada**, así que va con
-`strict=True` — sin *fallback* ([03 §11](03-flujos-de-ejecucion.md), [trampa 38](10-invariantes-y-trampas.md)).
+🆕 **`recentAnimes.py`, `watchingAnimes.py` y `pendingAnimes.py` refrescan sus datos guardados a
+través de `EpisodeRefresher`** (2026-10-27; antes solo la portada, con su propio
+`__refresh_resume_episodes()`, ya retirado): piden `refresh(..., urgent=True)` al entrar y se
+suscriben en su `__init__` para repintar en el sitio la fila que cambie. La escritura en `ANIMES` la
+hace el servicio, nunca la vista ([03 §11](03-flujos-de-ejecucion.md), [trampa 38](10-invariantes-y-trampas.md)).
 
 > ⚠️ **Las 4 vistas de estado ya no son intercambiables con las otras dos** en lo que toca al clic y
 > al buscador. Al copiar código de una a otra, mira primero cuál de los dos grupos es: las de estado

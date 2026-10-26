@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Fecha** | 2026-10-20 · rama `feature/reproductor-embebido` · último commit de código **`f3fc229`** (fase 5 del reproductor) |
-| **Última revisión** | 2026-10-20 (**reproductor in-app**): **§9 nuevo, «Añadir un resolutor»**, con MP4Upload como caso real; **§6** gana la DLL de libmpv en `binaries`, `hiddenimports` a **37** y sus anclas al día. Antes, 2026-08-17: **§6 reescrito** — 8 pasos en vez de 6, con la verificación compilando, la regla de no volver a meter datos de usuario en `datas`, la copia de los ficheros legales tras `COLLECT` y la regeneración de `THIRD-PARTY-NOTICES.txt`. Antes, 2026-08-16: §2 reescrito con el **caso real ya ejecutado** (`provider_id` en medio del enum, con reconstrucción de tabla) y §3 con el paso 0 nuevo — añadir un proveedor empieza por `AnimeProviderId` |
+| **Última revisión** | 2026-10-27 (**refresco de episodios**): `hiddenimports` pasa a **39** nombres con `gui.episode_refresher`. Antes, 2026-10-20 (**reproductor in-app**): **§9 nuevo, «Añadir un resolutor»**, con MP4Upload como caso real; **§6** gana la DLL de libmpv en `binaries`, `hiddenimports` a **37** y sus anclas al día. Antes, 2026-08-17: **§6 reescrito** — 8 pasos en vez de 6, con la verificación compilando, la regla de no volver a meter datos de usuario en `datas`, la copia de los ficheros legales tras `COLLECT` y la regeneración de `THIRD-PARTY-NOTICES.txt`. Antes, 2026-08-16: §2 reescrito con el **caso real ya ejecutado** (`provider_id` en medio del enum, con reconstrucción de tabla) y §3 con el paso 0 nuevo — añadir un proveedor empieza por `AnimeProviderId` |
 | **Cubre** | recetas operativas sobre los módulos de `src/` + `MiBibliotecaAnime.spec` |
 
 Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ sin verificar.
@@ -475,7 +475,7 @@ la barra diagonal del icono «sin conexión».
 
 **Pasos**
 
-1. **Revisa `hiddenimports`.** ✅ **Al día el 2026-10-21**: **38** nombres —la auditoría de rendimiento añadió `gui.components.order_menu`—, auditados con AST en las dos direcciones. Antes, ✅ **al día el 2026-10-20**: **37** nombres —36 módulos de `src/` y
+1. **Revisa `hiddenimports`.** ✅ **Al día el 2026-10-27**: **39** nombres —el refresco de episodios añadió `gui.episode_refresher`—. Antes, ✅ **al día el 2026-10-21**: **38** nombres —la auditoría de rendimiento añadió `gui.components.order_menu`—, auditados con AST en las dos direcciones. Antes, ✅ **al día el 2026-10-20**: **37** nombres —36 módulos de `src/` y
    `mpv`, el binding de libmpv, que `video_player.py` importa **dentro** de `load_mpv()` y el análisis
    estático no ve—, auditados con AST en las dos direcciones. El reproductor añadió los cinco
    `APIs.resolvers.*` y `gui.components.video_player`. Antes, ✅ **al día el 2026-08-21**: **30** nombres, auditados en las dos direcciones con AST —todos resuelven a un fichero real de `src/` y ningún módulo de `src/` queda sin declarar, salvo `app.py`, que es el script de entrada. El rediseño añadió `gui.theme` y los **11** `gui.components.*`. 🔴 **Todo módulo nuevo bajo `src/` hay que declararlo aquí**, o el `.exe` compila y revienta al arrancar. Antes, Entre el 2026-08-06 y el

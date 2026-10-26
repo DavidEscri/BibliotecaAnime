@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Fecha** | 2026-10-20 · rama `feature/reproductor-embebido` · último commit de código **`f3fc229`** (fase 5 del reproductor). §1, §6 y §7 **reancladas enteras** contra ese árbol; §2, solo en las filas nuevas |
-| **Última revisión** | 2026-10-21 (**auditoría de rendimiento**): **C1 resuelta en el arranque** —la portada, el aviso sin estrenos y la barra de progreso se pintan ya en el hilo de Tk; antes la portada se construía desde el hilo daemon y tardaba **860-1 000 ms** en vez de ~200—, y **sale del hilo de Tk el último acceso a la red**, que no estaba contado: el póster de la ficha cuando no está en disco (hilo **#17**). Antes, 2026-10-20 (**reproductor in-app**): **C5 resuelta** —la petición de servidores salió del hilo de Tk el 2026-09-24 y ya **ningún** sitio de la GUI sale a la red desde él—; **16 hilos** (eran 13: tres nuevos de la ficha, para servidores, resolución y cambio de episodio) **más el de eventos de mpv**, que no es nuestro y tiene su propia regla (§1b, [trampa 46](10-invariantes-y-trampas.md)); `after()` pasa de 11 a **28**; §7 gana `WM_DELETE_WINDOW`, que no existía. ⚠️ El commit `cbd2721` (comentarios, −400 líneas) había desplazado todas las anclas de §1 y §6. Antes, 2026-09-01 (**abrir la ficha por un episodio**): **C5 sube de gravedad** — la petición de servidores ya no la dispara solo el usuario, la dispara también abrir la ficha desde «Viendo» o «Pendientes»; el `after(50 ms)` que lo envuelve es una tirita, no el arreglo. Antes, 2026-09-01 (**refresco de la banda «Retomar»**): hilo nuevo en la portada, y **§1, §2 y §6 reancladas enteras contra el código real** — la mitad de las líneas que citaban se habían movido con el rediseño y tres hilos del inventario **ya no existían**. Antes, 2026-08-31 (**fondo de la pantalla de carga**): anclas de `main_window.py` reverificadas en §1, §2 y §4 (iban ~29 líneas desplazadas) y `place_forget()` corregido a `destroy()` en C1; las de #5 a #13 **siguen sin verificar**. Antes, 2026-08-16 (**columna `provider_id`**): hilos a **13** (eran 8) y `after()` a **10** (eran 4); **C2 resuelta** — los 4 puntos que abren una ficha pintan ya en el hilo de Tk. C5 sigue viva |
+| **Última revisión** | 2026-10-27 (**refresco de episodios**): los hilos del refresco de episodios pasan a `EpisodeRefresher`: **como mucho uno por proveedor**, que muere al vaciar su cola, con el estado bajo un `Lock` y la escritura de vuelta en Tk. Antes, 2026-10-21 (**auditoría de rendimiento**): **C1 resuelta en el arranque** —la portada, el aviso sin estrenos y la barra de progreso se pintan ya en el hilo de Tk; antes la portada se construía desde el hilo daemon y tardaba **860-1 000 ms** en vez de ~200—, y **sale del hilo de Tk el último acceso a la red**, que no estaba contado: el póster de la ficha cuando no está en disco (hilo **#17**). Antes, 2026-10-20 (**reproductor in-app**): **C5 resuelta** —la petición de servidores salió del hilo de Tk el 2026-09-24 y ya **ningún** sitio de la GUI sale a la red desde él—; **16 hilos** (eran 13: tres nuevos de la ficha, para servidores, resolución y cambio de episodio) **más el de eventos de mpv**, que no es nuestro y tiene su propia regla (§1b, [trampa 46](10-invariantes-y-trampas.md)); `after()` pasa de 11 a **28**; §7 gana `WM_DELETE_WINDOW`, que no existía. ⚠️ El commit `cbd2721` (comentarios, −400 líneas) había desplazado todas las anclas de §1 y §6. Antes, 2026-09-01 (**abrir la ficha por un episodio**): **C5 sube de gravedad** — la petición de servidores ya no la dispara solo el usuario, la dispara también abrir la ficha desde «Viendo» o «Pendientes»; el `after(50 ms)` que lo envuelve es una tirita, no el arreglo. Antes, 2026-09-01 (**refresco de la banda «Retomar»**): hilo nuevo en la portada, y **§1, §2 y §6 reancladas enteras contra el código real** — la mitad de las líneas que citaban se habían movido con el rediseño y tres hilos del inventario **ya no existían**. Antes, 2026-08-31 (**fondo de la pantalla de carga**): anclas de `main_window.py` reverificadas en §1, §2 y §4 (iban ~29 líneas desplazadas) y `place_forget()` corregido a `destroy()` en C1; las de #5 a #13 **siguen sin verificar**. Antes, 2026-08-16 (**columna `provider_id`**): hilos a **13** (eran 8) y `after()` a **10** (eran 4); **C2 resuelta** — los 4 puntos que abren una ficha pintan ya en el hilo de Tk. C5 sigue viva |
 | **Cubre** | `src/gui/main_window.py`, `src/gui/anime_window.py`, `src/gui/components/video_player.py`, `src/gui/sidebarButtons/**`, `src/utils/utils.py` |
 
 Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ sin verificar.
@@ -32,7 +32,7 @@ pero no de la ficha: si el póster no estaba en disco, lo bajaba **en el hilo de
 | 3 | `main_window.show_loading_screen` | `:614` | `download_images_and_show_animes` — solo BD, red y disco; avisa del progreso con un callback | ✅ 🆕 (antes ❌, C1) |
 | 4 | `main_window.__on_startup_loaded` 🆕 | `:659` | `__preload_recent_animes_info`, ya desde el hilo de Tk | — |
 | 5 | `recentAnimes.__on_anime_click` | `:234` | `_load_and_show` (ficha) | ✅ |
-| 6 | `recentAnimes.__refresh_resume_episodes` | `:175` | releer los episodios de la banda «Retomar» | ✅ |
+| 6 | `EpisodeRefresher.refresh` 🆕 | `episode_refresher.py`, `refresh()` | `__work`: **uno por proveedor**, que termina al vaciar su cola. Lo piden la portada (al arrancar y al entrar), «Viendo» y «Pendientes» | ✅ |
 | 7 | `searchAnimes.__launch_search` | `:344` | `_search` — busca **y baja las carátulas** en el mismo hilo | ✅ |
 | 8 | `searchAnimes.__on_anime_click` | `:586` | abrir la ficha de un resultado | ✅ |
 | 9 | `anime_window.open_saved_anime` | `:310` | abrir un anime **de la biblioteca** | ✅ |
@@ -105,7 +105,7 @@ cierra sin colgarse.
 | Descarga de pósters de recientes | ⚙️ pool (8) | `utils.py:179` |
 | Precarga de fichas de recientes | 🧵 daemon | `main_window.py:500-526` |
 | Clic en anime **desde recientes** | 🧵 daemon → `after(0,…)` ✅ | `recentAnimes.py:223-250` |
-| **Refresco de la banda «Retomar»** | 🧵 daemon → `after(0,…)` ✅ 🆕 | `recentAnimes.py:137-186` |
+| **Refresco de episodios guardados** | 🧵 daemon por proveedor → `after(0,…)` ✅ 🆕 | `episode_refresher.py` (`__work`) |
 | Clic en anime **desde las 4 vistas de estado** | 🧵 daemon → `after(0,…)` ✅ | `open_saved_anime` (`anime_window.py:241-308`) |
 | Clic en anime **desde el buscador** | 🧵 daemon → `after(0,…)` ✅ | `searchAnimes.py:605-613` |
 | Búsquedas del buscador (**y sus carátulas**) | 🧵 daemon → `after(0,…)` ✅ | `searchAnimes.py:348-359` |
@@ -119,12 +119,17 @@ cierra sin colgarse.
 | Todas las escrituras de estado en BD | 🖥️ UI (desde callbacks) | `anime_window.py:1356-1417` |
 | Descarga/borrado de pósters por estado | 🖥️ UI ⚠️ | `anime_window.py:1357, 1315, 1325…` |
 | **Mover/rebajar pósters al migrar** | 🧵 daemon ✅ | `anime_window.py:1176-1197` |
-| **Escritura de `episodes` desde el refresco de la banda** | 🖥️ UI (dentro del `after`) ✅ 🆕 | `recentAnimes.py:153-172` |
+| **Escritura de `episodes` desde el refresco** | 🖥️ UI (dentro del `after`) ✅ 🆕 | `episode_refresher.py` (`__apply`) |
 
 > 🆕 **La última fila es deliberada.** La petición va en el hilo, pero el `UPDATE` se hace **ya en el
 > hilo de Tkinter**, dentro del `after(0, …)`: así la relectura de la fila, la escritura y el
-> repintado de la tarjeta pasan en el mismo turno y no puede colarse nada entre medias
+> repintado de las vistas suscritas pasan en el mismo turno y no puede colarse nada entre medias
 > ([03 §11](03-flujos-de-ejecucion.md)). Son tres consultas a SQLite local, no red.
+>
+> 🆕 **`EpisodeRefresher` es el único sitio con estado compartido entre hilos fuera del reproductor**
+> (2026-10-27): colas por proveedor, filas en curso, marcas de «comprobado», fallos y fichas
+> cacheadas, todo bajo un `threading.Lock`. Los hilos no tocan Tk ni la BD; si la ventana ya se
+> cerró, el `after()` lanza `RuntimeError` y el hilo termina.
 >
 > 🆕 **El buscador ya no tiene hilos «malos»**: sus tres hilos con ❌ (C1) —los del frame de carga con
 > GIF— desaparecieron con el rediseño. Hoy sus dos hilos vuelven los dos por `after(0, …)`, y el de la
@@ -145,8 +150,8 @@ cierra sin colgarse.
 2. **Para volver al hilo de UI, usa `self.after(delay, callback)`.** Es lo que hacen las animaciones
    de GIF (`main_window.py:453-458`).
 3. **Comprueba `widget.winfo_exists()` antes de tocar un widget desde un callback diferido.**
-   El frame puede haberse destruido. Ejemplo bueno: `recentAnimes.py:153-172`, que comprueba **dos**
-   widgets distintos y reacciona distinto a cada uno.
+   El frame puede haberse destruido. Ejemplo bueno: `EpisodeRefresher.__apply()` comprueba la
+   ventana, y cada vista suscrita comprueba **sus** widgets —fila, panel, cabecera— por separado.
 
    ```python
    def _apply(fresh_episodes):          # ya en el hilo de Tkinter
@@ -381,7 +386,7 @@ la ficha, más uno de `PosterGrid` que este documento no tenía.
 | Dónde | Para qué |
 |---|---|
 | `main_window.py:527` | resultado de la recarga de recientes — **el patrón de referencia** |
-| `recentAnimes.py:173` | persistir los episodios nuevos y repintar la banda «Retomar» |
+| `episode_refresher.py` (`__work`) | persistir los episodios nuevos y avisar a las vistas suscritas |
 | `recentAnimes.py:232` | pintar la ficha tras la petición |
 | `searchAnimes.py:342` | pintar una página de resultados (y sus carátulas ya bajadas) |
 | `searchAnimes.py:584` | pintar la ficha de un resultado de búsqueda |
