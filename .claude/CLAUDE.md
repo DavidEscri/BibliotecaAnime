@@ -720,7 +720,9 @@ Después, sin orden fijado. **El rediseño se llevó por delante buena parte de 
   2. **B11**: los ~7 iconos de la barra lateral y los 2 GIF de carga siguen siendo de origen
      desconocido ([`docs/12 §4`](docs/12-deuda-tecnica-y-roadmap.md)). El rediseño **no la hizo
      crecer**: sus diez glifos se dibujan con PIL.
-  3. El orden de «Pendientes» **no se persiste**, a diferencia del de «Favoritos».
+  3. ✅ ~~El orden de «Pendientes» **no se persiste**~~ — **cerrada el 2026-10-26**: se guarda en
+     `USER_SETTINGS` (`pending_order`) como el de «Favoritos», con un código estable y no el texto del
+     desplegable ([`docs/13 §4`](docs/13-selector-de-proveedor.md)).
   4. **B12**: el refresco de episodios llega **solo a las ≤3 filas de la banda «Retomar»**. El resto
      de la biblioteca sigue enseñando el recuento del día que abriste su ficha, así que las barras de
      «Viendo» y «Pendientes» y el sello de «Finalizados» siguen mintiendo con los animes en emisión

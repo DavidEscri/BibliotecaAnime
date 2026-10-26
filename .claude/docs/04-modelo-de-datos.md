@@ -38,6 +38,10 @@ Claves declaradas en `UserSettingKey`:
 | Clave | Valor | Estado |
 |---|---|---|
 | `default_anime_provider` | **`AnimeProviderId.value`** (`"animeav1"`, `"jkanime"`, `"animeflv"`) | ✅ en uso |
+| `sidebar_collapsed` | `"0"` desplegada · `"1"` plegada | ✅ en uso |
+| `last_watched_anime_ids` | hasta 3 `anime_id` separados por comas, el más reciente primero | ✅ en uso |
+| `favourites_order` | `"rating"` o `"title"` | ✅ en uso |
+| `pending_order` | `"shortest"`, `"longest"` o `"title"` | ✅ en uso (2026-10-26) |
 | `default_manga_provider` | `value` del proveedor de manga | 🔮 reservada (comentada en el enum) |
 
 > ⚠️ **Frontera enum ↔ texto.** Desde el 2026-08-16 el proveedor es un enum (`AnimeProviderId`, §1b) en

@@ -417,7 +417,7 @@ distingue:
 | **Nuevos lanzamientos** | `ResumeBand` + rejilla de **6 a 1440** (176 × 264) | sí, **columnas × 2** | — | la banda «Retomar», y su **refresco** al entrar |
 | **Favoritos** | rejilla de **5 a 1440** (216 × 324) + estrellas | sí, **columnas × 2** | local | la calificación y su orden persistido |
 | **Viendo** | cascada de `AnimeRow` (póster 70 × 100) + `SidePanel` | no | local | el panel de retomar |
-| **Pendientes** | cascada de `AnimeRow` (póster 56 × 80) | no | local | orden por duración + «Empezar» |
+| **Pendientes** | cascada de `AnimeRow` (póster 56 × 80) | no | local | orden por duración, persistido, + «Empezar» |
 | **Finalizados** | rejilla de **6 a 1440** | sí, **columnas × 2** | local | el sello «vistos / totales» |
 | **Buscar** | campo de 620 px + `GenreChips` + rejilla de **6 a 1440** | sí, **del proveedor** | — | el sello «ya lo tienes» |
 
