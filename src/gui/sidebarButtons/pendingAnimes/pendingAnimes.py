@@ -1,7 +1,7 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "sidebarButtons"
 __module__ = "pendingAnimes.py"
-__version__ = "0.5"
+__version__ = "0.6"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 """«Pendientes»: la cola de lo que todavía no has empezado.
@@ -20,11 +20,12 @@ import os
 import threading
 import customtkinter as ctk
 
-from typing import List, Optional, Union
+from typing import Dict, List, Optional, Union
 
 from APIs.common.animeProviderMgr import AnimeProviderManager, AnimeProviderManagerSingleton
 from APIs.common.models import AnimeInfo
 from dataPersistence.animesPersistence import AnimesPersistence, AnimesPersistenceSingleton, AnimeStatus, AnimeRecord
+from dataPersistence.userPersistence import UserPersistence
 from gui.anime_window import open_saved_anime
 from gui.components.anime_row import AnimeRow, RowAction
 from gui.components.empty_state import EmptyState, ICON_SIZE as EMPTY_ICON_SIZE
@@ -36,12 +37,13 @@ from gui.theme import Metrics, Theme
 from utils.buttons import utilsButtons
 from utils.utils import download_anime_poster_by_status
 
-#: Criterios de orden de la cola, tal y como se leen en el desplegable. El texto
-#: es la clave: es lo que devuelve el ``OrderMenu`` y lo que se compara.
-ORDER_SHORTEST = "Más cortos primero"
-ORDER_LONGEST = "Más largos primero"
-ORDER_TITLE = "Título (A-Z)"
-ORDER_VALUES = [ORDER_SHORTEST, ORDER_LONGEST, ORDER_TITLE]
+#: Texto de cada criterio de orden en el desplegable. La clave es lo que se
+#: persiste; así renombrar una opción no invalida la preferencia guardada.
+ORDER_LABELS: Dict[str, str] = {
+    UserPersistence.PENDING_ORDER_SHORTEST: "Más cortos primero",
+    UserPersistence.PENDING_ORDER_LONGEST:  "Más largos primero",
+    UserPersistence.PENDING_ORDER_TITLE:    "Título (A-Z)",
+}
 
 
 class PendingAnimeButton(utilsButtons.SidebarButton):
@@ -62,8 +64,8 @@ class PendingAnimeButton(utilsButtons.SidebarButton):
         self.anime_provider_mgr: AnimeProviderManager = AnimeProviderManagerSingleton()
         self.animes_persistence: AnimesPersistence = AnimesPersistenceSingleton()
         self.__list_frame: Optional[ctk.CTkFrame] = None
-        #: Orden elegido en la cabecera. Vive en memoria a propósito: no se persiste.
-        self.__order: str = ORDER_SHORTEST
+        #: Criterio elegido; se persiste entre sesiones.
+        self.__order: str = UserPersistence.PENDING_ORDER_SHORTEST
         #: Última lista pintada, sin ordenar. Hace falta para que cambiar el
         #: orden reordene **lo que hay en pantalla** y no deshaga la búsqueda.
         self.__displayed_animes: List[AnimeRecord] = []
@@ -91,6 +93,7 @@ class PendingAnimeButton(utilsButtons.SidebarButton):
         content = self.main_window.content_frame
         content.grid_columnconfigure(0, weight=1)
 
+        self.__order = self.main_window.user_persistence.get_pending_order()
         pending_animes: List[AnimeRecord] = self.animes_persistence.get_pending_animes()
 
         header = ViewHeader(content, "Pendientes", self.__subtitle(pending_animes))
@@ -117,9 +120,9 @@ class PendingAnimeButton(utilsButtons.SidebarButton):
 
     def __build_controls(self, header: ViewHeader) -> None:
         """Orden y buscador local, en la zona de controles de la cabecera."""
-        order_optionmenu = OrderMenu(header.controls_frame, values=ORDER_VALUES,
+        order_optionmenu = OrderMenu(header.controls_frame, values=list(ORDER_LABELS.values()),
                                      command=self.__on_order_changed)
-        order_optionmenu.set(self.__order)
+        order_optionmenu.set(ORDER_LABELS[self.__order])
         order_optionmenu.grid(row=0, column=0, padx=(0, 14))
 
         search_entry = ctk.CTkEntry(
@@ -194,9 +197,13 @@ class PendingAnimeButton(utilsButtons.SidebarButton):
     # ------------------------------------------------------------------
     # Orden
     # ------------------------------------------------------------------
-    def __on_order_changed(self, order: str) -> None:
-        """Reordena lo que ya está en pantalla, sin volver a la BD ni deshacer la búsqueda."""
-        self.__order = order
+    def __on_order_changed(self, label: str) -> None:
+        """Guarda el criterio y reordena lo que ya está en pantalla, sin deshacer la búsqueda."""
+        for order, order_label in ORDER_LABELS.items():
+            if order_label == label:
+                self.__order = order
+                break
+        self.main_window.user_persistence.set_pending_order(self.__order)
         self.__display_animes(self.__displayed_animes)
 
     def __sort_animes(self, pending_animes: List[AnimeRecord]) -> List[AnimeRecord]:
@@ -208,12 +215,12 @@ class PendingAnimeButton(utilsButtons.SidebarButton):
         :param pending_animes: Pendientes a ordenar.
         :return: Lista ordenada.
         """
-        if self.__order == ORDER_TITLE:
+        if self.__order == UserPersistence.PENDING_ORDER_TITLE:
             return sorted(pending_animes, key=lambda record: AnimeProviderManager.normalize_title(record.title))
 
         known = [record for record in pending_animes if record.episodes]
         unknown = [record for record in pending_animes if not record.episodes]
-        known.sort(key=lambda record: len(record.episodes), reverse=(self.__order == ORDER_LONGEST))
+        known.sort(key=lambda record: len(record.episodes), reverse=(self.__order == UserPersistence.PENDING_ORDER_LONGEST))
         return known + unknown
 
     # ------------------------------------------------------------------
