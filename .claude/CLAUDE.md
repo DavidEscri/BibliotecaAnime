@@ -626,10 +626,13 @@ lo que daba por hecho la investigación previa. Detalle completo en
   ✅ **0.2.2 compilada y probada por el usuario el 2026-10-21** (`HLS`, Desu y navegador).
 - La versión de la app vive en `APP_VERSION` dentro del `.spec`.
 - `resources/DB/` y las carpetas de pósters están en `.gitignore`: se generan en tiempo de ejecución.
-- Hay **4** `# TODO:` en el código, en dos ficheros: `anime_window.py:152,155` (recomendaciones por
-  género; alternar anime/manga) y `jkanime.py:156,217` (buscar en el directorio con texto vacío;
-  acotar `get_recent_animes`). ✅ Reinventariados el 2026-10-21 con el grep: la auditoría de
-  rendimiento no abrió ni cerró ninguno, pero desplazó una línea los de `anime_window.py`. El del selector de proveedor se cerró el 2026-07-30 y el de
+- Hay **4** `# TODO:` en el código, en dos ficheros. En `anime_window.py`, los dos sueltos a nivel
+  de módulo, antes de `_CARRIAGE_RETURN`: «Si te ha gustado X, te puede interesar…» (4 animes del
+  mismo género al final de la lista de episodios) y el botón para alternar entre manga y anime. En
+  `jkanime.py`, uno dentro de `search_animes_by_query` (con texto vacío, buscar en el directorio en
+  vez de en `SEARCH_URL`) y otro dentro de `get_recent_animes` (acotar lo que recoge de la portada).
+  Se citan **por su texto, no por su línea**, porque los números se desplazan con cualquier cambio
+  en el fichero. ✅ Reinventariados el 2026-10-27 con el grep. El del selector de proveedor se cerró el 2026-07-30 y el de
   `main_window.py:32` —quitar «Anime» de los botones y el título— el 2026-08-20, con la fase 1 del
   rediseño.
   ⚠️ **Este apartado se ha equivocado tres veces**: hasta el 2026-08-07 citaba dos TODOs inventados;

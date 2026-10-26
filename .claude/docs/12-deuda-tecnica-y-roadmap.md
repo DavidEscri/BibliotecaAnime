@@ -424,25 +424,28 @@ de golpe.
 
 ## 6. El roadmap traducido a impacto técnico
 
-Roadmap declarado en `.claude/CLAUDE.md` y `README.md:143-149`.
+Roadmap declarado en `.claude/CLAUDE.md` y `README.md:143-149`. *(Revisada el 2026-10-27: las filas
+pendientes llevan las referencias actuales, porque el rediseño movió casi todas.)*
 
 | Punto del roadmap | Módulos a tocar | Requisitos previos | Docs a actualizar |
 |---|---|---|---|
-| **Renombrar «recientes» → «nuevos lanzamientos»** | `recentAnimes.py:22`, `main_window.py:32` | ninguno — es el más barato | [06](06-gui-y-vistas.md), [02](02-mapa-de-modulos.md) |
-| **Quitar «Anime» de los nombres de pestañas** | las 6 vistas + `main_window.py:134` | ninguno | [06](06-gui-y-vistas.md) |
+| ~~**Renombrar «recientes» → «nuevos lanzamientos»**~~ | ✅ **Hecho el 2026-08-20**, fase 1 del rediseño | — | [06](06-gui-y-vistas.md) |
+| ~~**Quitar «Anime» de los nombres de pestañas**~~ | ✅ **Hecho el 2026-08-20**, fase 1 del rediseño: ningún destino de la barra lateral lleva ya la palabra | — | [06](06-gui-y-vistas.md) |
 | ~~**Selector de proveedor con preferencia persistida**~~ | ✅ **Hecho el 2026-07-30**: `userPersistence.py` (nuevo), `animeProviderMgr.py` v0.2, `main_window.py`, `anime_window.py` v0.2 y los 6 puntos de clic | — | **[13](13-selector-de-proveedor.md)** |
 | ~~**Separar «usar ahora» de «fijar como predeterminado»**~~ | ✅ **Hecho el 2026-08-06** con un **pin** junto al desplegable: `main_window.py` v0.2, `anime_window.py` v0.3 (se retira el selector de la ficha), `userPersistence.py` v0.2, 4 iconos nuevos | — | **[13 §12](13-selector-de-proveedor.md)** |
 | ~~**Columna `provider_id` en `ANIMES`**~~ | ✅ **Hecha el 2026-08-16**: `models.py` (`AnimeProviderId`, `ProviderInfo`), `animeProviderMgr.py` v0.3, `animesPersistence.py` v2.3, `main_window.py` v0.4, `anime_window.py` v0.6, `utilsButtons.py` v0.2, `utils.py` v0.3, los 3 proveedores y las 6 vistas | — | **[13 §14](13-selector-de-proveedor.md)**, [04 §8](04-modelo-de-datos.md) |
-| **Calificación personal en favoritos + ordenar por ella** | `AnimeField`, `AnimeRecord`, `anime_window.py`, `favouriteAnimes.py` | ~~arreglar B2~~ ✅ (2026-10-21); la migración ya es automática | [04](04-modelo-de-datos.md), [06](06-gui-y-vistas.md) |
-| **Paginar favoritos/viendo/pendientes/finalizados de 10 en 10** | las 4 vistas de estado; reutilizar `searchAnimes.py:280-337` | extraer la paginación a `utilsButtons.py` | [06](06-gui-y-vistas.md), [03](03-flujos-de-ejecucion.md) |
-| **«Viendo» en cascada con el último capítulo visto** | `watchingAnimes.py` | ya está en BD (`last_watched_episode`) — barato | [06](06-gui-y-vistas.md) |
-| **Bloque «Si te ha gustado X…» (4 animes del mismo género)** | `anime_window.py:45-46`, `get_anime_by_genre_and_order` | ~~arreglar B2 primero~~ ✅ (2026-10-21) | [03](03-flujos-de-ejecucion.md), [06](06-gui-y-vistas.md) |
-| **Convivencia anime + manga** | 🔴 **transversal**: `models.py` (¿`MediaInfo`?, y `ProviderInfo` gana el tipo de medio), `AnimeProvider` (¿`MediaProvider`?), `AnimeField`, las 6 vistas, `anime_window.py:48` | decidir si se generalizan los modelos o se duplican | **todos** |
-| **Nuevos lanzamientos a dos columnas, 3 por fila, pósters grandes** | `recentAnimes.py:41,55-80`, tamaños de `utils.py:59,105,156` | el redimensionado a `(130,185)` está **hardcodeado en 4 sitios** | [06 §4](06-gui-y-vistas.md), [10](10-invariantes-y-trampas.md) |
-| **Filtro radio Animes/Mangas/Ambos en las 4 vistas** | `utilsButtons.AccordionFilterButton` | modelo de manga | [06](06-gui-y-vistas.md) |
-| **Desplegable global anime/manga/ambos (esquina inferior izquierda)** | `main_window.py:166-238` | modelo de manga (la preferencia persistida ya es viable) | [06](06-gui-y-vistas.md), [01](01-arquitectura.md) |
+| ~~**Calificación personal en favoritos + ordenar por ella**~~ | ✅ **Hecho el 2026-08-20/21**, fase 5 del rediseño: columna `rating` (0-10) en `ANIMES`, `RatingStars` y orden «Mi calificación» / título persistido en `USER_SETTINGS` | — | [04 §3b](04-modelo-de-datos.md), [06](06-gui-y-vistas.md) |
+| ~~**Paginar favoritos/viendo/pendientes/finalizados de 10 en 10**~~ | ✅ **Hecho con el rediseño (fases 2, 5 y 6)**, y no de 10 en 10: desde el 2026-09-02 la página es `columnas × ROWS_PER_PAGE` (2 filas llenas), con `PosterGrid` + `Pager`. «Viendo» y «Pendientes» son cascadas y no paginan | — | [06](06-gui-y-vistas.md) |
+| ~~**«Viendo» en cascada con el último capítulo visto**~~ | ✅ **Hecho el 2026-08-20**, fase 3 del rediseño: `AnimeRow` + `SidePanel`; desde el 2026-09-01 su botón abre la ficha **por ese episodio** | — | [06](06-gui-y-vistas.md), [03 §12](03-flujos-de-ejecucion.md) |
+| ~~**Rediseño completo de la interfaz**~~ | ✅ **Hecho entre el 2026-08-20 y el 2026-08-21**, en 9 fases (`plan-rediseno/`). No estaba en la lista: se cruzó por delante y cerró las cinco filas anteriores | — | todos los de la GUI |
+| ~~**Reproducir los episodios dentro de la aplicación**~~ | ✅ **Hecho entre el 2026-09-23 y el 2026-10-20**, en 7 fases (`plan-reproductor/`). Deja **B14** y **C12** | — | [05 §9](05-proveedores-y-scraping.md), [06 §12](06-gui-y-vistas.md), [03 §13](03-flujos-de-ejecucion.md) |
+| **Bloque «Si te ha gustado X…» (4 animes del mismo género)** | `anime_window.py` (el TODO «Si te ha gustado One piece, te puede interesar…»), `get_anime_by_genre_and_order` (`animesPersistence.py:372`) o una búsqueda por género del proveedor; `PosterGrid` para pintarlo | ~~arreglar B2 primero~~ ✅ (2026-10-21) — **nada lo bloquea** | [03](03-flujos-de-ejecucion.md), [06](06-gui-y-vistas.md) |
+| **Convivencia anime + manga** | 🔴 **transversal**: `models.py` (¿`MediaInfo`?, y `ProviderInfo` gana el tipo de medio), `AnimeProvider` (¿`MediaProvider`?), `AnimeField`, las 6 vistas, `anime_window.py` (el TODO «alternar entre el manga y el anime») | decidir si se generalizan los modelos o se duplican | **todos** |
+| **Nuevos lanzamientos a dos columnas (animes / mangas) si se eligen ambos** | `recentAnimes.py` (dos `PosterGrid` en vez de uno) | modelo de manga. ⚠️ El tamaño de la caché de pósters **ya no está en 4 sitios**: es `(248, 372)` y está duplicado a mano en `utils.py:27` y `Metrics.POSTER_CACHE_SIZE` (`theme.py:288`) | [06 §4](06-gui-y-vistas.md), [10](10-invariantes-y-trampas.md) |
+| **Filtro Animes/Mangas/Ambos en las 4 vistas** | ~~`utilsButtons.AccordionFilterButton`~~ desapareció de las cuatro con el rediseño; el sitio sería junto a `GenreChips` o el `OrderMenu` de cada vista | modelo de manga | [06](06-gui-y-vistas.md) |
+| **Desplegable global anime/manga/ambos (esquina inferior izquierda)** | `gui/components/sidebar.py` (junto a `__build_provider_block` / `__build_appearance_block`), y su modo plegado | modelo de manga; la preferencia va en `USER_SETTINGS`, sin migración ([11 §2c](11-playbooks.md)) | [06](06-gui-y-vistas.md), [01](01-arquitectura.md) |
 | ~~**Integrar JKAnime**~~ | ✅ **Hecho el 2026-08-06**: `APIs/jkanime/jkanime.py` (nuevo, v0.1), `main_window.py`, `MiBibliotecaAnime.spec` | — | **[05 §3b](05-proveedores-y-scraping.md)**, [02](02-mapa-de-modulos.md), trampas 23-25 |
-| **Integrar MonosChinos2, TioAnime** | `APIs/<sitio>/` nuevos + registro en `main_window.py` | ninguno — sigue mitigando R2 | [05](05-proveedores-y-scraping.md), [11 §3](11-playbooks.md) |
+| **Integrar MonosChinos2, TioAnime** | `APIs/<sitio>/` nuevos, miembro nuevo en `AnimeProviderId`, registro en `main_window.py` y `hiddenimports` del `.spec`; si sus hosters no los cubre `APIs/resolvers/`, abrirán el navegador | ninguno — sigue mitigando R2 | [05](05-proveedores-y-scraping.md), [11 §3](11-playbooks.md) |
 | **Proveedores de manga** | contrato nuevo o generalización de `AnimeProvider` | decisión de diseño de la convivencia | [01](01-arquitectura.md), [05](05-proveedores-y-scraping.md) |
 | **Capítulo de manga por el que continuar tras el anime** | requiere mapeo anime↔manga | modelo de manga + fuente de datos del mapeo | [04](04-modelo-de-datos.md) |
 
