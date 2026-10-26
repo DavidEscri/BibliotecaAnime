@@ -476,7 +476,9 @@ en un anime guardado dejaría de resolver. Con fallback degrada a una petición 
 `resolve_anime_in_provider(anime_info, provider_id)` hace la traducción:
 
 1. `search_animes_by_query(título, provider_id=…, strict=True)`.
-2. Compara con `normalize_title()` (minúsculas, sin tildes, resto a espacios).
+2. Compara con `title_similarity()`: `normalize_title()` (minúsculas, sin tildes, resto a espacios)
+   y, si los **números** del título no coinciden (`title_numbers()`: «2nd», «Season 2» y «II» son
+   todos 2), similitud **0**.
 3. Coincidencia exacta normalizada → gana; si no, mejor `difflib.SequenceMatcher.ratio()` ≥
    `TITLE_MATCH_THRESHOLD` (**0.75**).
 4. `get_anime_info(match.id, provider_id=…, strict=True)`.
@@ -500,6 +502,13 @@ sitios en marcha:
 a menudo de lo que se suponía —los tres normalizan igual el título de MyAnimeList—, así que el margen
 sobra. Lo que el umbral protege no es la variación ortográfica sino los **falsos positivos de saga**
 («One Piece» vs. «One Piece Film: Red»), y para eso 0.75 ya es holgado.
+
+🔴 **Corrección del 2026-10-26: para las temporadas no era holgado.** Cada temporada es un anime aparte
+en los dos sitios, y como texto se parecen más que el umbral: «Kusuriya no Hitorigoto» frente a «… 2nd
+Season» da 0.80, y la 2.ª frente a la 3.ª, 0.939. Ningún umbral las separa sin rechazar variantes
+legítimas, así que ahora las separan los **números** del título ([trampa 58](10-invariantes-y-trampas.md)).
+✅ Relocalizando las 46 filas de la biblioteca en el otro proveedor, **0** cambian de elección
+respecto al criterio anterior.
 
 ⚠️ **Lo que sigue sin verificarse**: un título que difiera **de verdad** entre sitios (un nombre
 localizado frente al romaji). No ha aparecido ninguno en la biblioteca del usuario. Si algún día

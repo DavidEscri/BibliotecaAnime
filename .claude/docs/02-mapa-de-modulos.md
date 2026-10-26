@@ -180,9 +180,11 @@ Los **19** `__init__.py` están **vacíos** (0 bytes) y solo marcan paquete; el 
 | 🆕 `list_provider_infos() -> List[ProviderInfo]` | `:213-220` | **única** fuente del contenido de los desplegables de la GUI, en orden de registro. Sustituye a `get_provider_names()` |
 | 🆕 `get_provider_info_by_name(nombre)` | `:233-243` | vuelta atrás: los widgets muestran nombre, el código usa enums. Sustituye a `get_provider_id_by_name()` |
 | `get_anime_info_with_provider(...)` | `:348-361` | expone el `provider_id` que `call_with_fallback` ya devolvía y los wrappers tiraban |
-| `normalize_title(title)` *(static)* | `:385-396` | minúsculas, sin tildes, resto a espacios |
-| `resolve_anime_in_provider(anime_info, provider_id, threshold=None)` | `:398-460` | localiza el mismo anime en otro proveedor por título. **2 peticiones HTTP** → solo desde hilo secundario. Devuelve `None` antes que un falso positivo. ✅ **Vuelve a tener llamantes** desde el 2026-08-16: `open_saved_anime()` y el botón «Actualizar a …» |
-| `TITLE_MATCH_THRESHOLD = 0.75` | `:167` | ✅ **calibrado el 2026-08-16** contra los 3 sitios reales; no ha necesitado moverse |
+| `normalize_title(title)` *(static)* | `:367-381` | minúsculas, sin tildes, resto a espacios |
+| 🆕 `title_numbers(title)` *(class)* | `:383-400` | los números del título, ordenados: dígitos de cada palabra («2nd» → 2) y romanos II-IX de `ROMAN_NUMERALS` (`:143-144`, sin «i» ni «x») |
+| 🆕 `title_similarity(a, b)` *(class)* | `:402-421` | **el** parecido para decidir identidad: 1.0 si son iguales normalizados, **0.0 si sus números difieren**, si no `SequenceMatcher`. La usan `resolve_anime_in_provider()`, `find_saved_duplicate()` y `match_animes_from_search()` ([trampa 58](10-invariantes-y-trampas.md), v0.4, 2026-10-26) |
+| `resolve_anime_in_provider(anime_info, provider_id, threshold=None)` | `:423-475` | localiza el mismo anime en otro proveedor por título. **2 peticiones HTTP** → solo desde hilo secundario. Devuelve `None` antes que un falso positivo. ✅ **Vuelve a tener llamantes** desde el 2026-08-16: `open_saved_anime()` y el botón «Actualizar a …» |
+| `TITLE_MATCH_THRESHOLD = 0.75` | `:139` | ✅ **calibrado el 2026-08-16** contra los 3 sitios reales; no ha necesitado moverse. ⚠️ Con las temporadas sí fallaba —«X» / «X 2nd Season» da 0.80—: lo separa `title_similarity()`, no el umbral |
 
 > ⚠️ **Dos métodos desaparecieron** en el cambio a enum: `get_provider_names()` y
 > `get_provider_id_by_name()`. Si encuentras una cita a ellos en documentación o en un script del
@@ -450,7 +452,7 @@ fuera del plan: el rediseño es solo interfaz y esto vive en `utils/`.
 | Símbolo | Línea | Rol |
 |---|---|---|
 | `filter_animes_by_title(records, query)` | `:43-71` | búsqueda **local** en la biblioteca, sin red y sin mirar el proveedor ([trampa 26](10-invariantes-y-trampas.md)) |
-| `match_animes_from_search(records, results)` | `:74-109` | traduce resultados web → filas guardadas, por slug **y** por título |
+| `match_animes_from_search(records, results)` | `:58-86` | traduce resultados web → filas guardadas, por slug **y** por título, con `title_similarity()` ≥ 0.75: dos temporadas no se cruzan ([trampa 58](10-invariantes-y-trampas.md)) |
 | `SavedAnimeSearch` | `:112-176` | el buscador de las 4 vistas de estado: local al instante + web con `after(0,…)`. Contador de generación y guarda de visibilidad |
 | `SidebarButton` | `:179-224` | **no es un widget**: describe un destino (`sidebar_text`, `sidebar_command`, `sidebar_icon(size)`) y declara `show_frame()` abstracto. Quien pinta es `gui.components.sidebar.Sidebar` |
 
@@ -612,7 +614,7 @@ tras `cbd2721`: búscalas por nombre.
 **Responsabilidad**: `AnimeWindowViewer` — la ficha de detalle. **No es una ventana**: reemplaza el
 contenido de `content_frame`.
 
-**Constantes de módulo**: 🆕 `DUPLICATE_TITLE_THRESHOLD = 0.9` (`:31`), `STATUS_SECTION_NAMES`
+**Constantes de módulo**: 🆕 `DUPLICATE_TITLE_THRESHOLD = 0.9` (`:50`), `STATUS_SECTION_NAMES`
 (`:36-41`, cómo se llama cada estado de cara al usuario) y 🆕 `FOCUS_DELAY_MS = 50` /
 `FOCUS_SCROLL_MARGIN = 24` (`:143` y `:146`, la apertura por un episodio).
 
@@ -621,7 +623,7 @@ contenido de `content_frame`.
 | Función | Línea | Nota |
 |---|---|---|
 | `show_anime_info_error(anime_id)` | `:50-66` | `print` + `messagebox.showerror`. Se llama cuando `get_anime_info` devuelve `None`; sin ella, el clic no hacía nada (trampa 10) |
-| 🆕 `find_saved_duplicate(records, title, exclude_anime_id=None)` | `:69-105` | el mismo anime guardado con otro slug, por título normalizado. **No** detecta títulos completamente distintos («Solo Leveling» / «Ore dake Level Up na Ken»): eso necesitaría red y esto corre en el hilo de la UI |
+| 🆕 `find_saved_duplicate(records, title, exclude_anime_id=None)` | `:207-236` | el mismo anime guardado con otro slug, con `title_similarity()` ≥ 0.9. Pone también el sello de «Buscar», que abre la ficha **con esa fila**: por eso dos temporadas no pueden cruzarse ([trampa 58](10-invariantes-y-trampas.md)). **No** detecta títulos completamente distintos («Solo Leveling» / «Ore dake Level Up na Ken»): eso necesitaría red y esto corre en el hilo de la UI |
 | 🆕 `open_saved_anime(main_window, anime_id, focus_episode=None, force_ascending=False)` | `:211-289` | **punto de entrada único de las 4 vistas de estado**. Elige el proveedor con `provider_for_saved_anime()`, re-resuelve por título si hay desviación, y saca la petición del hilo de Tkinter. 🆕 Los dos últimos parámetros (2026-09-01) dejan la ficha abierta **por un episodio** ([03 §12](03-flujos-de-ejecucion.md)); solo los usan «Viendo» y «Pendientes» |
 
 ### 🆕 El reproductor acoplado *(2026-09-24 a 2026-10-20)*
