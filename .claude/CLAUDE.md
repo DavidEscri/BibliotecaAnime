@@ -18,7 +18,7 @@ internamente lo pedido usando [`.claude/COMO-PEDIR-TAREAS.md`](COMO-PEDIR-TAREAS
    primero que hay que aclarar, y lo que más cambia el tamaño del trabajo.
 3. **Ficheros exactos y frontera de alcance.** Las 4 vistas de estado son casi idénticas línea por
    línea: decide si la tarea afecta a una o a las cuatro.
-4. **¿Es una trampa conocida?** Coteja con `docs/10-invariantes-y-trampas.md` (**57** trampas con su
+4. **¿Es una trampa conocida?** Coteja con `docs/10-invariantes-y-trampas.md` (**58** trampas con su
    síntoma) **antes** de investigar desde cero.
 5. **Nivel de verificación** — ejecutar la GUI · script en el scratchpad · solo lectura. No hay
    tests: si no se ejecuta, se entrega marcado como no verificado.
@@ -490,6 +490,15 @@ estado creaba una fila duplicada.
 normalizado** (umbral 0.9) y avisa nombrando la sección concreta, porque un mismo anime tiene slug
 distinto en cada sitio y la comprobación por `anime_id` no lo detecta.
 
+🔴 **Dos temporadas no son el mismo anime, aunque como texto lo parezcan** (2026-10-26). «Kusuriya no
+Hitorigoto 3rd Season» y «… 2nd Season» se parecen **0,939**: con solo el umbral, la 3.ª heredaba en
+«Buscar» el sello y **la fila** de la 2.ª, y marcarla «Pendiente» sacaba a la 2.ª de «Viendo». Toda
+decisión de identidad por título —`find_saved_duplicate()`, `match_animes_from_search()` y
+`resolve_anime_in_provider()`— pasa por **`AnimeProviderManager.title_similarity()`**, que da 0 si
+los números del título no coinciden («2nd», «Season 2» y «II» cuentan igual). `filter_animes_by_title()`
+no la usa a propósito: buscar «kusuriya» tiene que devolver las tres
+([trampa 58](docs/10-invariantes-y-trampas.md)).
+
 **Imágenes** (`utils/utils.py`): los pósters se guardan como `{anime_id}.jpg` en `resources/images/<categoría>/`,
 redimensionados a **`(248, 372)`** desde el rediseño —el mayor tamaño que pide cualquier vista— y cada
 vista reduce con su propio `size=` al construir el `CTkImage`. ⚠️ Ese valor está **duplicado a mano**
@@ -743,7 +752,7 @@ Guía de colaboración (cómo plantear una tarea en este repo, qué asumo por de
 cambian mi comportamiento): [`.claude/COMO-PEDIR-TAREAS.md`](COMO-PEDIR-TAREAS.md).
 
 **Antes de tocar cualquier cosa, lee [`docs/10-invariantes-y-trampas.md`](docs/10-invariantes-y-trampas.md)**
-— **57** trampas con su síntoma observable.
+— **58** trampas con su síntoma observable.
 
 | Documento | Qué responde |
 |---|---|
@@ -757,7 +766,7 @@ cambian mi comportamiento): [`.claude/COMO-PEDIR-TAREAS.md`](COMO-PEDIR-TAREAS.m
 | [docs/07-concurrencia-e-hilos.md](docs/07-concurrencia-e-hilos.md) | Qué corre en qué hilo, reglas y carreras conocidas |
 | [docs/08-convenciones-y-estilo.md](docs/08-convenciones-y-estilo.md) | Cabecera obligatoria, singletons, **plantillas copiables** |
 | [docs/09-verificacion-y-pruebas.md](docs/09-verificacion-y-pruebas.md) | Cómo probar cada capa sin GUI; scripts listos; checklist manual |
-| [docs/10-invariantes-y-trampas.md](docs/10-invariantes-y-trampas.md) | **Empieza por aquí.** **57** trampas con síntoma observable |
+| [docs/10-invariantes-y-trampas.md](docs/10-invariantes-y-trampas.md) | **Empieza por aquí.** **58** trampas con síntoma observable |
 | [docs/11-playbooks.md](docs/11-playbooks.md) | Recetas: añadir vista, columna, proveedor, campo, **resolutor**; empaquetar |
 | [docs/12-deuda-tecnica-y-roadmap.md](docs/12-deuda-tecnica-y-roadmap.md) | TODOs con `fichero:línea`, discrepancias, riesgos, roadmap técnico **y licencia/cumplimiento de la distribución (§7)** |
 | [docs/13-selector-de-proveedor.md](docs/13-selector-de-proveedor.md) | Selector de proveedor, `DB_user.db` **y la columna `provider_id`** (§14). **Léelo antes de tocar `animeProviderMgr.py`, `main_window.py` o `anime_window.py`** |

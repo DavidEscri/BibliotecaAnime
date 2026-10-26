@@ -564,6 +564,6 @@ estados; el destino ocupado devuelve `False` sin tocar nada. ✅ Y **en producci
 ### `get_all_animes()`
 
 📖 `:319-331`. `SELECT *` sin filtro. Existe para la detección de duplicados por título
-(`find_saved_duplicate`, `anime_window.py:70-106`), que necesita ver **también** las filas sin ningún
+(`find_saved_duplicate`, `anime_window.py:207-236`), que necesita ver **también** las filas sin ningún
 estado activo: siguen ocupando una fila, y si no se miran se acaba creando un duplicado de algo que ya
 está. Es la única consulta de la clase que no filtra por estado ni por id.

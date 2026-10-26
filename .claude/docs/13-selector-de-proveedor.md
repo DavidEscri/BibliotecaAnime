@@ -211,6 +211,13 @@ el episodio 5 en los dos sitios), así que los `watched_episodes` guardados sigu
 cambiar de proveedor. Es cierto para series normales; **no** necesariamente para animes partidos en
 temporadas con numeración distinta por sitio. Sin verificar.
 
+✅ **Lo que sí se verificó el 2026-10-26** es la otra mitad del problema de las temporadas: en
+AnimeAV1 y JKAnime **cada temporada es un anime aparte**, con su slug y su título («Kusuriya no
+Hitorigoto», «… 2nd Season», «… 3rd Season»), y los dos sitios las titulan igual. Lo que fallaba era
+**confundirlas entre sí** al decidir identidad por título: la 3.ª escribía en la fila de la 2.ª
+([trampa 58](10-invariantes-y-trampas.md)). Desde entonces dos títulos con números distintos nunca son
+el mismo anime.
+
 ### D6 — Resolución *cross-provider* por búsqueda de título + similitud
 
 **Decidido**: método nuevo `AnimeProviderManager.resolve_anime_in_provider(anime_info, provider_id)`.
@@ -220,6 +227,9 @@ Algoritmo:
 2. Normalizar títulos: minúsculas, sin tildes, sin caracteres no alfanuméricos.
 3. Coincidencia normalizada **exacta** → gana. Si no, mejor `difflib.SequenceMatcher.ratio()` con
    **umbral 0.75**; por debajo se considera «no encontrado».
+   🆕 **Desde el 2026-10-26** los pasos 2 y 3 son `title_similarity()`, que además da 0 si los
+   números del título no coinciden: con 0.75, «X» y «X 2nd Season» (0.80) pasaban por el mismo anime
+   ([trampa 58](10-invariantes-y-trampas.md)).
 4. `get_anime_info(match.id, provider_id=..., strict=True)` para traer la ficha completa.
 5. Devuelve `AnimeInfo` o `None`. Nunca lanza.
 
@@ -734,6 +744,10 @@ una segunda fila del mismo anime, en silencio. Ahora `__confirm_save()` compara 
 normalizado contra **toda** la biblioteca (umbral **0.9**, muy por encima del 0.75 de búsqueda: aquí
 un falso positivo interrumpe con un diálogo por dos animes de la misma saga) y ofrece la salida
 correcta, que es la migración.
+⚠️ **El 0.9 no bastaba para las temporadas**: «… 3rd Season» y «… 2nd Season» se parecen 0.939. Y
+la misma función pone el sello de «Buscar», que abre la ficha **con esa fila**, así que el error no
+era un diálogo de más sino escribir en la fila de otra temporada. Desde el 2026-10-26 compara con
+`title_similarity()`, que exige los mismos números ([trampa 58](10-invariantes-y-trampas.md)).
 
 ### Los dos ajustes que salieron del uso real
 

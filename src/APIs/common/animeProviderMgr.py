@@ -1,7 +1,7 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "APIs.common"
 __module__ = "animeProviderMgr.py"
-__version__ = "0.3"
+__version__ = "0.4"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 import difflib
@@ -137,6 +137,11 @@ class AnimeProviderManager:
     #: Umbral de similitud de título por debajo del cual resolve_anime_in_provider
     #: considera que el anime no existe en el proveedor destino.
     TITLE_MATCH_THRESHOLD: float = 0.75
+
+    #: Numerales romanos que cuentan como número de temporada ("Overlord II").
+    #: Sin "i" ni "x", que sueltos suelen ser palabras ("Hunter x Hunter").
+    ROMAN_NUMERALS: Dict[str, int] = {"ii": 2, "iii": 3, "iv": 4, "v": 5,
+                                      "vi": 6, "vii": 7, "viii": 8, "ix": 9}
 
     def __init__(self):
         self._providers: Dict[AnimeProviderId, AnimeProvider] = {}
@@ -375,6 +380,46 @@ class AnimeProviderManager:
         without_accents = "".join(char for char in decomposed if not unicodedata.combining(char))
         return re.sub(r"[^a-z0-9]+", " ", without_accents.lower()).strip()
 
+    @classmethod
+    def title_numbers(cls, title: str) -> List[int]:
+        """Los números de un título (temporada, parte, año…), ordenados.
+
+        "2nd Season", "Season 2" y "II" dan todos [2], para que el mismo anime
+        escrito a la manera de cada sitio siga coincidiendo.
+
+        :param title: Título, normalizado o no.
+        :return: Números del título de menor a mayor; vacío si no lleva ninguno.
+        """
+        numbers: List[int] = []
+        for token in cls.normalize_title(title).split():
+            digits = re.search(r"\d+", token)
+            if digits is not None:
+                numbers.append(int(digits.group()))
+            elif token in cls.ROMAN_NUMERALS:
+                numbers.append(cls.ROMAN_NUMERALS[token])
+        return sorted(numbers)
+
+    @classmethod
+    def title_similarity(cls, title_a: str, title_b: str) -> float:
+        """Parecido entre dos títulos para decidir si son el mismo anime.
+
+        Si sus números no coinciden es 0: "X 2nd Season" y "X 3rd Season" se
+        parecen mucho como texto, pero son animes distintos.
+
+        :param title_a: Primer título.
+        :param title_b: Segundo título.
+        :return: 1.0 si son iguales normalizados; 0.0 si alguno está vacío o sus
+            números difieren; si no, el ratio de difflib.
+        """
+        normalized_a, normalized_b = cls.normalize_title(title_a), cls.normalize_title(title_b)
+        if not normalized_a or not normalized_b:
+            return 0.0
+        if normalized_a == normalized_b:
+            return 1.0
+        if cls.title_numbers(normalized_a) != cls.title_numbers(normalized_b):
+            return 0.0
+        return difflib.SequenceMatcher(None, normalized_a, normalized_b).ratio()
+
     def resolve_anime_in_provider(self, anime_info: AnimeInfo, provider_id: AnimeProviderId,
                                   threshold: float = None) -> Optional[AnimeInfo]:
         """Localiza el equivalente de un anime en otro proveedor por similitud de título.
@@ -393,8 +438,7 @@ class AnimeProviderManager:
             return None
 
         threshold = self.TITLE_MATCH_THRESHOLD if threshold is None else threshold
-        target_title = self.normalize_title(anime_info.title)
-        if not target_title:
+        if not self.normalize_title(anime_info.title):
             print("No se puede resolver el anime: no tiene título con el que buscar")
             return None
 
@@ -409,13 +453,11 @@ class AnimeProviderManager:
         best_candidate: Optional[AnimeInfo] = None
         best_ratio: float = 0.0
         for candidate in candidates:
-            candidate_title = self.normalize_title(candidate.title)
-            if candidate_title == target_title:
-                best_candidate, best_ratio = candidate, 1.0
-                break
-            ratio = difflib.SequenceMatcher(None, target_title, candidate_title).ratio()
+            ratio = self.title_similarity(anime_info.title, candidate.title)
             if ratio > best_ratio:
                 best_candidate, best_ratio = candidate, ratio
+            if ratio == 1.0:
+                break
 
         if best_candidate is None or best_ratio < threshold:
             print(f"[{provider_id.value}] {anime_info.title!r} no encontrado "

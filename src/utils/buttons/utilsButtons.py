@@ -1,7 +1,7 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "utils.buttons"
 __module__ = "utilsButtons.py"
-__version__ = "0.3"
+__version__ = "0.4"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 """Lo que las vistas comparten y no es un componente de gui/components/.
@@ -76,11 +76,8 @@ def match_animes_from_search(anime_records: List[AnimeRecord],
     for result in search_results:
         record: Optional[AnimeRecord] = records_by_slug.get(str(result.id))
         if record is None:
-            normalized_result = AnimeProviderManager.normalize_title(result.title)
             for candidate in anime_records:
-                normalized_candidate = AnimeProviderManager.normalize_title(candidate.title)
-                if (normalized_candidate == normalized_result
-                        or difflib.SequenceMatcher(None, normalized_result, normalized_candidate).ratio() >= AnimeProviderManager.TITLE_MATCH_THRESHOLD):
+                if AnimeProviderManager.title_similarity(result.title, candidate.title) >= AnimeProviderManager.TITLE_MATCH_THRESHOLD:
                     record = candidate
                     break
         if record is not None and record.anime_id not in already_matched:
