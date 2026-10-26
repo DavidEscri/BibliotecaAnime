@@ -1,7 +1,7 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "gui"
 __module__ = "anime_window.py"
-__version__ = "0.9"
+__version__ = "0.10"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 """Ficha de detalle de un anime: la pantalla desde la que se ve un episodio.
@@ -20,7 +20,6 @@ Es el fichero donde confundir la identidad de visualización con la de
 persistencia (ver ``AnimeWindowViewer``) duplica filas en la biblioteca real.
 """
 
-import difflib
 import re
 import threading
 import webbrowser
@@ -212,8 +211,8 @@ def find_saved_duplicate(anime_records: List[AnimeRecord], title: str,
     Sirve para no guardar dos veces el mismo anime cuando se abre desde un
     proveedor distinto al que lo guardó.
 
-    Compara por título normalizado (sin tildes, ni mayúsculas, ni signos), que es
-    lo único común entre proveedores. No detecta títulos completamente distintos
+    Compara con title_similarity(), que es lo único común entre proveedores y no
+    confunde dos temporadas del mismo anime. No detecta títulos completamente distintos
     para el mismo anime ("Solo Leveling" y "Ore dake Level Up na Ken"): eso no
     hay forma de saberlo sin preguntar a la red, y esto corre en el hilo de la
     interfaz.
@@ -223,19 +222,14 @@ def find_saved_duplicate(anime_records: List[AnimeRecord], title: str,
     :return: el ``AnimeRecord`` más parecido si supera
         ``DUPLICATE_TITLE_THRESHOLD``, o ``None``.
     """
-    normalized_title = AnimeProviderManager.normalize_title(title)
-    if not normalized_title:
-        return None
-
     best_record: Optional[AnimeRecord] = None
     best_ratio: float = 0.0
     for anime_record in anime_records:
         if exclude_anime_id is not None and str(anime_record.anime_id) == str(exclude_anime_id):
             continue
-        normalized_candidate = AnimeProviderManager.normalize_title(anime_record.title)
-        if normalized_candidate == normalized_title:
+        ratio = AnimeProviderManager.title_similarity(title, anime_record.title)
+        if ratio == 1.0:
             return anime_record
-        ratio = difflib.SequenceMatcher(None, normalized_title, normalized_candidate).ratio()
         if ratio > best_ratio:
             best_record, best_ratio = anime_record, ratio
 
