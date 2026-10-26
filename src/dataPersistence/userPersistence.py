@@ -1,7 +1,7 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "DataPersistence"
 __module__ = "userPersistence.py"
-__version__ = "0.3"
+__version__ = "0.4"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 import os
@@ -52,6 +52,8 @@ class UserSettingKey(Enum):
     LAST_WATCHED_ANIME_IDS = "last_watched_anime_ids"
     #: Criterio de orden de la pestaña «Favoritos»: "rating" o "title".
     FAVOURITES_ORDER = "favourites_order"
+    #: Criterio de orden de la pestaña «Pendientes»: "shortest", "longest" o "title".
+    PENDING_ORDER = "pending_order"
     # Reservada para cuando se integren los mangas:
     # DEFAULT_MANGA_PROVIDER = "default_manga_provider"
 
@@ -95,6 +97,13 @@ class UserPersistence(ServiceDB):
     FAVOURITES_ORDER_RATING = "rating"
     FAVOURITES_ORDER_TITLE  = "title"
     FAVOURITES_ORDERS = (FAVOURITES_ORDER_RATING, FAVOURITES_ORDER_TITLE)
+
+    #: Valores admitidos para PENDING_ORDER, con el mismo reparto: aquí lo que se
+    #: guarda, en la vista lo que se lee.
+    PENDING_ORDER_SHORTEST = "shortest"
+    PENDING_ORDER_LONGEST  = "longest"
+    PENDING_ORDER_TITLE    = "title"
+    PENDING_ORDERS = (PENDING_ORDER_SHORTEST, PENDING_ORDER_LONGEST, PENDING_ORDER_TITLE)
 
     # Esquema declarado de la BD: **la fuente de verdad**. Toda tabla de
     # DB_user.db debe figurar aquí; validate_db_integrity() la creará o la
@@ -302,6 +311,26 @@ class UserPersistence(ServiceDB):
             print(f"Criterio de orden de favoritos desconocido: {order!r}")
             return False
         return self.set_setting(UserSettingKey.FAVOURITES_ORDER, order)
+
+    def get_pending_order(self) -> str:
+        """Devuelve el criterio de orden de «Pendientes»: ``"shortest"``, ``"longest"`` o ``"title"``.
+
+        Por defecto ``"shortest"``. Un valor guardado que no se reconozca se
+        trata como si no hubiera preferencia.
+
+        :return: Criterio de orden guardado, o ``PENDING_ORDER_SHORTEST`` por defecto.
+        """
+        value = self.get_setting(UserSettingKey.PENDING_ORDER, self.PENDING_ORDER_SHORTEST)
+        if value not in self.PENDING_ORDERS:
+            return self.PENDING_ORDER_SHORTEST
+        return value
+
+    def set_pending_order(self, order: str) -> bool:
+        """Guarda el criterio de orden de «Pendientes». Ignora valores desconocidos."""
+        if order not in self.PENDING_ORDERS:
+            print(f"Criterio de orden de pendientes desconocido: {order!r}")
+            return False
+        return self.set_setting(UserSettingKey.PENDING_ORDER, order)
 
     # ------------------------------------------------------------------
     # Métodos privados de apoyo

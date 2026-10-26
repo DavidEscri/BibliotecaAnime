@@ -998,7 +998,7 @@ tema y el plegado no cambian de vista, así que se hacen dos pasadas de siete.
 - [ ] Desplegable de orden: **Más cortos primero** (por defecto) · Más largos primero · Título (A-Z).
 - [ ] 🔴 **Lo que no tiene lista de episodios va al final en los dos sentidos**: «no se sabe cuánto
       dura» no es «dura poco».
-- [ ] ⚠️ El orden **no** se persiste: al volver a entrar vuelve a «Más cortos primero».
+- [ ] La elección **sobrevive al reinicio** (`pending_order`), como la de Favoritos.
 - [ ] 🔴 **Hover** → píldora «Empezar»; pulsarla **mueve el anime a «Viendo»** y **mueve los
       contadores de la barra**. Hasta el 2026-09-01 **no movía nada**: su `command` no llegaba a
       ejecutarse ([trampa 40](10-invariantes-y-trampas.md)). Compruébalo volviendo a «Pendientes»:

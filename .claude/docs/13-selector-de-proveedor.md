@@ -315,12 +315,14 @@ falta es tocar el esquema ni migrar: la tabla es clave/valor.
 | `SIDEBAR_COLLAPSED` 🆕 | `sidebar_collapsed` | `"0"` desplegada · `"1"` plegada | rediseño, fase 1 |
 | `LAST_WATCHED_ANIME_IDS` 🆕 | `last_watched_anime_ids` | hasta **3** `anime_id` separados por comas, el más reciente primero | rediseño, fase 2 |
 | `FAVOURITES_ORDER` 🆕 | `favourites_order` | `"rating"` o `"title"` | rediseño, fase 5 |
+| `PENDING_ORDER` 🆕 | `pending_order` | `"shortest"`, `"longest"` o `"title"` | 2026-10-26 |
 | *(reservada)* | `default_manga_provider` | `PROVIDER_ID` del proveedor de manga | 🔮 ver [§10](#10-preparación-para-la-convivencia-animemanga) |
 
 Cada una tiene su **par tipado** en `UserPersistence`, para que la GUI no maneje cadenas sueltas:
 `get_sidebar_collapsed()` / `set_sidebar_collapsed(bool)`,
 `get_last_watched_ids()` / `push_last_watched_id(anime_id)`,
-`get_favourites_order()` / `set_favourites_order(str)`.
+`get_favourites_order()` / `set_favourites_order(str)`,
+`get_pending_order()` / `set_pending_order(str)`.
 
 Tres detalles que no son obvios:
 
@@ -329,8 +331,11 @@ Tres detalles que no son obvios:
   silencio**. Lo hacen la banda «Retomar» de la portada y el panel lateral de «Viendo».
 - **El panel de «Viendo» recorre los tres**, no solo el primero: si el más reciente ya no está en esa
   pestaña —porque lo marcaste como finalizado—, el siguiente también es algo que estabas viendo.
-- **El orden de «Pendientes» NO se persiste**, aunque el de «Favoritos» sí. Vive en memoria; si se
-  quiere recordar, es un miembro más de `UserSettingKey`.
+- **Los dos órdenes guardan un código, no el texto del desplegable.** `favourites_order` y
+  `pending_order` persisten `"rating"`, `"shortest"`… y cada vista lleva su `ORDER_LABELS` para
+  traducirlo; así renombrar una opción no invalida lo guardado. Un valor que no se reconozca se lee
+  como «sin preferencia». El de «Pendientes» vivía solo en memoria hasta el 2026-10-26 y volvía a
+  «Más cortos primero» al reiniciar.
 
 ### API pública de `UserPersistence`
 
@@ -348,6 +353,8 @@ get_last_watched_ids() -> List[str]       # 🆕 rediseño, fase 2 (como mucho 3
 push_last_watched_id(anime_id) -> bool    #    lo pone el primero y recorta a 3
 get_favourites_order() -> str             # 🆕 rediseño, fase 5 ("rating" | "title")
 set_favourites_order(order) -> bool
+get_pending_order() -> str                # 🆕 2026-10-26 ("shortest" | "longest" | "title")
+set_pending_order(order) -> bool
 ```
 
 Más `UserPersistenceSingleton`, con el mismo patrón que el resto: `__new__` devuelve la **instancia

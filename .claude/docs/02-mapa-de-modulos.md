@@ -27,7 +27,7 @@ Todas las líneas citadas corresponden al **árbol de trabajo actual**, no al ú
 | `src/APIs/resolvers/jkplayer.py` 🆕 | **115** | resolución |
 | `src/APIs/resolvers/mp4upload.py` 🆕 | **63** | resolución |
 | `src/dataPersistence/animesPersistence.py` | 722 | dominio/datos |
-| `src/dataPersistence/userPersistence.py` | 329 | dominio/datos |
+| `src/dataPersistence/userPersistence.py` | 358 | dominio/datos |
 | `src/utils/db/sqlite.py` | 494 | infraestructura |
 | `src/utils/utils.py` | 326 | infraestructura |
 | `src/utils/buttons/utilsButtons.py` | 188 | GUI |
@@ -51,7 +51,7 @@ Todas las líneas citadas corresponden al **árbol de trabajo actual**, no al ú
 | `src/gui/sidebarButtons/favouriteAnimes/favouriteAnimes.py` | 345 | GUI · vista |
 | `src/gui/sidebarButtons/finishedAnimes/finishedAnimes.py` | 261 | GUI · vista |
 | `src/gui/sidebarButtons/watchingAnimes/watchingAnimes.py` | 265 | GUI · vista |
-| `src/gui/sidebarButtons/pendingAnimes/pendingAnimes.py` | 342 | GUI · vista |
+| `src/gui/sidebarButtons/pendingAnimes/pendingAnimes.py` | 335 | GUI · vista |
 | `src/gui/sidebarButtons/searchAnimes/searchAnimes.py` | 589 | GUI · vista |
 
 **13 676 líneas** en **37 módulos** (más 20 `__init__.py`, ✅ **todos vacíos**). ✅ Recontado de cero
@@ -205,7 +205,7 @@ clave/valor. Esquema y razonamiento: [04 §0](04-modelo-de-datos.md), [13](13-se
 | `UserSettingField` | enum columna + tipo SQLite, igual que `AnimeField` |
 | `UserSettingKey` | claves válidas. Añadir una preferencia es **un miembro aquí**, sin migración |
 | `UserSetting` | dataclass de una fila, con `from_db_dict()` |
-| `UserPersistence(ServiceDB)` | `start()`, `validate_db_integrity()`, `get_setting()`, `set_setting()` (upsert), `get_all_settings()`, `get_default_provider_id()`, `set_default_provider_id()` |
+| `UserPersistence(ServiceDB)` | `start()`, `validate_db_integrity()`, `get_setting()`, `set_setting()` (upsert), `get_all_settings()`, `get_default_provider_id()`, `set_default_provider_id()`, y un par `get_*` / `set_*` por preferencia: plegado de la barra, últimos vistos, orden de Favoritos y 🆕 orden de Pendientes (`get_pending_order()` / `set_pending_order()`) |
 | `UserPersistenceSingleton` | `__new__` devuelve la instancia real |
 
 **Dependencias**: `utils.db.sqlite` (`ServiceDB`, `TableSchema`), `utils.utils.get_resource_path`.
