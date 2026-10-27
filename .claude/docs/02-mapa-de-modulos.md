@@ -241,7 +241,7 @@ a `requests.get`**; fuerza UTF-8 cuando el sitio no declara charset. Los 5 méto
 `__get_last_page` `:300-312` · `__extract_genres` `:314-331` · `__count_episodes_from_dom` `:333-346` ·
 `__apply_client_side_order` `:348-358`. Singleton `:361-367`.
 
-**Salientes**: `utils.utils.removeprefix` (`:24`), `APIs.common.*`.
+**Salientes**: `APIs.common.*`. Desde el 2026-10-27 no importa nada de `utils/`: el *slug* sale con `str.removeprefix`.
 ✅ Verificado: los 5 métodos funcionan. Detalle del payload en [05 §2](05-proveedores-y-scraping.md).
 
 ---
@@ -385,7 +385,7 @@ pool; transacciones solo en las migraciones.
 | `TableSchema.create_sql(table_name=None)` | `:73-82` | el parámetro permite crear la tabla temporal de la reconstrucción |
 | `SqlUtils.insert_sql(sql, params) -> bool` | `:90-104` | conexión abierta y cerrada por llamada |
 | `SqlUtils.update_sql(sql, params) -> bool` | `:106-120` | ✅ **devuelve `True` aunque no afecte a ninguna fila** |
-| `SqlUtils.query_sql(sql, params, list_field) -> (bool, list)` | `:122-144` | mapea **por posición** `columna[i] → list_field[i]` |
+| `SqlUtils.query_sql(sql, params, list_field) -> Tuple[bool, list]` | `:122-144` | mapea **por posición** `columna[i] → list_field[i]` |
 | `SqlUtils.create_db(sql) -> bool` | `:146-160` | |
 | `SqlUtils.execute_transaction(statements) -> bool` | `:162-192` | todo o nada, con `ROLLBACK`; usado por las migraciones |
 | `SqlUtils.get_table_names()` | `:194-210` | tablas de usuario (excluye `sqlite_%`) |
@@ -419,9 +419,7 @@ pool; transacciones solo en las migraciones.
 
 | Función | Línea | Efecto |
 |---|---|---|
-| `removeprefix(text, prefix_text)` | `:24-38` | ⚠️ **devuelve `None`** si los tipos difieren (falta `else`) |
 | `refactor_genre_text(genre_text)` | `:41-45` | `capitalize()` + `-`/`_` → espacio |
-| `update_gif(label, gif_frames, root, frame=0)` | `:48-51` | ⚠️ **código muerto y roto**: `root.after(100, update_gif, frame)` pasaría `frame` como `label`. Sin llamadas en `src/` |
 | `download_anime_poster_by_status(status, anime)` | `:53-60` | red + disco → `resources/images/{status.name.lower()}/{id}.jpg`, `(130,185)` |
 | 🆕 `move_anime_poster_by_status(status, old_id, new_id) -> bool` | `:62-79` | **renombra** el póster cacheado al cambiar el `anime_id`. `False` si no había nada que mover → quien llama lo descarga. Usa `os.replace`, no `os.rename`: en Windows `rename` falla si el destino existe |
 | `remove_anime_poster_by_status(status, anime)` | `:81-88` | borra ese fichero; si no existe, imprime y vuelve |

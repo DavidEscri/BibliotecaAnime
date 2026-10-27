@@ -207,7 +207,7 @@ Auditado punto por punto. Donde el código contradice a `CLAUDE.md`, **gana el c
 | ~~B2~~ | ~~La ordenación por géneros nunca se aplica (`str` vs enum)~~ ✅ **Cerrado el 2026-10-21**: ver [§4 → Resuelto](#-resuelto) | ~~`utilsButtons.py:341`~~ → `animesPersistence.py` (`get_anime_by_genre_and_order`) |
 | ~~B3~~ | ~~Guard antidoble-búsqueda inoperante (`.start()` → `None`)~~ ✅ **Desaparecido con el rediseño (2026-08-21)**: el buscador se quedó con **dos** hilos y un **contador de generación** en vez del guard; verificado el 2026-09-01 | ~~`searchAnimes.py:213,212,335`~~ → `searchAnimes.py:107, 329-330, 361` |
 | ~~B4~~ | ~~HTTP en el hilo de UI: servidores y clic desde 5 de las 6 vistas~~ ✅ **Cerrado del todo (2026-09-24, fase 2 del reproductor)**. Los 6 puntos de clic salieron el 2026-08-16; la llamada de servidores —la **deuda nº 1** del roadmap— el 2026-09-24, con número de despliegue para descartar respuestas viejas. ✅ Hueco máximo del bucle durante la petición: **0,03 s** | `anime_window.py:1739-1879` ([07 C5](07-concurrencia-e-hilos.md), [03 §8](03-flujos-de-ejecucion.md)) |
-| B6 | Las 4 listas cacheadas de `MainWindow` **no las usa nadie** | `main_window.py:87-93` vs `favouriteAnimes.py:77` |
+| ~~B6~~ | ~~Las 4 listas cacheadas de `MainWindow` **no las usa nadie**~~ ✅ **Ya no es cierto (comprobado el 2026-10-27), así que no se retira nada.** Desde el rediseño alimentan los contadores de la barra lateral y la cola inicial de `EpisodeRefresher`, y la ficha y «Pendientes» las releen al cambiar un estado ([trampa 31](10-invariantes-y-trampas.md)). Las vistas siguen leyendo de la BD, pero las listas no son código muerto | `main_window.py` (`counter_providers` de `load_sidebar_buttons()`, `__on_startup_loaded`), `anime_window.py`, `pendingAnimes.py` |
 | B7 | `remove_from_finished` mueve a *pendiente* en BD pero **borra el póster sin recrearlo** en `pending/` | `anime_window.py:908-914` |
 | ~~B8~~ | ~~`time.sleep(0.1)` en el hilo de UI × 7~~ ✅ **Cerrado con el rediseño (2026-08-21)**: `git grep -n "time.sleep" -- src/` solo devuelve las dos esperas entre reintentos de scraping, que van en hilo daemon. Verificado el 2026-09-01 | [07 §5](07-concurrencia-e-hilos.md) |
 | ~~B10~~ | ~~El buscador de las vistas de estado va **contra la red**, no contra la BD~~ ✅ **Cerrado (2026-08-16)**: búsqueda **local** primero, la web solo suma. Era peor de lo diagnosticado —no era solo «no funciona sin conexión», sino que **perdía animes** según el proveedor puesto ([trampa 26](10-invariantes-y-trampas.md)) | `utilsButtons.py:23-166` |
@@ -296,15 +296,15 @@ Auditado punto por punto. Donde el código contradice a `CLAUDE.md`, **gana el c
 
 | # | Problema | Dónde |
 |---|---|---|
-| C1 | Errata en `__module__`: `animesPersistence` sin `.py`. ✅ Las otras dos (`anime_wnidow.py`, `animeProvider.py`) **ya están corregidas** en el código | `animesPersistence.py:3`, [08 §1](08-convenciones-y-estilo.md) |
-| C2 | `update_gif` suelto, muerto y roto | `utils.py:48-51` |
-| C3 | `removeprefix` devuelve `None` si los tipos difieren | `utils.py:24-38` |
-| C4 | `SearchButton` duplicado (widget vs vista) | `utilsButtons.py:37` y `searchAnimes.py:35` |
-| C5 | Nomenclatura mixta `show_*` / `__show_*` en las vistas | [06 §3](06-gui-y-vistas.md) |
-| C6 | `AccordionFilterButton` crea un frame nuevo en cada expansión | `utilsButtons.py:122-128` |
-| C7 | `info_frame` con `fg_color="white"` fijo, no respeta el tema | `anime_window.py:221` |
-| C8 | `-> (bool, list)` como anotación de tipo | `sqlite.py:122` |
-| C9 | Comentario «24 primeros» donde el código dice 25 | `anime_window.py:492` |
+| ~~C1~~ | ~~Errata en `__module__`: `animesPersistence` sin `.py`~~ ✅ **Cerrado el 2026-10-27** (v2.5). Las otras dos (`anime_wnidow.py`, `animeProvider.py`) ya estaban corregidas | `animesPersistence.py` |
+| ~~C2~~ | ~~`update_gif` suelto, muerto y roto~~ ✅ **Retirado el 2026-10-27**, con el `import tkinter` que solo usaba él. No tenía llamantes; la `update_gif` local de la pantalla de carga es otra y sigue | `utils.py` (v0.4) |
+| ~~C3~~ | ~~`removeprefix` devuelve `None` si los tipos difieren~~ ✅ **Retirado el 2026-10-27**: era un *backport* para Python <3.9 y el proyecto exige 3.10. Sus cuatro llamadas (una en AnimeAV1, tres en AnimeFLV) usan `str.removeprefix`, y los proveedores ya no importan nada de `utils/`. [Trampa 20](10-invariantes-y-trampas.md) | `animeav1.py` (v0.5), `animeflv.py` (v0.4) |
+| ~~C4~~ | ~~`SearchButton` duplicado (widget vs vista)~~ ✅ **Desaparecido con el rediseño**: `utilsButtons.py` ya no lo define y solo queda la vista. Comprobado el 2026-10-27 | `searchAnimes.py` |
+| ~~C5~~ | ~~Nomenclatura mixta `show_*` / `__show_*` en las vistas~~ ✅ **Cerrado el 2026-10-27**: `show_favourite_animes`, `show_watching_animes`, `show_pending_animes` y `show_finished_animes` eran públicos, y el de la portada, `__show_animes_recientes`, estaba en español. Los cinco pasan a privados en inglés (`__show_recent_animes` el último): solo los usaban su constructor y su `show_frame()`, que sigue siendo la única entrada pública | las 5 vistas que no son «Buscar» |
+| ~~C6~~ | ~~`AccordionFilterButton` crea un frame nuevo en cada expansión~~ ✅ **Desaparecido con el rediseño (2026-08-21)**: la clase ya no existe en `src/`. Comprobado el 2026-10-27 | — |
+| ~~C7~~ | ~~`info_frame` con `fg_color="white"` fijo, no respeta el tema~~ ✅ **Desaparecido con el rediseño**: no queda ningún `"white"` en `src/`, y la ficha pinta con tokens de `Theme`. Comprobado el 2026-10-27 | — |
+| ~~C8~~ | ~~`-> (bool, list)` como anotación de tipo~~ ✅ **Cerrado el 2026-10-27**: eran dos, no una. `query_sql` y `insert_record_db` anotan `Tuple[bool, list]` y `Tuple[bool, int]` | `sqlite.py` (v1.2) |
+| ~~C9~~ | ~~Comentario «24 primeros» donde el código dice 25~~ ✅ **Desaparecido**: el comentario ya no existe y el corte es la constante `EPISODES_SHOWN = 25`. Comprobado el 2026-10-27 | `anime_window.py` |
 | ~~C10~~ | ~~`README.md` describe funciones inexistentes~~ ✅ **Cerrado del todo el 2026-08-18** (ver abajo) | §3 |
 | ~~C11~~ | ~~La BD del desarrollador se empaqueta en el `.exe`~~ ✅ **Cerrado el 2026-08-17** junto con A3 | `MiBibliotecaAnime.spec` |
 | **C12** 🆕 | **`libmpv-2.dll` no está en el repositorio** (120 MB, por encima del límite de GitHub; `vendor/` en `.gitignore`). Un clon limpio arranca —todo servidor abre el navegador— pero **no compila el `.exe`** sin el paso 4 del `README.md`. Si algún día pesa: Git LFS o un script de descarga que compruebe el sha256 | `.gitignore`, `MiBibliotecaAnime.spec:12-14`, [trampa 18f](10-invariantes-y-trampas.md) |
@@ -338,7 +338,7 @@ Auditado punto por punto. Donde el código contradice a `CLAUDE.md`, **gana el c
 
 | B12 | **Solo se refrescaban los episodios de las ≤3 filas de la banda «Retomar»** — el resto de la biblioteca enseñaba el recuento del día que abriste su ficha, así que un anime en emisión mentía en las barras de «Viendo», en su subtítulo «M episodios pendientes» y en la duración de «Pendientes» ([trampa 38](10-invariantes-y-trampas.md)). Al cerrarla había un caso vivo en la biblioteca real: «Dragon Ball Super: Beerus», 2 guardados y 3 servidos | 2026-10-27 | `EpisodeRefresher` (`gui/episode_refresher.py`): cola por proveedor con un hilo cada uno, comprobación válida 30 min, proveedor caído tras 2 fallos seguidos, `strict=True`, relectura de la fila antes de escribir. Lo piden la portada tras pintarse y la banda, «Viendo» y «Pendientes» al entrar, con prioridad; repintan en el sitio con `update_record()`. Y la ficha que trae la reaprovecha `open_saved_anime()`. ✅ 21/21 comprobaciones del servicio aislado; ✅ GUI sobre copia con 5 filas rebajadas: las 5 se corrigen en pantalla y en la BD solo cambia `episodes`; ✅ entrar en «Viendo» cuesta igual que en `develop`; ✅ One Piece abre en 772 ms en vez de ~1 060. ⚠️ «Finalizados» queda fuera a propósito |
 
-> Los identificadores retirados (`A2`, `A4`, `A5`, `B1`, `B2`, `B5`, `B9`, `B12`) **no se reutilizan**: otros
+> Los identificadores retirados (`A2`, `A4`, `A5`, `B1`, `B2`, `B5`, `B6`, `B9`, `B12` y de `C1` a `C9`) **no se reutilizan**: otros
 > documentos los citan.
 
 ---
