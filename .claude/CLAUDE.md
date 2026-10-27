@@ -522,6 +522,10 @@ en `utils/utils.py:24-33` y en `Metrics.POSTER_CACHE_SIZE`, porque `utils/` no p
 lo baja **en un hilo** con `download_poster()`, que no toca Tk (desde el 2026-10-21; antes se bajaba en el
 hilo de la interfaz). Las descargas van en un
 `ThreadPoolExecutor` de 8 workers y borran del disco lo que ya no está en la lista actual.
+🔴 **Las cuatro carpetas de estado siguen a la fila, no al botón** (2026-10-27, cierra B7): tras
+cambiar un estado, `sync_saved_posters_async()` relee la fila en un hilo y deja el póster en las
+carpetas de sus estados activos y solo en ésas, porque la BD mueve estados por su cuenta (quitar de
+«Finalizados» lo pasa a «Pendientes»). Quien cambie un estado desde otro sitio tiene que llamarla.
 
 **El reproductor acoplado** (2026-09-24 a 2026-10-20, plan de 7 fases en
 `.claude/plan-reproductor/`; aspecto en
@@ -565,9 +569,9 @@ lo que daba por hecho la investigación previa. Detalle completo en
 ### 4. Concurrencia
 
 - Toda petición HTTP va en un hilo daemon; nunca en el hilo de Tkinter. ✅ **Sin excepciones desde el
-  2026-10-21**: la última —el póster de la ficha cuando no estaba en disco, que se había quedado sin
-  contar— salió con la auditoría de rendimiento; la anterior, los servidores de un episodio, con la
-  fase 2 del reproductor. 🆕 Y **toda petición lleva timeout**: las búsquedas de AnimeAV1 (`_fetch`) y
+  2026-10-27**: la última —los cuatro `add_to_*` de la ficha, que bajaban el póster en el hilo de
+  Tk— salió con B7; la anterior —el póster de la ficha cuando no estaba en disco— con la auditoría
+  de rendimiento del 2026-10-21, que dio el hilo por limpio sin serlo. 🆕 Y **toda petición lleva timeout**: las búsquedas de AnimeAV1 (`_fetch`) y
   tres de AnimeFLV no lo tenían, y un servidor colgado dejaba «Buscar» cargando para siempre.
 - 🔴 **Los eventos de mpv llegan en su propio hilo (`MPVEventHandlerThread`), y desde él no se llama a
   Tk ni con `after()`**: `after()` desde otro hilo espera a que Tk lo atienda, y `terminate()` desde Tk

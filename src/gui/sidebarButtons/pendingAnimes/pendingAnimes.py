@@ -1,7 +1,7 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "sidebarButtons"
 __module__ = "pendingAnimes.py"
-__version__ = "0.8"
+__version__ = "0.9"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 """«Pendientes»: la cola de lo que todavía no has empezado.
@@ -18,7 +18,6 @@ una fila que salta de sitio bajo el cursor no es un refresco silencioso.
 """
 
 import os
-import threading
 import customtkinter as ctk
 
 from typing import Dict, List, Optional, Union
@@ -27,7 +26,7 @@ from APIs.common.animeProviderMgr import AnimeProviderManager, AnimeProviderMana
 from APIs.common.models import AnimeInfo
 from dataPersistence.animesPersistence import AnimesPersistence, AnimesPersistenceSingleton, AnimeStatus, AnimeRecord
 from dataPersistence.userPersistence import UserPersistence
-from gui.anime_window import open_saved_anime
+from gui.anime_window import open_saved_anime, sync_saved_posters_async
 from gui.components.anime_row import AnimeRow, RowAction
 from gui.components.empty_state import EmptyState, ICON_SIZE as EMPTY_ICON_SIZE
 from gui.components.order_menu import OrderMenu
@@ -36,7 +35,6 @@ from gui.components.status_pill import StatusPill
 from gui.components.view_header import ViewHeader
 from gui.theme import Metrics, Theme
 from utils.buttons import utilsButtons
-from utils.utils import download_anime_poster_by_status
 
 #: Texto de cada criterio de orden en el desplegable. La clave es lo que se
 #: persiste; así renombrar una opción no invalida la preferencia guardada.
@@ -334,7 +332,7 @@ class PendingAnimeButton(utilsButtons.SidebarButton):
             return
         print(f"{anime_record.title} movido de pendientes a viendo.")
 
-        self.__cache_poster_async(anime_info)
+        sync_saved_posters_async(self.animes_persistence, anime_info)
         self.__refresh_library_counts()
         # El episodio sale de resume_progress() y no de un 1 fijo: si el anime
         # volvió a la cola a medias, "empezar" sigue por donde se dejó.
@@ -343,22 +341,6 @@ class PendingAnimeButton(utilsButtons.SidebarButton):
         next_episode, _episodes, _fraction = resume_progress(anime_record)
         open_saved_anime(self.main_window, anime_record.anime_id,
                          focus_episode=next_episode, force_ascending=True)
-
-    def __cache_poster_async(self, anime_info: AnimeInfo) -> None:
-        """Deja una copia del póster en ``resources/images/watching/``.
-
-        Va en un hilo daemon porque es una **petición HTTP** y esto lo llama el
-        hilo de Tkinter. Nadie la espera: ``find_cached_poster_path()`` recorre
-        las seis carpetas, así que mientras tanto la fila sigue encontrando la
-        imagen en ``pending/``.
-        """
-        def _download():
-            try:
-                download_anime_poster_by_status(AnimeStatus.WATCHING, anime_info)
-            except Exception as error:
-                print(f"No se pudo cachear el póster de {anime_info.title} en «viendo»: {error}")
-
-        threading.Thread(target=_download, daemon=True).start()
 
     def __refresh_library_counts(self) -> None:
         """Repone los dos contadores que cambian al empezar un anime.

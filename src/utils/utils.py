@@ -1,10 +1,11 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "utils"
 __module__ = "utils.py"
-__version__ = "0.4"
+__version__ = "0.5"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 import os
+import shutil
 import sys
 import threading
 import customtkinter as ctk
@@ -67,19 +68,40 @@ def move_anime_poster_by_status(status, old_anime_id, new_anime_id) -> bool:
     os.replace(old_poster_path, os.path.join(anime_status_dir, f"{new_anime_id}.jpg"))
     return True
 
-def remove_anime_poster_by_status(status, anime):
-    """Borra del disco el póster cacheado de un anime para un estado dado.
+def sync_status_posters(anime, statuses) -> None:
+    """Deja el póster de un anime en las carpetas de sus estados activos y solo en ésas.
 
-    :param status: Estado del anime; determina la carpeta donde buscar el póster.
-    :param anime: Anime cuyo póster se borra.
+    Completa primero y borra después, para que siempre quede una copia que encontrar.
+    Copia de otra carpeta antes que descargar; aun así puede salir a la red, así
+    que no debe llamarse desde el hilo de Tkinter.
+
+    :param anime: Anime con la identidad de la fila guardada; se leen ``.id`` y ``.poster``.
+    :param statuses: Estado → si está activo; la carpeta de cada uno es ``status.name.lower()``.
     """
-    anime_status_dir = get_resource_path(f"resources/images/{status.name.lower()}")
     image_name = f"{anime.id}.jpg"
-    anime_poster_path = os.path.join(anime_status_dir, image_name)
-    if not os.path.exists(anime_poster_path):
-        print(f"No existe el poster para el anime {anime.title} con estado {status.name}")
-        return
-    os.remove(anime_poster_path)
+    for status, is_active in statuses.items():
+        status_dir = get_resource_path(f"resources/images/{status.name.lower()}")
+        poster_path = os.path.join(status_dir, image_name)
+        if not is_active or os.path.exists(poster_path):
+            continue
+        try:
+            cached_path = find_cached_poster_path(anime.id)
+            if cached_path is None:
+                download_anime_poster_by_status(status, anime)
+            else:
+                os.makedirs(status_dir, exist_ok=True)
+                shutil.copyfile(cached_path, poster_path)
+        except Exception as e:
+            print(f"No se pudo guardar el póster de {anime.id} en {status.name.lower()}: {e}")
+
+    for status, is_active in statuses.items():
+        poster_path = get_resource_path(f"resources/images/{status.name.lower()}/{image_name}")
+        if is_active or not os.path.exists(poster_path):
+            continue
+        try:
+            os.remove(poster_path)
+        except Exception as e:
+            print(f"No se pudo borrar el póster de {anime.id} de {status.name.lower()}: {e}")
 
 def download_animes_poster(images_path, animes):
     """Descarga a images_path los pósters que falten y borra los que sobren.

@@ -420,9 +420,9 @@ pool; transacciones solo en las migraciones.
 | Función | Línea | Efecto |
 |---|---|---|
 | `refactor_genre_text(genre_text)` | `:41-45` | `capitalize()` + `-`/`_` → espacio |
-| `download_anime_poster_by_status(status, anime)` | `:53-60` | red + disco → `resources/images/{status.name.lower()}/{id}.jpg`, `(130,185)` |
+| `download_anime_poster_by_status(status, anime)` | `:38` | red + disco → `resources/images/{status.name.lower()}/{id}.jpg`, `(248, 372)`. Desde el 2026-10-27 solo la llaman `sync_status_posters` y la migración de fila, las dos fuera del hilo de Tk |
 | 🆕 `move_anime_poster_by_status(status, old_id, new_id) -> bool` | `:62-79` | **renombra** el póster cacheado al cambiar el `anime_id`. `False` si no había nada que mover → quien llama lo descarga. Usa `os.replace`, no `os.rename`: en Windows `rename` falla si el destino existe |
-| `remove_anime_poster_by_status(status, anime)` | `:81-88` | borra ese fichero; si no existe, imprime y vuelve |
+| 🆕 `sync_status_posters(anime, statuses)` | `:71` | deja `{id}.jpg` en las carpetas de los estados activos (`statuses`: estado → bool) **y solo en ésas**: completa primero —copiando de cualquiera de las 6 carpetas antes que descargar— y borra después. Puede salir a la red: **no desde el hilo de Tk**. Nunca lanza. Sustituye a `remove_anime_poster_by_status`, retirada el 2026-10-27 (B7) |
 | `download_animes_poster(images_path, animes)` | `:90-124` | descarga las que faltan (8 hilos) y **purga huérfanas** `:116-124` |
 | `download_images_progress(images_path, recent_animes, on_progress)` 🆕 | `:149` | igual + progreso 90 %→100 % por el callback, **desde los workers**; desde el 2026-10-21 ya no recibe widgets |
 | `find_cached_poster_path(anime_id) -> str \| None` | `:215` | busca `{id}.jpg` en las **6** carpetas de `POSTER_FOLDERS` (`:212`), sin red |

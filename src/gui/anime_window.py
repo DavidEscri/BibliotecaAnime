@@ -1,7 +1,7 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "gui"
 __module__ = "anime_window.py"
-__version__ = "0.11"
+__version__ = "0.12"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 """Ficha de detalle de un anime: la pantalla desde la que se ve un episodio.
@@ -40,7 +40,9 @@ from gui.components.video_player import VideoPlayer, player_icon
 from gui.theme import Metrics, Theme
 from utils.utils import refactor_genre_text, download_poster, find_cached_poster_path, \
     load_rounded_image, round_image, download_anime_poster_by_status, move_anime_poster_by_status, \
-    remove_anime_poster_by_status
+    sync_status_posters
+
+_POSTER_SYNC_LOCK = threading.Lock()
 
 #: Similitud mínima entre títulos para avisar de que un anime que se va a
 #: guardar puede ser el mismo que otro ya guardado. Por encima del umbral con el
@@ -234,6 +236,29 @@ def find_saved_duplicate(anime_records: List[AnimeRecord], title: str,
             best_record, best_ratio = anime_record, ratio
 
     return best_record if best_ratio >= DUPLICATE_TITLE_THRESHOLD else None
+
+
+def sync_saved_posters_async(animes_persistence, anime_info: AnimeInfo) -> None:
+    """Pone en un hilo el póster del anime en las carpetas de los estados que tiene su fila.
+
+    Los estados los dice la fila releída y no el botón pulsado, porque la BD mueve
+    otros por su cuenta (quitar de «Finalizados» lo pasa a «Pendientes»). El cerrojo
+    hace que, con dos clics seguidos, el último en correr deje el disco como la BD.
+
+    :param animes_persistence: Persistencia de donde se relee la fila.
+    :param anime_info: Anime con la identidad de la fila guardada; se leen ``.id`` y ``.poster``.
+    """
+    def _sync():
+        with _POSTER_SYNC_LOCK:
+            try:
+                record = animes_persistence.get_anime_by_anime_id(str(anime_info.id))
+                statuses = {status: record is not None and bool(getattr(record, status.value))
+                            for status in AnimeStatus}
+                sync_status_posters(anime_info, statuses)
+            except Exception as e:
+                print(f"No se pudieron poner al día los pósters de {anime_info.id}: {e}")
+
+    threading.Thread(target=_sync, daemon=True).start()
 
 
 def open_saved_anime(main_window, anime_id: Union[str, int],
@@ -1261,7 +1286,8 @@ class AnimeWindowViewer:
         getattr(self, actions[1] if self.__status_state[status] else actions[0])()
 
     def __after_status_change(self) -> None:
-        """Repinta los botones y relee las listas cacheadas del hub para refrescar los contadores de la sidebar."""
+        """Repinta los botones, pone al día los pósters en disco y refresca los contadores de la sidebar."""
+        sync_saved_posters_async(self.main_window.animes_persistence, self.__persistence_anime_info())
         self.__refresh_status_buttons()
         self.__refresh_hub_lists()
 
@@ -1326,14 +1352,12 @@ class AnimeWindowViewer:
             return
         anime_info = self.__persistence_anime_info()
         self.main_window.animes_persistence.update_anime_to_favourite(anime_info)
-        download_anime_poster_by_status(AnimeStatus.FAVOURITE, anime_info)
         print(f"{self.anime_info.title} añadido a favoritos.")
         self.__status_state[AnimeStatus.FAVOURITE] = True
         self.__after_status_change()
 
     def remove_from_favorites(self):
         self.main_window.animes_persistence.update_anime_to_not_favourite(self.persistence_anime_id)
-        remove_anime_poster_by_status(AnimeStatus.FAVOURITE, self.__persistence_anime_info())
         print(f"{self.anime_info.title} eliminado de favoritos.")
         self.__status_state[AnimeStatus.FAVOURITE] = False
         self.__after_status_change()
@@ -1343,14 +1367,12 @@ class AnimeWindowViewer:
             return
         anime_info = self.__persistence_anime_info()
         self.main_window.animes_persistence.update_anime_to_finished(anime_info)
-        download_anime_poster_by_status(AnimeStatus.FINISHED, anime_info)
         print(f"{self.anime_info.title} añadido a finalizados.")
         self.__set_exclusive_status(AnimeStatus.FINISHED)
         self.__after_status_change()
 
     def remove_from_finished(self):
         self.main_window.animes_persistence.update_anime_to_not_finished(self.persistence_anime_id)
-        remove_anime_poster_by_status(AnimeStatus.FINISHED, self.__persistence_anime_info())
         print(f"{self.anime_info.title} eliminado de finalizados.")
         # Quitarlo de finalizados no lo deja en el limbo: update_anime_to_not_finished
         # lo mueve a pendientes, y el botón de pendiente tiene que encenderse.
@@ -1362,14 +1384,12 @@ class AnimeWindowViewer:
             return
         anime_info = self.__persistence_anime_info()
         self.main_window.animes_persistence.update_anime_to_watching(anime_info)
-        download_anime_poster_by_status(AnimeStatus.WATCHING, anime_info)
         print(f"{self.anime_info.title} añadido a viendo.")
         self.__set_exclusive_status(AnimeStatus.WATCHING)
         self.__after_status_change()
 
     def remove_from_watching(self):
         self.main_window.animes_persistence.update_anime_to_not_watching(self.persistence_anime_id)
-        remove_anime_poster_by_status(AnimeStatus.WATCHING, self.__persistence_anime_info())
         print(f"{self.anime_info.title} eliminado de viendo.")
         self.__status_state[AnimeStatus.WATCHING] = False
         self.__after_status_change()
@@ -1379,14 +1399,12 @@ class AnimeWindowViewer:
             return
         anime_info = self.__persistence_anime_info()
         self.main_window.animes_persistence.update_anime_to_pending(anime_info)
-        download_anime_poster_by_status(AnimeStatus.PENDING, anime_info)
         print(f"{self.anime_info.title} añadido a pendientes.")
         self.__set_exclusive_status(AnimeStatus.PENDING)
         self.__after_status_change()
 
     def remove_from_pending(self):
         self.main_window.animes_persistence.update_anime_to_not_pending(self.persistence_anime_id)
-        remove_anime_poster_by_status(AnimeStatus.PENDING, self.__persistence_anime_info())
         print(f"{self.anime_info.title} eliminado de pendientes.")
         self.__status_state[AnimeStatus.PENDING] = False
         self.__after_status_change()

@@ -24,6 +24,8 @@ Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ si
 el reproductor (#12, #13 y #14). ⚠️ «Ninguno hace red en el hilo de Tk» era cierto de los hilos,
 pero no de la ficha: si el póster no estaba en disco, lo bajaba **en el hilo de Tk** hasta el
 2026-10-21, cuando pasó a ser el **#17**. Son **17**.
+⚠️ **Y tampoco era cierto de los botones de estado**: los cuatro `add_to_*` bajaban el póster en el
+hilo de Tk hasta el 2026-10-27, cuando pasó a hacerlo el **#16** (B7).
 
 | # | Dónde | Línea | Objetivo | Vuelve con `after`? |
 |---|---|---|---|---|
@@ -42,7 +44,7 @@ pero no de la ficha: si el póster no estaba en disco, lo bajaba **en el hilo de
 | 13 | `anime_window.__play_video` | `:1971` | 🆕 `_resolve` — `registry.resolve()` del servidor pulsado | ✅ |
 | 14 | `anime_window.__play_episode` | `:2049` | 🆕 `_load` — servidores del episodio de al lado **y** su resolución, en serie | ✅ (dos `after`) |
 | 15 | `utilsButtons.SavedAnimeSearch.search` | `:151` | búsqueda web que completa a la local | ✅ |
-| 16 | `pendingAnimes.__cache_poster_async` | `:327` | copiar el póster a `watching/` al pulsar «Empezar» | — |
+| 16 | `anime_window.sync_saved_posters_async` 🆕 | `:261` | `_sync` — releer la fila y poner sus pósters en las carpetas de sus estados, **bajo `_POSTER_SYNC_LOCK`**. La llaman los ocho botones de estado de la ficha y «Empezar» de «Pendientes»; sustituye a `pendingAnimes.__cache_poster_async` (2026-10-27, B7) | — |
 | 17 🆕 | `anime_window.__build_poster` | `:748` | `_download` — el póster de la ficha, **solo si no estaba en disco** | ✅ |
 
 > 🆕 **#12, #13 y #14 llevan número de petición.** Cada uno compara, ya en el hilo de Tk, el número
