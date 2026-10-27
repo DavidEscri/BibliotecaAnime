@@ -251,6 +251,9 @@ salen del HTML de la ficha:
 2. el token de `<meta name="csrf-token">`;
 3. las cookies de sesión — por eso `get_anime_info` abre una `requests.Session()` propia y encadena
    ficha y AJAX en ella.
+   ⚠️ **Esa sesión no puede ser la de `thread_session()`** (2026-10-27): la del hilo **no guarda
+   cookies a propósito**, y con ella el AJAX daría 419. JKAnime se quedó fuera de B16 por eso y
+   porque el resto de sus peticiones son de una en una por hilo, donde reutilizar no gana nada.
 
 > ⚠️ **Dos identidades**, igual de traicioneras que las de la ficha de detalle: el **slug**
 > (`hunter-x-hunter-2011`) es lo que viaja en `AnimeInfo.id` y en las URL; el **id numérico** (`429`)
@@ -566,11 +569,19 @@ AnimeAV1Singleton().get_anime_info("one-piece").synopsis
 
 ```python
 def _fetch(url: str, **kwargs) -> requests.Response:
-    response = requests.get(url, **kwargs)
+    kwargs.setdefault("timeout", 10)
+    response = thread_session().get(url, **kwargs)
     if "charset" not in response.headers.get("Content-Type", "").lower():
         response.encoding = "utf-8"
     return response
 ```
+
+🆕 *(2026-10-27, B16)* Pide con **`thread_session()`** (`utils/http_session.py`) en vez de
+`requests.get`: una `requests.Session` **por hilo**, que reutiliza la conexión TCP + TLS entre las
+peticiones de un mismo hilo —la precarga de la portada y el refresco de episodios piden ~20 fichas
+seguidas— y **no guarda cookies**, así que cada petición se comporta como el `requests.get` suelto de
+antes. El arreglo del charset no cambia: es sobre la respuesta, no sobre cómo se pide
+([07 §1c](07-concurrencia-e-hilos.md)).
 
 Se fija UTF-8 **solo si el servidor no declara charset**, para respetar el suyo si algún día empieza a
 declararlo. No se usa `apparent_encoding` (detección estadística): es más lento en páginas grandes y
@@ -588,8 +599,9 @@ puede acertar mal, mientras que aquí el encoding real del sitio es un hecho ver
 ⚠️ Sigue sin comprobarse si AnimeFLV tiene el mismo problema — está en desuso y no sirve servidores
 ([§2](#2-tabla-comparativa)), así que no se ha diagnosticado.
 
-> **Invariante**: debe haber **exactamente una** aparición de `requests.get` en `animeav1.py`, la de
-> dentro de `_fetch`. Comprobable con `grep -c "requests.get" src/APIs/animeav1/animeav1.py` → `1`.
+> **Invariante**: debe haber **exactamente una** petición en `animeav1.py`, la de dentro de `_fetch`.
+> Comprobable con `git grep -nE "requests\.(get|post)|\.get\(url" -- src/APIs/animeav1/` → solo
+> la línea de `thread_session().get(url, **kwargs)`. *(Hasta el 2026-10-27 era `requests.get`.)*
 >
 > **Y el código no repara lo ya guardado**: al arreglarlo había 3 filas con la sinopsis rota en la BD
 > real, que hubo que re-descargar aparte ([12 §1](12-deuda-tecnica-y-roadmap.md)).

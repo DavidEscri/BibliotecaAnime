@@ -1,7 +1,7 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "utils"
 __module__ = "utils.py"
-__version__ = "0.5"
+__version__ = "0.6"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 import os
@@ -13,7 +13,8 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Callable
 from PIL import Image, ImageDraw
 from io import BytesIO
-import requests
+
+from utils.http_session import thread_session
 
 # 8 es el equilibrio entre velocidad de descarga y no saturar el servidor.
 _MAX_DOWNLOAD_WORKERS = 8
@@ -45,7 +46,7 @@ def download_anime_poster_by_status(status, anime):
     if not os.path.exists(anime_status_dir):
         os.makedirs(anime_status_dir)
     image_name = f"{anime.id}.jpg"
-    response = requests.get(anime.poster, timeout=_REQUEST_TIMEOUT)
+    response = thread_session().get(anime.poster, timeout=_REQUEST_TIMEOUT)
     img_data = Image.open(BytesIO(response.content)).resize(POSTER_CACHE_SIZE)
     img_data.save(os.path.join(anime_status_dir, image_name))
 
@@ -122,7 +123,7 @@ def download_animes_poster(images_path, animes):
     def _download_single(anime):
         image_name = f"{anime.id}.jpg"
         try:
-            response = requests.get(anime.poster, timeout=_REQUEST_TIMEOUT)
+            response = thread_session().get(anime.poster, timeout=_REQUEST_TIMEOUT)
             img_data = Image.open(BytesIO(response.content)).resize(POSTER_CACHE_SIZE)
             img_data.save(os.path.join(images_path, image_name))
         except Exception as e:
@@ -175,7 +176,7 @@ def download_images_progress(images_path, recent_animes, on_progress: Callable[[
     def _download_single(anime):
         image_name = f"{anime.id}.jpg"
         try:
-            response = requests.get(anime.poster, timeout=_REQUEST_TIMEOUT)
+            response = thread_session().get(anime.poster, timeout=_REQUEST_TIMEOUT)
             img_data = Image.open(BytesIO(response.content)).resize(POSTER_CACHE_SIZE)
             img_data.save(os.path.join(images_path, image_name))
         except Exception as e:
@@ -231,7 +232,7 @@ def download_poster(poster_url: str) -> Image.Image | None:
     :return: La imagen descargada, o None si no se pudo bajar.
     """
     try:
-        response = requests.get(poster_url, timeout=_REQUEST_TIMEOUT)
+        response = thread_session().get(poster_url, timeout=_REQUEST_TIMEOUT)
         response.raise_for_status()
         return Image.open(BytesIO(response.content))
     except Exception as e:

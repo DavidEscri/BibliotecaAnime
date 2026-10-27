@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Fecha** | 2026-10-20 · rama `feature/reproductor-embebido` · último commit de código **`f3fc229`** (fase 5 del reproductor) |
-| **Última revisión** | 2026-10-20 (**reproductor in-app**): la capa **`APIs/resolvers/`** entra en el diagrama y en la tabla de dependencias —solo stdlib, `requests` y ella misma; **no** la usa el manager; la llama la ficha—, junto con `VideoPlayer`, libmpv y los hosters; **I6 se cumple ya sin excepciones**; **I10** (la resolución no es un método de `AnimeProvider`) e **I11** (todo fallo de reproducción acaba en el navegador) nuevos; §6 gana `python-mpv` y la DLL. Antes, 2026-08-16 (**columna `provider_id`**): `DB_user.db` incorporada al diagrama, **I9 nuevo** (el proveedor es un tipo, no una cadena), §5 con las dos BD y §7 corregido — sí hay migraciones y sí hay configuración persistida |
+| **Última revisión** | 2026-10-27 (**conexiones por hilo**, B16): módulo nuevo **`utils/http_session.py`** en la tabla de dependencias —solo stdlib y `requests`—, que importan AnimeAV1 y `utils/utils.py`; este último deja de importar `requests` directamente. Antes, 2026-10-20 (**reproductor in-app**): la capa **`APIs/resolvers/`** entra en el diagrama y en la tabla de dependencias —solo stdlib, `requests` y ella misma; **no** la usa el manager; la llama la ficha—, junto con `VideoPlayer`, libmpv y los hosters; **I6 se cumple ya sin excepciones**; **I10** (la resolución no es un método de `AnimeProvider`) e **I11** (todo fallo de reproducción acaba en el navegador) nuevos; §6 gana `python-mpv` y la DLL. Antes, 2026-08-16 (**columna `provider_id`**): `DB_user.db` incorporada al diagrama, **I9 nuevo** (el proveedor es un tipo, no una cadena), §5 con las dos BD y §7 corregido — sí hay migraciones y sí hay configuración persistida |
 | **Cubre** | `src/app.py`, `src/APIs/**`, `src/dataPersistence/**`, `src/gui/**`, `src/utils/**` |
 
 Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ sin verificar.
@@ -114,12 +114,13 @@ graph TD
 | Desde | Puede importar | **Nunca debe importar** |
 |---|---|---|
 | `gui/**` | `APIs.common.*`, `dataPersistence.*`, `utils.*` | `APIs.animeflv.*` / `APIs.animeav1.*` / `APIs.jkanime.*` **salvo `main_window.py`** |
-| `APIs/<sitio>/` | `APIs.common.*`, `utils.utils` | cualquier cosa de `gui/` o `dataPersistence/` |
+| `APIs/<sitio>/` | `APIs.common.*`, `utils.utils`, 🆕 `utils.http_session` | cualquier cosa de `gui/` o `dataPersistence/` |
 | `APIs/common/` | solo stdlib + `requests` | `utils.*`, `gui/**`, `dataPersistence/**` |
 | 🆕 `APIs/resolvers/` | solo stdlib + `requests` + **ella misma** | `APIs.<sitio>.*`, `APIs.common.*`, `gui/**`, `dataPersistence/**`, `utils.*` |
 | `dataPersistence/` | `APIs.common.models`, `utils.db.sqlite`, `utils.utils` | `gui/**`, `APIs/<sitio>/` |
 | `utils/db/sqlite.py` | solo stdlib (`os`, `sqlite3`) | todo lo demás |
-| `utils/utils.py` | stdlib + `PIL` + `requests` + `customtkinter` | `gui/**`, `APIs/**`, `dataPersistence/**` |
+| `utils/utils.py` | stdlib + `PIL` + `customtkinter` + 🆕 `utils.http_session` | `gui/**`, `APIs/**`, `dataPersistence/**` |
+| 🆕 `utils/http_session.py` | solo stdlib + `requests` | todo lo demás |
 | `utils/buttons/utilsButtons.py` | `APIs.common.models`, `dataPersistence.*`, `utils.utils` | `APIs/<sitio>/`, `gui/**` |
 
 🆕 **Quién importa `APIs.resolvers`** 📖: solo `gui/anime_window.py` (`registry` y `MediaSource`) y
@@ -147,7 +148,13 @@ self.anime_provider_mgr.register(AnimeFLVSingleton())
 
 **Ciclo tolerado** 📖: `dataPersistence/animesPersistence.py:15` importa `utils.utils.get_resource_path`,
 y `utils/buttons/utilsButtons.py:10` importa `dataPersistence`. No hay ciclo real porque
-`utils/utils.py` no importa nada del proyecto.
+`utils/utils.py` no importa nada del proyecto salvo, desde el 2026-10-27, `utils.http_session`, que a
+su vez solo importa stdlib y `requests`.
+
+🆕 **Por qué `http_session` vive en `utils/` y no en `APIs/common/`** (2026-10-27): la usan AnimeAV1
+y las descargas de pósters de `utils.py`, y `utils/utils.py` tiene prohibido importar de `APIs/**`.
+Es un módulo aparte, y no una función más de `utils.py`, para que el proveedor no arrastre
+`customtkinter` ni `PIL` al importarla.
 
 ---
 

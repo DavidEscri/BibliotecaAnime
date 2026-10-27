@@ -302,13 +302,14 @@ aplicaba el defecto de la RFC 2616 (`ISO-8859-1`) y `response.text` salía con m
 servidor no declara charset**, de modo que si algún día lo declara se respeta el suyo:
 
 ```python
-response = requests.get(url, **kwargs)
+response = thread_session().get(url, **kwargs)   # requests.get hasta el 2026-10-27 (B16)
 if "charset" not in response.headers.get("Content-Type", "").lower():
     response.encoding = "utf-8"
 ```
 
-**Invariante que queda**: debe haber **exactamente una** aparición de `requests.get` en el módulo, la de
-dentro de `_fetch`. Añadir una petición directa reintroduce el bug solo en esa ruta.
+**Invariante que queda**: debe haber **exactamente una** petición en el módulo, la de dentro de
+`_fetch`. Añadir una petición directa —con `requests.get` o con `thread_session().get`—
+reintroduce el bug solo en esa ruta.
 
 **Corrección de alcance**: la versión anterior de esta trampa decía que solo afectaba a `synopsis` y
 daba `title` por no comprobado. ✅ Verificado el 2026-07-30: **también afectaba a `title`**, porque

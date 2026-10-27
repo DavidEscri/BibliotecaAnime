@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Fecha** | 2026-10-20 · rama `feature/reproductor-embebido` · último commit de código **`f3fc229`** (fase 5 del reproductor) |
-| **Última revisión** | 2026-10-27 (**refresco de episodios**): la comprobación del refresco de la banda pasa a cubrir «Viendo» y «Pendientes» (`EpisodeRefresher`). Antes, 2026-10-20 (**reproductor in-app**): **§6h nuevo** —probar la capa de resolución sin GUI, primero **sin red** y luego con **una** petición por hoster— y **§6i nuevo** —verificar el reproductor en la aplicación, con el arnés de las fases 3-5 y sus cuatro lecciones (el `Alt` suelto, el aviso modal, `faulthandler` y «bytes no es vídeo»)—; **§7.13 nuevo**, el checklist del reproductor; §7.9 deja de decir que los servidores congelan la ventana y que un servidor abre el navegador. Antes, 2026-09-01 (**abrir la ficha por un episodio**): **§6e nuevo** —pulsar de verdad un botón que vive dentro de otro widget, que es lo único que destapa un `command` que no se ejecuta ([trampa 40](10-invariantes-y-trampas.md))—; §7.5 y §7.6 ganan la regresión de las tres acciones que llevan a un episodio. Antes, 2026-09-01 (**ancho de las fichas de género**): **§6d nuevo** —comprobar una medida de layout leyendo el widget en vez de mirarlo—, y §7.6 gana la regresión de las fichas solapadas. Antes, 2026-09-01 (**refresco de la banda «Retomar»**): **§6c nuevo** —cómo comprobar en tres tramos algo que sale a la red, escribe en la biblioteca y repinta un widget, sin tocar la BD real—, y §7.3 gana la regresión del anime en emisión. Antes, 2026-09-01 (**hover de la lista de episodios**): **§6b nuevo** —recorrer el hover con `SetCursorPos` de píxel en píxel, que es lo único que encuentra un `<Leave>` que no llega—, §7.9 gana el recorrido de la lista de episodios y §8 avisa de no matar la instancia que tenga abierta el usuario. Antes, 2026-08-31 (**fondo de la pantalla de carga**): §7.1 gana la comprobación del fondo del arranque —que a ojo se falla— y la receta de captura de §8 usa el título real de la ventana. Antes, 2026-08-16 (**columna `provider_id`**): **§3c nuevo** — las 8 tandas de comprobaciones de la fase 8, **351 sin fallos**; checklist de §7 puesto al día con lo que ha cambiado de comportamiento |
+| **Última revisión** | 2026-10-27 (**conexiones y `<Configure>`**): **§6k nuevo** — cómo medir handshakes, tiempo por petición y los pasos a Python del `<Configure>` de la raíz, y cómo comprobar de verdad que el reproductor se reajusta al cambiar solo el alto. Antes, 2026-10-27 (**refresco de episodios**): la comprobación del refresco de la banda pasa a cubrir «Viendo» y «Pendientes» (`EpisodeRefresher`). Antes, 2026-10-20 (**reproductor in-app**): **§6h nuevo** —probar la capa de resolución sin GUI, primero **sin red** y luego con **una** petición por hoster— y **§6i nuevo** —verificar el reproductor en la aplicación, con el arnés de las fases 3-5 y sus cuatro lecciones (el `Alt` suelto, el aviso modal, `faulthandler` y «bytes no es vídeo»)—; **§7.13 nuevo**, el checklist del reproductor; §7.9 deja de decir que los servidores congelan la ventana y que un servidor abre el navegador. Antes, 2026-09-01 (**abrir la ficha por un episodio**): **§6e nuevo** —pulsar de verdad un botón que vive dentro de otro widget, que es lo único que destapa un `command` que no se ejecuta ([trampa 40](10-invariantes-y-trampas.md))—; §7.5 y §7.6 ganan la regresión de las tres acciones que llevan a un episodio. Antes, 2026-09-01 (**ancho de las fichas de género**): **§6d nuevo** —comprobar una medida de layout leyendo el widget en vez de mirarlo—, y §7.6 gana la regresión de las fichas solapadas. Antes, 2026-09-01 (**refresco de la banda «Retomar»**): **§6c nuevo** —cómo comprobar en tres tramos algo que sale a la red, escribe en la biblioteca y repinta un widget, sin tocar la BD real—, y §7.3 gana la regresión del anime en emisión. Antes, 2026-09-01 (**hover de la lista de episodios**): **§6b nuevo** —recorrer el hover con `SetCursorPos` de píxel en píxel, que es lo único que encuentra un `<Leave>` que no llega—, §7.9 gana el recorrido de la lista de episodios y §8 avisa de no matar la instancia que tenga abierta el usuario. Antes, 2026-08-31 (**fondo de la pantalla de carga**): §7.1 gana la comprobación del fondo del arranque —que a ojo se falla— y la receta de captura de §8 usa el título real de la ventana. Antes, 2026-08-16 (**columna `provider_id`**): **§3c nuevo** — las 8 tandas de comprobaciones de la fase 8, **351 sin fallos**; checklist de §7 puesto al día con lo que ha cambiado de comportamiento |
 | **Cubre** | procedimiento; scripts ejecutados el 2026-07-28 contra el código de `src/` |
 
 Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ sin verificar.
@@ -890,6 +890,40 @@ mueven. Sin el `deletecommand`, +50.
 duerma 2 s, para ver que la ficha se pinta antes y la descarga no corre en `MainThread`. Para la rama
 sin estrenos del arranque, parchear `get_recent_animes` para que devuelva `[]` y
 `messagebox.showwarning`, y comprobar en qué hilo corren `show_frame` y `CTkProgressBar.set`.
+
+## 6k. Medir conexiones y el `<Configure>` de la raíz *(2026-10-27)*
+
+Así se cerraron B16 y B17 ([12 §4](12-deuda-tecnica-y-roadmap.md)). Mismo montaje que §6j —copia de
+`resources/`, `get_resource_path` parcheado y comprobado con `assert`, la GUI manejada con `after()`
+y `navigate_to()`, sin teclas ni clics—, más esto, **antes de importar la GUI**:
+
+| Qué | Cómo |
+|---|---|
+| Tiempo de cada petición, por sitio e hilo | envolver `requests.adapters.HTTPAdapter.send` |
+| Handshakes TCP + TLS | envolver `urllib3.connection.HTTPSConnection.connect` y contar por `host` |
+| Que todas lleven timeout | anotar `kw.get("timeout")` en el envoltorio de `send` |
+| Precarga, pósters del arranque y refresco | envolver `MainWindow._MainWindow__preload_recent_animes_info`, `gui.main_window.download_images_progress` y `EpisodeRefresher._EpisodeRefresher__work` |
+| Pasos a Python del `<Configure>` de la raíz | envolver `MainWindow._MainWindow__on_window_configure` y `ctk.CTk._update_dimensions_event` **en la clase**, antes de crear la ventana |
+
+Para que el arranque **baje pósters de verdad**, vaciar `recent_animes/` en la copia. Esperar a que
+termine la precarga y no quede ningún hilo `refresco-*` antes de medir la GUI.
+
+**Cambio de vista**: `navigate_to()` + `update_idletasks()` cronometrado, y **después** `update()`,
+porque los `<Configure>` encolados llegan al procesar eventos. Con `cProfile`, las llamadas a
+`_substitute` y el tiempo acumulado de los dos manejadores de la raíz.
+
+**El alto del reproductor**: un `VideoPlayer` con `av://lavfi:testsrc2` en `show_player_frame()`
+**con la columna a `weight=1`** —si el vídeo es estrecho, lo limita el ancho y bajar el alto de la
+ventana no lo cambia: la prueba sale verde sin probar nada—; `geometry(f"{w}x{h - 260}")` y leer
+`winfo_height()` del vídeo. Y, como el filtro sustituye al de CTk, `state("zoomed")`, `"normal"` y
+`geometry()` tienen que dejar `_current_width/_current_height` iguales al tamaño real.
+
+**Valores de referencia** (2026-10-27, tres arranques por lado):
+
+- `animeav1.com`: 28 peticiones, **3 handshakes** (eran 28), 146 ms de media (eran 181);
+  `cdn.animeav1.com`: 20 pósters, **8 handshakes** (eran 20); precarga de 20 fichas 2,95 s (eran 3,77).
+- `<Configure>` de la raíz por cambio de vista: **0** pasos a Python (eran 232 + 232).
+- Reproductor con la ventana de 910 a 650 de alto: vídeo **511 → 381 px** y vuelta a 511.
 
 ## 7. Checklist de regresión manual por vista
 

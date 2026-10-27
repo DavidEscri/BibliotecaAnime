@@ -6,7 +6,7 @@ no como HTML navegable por selectores. Se extraen con regex, con fallback al DOM
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "APIs.animeav1"
 __module__ = "animeav1.py"
-__version__ = "0.5"
+__version__ = "0.6"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 import re
@@ -20,6 +20,7 @@ from urllib.parse import urlencode, urlparse, parse_qs
 
 from APIs.common.animeProviderMgr import AnimeProvider
 from APIs.common.models import AnimeGenreFilter, AnimeOrderFilter, AnimeProviderId, ServerInfo, EpisodeInfo, AnimeInfo
+from utils.http_session import thread_session
 
 BASE_URL = "https://animeav1.com"
 CATALOG_URL = f"{BASE_URL}/catalogo"
@@ -32,12 +33,14 @@ _SVELTE_PAYLOAD_MARKER = "kit.start(app, element, {"
 def _fetch(url: str, **kwargs) -> requests.Response:
     """Descarga una página de animeav1.com forzando UTF-8 si el servidor no declara charset.
 
+    Usa la sesión del hilo, que reutiliza la conexión en las ráfagas de fichas.
+
     :param url: URL a descargar.
-    :param kwargs: Argumentos adicionales para requests.get.
+    :param kwargs: Argumentos adicionales para Session.get.
     :return: Respuesta HTTP con response.text ya en UTF-8.
     """
     kwargs.setdefault("timeout", 10)
-    response = requests.get(url, **kwargs)
+    response = thread_session().get(url, **kwargs)
     if "charset" not in response.headers.get("Content-Type", "").lower():
         response.encoding = "utf-8"
     return response
