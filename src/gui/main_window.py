@@ -1,7 +1,7 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "gui"
 __module__ = "main_window.py"
-__version__ = "0.7"
+__version__ = "0.8"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 import ctypes
@@ -99,7 +99,7 @@ class MainWindow(ctk.CTk):
 
         self.load_sidebar_buttons()
         self.protocol("WM_DELETE_WINDOW", self.__on_close)
-        self.bind("<Configure>", self.__on_window_configure, add="+")
+        self.__bind_window_configure()
         self.show_loading_screen()
 
     def __config_main_window(self):
@@ -294,9 +294,21 @@ class MainWindow(ctk.CTk):
             print(f"No se pudo leer el monitor de la ventana: {exc}")
         return 0, 0, self.winfo_screenwidth(), self.winfo_screenheight()
 
-    def __on_window_configure(self, event) -> None:
+    def __bind_window_configure(self) -> None:
+        """Ata el <Configure> de la raíz descartando en Tcl el de los demás widgets.
+
+        Por los bindtags, el <Configure> de cualquier widget llega también a la raíz,
+        cientos de veces por cambio de vista. Sustituye al de CTk, que tiene el mismo
+        coste, y lo conserva dentro del filtro.
+        """
+        ctk_command = self.register(self._update_dimensions_event)
+        own_command = self.register(self.__on_window_configure)
+        self.tk.call("bind", self._w, "<Configure>",
+                     f'if {{"%W" eq "{self._w}"}} {{{ctk_command}; {own_command}}}')
+
+    def __on_window_configure(self) -> None:
         """Reajusta el reproductor al cambiar el tamaño de la ventana, también solo en alto."""
-        if event.widget is self and self.__player_owner is not None:
+        if self.__player_owner is not None:
             self.__player_owner.relayout_player()
 
     def __on_close(self) -> None:

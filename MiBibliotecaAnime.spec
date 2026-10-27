@@ -81,6 +81,7 @@ a = Analysis(
         'gui.main_window',
         'utils.buttons.utilsButtons',
         'utils.db.sqlite',
+        'utils.http_session',
         'utils.utils',
         # El binding de libmpv: video_player lo importa dentro de load_mpv(), después de poner la DLL en la ruta, y el análisis estático no lo ve.
         'mpv'
