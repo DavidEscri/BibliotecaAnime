@@ -564,9 +564,9 @@ duplicadas en la biblioteca real del usuario**:
 `AnimeInfo.id` es el slug del sitio, no un identificador universal: el mismo anime es `one-piece` en
 AnimeAV1 y `one-piece-tv` en AnimeFLV.
 
-**Regla**: en `anime_window.py`, **toda** llamada a `animes_persistence` y a
-`download/move/remove_anime_poster_by_status` usa `self.persistence_anime_id` o
-`self.__persistence_anime_info()` (`:309-321`). Nunca `self.anime_info` a secas.
+**Regla**: en `anime_window.py`, **toda** llamada a `animes_persistence`, a
+`download/move_anime_poster_by_status` y a `sync_saved_posters_async` usa `self.persistence_anime_id` o
+`self.__persistence_anime_info()`. Nunca `self.anime_info` a secas.
 
 **Síntoma si se incumple**: pulsas «Añadir a favoritos» y el anime aparece **dos veces** en la vista
 de favoritos, con dos pósters en disco; o pulsas «Eliminar de favoritos» y no desaparece, porque se ha

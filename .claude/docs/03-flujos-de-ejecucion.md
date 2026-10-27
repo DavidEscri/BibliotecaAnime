@@ -354,9 +354,9 @@ sequenceDiagram
         Note over P,DB: 🆕 si provider_id estaba a NULL, se anota de paso (:643-644)
         Note over DB: is_watching=?, is_finished=0, is_pending=0
     end
-    AW->>FS: download_anime_poster_by_status(WATCHING, info) :872
-    Note over FS: GET anime.poster → resize (130,185)<br/>→ resources/images/watching/{id}.jpg
-    AW->>AW: flags locales + __display_anime_status() :874-877
+    AW->>AW: flags locales + __after_status_change()
+    AW-)FS: sync_saved_posters_async(persistence, info) — hilo daemon 🆕
+    Note over FS: relee la fila; copia o descarga a las carpetas<br/>de sus estados activos y borra de las demás
 ```
 
 **Tabla de transiciones** ✅ verificada (líneas de `animesPersistence.py`):
@@ -376,10 +376,12 @@ sequenceDiagram
 anime no está en BD, ✅ `update_sql` devuelve `True` sin haber tocado nada. `add_to_*` sí lo insertan
 (`_set_status:628-636`).
 
-⚠️ **El póster no se mueve de categoría.** Al hacer `remove_from_finished` el anime pasa a
-*pendiente* en BD (`:566-581`) pero su póster se borra de `finished/` y **no** se crea en `pending/`
-(`anime_window.py:908-914`) → la vista «pendientes» lo muestra en gris. Deuda B7 en
-[12 §4](12-deuda-tecnica-y-roadmap.md).
+✅ **El póster sigue a la fila, no al botón** (desde el 2026-10-27, cierra B7). Tras cualquier
+`add_to_*` / `remove_from_*`, `sync_saved_posters_async()` relee la fila en un hilo daemon y deja
+el póster en las carpetas de los estados que **la BD** dejó activos, que no siempre son el del botón:
+`remove_from_finished` lo pasa a *pendiente*, y la tabla de arriba tiene más casos así. Completa
+antes de borrar, así que la imagen nunca desaparece. «Empezar» de «Pendientes» usa el mismo camino.
+Ver [12 §4](12-deuda-tecnica-y-roadmap.md).
 
 ---
 
