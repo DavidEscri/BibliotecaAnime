@@ -1,7 +1,7 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "sidebarButtons"
 __module__ = "watchingAnimes.py"
-__version__ = "0.6"
+__version__ = "0.7"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 import os
@@ -40,7 +40,7 @@ class WatchingAnimeButton(utilsButtons.SidebarButton):
         # dos temas; no hay variante clara/oscura porque viendo_light/dark.png
         # son de tinta negra y una de las dos sería invisible según el tema.
         icon_path_light = icon_path_dark = os.path.join(icon_path, "viendo.png")
-        super().__init__(main_window.sidebar_frame, "Viendo", row, column, self.show_watching_animes, icon_path_light, icon_path_dark)
+        super().__init__(main_window.sidebar_frame, "Viendo", row, column, self.__show_watching_animes, icon_path_light, icon_path_dark)
 
         self.main_window = main_window
         self.anime_provider_mgr: AnimeProviderManager = AnimeProviderManagerSingleton()
@@ -64,9 +64,9 @@ class WatchingAnimeButton(utilsButtons.SidebarButton):
         )
 
     def show_frame(self):
-        self.show_watching_animes()
+        self.__show_watching_animes()
 
-    def show_watching_animes(self):
+    def __show_watching_animes(self):
         self.main_window.clear_frame()
         self.__show_browser()
 

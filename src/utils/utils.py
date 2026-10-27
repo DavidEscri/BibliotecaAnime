@@ -1,13 +1,12 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "utils"
 __module__ = "utils.py"
-__version__ = "0.3"
+__version__ = "0.4"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 import os
 import sys
 import threading
-import tkinter as tk
 import customtkinter as ctk
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Callable
@@ -26,20 +25,6 @@ _REQUEST_TIMEOUT = 10
 # prohibido importar de gui/; si cambia uno, cambia el otro.
 POSTER_CACHE_SIZE = (248, 372)
 
-def removeprefix(text: str, prefix_text: str) -> str:
-    """Quita el prefijo de una cadena si lo tiene, para compatibilidad con Python <3.9.
-
-    :param text: Cadena de la que quitar el prefijo.
-    :param prefix_text: Prefijo a quitar.
-    :return: Cadena sin el prefijo, o igual si no lo tenía.
-    """
-    if type(text) is type(prefix_text):
-        if text.startswith(prefix_text):
-            return text[len(prefix_text):]
-        else:
-            return text[:]
-
-
 def refactor_genre_text(genre_text):
     """Genera el nombre legible de un género a partir de su slug.
 
@@ -48,18 +33,6 @@ def refactor_genre_text(genre_text):
     """
     return genre_text.capitalize().replace("-", " ").replace("_", " ")
 
-
-def update_gif(label: tk.Label, gif_frames: list, root: tk.Tk, frame = 0):
-    """Pinta el siguiente frame de un GIF en un Label y se reprograma a los 100 ms.
-
-    :param label: Label donde se pinta el frame actual.
-    :param gif_frames: Frames precargados del GIF.
-    :param root: Ventana raíz, usada para reprogramar el siguiente frame.
-    :param frame: Índice del frame a mostrar.
-    """
-    label.config(image=gif_frames[frame])
-    frame = (frame + 1) % len(gif_frames)
-    root.after(100, update_gif, frame)
 
 def download_anime_poster_by_status(status, anime):
     """Descarga el póster de un anime y lo guarda en la carpeta de su estado.

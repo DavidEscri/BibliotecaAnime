@@ -1,7 +1,7 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "utils.db"
 __module__ = "sqlite.py"
-__version__ = "1.1"
+__version__ = "1.2"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 import os
@@ -134,7 +134,7 @@ class SqlUtils:
                 connection.close()
         return check
 
-    def query_sql(self, sql: str, params: tuple, list_field: list) -> (bool, list):
+    def query_sql(self, sql: str, params: tuple, list_field: list) -> Tuple[bool, list]:
         """Ejecuta un SELECT y mapea cada fila a un diccionario por posición de columna.
 
         El orden de list_field debe coincidir con el de las columnas
@@ -464,7 +464,7 @@ class ServiceDB:
         else:
             return True
 
-    def insert_record_db(self, table_name: str, list_fields: list, record: dict) -> (bool, int):
+    def insert_record_db(self, table_name: str, list_fields: list, record: dict) -> Tuple[bool, int]:
         """Inserta un registro genérico, validando que sus claves sean columnas conocidas.
 
         El valor literal "NULL" se inserta como NULL SQL; el resto se parametriza.
