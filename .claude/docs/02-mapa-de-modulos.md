@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Fecha** | 2026-10-20 · rama `feature/reproductor-embebido` · último commit de código **`f3fc229`** (fase 5 del reproductor) |
-| **Última revisión** | 2026-10-27 (**refresco de episodios**): **módulo nuevo `gui/episode_refresher.py`**; `AnimeRow` y `SidePanel` ganan `update_record()`, y `recentAnimes.py` pierde `__refresh_resume_episodes()`. Antes, 2026-10-20 (**reproductor in-app**): **7 módulos nuevos** —los 6 de `APIs/resolvers/` (5 con contenido + `__init__.py` vacío) y `gui/components/video_player.py`— con su ficha; `main_window.py` y `anime_window.py` ganan su bloque del reproductor; inventario **recontado de cero** (**13 676** líneas en **37** módulos) y con la convención de conteo corregida, porque el commit `cbd2721` dejó la mitad de los ficheros terminando en salto de línea. Antes, 2026-09-02 (**rejillas adaptables y sinopsis**): recuentos rehechos (**11 599 → 11 920**); `poster_grid.py` **234 → 396** —calcula sus columnas del ancho—, `anime_window.py` **1 875 → 1 924** con `wrap_synopsis()`, `pager.py` **247 → 277** con `set_page_size()`, y las cuatro vistas de rejilla ([trampas 41 y 42](10-invariantes-y-trampas.md)). Antes, 2026-09-01 (**abrir la ficha por un episodio**): recuentos rehechos (**11 430 → 11 599**); `anime_window.py` **1 745 → 1 875** con `focus_episode` / `force_ascending` y sus dos métodos nuevos, `anime_row.py` **333 → 349** con la corrección de sus ataduras ([trampa 40](10-invariantes-y-trampas.md)), y las dos vistas de cascada. Antes, 2026-09-01 (**ancho de las fichas de género**): recuentos rehechos (**11 403 → 11 430**); `genre_chips.py` **333 → 360** con la aritmética real del ancho de un `CTkButton` ([trampa 39](10-invariantes-y-trampas.md)). Antes, 2026-09-01 (**refresco de la banda «Retomar»**): recuentos rehechos (**11 309 → 11 403**); `resume_card.py` estrena `update_record()` en sus **dos** clases y `recentAnimes.py`, `__refresh_resume_episodes()`; la tabla de «cómo abre la ficha» reanclada, que iba ~125 líneas desplazada. Antes, 2026-09-01 (**hover de la lista de episodios**): **ficha de `EpisodeRow` nueva** —no la tenía—, y recuentos rehechos con la convención del documento explicada. Antes, 2026-08-31 (**fondo de la pantalla de carga**): ficha de `MainWindow` reanclada —sus líneas iban ~29 desplazadas—, `show_loading_screen()` descrito de verdad y `__config_main_window()` añadido. Antes, 2026-08-21 (**rediseño de interfaz**): **12 módulos nuevos** en `gui/` —`theme.py` y los 11 de `gui/components/`— con su ficha; recuentos rehechos (**6 245 → 11 309** líneas); `utilsButtons.py` pierde 5 clases y `main_window.py` gana `navigate_to()`. Antes, 2026-08-16 (**columna `provider_id`**): recuentos rehechos — el proyecto pasa de 5 460 a **6 245** líneas; fichas de `models.py`, `animeProviderMgr.py`, `animesPersistence.py`, `utils.py`, `utilsButtons.py`, `main_window.py` y `anime_window.py` actualizadas |
+| **Última revisión** | 2026-10-27 (**conexiones y `<Configure>`**, B16-B17): **módulo nuevo `utils/http_session.py`**; `animeav1._fetch` y las descargas de `utils.py` piden con `thread_session()`; `main_window.py` gana `__bind_window_configure()`. Antes, 2026-10-27 (**refresco de episodios**): **módulo nuevo `gui/episode_refresher.py`**; `AnimeRow` y `SidePanel` ganan `update_record()`, y `recentAnimes.py` pierde `__refresh_resume_episodes()`. Antes, 2026-10-20 (**reproductor in-app**): **7 módulos nuevos** —los 6 de `APIs/resolvers/` (5 con contenido + `__init__.py` vacío) y `gui/components/video_player.py`— con su ficha; `main_window.py` y `anime_window.py` ganan su bloque del reproductor; inventario **recontado de cero** (**13 676** líneas en **37** módulos) y con la convención de conteo corregida, porque el commit `cbd2721` dejó la mitad de los ficheros terminando en salto de línea. Antes, 2026-09-02 (**rejillas adaptables y sinopsis**): recuentos rehechos (**11 599 → 11 920**); `poster_grid.py` **234 → 396** —calcula sus columnas del ancho—, `anime_window.py` **1 875 → 1 924** con `wrap_synopsis()`, `pager.py` **247 → 277** con `set_page_size()`, y las cuatro vistas de rejilla ([trampas 41 y 42](10-invariantes-y-trampas.md)). Antes, 2026-09-01 (**abrir la ficha por un episodio**): recuentos rehechos (**11 430 → 11 599**); `anime_window.py` **1 745 → 1 875** con `focus_episode` / `force_ascending` y sus dos métodos nuevos, `anime_row.py` **333 → 349** con la corrección de sus ataduras ([trampa 40](10-invariantes-y-trampas.md)), y las dos vistas de cascada. Antes, 2026-09-01 (**ancho de las fichas de género**): recuentos rehechos (**11 403 → 11 430**); `genre_chips.py` **333 → 360** con la aritmética real del ancho de un `CTkButton` ([trampa 39](10-invariantes-y-trampas.md)). Antes, 2026-09-01 (**refresco de la banda «Retomar»**): recuentos rehechos (**11 309 → 11 403**); `resume_card.py` estrena `update_record()` en sus **dos** clases y `recentAnimes.py`, `__refresh_resume_episodes()`; la tabla de «cómo abre la ficha» reanclada, que iba ~125 líneas desplazada. Antes, 2026-09-01 (**hover de la lista de episodios**): **ficha de `EpisodeRow` nueva** —no la tenía—, y recuentos rehechos con la convención del documento explicada. Antes, 2026-08-31 (**fondo de la pantalla de carga**): ficha de `MainWindow` reanclada —sus líneas iban ~29 desplazadas—, `show_loading_screen()` descrito de verdad y `__config_main_window()` añadido. Antes, 2026-08-21 (**rediseño de interfaz**): **12 módulos nuevos** en `gui/` —`theme.py` y los 11 de `gui/components/`— con su ficha; recuentos rehechos (**6 245 → 11 309** líneas); `utilsButtons.py` pierde 5 clases y `main_window.py` gana `navigate_to()`. Antes, 2026-08-16 (**columna `provider_id`**): recuentos rehechos — el proyecto pasa de 5 460 a **6 245** líneas; fichas de `models.py`, `animeProviderMgr.py`, `animesPersistence.py`, `utils.py`, `utilsButtons.py`, `main_window.py` y `anime_window.py` actualizadas |
 | **Cubre** | los **57** ficheros `.py` de `src/` (**37** con contenido + **20** `__init__.py` vacíos) |
 
 Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ sin verificar.
@@ -18,7 +18,7 @@ Todas las líneas citadas corresponden al **árbol de trabajo actual**, no al ú
 | `src/app.py` | 17 | arranque |
 | `src/APIs/common/models.py` | 118 | dominio |
 | `src/APIs/common/animeProviderMgr.py` | 442 | dominio |
-| `src/APIs/animeav1/animeav1.py` | 336 | infraestructura |
+| `src/APIs/animeav1/animeav1.py` | 339 | infraestructura |
 | `src/APIs/jkanime/jkanime.py` | 486 | infraestructura |
 | `src/APIs/animeflv/animeflv.py` | 243 | infraestructura |
 | `src/APIs/resolvers/base.py` 🆕 | **67** | resolución |
@@ -29,7 +29,8 @@ Todas las líneas citadas corresponden al **árbol de trabajo actual**, no al ú
 | `src/dataPersistence/animesPersistence.py` | 722 | dominio/datos |
 | `src/dataPersistence/userPersistence.py` | 358 | dominio/datos |
 | `src/utils/db/sqlite.py` | 494 | infraestructura |
-| `src/utils/utils.py` | 326 | infraestructura |
+| `src/utils/utils.py` | 318 | infraestructura |
+| `src/utils/http_session.py` 🆕 | **34** | infraestructura |
 | `src/utils/buttons/utilsButtons.py` | 188 | GUI |
 | `src/gui/theme.py` | 293 | GUI · tokens |
 | `src/gui/components/sidebar.py` | 511 | GUI · componente |
@@ -45,7 +46,7 @@ Todas las líneas citadas corresponden al **árbol de trabajo actual**, no al ú
 | `src/gui/components/view_header.py` | 80 | GUI · componente |
 | `src/gui/components/order_menu.py` 🆕 | **53** | GUI · componente |
 | `src/gui/components/video_player.py` 🆕 | **1 237** | GUI · componente |
-| `src/gui/main_window.py` | **680** | GUI |
+| `src/gui/main_window.py` | **717** | GUI |
 | `src/gui/anime_window.py` | **2 429** | GUI |
 | `src/gui/sidebarButtons/recentAnimes/recentAnimes.py` | 241 | GUI · vista |
 | `src/gui/sidebarButtons/favouriteAnimes/favouriteAnimes.py` | 345 | GUI · vista |
@@ -225,9 +226,10 @@ por defecto. Una preferencia perdida no puede impedir arrancar la aplicación.
 **Constantes**: `BASE_URL` `:28`, `CATALOG_URL=/catalogo` `:29`, `MEDIA_URL=/media` `:30`,
 `_SVELTE_PAYLOAD_MARKER = "kit.start(app, element, {"` `:34`.
 
-**Helper de módulo**: `_fetch(url, **kwargs) -> Response` `:37-56`. **Único punto del módulo que llama
-a `requests.get`**; fuerza UTF-8 cuando el sitio no declara charset. Los 5 métodos de red pasan por él
-— saltárselo reintroduce el mojibake ([05 §7](05-proveedores-y-scraping.md), trampa 14).
+**Helper de módulo**: `_fetch(url, **kwargs) -> Response` `:33-46`. **Único punto del módulo que sale
+a la red** —con `thread_session().get` desde el 2026-10-27 (v0.6, B16); antes `requests.get`—, con
+`timeout=10` por defecto; fuerza UTF-8 cuando el sitio no declara charset. Los 5 métodos de red pasan
+por él — saltárselo reintroduce el mojibake ([05 §7](05-proveedores-y-scraping.md), trampa 14).
 
 | Método público | Línea | Efecto de red |
 |---|---|---|
@@ -437,6 +439,27 @@ pool; transacciones solo en las migraciones.
 > **toda carpeta a la que escriba `download_anime_poster_by_status` debe estar en `:187`**, y todo
 > `CTkImage` nuevo necesita `size=` explícito.
 
+🆕 *(2026-10-27, v0.6, B16)* Las cuatro descargas —`download_anime_poster_by_status`,
+`download_animes_poster`, `download_images_progress` y `download_poster`— piden con
+`thread_session().get(…, timeout=_REQUEST_TIMEOUT)`, así que cada *worker* del pool reutiliza su
+conexión entre pósters. El módulo ya no importa `requests`.
+
+---
+
+## `src/utils/http_session.py` 🆕 *(2026-10-27)*
+
+**Responsabilidad**: dar a cada hilo su propia `requests.Session`, para reutilizar la conexión TCP +
+TLS entre las peticiones de ese hilo sin compartir nada entre hilos (B16).
+**Dependencias**: solo stdlib (`threading`, `http.cookiejar`) y `requests`.
+
+| Función | Línea | Efecto |
+|---|---|---|
+| `thread_session() -> requests.Session` | `:21` | la sesión del hilo que llama, guardada en un `threading.local` y creada la primera vez. **Sin cookies** (`DefaultCookiePolicy(allowed_domains=[])`): las recibe pero no las guarda ni las reenvía. Muere con el hilo |
+
+**La usan**: `animeav1._fetch` y las cuatro descargas de `utils.py`. **No la usan**, a propósito,
+JKAnime (su ficha necesita cookies para el CSRF), AnimeFLV, el manager ni los resolutores
+([07 §1c](07-concurrencia-e-hilos.md)).
+
 ---
 
 ## `src/utils/buttons/utilsButtons.py`
@@ -600,7 +623,8 @@ siendo de ese proveedor.
 | 🆕 `close_player()` | `:199` — llama al `close_player()` del dueño y retira el panel. Sin efecto si no hay |
 | 🆕 `enter_player_fullscreen()` / `exit_player_fullscreen()` / `is_player_fullscreen()` | `:214`, `:246`, `:210` — pantalla completa **manual** en el monitor de la ventana ([trampa 51](10-invariantes-y-trampas.md)) |
 | 🆕 `__monitor_rect()` | `:271` — `MonitorFromWindow` + `GetMonitorInfoW` por `ctypes`; si falla, la pantalla principal |
-| 🆕 `__on_window_configure()` / `__on_close()` | `:293`, `:298` — reajustar el reproductor también cuando cambia **solo el alto**; parar mpv antes de destruir la ventana (`WM_DELETE_WINDOW`) |
+| 🆕 `__bind_window_configure()` | `:297` — *(2026-10-27, B17)* ata el `<Configure>` de la raíz con un script Tcl que descarta los de los demás widgets **antes** de llegar a Python (`"%W" eq "."`), y dentro llama al `_update_dimensions_event` de CTk —al que sustituye— y a `__on_window_configure()` |
+| 🆕 `__on_window_configure()` / `__on_close()` | `:309`, `:314` — reajustar el reproductor también cuando cambia **solo el alto** (sin argumentos desde el 2026-10-27: el filtro ya está en Tcl); parar mpv antes de destruir la ventana (`WM_DELETE_WINDOW`) |
 | `create_sidebar_frame` / `create_content_frame` | |
 | `__config_main_window()` | `:96-108` — título, geometría, icono, **`fg_color=Theme.BG` de la raíz de Tk** (`:104`) y pesos de la rejilla |
 | `load_sidebar_buttons()` | instancia las 6 vistas + **desplegable de proveedor y su pin** (en un frame propio) + selector de apariencia |

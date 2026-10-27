@@ -583,6 +583,12 @@ lo que daba por hecho la investigación previa. Detalle completo en
 - 🆕 `EpisodeRefresher` (2026-10-27) lanza **como mucho un hilo daemon por proveedor**, que muere al
   vaciar su cola; su estado compartido va bajo un `Lock`, y escribir en la BD y avisar a las vistas
   vuelve al hilo de Tk con `after(0, …)`.
+- 🆕 **Una `requests.Session` por hilo, nunca compartida** (2026-10-27, B16). AnimeAV1 (`_fetch`) y
+  las descargas de pósters piden con `thread_session()` (`utils/http_session.py`): la sesión vive en
+  un `threading.local`, muere con su hilo y **no guarda cookies**, así que solo se reutiliza la
+  conexión. Gana quien pide varias cosas seguidas —precarga, refresco, el pool de pósters—; un hilo
+  de una sola petición abre la suya como antes. ⚠️ **Donde hagan falta cookies no sirve**: la ficha
+  de JKAnime sigue con su `Session` propia para el CSRF ([`docs/07 §1c`](docs/07-concurrencia-e-hilos.md)).
 - Para reprogramar trabajo en el hilo de UI, usar `self.after(delay, callback)`.
 - ⚠️ **El `time.sleep(0.1)` tras `clear_frame()` desapareció de las seis vistas.** Solo estaba para que
   `winfo_width()` no valiera 1 al calcular columnas; con rejillas de número fijo no se mide nada. **No
@@ -609,12 +615,13 @@ lo que daba por hecho la investigación previa. Detalle completo en
 
 ## Notas de mantenimiento
 
-- **`MiBibliotecaAnime.spec`**: `hiddenimports` tiene **39** nombres desde el 2026-10-27 —38 módulos
+- **`MiBibliotecaAnime.spec`**: `hiddenimports` tiene **40** nombres desde el 2026-10-27 —39 módulos
   de `src/` y `mpv`, que `video_player.py` importa **dentro** de `load_mpv()` y el análisis estático no
-  ve—. ✅ Auditado con AST en las dos direcciones el 2026-10-21: todos resuelven a ficheros reales y **ningún módulo
+  ve—. ✅ Auditado con AST en las dos direcciones el 2026-10-27: todos resuelven a ficheros reales y **ningún módulo
   de `src/` queda sin declarar** salvo `app.py`, que es el script de entrada. El reproductor añadió los
   cinco `APIs.resolvers.*` y `gui.components.video_player`; la auditoría de rendimiento,
-  `gui.components.order_menu`; el refresco de episodios, `gui.episode_refresher`. 🔴 **Todo módulo nuevo bajo `src/` hay que
+  `gui.components.order_menu`; el refresco de episodios, `gui.episode_refresher`; las conexiones por
+  hilo, `utils.http_session`. 🔴 **Todo módulo nuevo bajo `src/` hay que
   declararlo aquí**, o el `.exe` compila y revienta al arrancar.
 - **`binaries`** lleva `('vendor/libmpv-2.dll', 'vendor')` —destino **`vendor`**, no `'.'`—, porque
   `load_mpv()` la busca en `get_resource_path("vendor")`, que en el `.exe` es `_internal/vendor`; y
@@ -756,8 +763,10 @@ Después, sin orden fijado. **El rediseño se llevó por delante buena parte de 
      menos de 60 ms. Una caché de `CTkImage` **no** es el arreglo, y además reintroduciría la
      [trampa 55](docs/10-invariantes-y-trampas.md). La palanca es conservar las vistas construidas en
      vez de rehacerlas. Opcional ([`docs/12 §4`](docs/12-deuda-tecnica-y-roadmap.md)).
-  6. **B16-B17** (2026-10-21, opcionales): sin `requests.Session` (~90 ms por petición, casi todo en
-     segundo plano) y el `<Configure>` de la raíz, que se dispara con el de cualquier widget.
+  6. ✅ ~~**B16-B17**~~ — **cerradas el 2026-10-27**: AnimeAV1 y los pósters piden con una
+     `requests.Session` **por hilo** (la precarga de la portada, 3,8 → 2,95 s), y el `<Configure>`
+     de la raíz —el nuestro **y el de CTk**— se filtra en Tcl: 464 pasos a Python por cambio de vista
+     → 0. Ninguna de las dos se nota a ojo ([`docs/12 §4`](docs/12-deuda-tecnica-y-roadmap.md)).
 - **Deuda que deja el reproductor**:
   1. **B14**: los hosters sin resolutor siguen abriendo el navegador. Lo que más valdría es un segundo
      hoster por proveedor que no dependa del mismo origen: zilla estuvo caído tres días en septiembre.
