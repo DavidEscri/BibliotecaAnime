@@ -1,7 +1,7 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "sidebarButtons"
 __module__ = "recentAnimes.py"
-__version__ = "0.6"
+__version__ = "0.7"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 import os
@@ -36,7 +36,7 @@ class RecentAnimeButton(utilsButtons.SidebarButton):
 
     def __init__(self, main_window, icon_path: str, row: int, column: int):
         icon_path_light = icon_path_dark = os.path.join(icon_path, "recientes.png")
-        super().__init__(main_window.sidebar_frame, "Nuevos lanzamientos", row, column, self.__show_animes_recientes, icon_path_light, icon_path_dark)
+        super().__init__(main_window.sidebar_frame, "Nuevos lanzamientos", row, column, self.__show_recent_animes, icon_path_light, icon_path_dark)
 
         self.main_window = main_window
         self.anime_provider_mgr: AnimeProviderManager = AnimeProviderManagerSingleton()
@@ -50,12 +50,12 @@ class RecentAnimeButton(utilsButtons.SidebarButton):
         self.main_window.sidebar_frame.grid(row=0, column=0, rowspan=8, sticky="nsew")
 
         self.main_window.clear_frame()
-        self.__show_animes_recientes()
+        self.__show_recent_animes()
 
     # ------------------------------------------------------------------
     # Construcción de la vista
     # ------------------------------------------------------------------
-    def __show_animes_recientes(self):
+    def __show_recent_animes(self):
         self.main_window.clear_frame()
         self.__resume_band = None
         content = self.main_window.content_frame

@@ -82,8 +82,6 @@ graph TD
     MW --> UTL
     VIEWS --> UTL
     AW --> UTL
-    AV1 -.->|removeprefix| UTL
-    FLV -.->|removeprefix| UTL
     PERS -.->|get_resource_path| UTL
     AW --> RES
     AW --> VP

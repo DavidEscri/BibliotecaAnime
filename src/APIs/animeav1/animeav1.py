@@ -6,7 +6,7 @@ no como HTML navegable por selectores. Se extraen con regex, con fallback al DOM
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "APIs.animeav1"
 __module__ = "animeav1.py"
-__version__ = "0.4"
+__version__ = "0.5"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 import re
@@ -18,7 +18,6 @@ from typing import List, Optional, Union, Tuple
 from bs4 import BeautifulSoup
 from urllib.parse import urlencode, urlparse, parse_qs
 
-from utils.utils import removeprefix
 from APIs.common.animeProviderMgr import AnimeProvider
 from APIs.common.models import AnimeGenreFilter, AnimeOrderFilter, AnimeProviderId, ServerInfo, EpisodeInfo, AnimeInfo
 
@@ -249,7 +248,7 @@ class AnimeAV1(AnimeProvider):
                 continue
 
             href = link.get("href", "")
-            anime_id = removeprefix(urlparse(href).path, "/media/").strip("/")
+            anime_id = urlparse(href).path.removeprefix("/media/").strip("/")
             if not anime_id or "/" in anime_id or anime_id in seen_ids:
                 continue
 

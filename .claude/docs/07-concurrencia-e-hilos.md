@@ -380,6 +380,9 @@ ocurrencias a la vez**: cambia una, verifica que la rejilla mantiene sus columna
 📖 Hay **28** usos de `.after(...)` en `src/`. ✅ Recontados y **reanclados de cero el 2026-10-20**
 contra `f3fc229` (`git grep -nE "\.after\(" -- src/`). Eran 11; los nuevos son del reproductor y de
 la ficha, más uno de `PosterGrid` que este documento no tenía.
+⚠️ **El 2026-10-27 son 32**, y la tabla de abajo no está reanclada: se retiró el de la función
+suelta `update_gif` de `utils.py` (C2 en [12 §4](12-deuda-tecnica-y-roadmap.md)), pero los que
+llegaron después —`EpisodeRefresher` entre ellos— no se han añadido.
 
 **Devolver trabajo de un hilo daemon al de Tk** (`after(0, …)`):
 
@@ -412,7 +415,6 @@ la ficha, más uno de `PosterGrid` que este documento no tenía.
 | 🆕 `video_player.py:558`, `:566` | margen de gracia del deslizador de volumen |
 | 🆕 `video_player.py:1135`, `:1220` | guarda de primer plano a pantalla completa ([trampa 52](10-invariantes-y-trampas.md)) |
 | 🆕 `video_player.py:1190` | ocultar la barra flotante y el cursor a los 5 s |
-| `utils.py:61` (`update_gif`) | ⚠️ **código muerto y roto** (ver abajo) |
 
 > 🆕 **Los temporizadores del reproductor se cancelan al cerrarlo** (`VideoPlayer.close()` pasa
 > `after_cancel` a sus cuatro trabajos), y los que repintan comprueban `winfo_exists()` antes de tocar
@@ -438,9 +440,9 @@ la ficha, más uno de `PosterGrid` que este documento no tenía.
 > de error, y usar **`update_idletasks()`** en vez de `update()` antes de lanzar el hilo — `update()`
 > atiende eventos de usuario, así que un segundo clic puede reentrar y lanzar un segundo hilo.
 
-La función suelta `update_gif` de `utils.py:51-61` haría
-`root.after(100, update_gif, frame)`, pasando `frame` como primer argumento (`label`). **No tiene
-llamantes en `src/`.** La pantalla de carga define su propia `update_gif` local, correcta.
+~~La función suelta `update_gif` de `utils.py`~~ ✅ **retirada el 2026-10-27**: habría hecho
+`root.after(100, update_gif, frame)`, pasando `frame` como primer argumento (`label`), y no tenía
+llamantes. La pantalla de carga define su propia `update_gif` local, correcta, y esa sigue.
 
 ---
 

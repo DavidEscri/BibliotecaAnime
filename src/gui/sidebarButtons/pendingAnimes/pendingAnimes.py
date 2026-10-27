@@ -1,7 +1,7 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "sidebarButtons"
 __module__ = "pendingAnimes.py"
-__version__ = "0.7"
+__version__ = "0.8"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 """«Pendientes»: la cola de lo que todavía no has empezado.
@@ -59,7 +59,7 @@ class PendingAnimeButton(utilsButtons.SidebarButton):
         # pendientes_light/dark.png son los dos de tinta negra, así que no sirven
         # como par (claro, oscuro); se usa el icono único, que es bicolor.
         icon_path_light = icon_path_dark = os.path.join(icon_path, "pendientes.png")
-        super().__init__(main_window.sidebar_frame, "Pendientes", row, column, self.show_pending_animes, icon_path_light, icon_path_dark)
+        super().__init__(main_window.sidebar_frame, "Pendientes", row, column, self.__show_pending_animes, icon_path_light, icon_path_dark)
 
         self.main_window = main_window
         self.anime_provider_mgr: AnimeProviderManager = AnimeProviderManagerSingleton()
@@ -87,9 +87,9 @@ class PendingAnimeButton(utilsButtons.SidebarButton):
         )
 
     def show_frame(self):
-        self.show_pending_animes()
+        self.__show_pending_animes()
 
-    def show_pending_animes(self):
+    def __show_pending_animes(self):
         self.main_window.clear_frame()
         self.__show_browser()
 

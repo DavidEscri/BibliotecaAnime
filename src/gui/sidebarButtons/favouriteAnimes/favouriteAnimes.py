@@ -1,7 +1,7 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "sidebarButtons"
 __module__ = "favouriteAnimes.py"
-__version__ = "0.4"
+__version__ = "0.5"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 """«Favoritos»: rejilla de cinco con la calificación personal debajo de cada título.
@@ -57,7 +57,7 @@ class FavouritesButton(utilsButtons.SidebarButton):
 
     def __init__(self, main_window, icon_path, row, column):
         icon_path_light = icon_path_dark = os.path.join(icon_path, "favoritos.png")
-        super().__init__(main_window.sidebar_frame, "Favoritos", row, column, self.show_favourite_animes, icon_path_light, icon_path_dark)
+        super().__init__(main_window.sidebar_frame, "Favoritos", row, column, self.__show_favourite_animes, icon_path_light, icon_path_dark)
 
         self.main_window = main_window
         self.anime_provider_mgr: AnimeProviderManager = AnimeProviderManagerSingleton()
@@ -84,9 +84,9 @@ class FavouritesButton(utilsButtons.SidebarButton):
         )
 
     def show_frame(self):
-        self.show_favourite_animes()
+        self.__show_favourite_animes()
 
-    def show_favourite_animes(self):
+    def __show_favourite_animes(self):
         self.main_window.clear_frame()
         self.__show_browser()
 

@@ -529,7 +529,11 @@ homónimo del paquete y el fallo no se manifiesta al importar, sino al usar.
 
 ---
 
-### 20. `removeprefix()` devuelve `None` si los tipos no coinciden 📖
+### 20. `removeprefix()` devuelve `None` si los tipos no coinciden ✅ *(desaparecida, 2026-10-27)*
+
+> ✅ **El helper ya no existe.** Era un *backport* para Python <3.9 y el proyecto exige 3.10, así que
+> sus cuatro llamadas pasaron a `str.removeprefix`, que no tiene este defecto. Se conserva el texto
+> porque otros documentos citan el número.
 
 ```python
 # utils.py:34-38
