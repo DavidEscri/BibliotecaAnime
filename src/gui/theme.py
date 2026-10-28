@@ -112,6 +112,8 @@ class Theme:
     T_SHEET: Tuple[int, bool, bool] = (30, True, False)
     #: Título de anime en una fila de lista.
     T_ROW: Tuple[int, bool, bool] = (17, True, False)
+    #: Pestaña de la ficha («Episodios»).
+    T_TAB: Tuple[int, bool, bool] = (14, True, False)
     #: Título en la tarjeta de retomar.
     T_CARD: Tuple[int, bool, bool] = (19, True, False)
     #: Sinopsis.
