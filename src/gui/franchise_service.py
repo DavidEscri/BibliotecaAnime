@@ -1,7 +1,7 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "gui"
 __module__ = "franchise_service.py"
-__version__ = "0.1"
+__version__ = "0.2"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 """Recorrido en segundo plano de la franquicia de un anime.
@@ -24,7 +24,7 @@ import threading
 import time
 
 from dataclasses import dataclass
-from typing import Callable, Dict, List, Optional, Set, Tuple
+from typing import Callable, Dict, Iterable, List, Optional, Set, Tuple
 
 from APIs.common.animeProviderMgr import AnimeProviderManager
 from APIs.common.models import AnimeFormat, AnimeInfo, AnimeProviderId, AnimeRelationType, RelatedAnime
@@ -55,6 +55,29 @@ def deduce_format_from_title(title: str) -> Optional[AnimeFormat]:
         if words & format_words:
             return anime_format
     return None
+
+
+def closest_related(related: List[RelatedAnime], relation: AnimeRelationType,
+                    exclude: Iterable[str] = ()) -> Optional[RelatedAnime]:
+    """El relacionado de ese tipo más cercano en fecha: la temporada anterior o la siguiente.
+
+    Para una secuela, la más temprana; para una precuela, la más tardía. Sin
+    años, la primera que anuncie el sitio.
+
+    :param related: Relacionados de un anime.
+    :param relation: PREQUEL o SEQUEL.
+    :param exclude: Ids que no cuentan (los que ya están en la línea).
+    :return: El relacionado, o None si no hay ninguno de ese tipo.
+    """
+    excluded = set(exclude)
+    candidates = [item for item in related if item.relation == relation and str(item.id) not in excluded]
+    if len(candidates) <= 1:
+        return candidates[0] if candidates else None
+    dated = [item for item in candidates if item.year is not None]
+    if not dated:
+        return candidates[0]
+    pick = min if relation == AnimeRelationType.SEQUEL else max
+    return pick(dated, key=lambda item: item.year)
 
 
 @dataclass(frozen=True)
@@ -279,7 +302,7 @@ class FranchiseService:
         steps: List[Tuple[FranchiseEntry, Optional[AnimeInfo]]] = []
         page: Optional[AnimeInfo] = start
         while page is not None:
-            next_related = self.__closest(page.related or [], relation, visited)
+            next_related = closest_related(page.related or [], relation, visited)
             if next_related is None:
                 return steps, False, False
             if len(steps) >= limit:
@@ -291,23 +314,6 @@ class FranchiseService:
             if page is None:
                 return steps, False, True
         return steps, False, False
-
-    @staticmethod
-    def __closest(related: List[RelatedAnime], relation: AnimeRelationType,
-                  visited: Set[str]) -> Optional[RelatedAnime]:
-        """El relacionado de ese tipo más cercano en fecha que no esté ya en la línea.
-
-        Para una secuela, la más temprana; para una precuela, la más tardía. Sin
-        años, la primera que anuncie el sitio.
-        """
-        candidates = [item for item in related if item.relation == relation and str(item.id) not in visited]
-        if len(candidates) <= 1:
-            return candidates[0] if candidates else None
-        dated = [item for item in candidates if item.year is not None]
-        if not dated:
-            return candidates[0]
-        pick = min if relation == AnimeRelationType.SEQUEL else max
-        return pick(dated, key=lambda item: item.year)
 
     @staticmethod
     def __entry_from(related: RelatedAnime, page: Optional[AnimeInfo]) -> FranchiseEntry:

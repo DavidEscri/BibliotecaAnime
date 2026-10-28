@@ -1,7 +1,7 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "gui"
 __module__ = "anime_window.py"
-__version__ = "0.12"
+__version__ = "0.13"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 """Ficha de detalle de un anime: la pantalla desde la que se ve un episodio.
@@ -25,24 +25,36 @@ import threading
 import webbrowser
 import customtkinter as ctk
 
-from dataclasses import replace
+from collections import OrderedDict
+from dataclasses import dataclass, replace
 from tkinter import messagebox
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 from PIL import Image
 
-from APIs.common.models import AnimeInfo, AnimeProviderId, EpisodeInfo, ServerInfo
+from APIs.common.models import AnimeFormat, AnimeInfo, AnimeProviderId, AnimeRelationType, EpisodeInfo, \
+    RelatedAnime, ServerInfo
 from APIs.common.animeProviderMgr import AnimeProviderManager, AnimeProviderManagerSingleton
 from APIs.resolvers import registry
 from APIs.resolvers.base import MediaSource
 from dataPersistence.animesPersistence import AnimeStatus, AnimeRecord
+from gui.components.franchise_cards import CAROUSEL_POSTER, CarouselItem, RelatedCard, RelatedGrid, \
+    SeasonCarousel, SeasonLink, format_chip
 from gui.components.status_pill import StatusPill
+from gui.components.tab_bar import TabBar
 from gui.components.video_player import VideoPlayer, player_icon
+from gui.franchise_service import FormatHint, FranchiseLine, closest_related, deduce_format_from_title
 from gui.theme import Metrics, Theme
 from utils.utils import refactor_genre_text, download_poster, find_cached_poster_path, \
     load_rounded_image, round_image, download_anime_poster_by_status, move_anime_poster_by_status, \
     sync_status_posters
 
 _POSTER_SYNC_LOCK = threading.Lock()
+
+#: Pósters de temporadas y relacionados ya bajados en la sesión, reducidos al
+#: mayor tamaño en que se pintan. Se guarda la imagen PIL, nunca el CTkImage.
+_RELATED_POSTERS: "OrderedDict[str, Image.Image]" = OrderedDict()
+_RELATED_POSTERS_LOCK = threading.Lock()
+_RELATED_POSTERS_MAX = 120
 
 #: Similitud mínima entre títulos para avisar de que un anime que se va a
 #: guardar puede ser el mismo que otro ya guardado. Por encima del umbral con el
@@ -96,9 +108,13 @@ SHEET_GAP = 30
 SHEET_PAD_TOP = 26
 SHEET_PAD_BOTTOM = 24
 #: Separación por encima de cada bloque de la columna de información, de arriba
-#: abajo: título, sinopsis, géneros, barra de vistos y botones de estado. El
-#: bloque de proveedor va el primero y no lleva.
-INFO_GAPS = (12, 14, 16, 18, 18)
+#: abajo: título, sinopsis, géneros, temporada anterior y siguiente, barra de
+#: vistos y botones de estado. El bloque de proveedor va el primero y no lleva.
+INFO_GAPS = (12, 14, 16, 16, 18, 18)
+#: «← Volver a …» encima de la ficha y su separación con ella.
+BACK_PAD_TOP = 16
+BACK_GAP = 10
+BACK_TITLE_W = 520
 #: Ancho máximo del bloque de la barra de vistos.
 SEEN_W = 420
 #: Alto de ese bloque. Un CTkFrame necesita alto explícito o conserva los 200 por
@@ -148,6 +164,50 @@ PLAYER_STATUS_LABELS = {
     "ended": "Terminado",
     "unavailable": "Sin servidores",
 }
+#: Ancho máximo del título de la temporada siguiente en el botón de la tarjeta de fin.
+END_CARD_TITLE_W = 150
+
+#: Claves de las pestañas de la ficha.
+TAB_EPISODES = "episodes"
+TAB_RELATIONS = "relations"
+#: Separación entre los bloques de la pestaña de relacionados.
+RELATIONS_BLOCK_GAP = 26
+RELATIONS_GROUP_GAP = 20
+
+#: Cómo se lee cada formato y cada tipo de relación.
+FORMAT_LABELS: Dict[AnimeFormat, str] = {
+    AnimeFormat.SERIES: "Serie",
+    AnimeFormat.MOVIE: "Película",
+    AnimeFormat.OVA: "OVA",
+    AnimeFormat.SPECIAL: "Especial",
+    AnimeFormat.ONA: "ONA",
+}
+RELATION_LABELS: Dict[AnimeRelationType, str] = {
+    AnimeRelationType.PREQUEL: "Precuela",
+    AnimeRelationType.SEQUEL: "Secuela",
+    AnimeRelationType.ALTERNATIVE: "Versión alternativa",
+    AnimeRelationType.OTHER: "Otro",
+}
+#: Grupos de la pestaña de relacionados, en el orden en que se pintan.
+GROUP_MOVIES = "Películas"
+GROUP_SERIES = "Series y ONA"
+GROUP_OVAS = "OVAs y especiales"
+GROUP_ALTERNATIVES = "Versiones alternativas"
+GROUP_UNKNOWN = "Sin formato"
+RELATION_GROUPS = (GROUP_MOVIES, GROUP_SERIES, GROUP_OVAS, GROUP_ALTERNATIVES, GROUP_UNKNOWN)
+
+
+@dataclass(frozen=True)
+class SheetVisit:
+    """Una ficha de la que se ha salido abriendo un relacionado, para poder volver a ella sin red.
+
+    :ivar anime_info: La ficha tal como estaba en pantalla.
+    :ivar provider_id: Proveedor que la sirvió.
+    :ivar anime_record: Fila guardada con la que se abrió, para conservar su identidad de persistencia.
+    """
+    anime_info: AnimeInfo
+    provider_id: Optional[AnimeProviderId]
+    anime_record: Optional[AnimeRecord]
 
 
 # TODO: Al final de la lista de episodios nuevo frame del estilo. "Si te ha gustado One piece, te puede interesar..." y
@@ -261,9 +321,61 @@ def sync_saved_posters_async(animes_persistence, anime_info: AnimeInfo) -> None:
     threading.Thread(target=_sync, daemon=True).start()
 
 
+def _related_poster(url: Optional[str], disk_id: Optional[str]) -> Optional[Image.Image]:
+    """Póster de una temporada o un relacionado: del disco, de lo bajado en la sesión o de la red.
+
+    Sale a la red: solo desde un hilo daemon.
+
+    :param url: URL del póster, o None si el proveedor no la da.
+    :param disk_id: anime_id con el que buscarlo entre los pósters ya guardados.
+    :return: La imagen reducida al tamaño del carrusel, o None si no hay forma.
+    """
+    if disk_id:
+        path = find_cached_poster_path(disk_id)
+        if path is not None:
+            try:
+                with Image.open(path) as image:
+                    return image.convert("RGB").resize(CAROUSEL_POSTER, Image.LANCZOS)
+            except Exception as e:
+                print(f"No se pudo leer el póster {path}: {e}")
+    if not url:
+        return None
+    with _RELATED_POSTERS_LOCK:
+        cached = _RELATED_POSTERS.get(url)
+        if cached is not None:
+            _RELATED_POSTERS.move_to_end(url)
+            return cached
+    image = download_poster(url)
+    if image is None:
+        return None
+    image = image.convert("RGB").resize(CAROUSEL_POSTER, Image.LANCZOS)
+    with _RELATED_POSTERS_LOCK:
+        _RELATED_POSTERS[url] = image
+        while len(_RELATED_POSTERS) > _RELATED_POSTERS_MAX:
+            _RELATED_POSTERS.popitem(last=False)
+    return image
+
+
+def library_status(anime_record: Optional[AnimeRecord]) -> Optional[AnimeStatus]:
+    """Qué estado se enseña de una fila: el excluyente que tenga y, si no tiene, «Favorito».
+
+    Es la misma regla que el sello de «Buscar».
+
+    :param anime_record: Fila guardada, o None si el anime no está en la biblioteca.
+    :return: Estado a mostrar, o None si no hay ninguno.
+    """
+    if anime_record is None:
+        return None
+    status = StatusPill.other_status(anime_record)
+    if status is not None:
+        return status
+    return AnimeStatus.FAVOURITE if anime_record.is_favourite else None
+
+
 def open_saved_anime(main_window, anime_id: Union[str, int],
                      focus_episode: Optional[int] = None,
-                     force_ascending: bool = False) -> None:
+                     force_ascending: bool = False,
+                     history: Optional[List[SheetVisit]] = None) -> None:
     """Abre la ficha de un anime ya guardado en la biblioteca.
 
     Punto de entrada único de las cuatro vistas de estado. El fallback sigue
@@ -277,6 +389,8 @@ def open_saved_anime(main_window, anime_id: Union[str, int],
         la vista; None abre la ficha normal.
     :param force_ascending: Fuerza el orden ascendente, para que el episodio de
         entrada quede primero en vez de al final de la lista.
+    :param history: Fichas de las que se viene, para «← Volver a …»; None si se
+        abre desde una vista.
     """
     anime_record: AnimeRecord = main_window.animes_persistence.get_anime_by_anime_id(anime_id)
     provider_id, is_deviation = main_window.provider_for_saved_anime(anime_record.provider_id if anime_record is not None else None)
@@ -288,7 +402,8 @@ def open_saved_anime(main_window, anime_id: Union[str, int],
         main_window.after(0, lambda: AnimeWindowViewer(main_window, cached_info, provider_id,
                                                        anime_record=anime_record,
                                                        focus_episode=focus_episode,
-                                                       force_ascending=force_ascending).display_anime_info())
+                                                       force_ascending=force_ascending,
+                                                       history=history).display_anime_info())
         return
 
     main_window.configure(cursor="watch")
@@ -311,7 +426,8 @@ def open_saved_anime(main_window, anime_id: Union[str, int],
         AnimeWindowViewer(main_window, anime_info, served_by,
                           anime_record=anime_record,
                           focus_episode=focus_episode,
-                          force_ascending=force_ascending).display_anime_info()
+                          force_ascending=force_ascending,
+                          history=history).display_anime_info()
 
     def _load_and_show():
         anime_info = served_by = None
@@ -405,9 +521,6 @@ class EpisodeRow(ctk.CTkFrame):
         )
         self.switch.grid(row=0, column=2, sticky="e", padx=(EPISODE_GAP, EPISODE_PAD_X))
 
-        self.__separator = ctk.CTkFrame(self, height=1, corner_radius=0, fg_color=Theme.LINE_SOFT)
-        self.__separator.place(relx=0, rely=1.0, anchor="sw", relwidth=1.0)
-
         self.set_watched(watched)
         self.__bind_interactions()
 
@@ -460,10 +573,10 @@ class EpisodeRow(ctk.CTkFrame):
         """Ata hover y clic a la fila y a sus hijos, ya que los eventos de Tk no burbujean.
 
         El clic se queda en la fila y sus dos etiquetas (el interruptor tiene su
-        propio comando); el hover se ata a todos los hijos, interruptor y
-        separador incluidos, para no perder el resaltado al pasar sobre ellos.
+        propio comando); el hover se ata a todos los hijos, interruptor incluido,
+        para no perder el resaltado al pasar sobre ellos. Si se añade un hijo, hay que atarlo.
         """
-        for widget in (self, self.number_label, self.state_label, self.switch, self.__separator):
+        for widget in (self, self.number_label, self.state_label, self.switch):
             widget.bind("<Enter>", self.__handle_enter)
             widget.bind("<Leave>", self.__handle_leave)
         for widget in (self, self.number_label, self.state_label):
@@ -526,13 +639,16 @@ class AnimeWindowViewer:
     (``__repair_to_target_provider``).
 
     Se compone de dos bloques dentro del ``content_frame``: la cabecera (póster,
-    proveedor, título, sinopsis, géneros, barra de vistos y botones de estado) y
-    la lista de episodios.
+    proveedor, título, sinopsis, géneros, temporada anterior y siguiente, barra
+    de vistos y botones de estado) y las pestañas, que abren siempre en
+    Episodios. Las demás no se construyen ni piden nada a la red hasta que se
+    abren. Abrir un relacionado deja esta ficha en el historial de la siguiente.
     """
 
     def __init__(self, main_window, anime_info: AnimeInfo, provider_id: AnimeProviderId | None = None,
                  anime_record: AnimeRecord | None = None,
-                 focus_episode: Optional[int] = None, force_ascending: bool = False):
+                 focus_episode: Optional[int] = None, force_ascending: bool = False,
+                 history: Optional[List[SheetVisit]] = None):
         """Construye la ficha. anime_record es obligatorio cuando la ficha puede
         venir de un proveedor distinto al que guardó el anime: sin él se asume
         que anime_info es también lo guardado.
@@ -543,10 +659,14 @@ class AnimeWindowViewer:
         :param anime_record: Fila con la que está guardado este anime, si lo está.
         :param focus_episode: Episodio por el que abrir la ficha, ya desplegado.
         :param force_ascending: Fuerza el orden ascendente pase lo que pase.
+        :param history: Fichas de las que se viene abriendo relacionados, la más
+            reciente al final. Vive solo en la cadena de fichas: cambiar de vista la olvida.
         """
         if anime_info is None:
             raise ValueError("AnimeWindowViewer requiere un AnimeInfo; se recibió None")
         self.main_window = main_window
+        self.__anime_record: Optional[AnimeRecord] = anime_record
+        self.__history: List[SheetVisit] = list(history or [])
         self.anime_provider_mgr: AnimeProviderManager = AnimeProviderManagerSingleton()
         self.anime_info: AnimeInfo = self.__with_episodes(anime_info)
 
@@ -602,6 +722,22 @@ class AnimeWindowViewer:
         self.__servers_states: Dict[Any, str] = {}
         self.__servers_request_seq: int = 0
         self.search_entry: Optional[ctk.CTkEntry] = None
+
+        # --- Pestañas y franquicia -----------------------------------------
+        self.__tabs: Optional[TabBar] = None
+        self.__carousel: Optional[SeasonCarousel] = None
+        self.__others_frame: Optional[ctk.CTkFrame] = None
+        #: Relacionados de la pestaña que no están en la línea principal.
+        self.__others: List[RelatedAnime] = []
+        self.__format_hints: Dict[str, FormatHint] = {}
+        self.__formats_pending: bool = False
+        self.__related_cards: Dict[str, RelatedCard] = {}
+        #: Pósters ya llegados de la pestaña, por id: repintar las tarjetas no los vuelve a pedir.
+        self.__related_posters: Dict[str, Image.Image] = {}
+        #: Última apertura de un relacionado: una respuesta con otro número llega tarde.
+        self.__open_request_seq: int = 0
+        #: Título de cada temporada del carrusel, para buscarla en la biblioteca al abrirla.
+        self.__line_titles: Dict[str, str] = {}
 
         # --- Reproductor acoplado ------------------------------------------
         self.__player: Optional[VideoPlayer] = None
@@ -713,7 +849,7 @@ class AnimeWindowViewer:
             content.grid_rowconfigure(row, weight=0)
 
         self.__build_sheet(content)
-        self.__build_episodes(content)
+        self.__build_tabs(content)
 
         if self.__focus_episode is not None:
             # Con after y no aquí: desplazarse hasta la fila exige medirla, y eso
@@ -721,10 +857,18 @@ class AnimeWindowViewer:
             self.main_window.after(FOCUS_DELAY_MS, self.__focus_on_episode)
 
     def __build_sheet(self, content: ctk.CTkFrame) -> None:
-        """Póster a la izquierda y columna de información a la derecha."""
-        sheet = ctk.CTkFrame(content, fg_color=Theme.TRANSPARENT)
-        sheet.grid(row=0, column=0, sticky="ew",
-                   padx=Metrics.CONTENT_PAD_X, pady=(SHEET_PAD_TOP, 0))
+        """«← Volver a …» si se viene de otra ficha, y debajo el póster y la columna de información."""
+        if self.__history:
+            # Un marco más solo cuando hace falta: cada widget cuenta al abrir la ficha.
+            head = ctk.CTkFrame(content, height=1, fg_color=Theme.TRANSPARENT)
+            head.grid(row=0, column=0, sticky="ew", padx=Metrics.CONTENT_PAD_X)
+            head.grid_columnconfigure(0, weight=1)
+            self.__build_back_button(head)
+            sheet = ctk.CTkFrame(head, fg_color=Theme.TRANSPARENT)
+            sheet.grid(row=1, column=0, sticky="ew", pady=(BACK_GAP, 0))
+        else:
+            sheet = ctk.CTkFrame(content, fg_color=Theme.TRANSPARENT)
+            sheet.grid(row=0, column=0, sticky="ew", padx=Metrics.CONTENT_PAD_X, pady=(SHEET_PAD_TOP, 0))
         sheet.grid_columnconfigure(1, weight=1)
         # El póster fija el alto del bloque, para que los botones de estado queden
         # alineados con su borde inferior.
@@ -737,11 +881,12 @@ class AnimeWindowViewer:
         info.grid_columnconfigure(0, weight=1)
         # La fila vacía con peso es la que empuja los botones de estado abajo. Una
         # fila con peso recibe el espacio sobrante aunque no tenga ningún hijo.
-        info.grid_rowconfigure(5, weight=1)
+        info.grid_rowconfigure(6, weight=1)
         self.__info_column = info
 
         self.__build_provider_block(info)
         self.__build_title(info)
+        self.__build_season_links(info)
         self.__build_seen_bar(info)
         self.__build_status_buttons(info)
 
@@ -909,7 +1054,7 @@ class AnimeWindowViewer:
     def __build_seen_bar(self, info: ctk.CTkFrame) -> None:
         """«N de M vistos», calculado sin tocar la persistencia."""
         self.__seen_frame = ctk.CTkFrame(info, height=1, fg_color=Theme.TRANSPARENT)
-        self.__seen_frame.grid(row=4, column=0, sticky="w", pady=(INFO_GAPS[3], 0))
+        self.__seen_frame.grid(row=5, column=0, sticky="w", pady=(INFO_GAPS[4], 0))
         self.__refresh_seen_bar()
 
     def __refresh_seen_bar(self) -> None:
@@ -1235,7 +1380,7 @@ class AnimeWindowViewer:
     def __build_status_buttons(self, info: ctk.CTkFrame) -> None:
         """Los cuatro botones, en una fila que reparte el ancho a partes iguales."""
         actions_frame = ctk.CTkFrame(info, height=1, fg_color=Theme.TRANSPARENT)
-        actions_frame.grid(row=6, column=0, sticky="ew", pady=(INFO_GAPS[4], 0))
+        actions_frame.grid(row=7, column=0, sticky="ew", pady=(INFO_GAPS[5], 0))
         actions_frame.grid_columnconfigure(tuple(range(len(STATUS_ORDER))), weight=1, uniform="status")
 
         self.__status_buttons.clear()
@@ -1410,30 +1555,413 @@ class AnimeWindowViewer:
         self.__after_status_change()
 
     # ------------------------------------------------------------------
+    # Navegación entre fichas
+    # ------------------------------------------------------------------
+    def __build_back_button(self, head: ctk.CTkFrame) -> None:
+        """«← Volver a <título>» de la ficha de la que se viene."""
+        font = Theme.font(Theme.T_UI[0], True)
+        title = Theme.ellipsize(self.__history[-1].anime_info.title or "", font, BACK_TITLE_W, 1)
+        back_button = ctk.CTkButton(
+            head,
+            text=f"← Volver a {title}",
+            width=1,
+            height=26,
+            corner_radius=Metrics.RADIUS_CONTROL,
+            font=font,
+            fg_color=Theme.TRANSPARENT,
+            hover_color=Theme.ACCENT_SOFT,
+            text_color=Theme.ACCENT,
+            command=self.__go_back
+        )
+        back_button.grid(row=0, column=0, sticky="w", pady=(BACK_PAD_TOP, 0))
+
+    def __go_back(self) -> None:
+        """Vuelve a la ficha anterior tal como estaba, en Episodios y sin salir a la red."""
+        if not self.__history:
+            return
+        visit, rest = self.__history[-1], self.__history[:-1]
+        # after() y no una llamada directa: la ficha nueva destruye el botón cuyo clic se está atendiendo.
+        self.main_window.after(0, lambda: AnimeWindowViewer(
+            self.main_window, visit.anime_info, visit.provider_id, anime_record=visit.anime_record,
+            history=rest).display_anime_info())
+
+    def __is_on_screen(self) -> bool:
+        """Si esta ficha sigue en pantalla: el usuario puede haberse ido a otra vista o a otra ficha."""
+        return self.__tabs is not None and self.__tabs.winfo_exists()
+
+    def __open_related(self, anime_id: Union[str, int], title: str, focus_episode: Optional[int] = None,
+                       force_ascending: bool = False) -> None:
+        """Abre la ficha de un relacionado y deja esta en el historial.
+
+        Si ya está en la biblioteca, por slug o por título, se abre su fila como
+        desde «Viendo»: sin ella, marcar un estado crearía otra fila del mismo anime.
+        Si no, se pide en un hilo al proveedor de esta ficha, que es de quien es el slug.
+
+        :param anime_id: Slug del relacionado en el proveedor de esta ficha.
+        :param title: Su título, para buscarlo en la biblioteca.
+        :param focus_episode: Episodio por el que abrirla, ya desplegado.
+        :param force_ascending: Fuerza el orden ascendente de sus episodios.
+        """
+        history = self.__history + [SheetVisit(self.anime_info, self.provider_id, self.__anime_record)]
+        animes_persistence = self.main_window.animes_persistence
+        anime_record = animes_persistence.get_anime_by_anime_id(str(anime_id))
+        if anime_record is None:
+            anime_record = find_saved_duplicate(animes_persistence.get_all_animes(), title,
+                                                exclude_anime_id=self.persistence_anime_id)
+        if anime_record is not None:
+            # after() porque la ficha nueva destruye el widget cuyo clic se está atendiendo.
+            self.main_window.after(0, lambda: open_saved_anime(self.main_window, anime_record.anime_id,
+                                                               focus_episode=focus_episode,
+                                                               force_ascending=force_ascending,
+                                                               history=history))
+            return
+
+        self.__open_request_seq += 1
+        request = self.__open_request_seq
+        provider_id = self.provider_id
+        self.main_window.configure(cursor="watch")
+
+        def _show(anime_info: Optional[AnimeInfo], served_by: Optional[AnimeProviderId]):
+            if not self.main_window.winfo_exists():
+                return
+            self.main_window.configure(cursor="")
+            if request != self.__open_request_seq or not self.__is_on_screen():
+                return
+            if anime_info is None:
+                show_anime_info_error(anime_id)
+                return
+            AnimeWindowViewer(self.main_window, anime_info, served_by, focus_episode=focus_episode,
+                              force_ascending=force_ascending, history=history).display_anime_info()
+
+        def _load():
+            # strict=True: el slug es de este proveedor; en otro podría ser otro anime.
+            anime_info, served_by = self.anime_provider_mgr.get_anime_info_with_provider(
+                anime_id, provider_id=provider_id, strict=True)
+            try:
+                self.main_window.after(0, _show, anime_info, served_by)
+            except RuntimeError:
+                pass
+
+        threading.Thread(target=_load, daemon=True).start()
+
+    # ------------------------------------------------------------------
+    # Temporadas y relacionados
+    # ------------------------------------------------------------------
+    def __library_records(self) -> List[AnimeRecord]:
+        """Filas con algún estado, de las listas del hub: bastan para los sellos y no leen la BD."""
+        seen, records = set(), []
+        for anime_record in (self.main_window.favourite_animes + self.main_window.watching_animes
+                             + self.main_window.pending_animes + self.main_window.finished_animes):
+            if anime_record.anime_id not in seen:
+                seen.add(anime_record.anime_id)
+                records.append(anime_record)
+        return records
+
+    def __related_status(self, anime_id: Union[str, int], title: str,
+                         records: List[AnimeRecord]) -> Optional[AnimeStatus]:
+        """Estado en la biblioteca de un relacionado, buscado por slug y luego por título."""
+        anime_record = next((record for record in records if str(record.anime_id) == str(anime_id)), None)
+        if anime_record is None:
+            anime_record = find_saved_duplicate(records, title, exclude_anime_id=self.persistence_anime_id)
+        return library_status(anime_record)
+
+    def __own_status(self) -> Optional[AnimeStatus]:
+        """Estado de este anime con lo que dicen ahora sus botones, con la regla de ``library_status()``."""
+        for status in EXCLUSIVE_STATUSES:
+            if self.__status_state[status]:
+                return status
+        return AnimeStatus.FAVOURITE if self.__status_state[AnimeStatus.FAVOURITE] else None
+
+    def __build_season_links(self, info: ctk.CTkFrame) -> None:
+        """«◀ Temporada anterior» y «Temporada siguiente ▶», con lo que ya trae la ficha. Sin ninguna, nada."""
+        related = self.anime_info.related or []
+        prequel = closest_related(related, AnimeRelationType.PREQUEL)
+        sequel = closest_related(related, AnimeRelationType.SEQUEL)
+        if prequel is None and sequel is None:
+            return
+        links = ctk.CTkFrame(info, height=1, fg_color=Theme.TRANSPARENT)
+        links.grid(row=4, column=0, sticky="ew", pady=(INFO_GAPS[3], 0))
+        links.grid_columnconfigure(1, weight=1)
+        records = self.__library_records()
+        for column, related_anime, forward in ((0, prequel, False), (2, sequel, True)):
+            if related_anime is None:
+                continue
+            link = SeasonLink(links, related_anime.title, forward,
+                              self.__related_status(related_anime.id, related_anime.title, records),
+                              on_click=lambda chosen=related_anime: self.__open_related(chosen.id, chosen.title))
+            link.grid(row=0, column=column, sticky="e" if forward else "w")
+
+    def __build_relations_tab(self, body: ctk.CTkFrame, _tools: ctk.CTkFrame) -> None:
+        """Línea principal en carrusel y el resto de relacionados agrupados por formato.
+
+        Es aquí, al abrir la pestaña, y no al abrir la ficha, donde se pide a la
+        red: el recorrido de la franquicia, el formato que falte y los pósters.
+        """
+        related = self.anime_info.related or []
+        prequel = closest_related(related, AnimeRelationType.PREQUEL)
+        sequel = closest_related(related, AnimeRelationType.SEQUEL)
+        line_ids = {str(item.id) for item in (prequel, sequel) if item is not None}
+        self.__others = [item for item in related if str(item.id) not in line_ids]
+        service = self.main_window.franchise_service
+        can_ask = self.provider_id is not None
+
+        row = 0
+        if line_ids:
+            self.__carousel = SeasonCarousel(body, on_open=self.__open_line_entry)
+            self.__carousel.grid(row=0, column=0, sticky="ew")
+            self.__show_known_line(prequel, sequel, walking=can_ask)
+            row = 1
+        if self.__others:
+            self.__others_frame = ctk.CTkFrame(body, height=1, fg_color=Theme.TRANSPARENT)
+            self.__others_frame.grid(row=row, column=0, sticky="ew", pady=(RELATIONS_BLOCK_GAP if row else 0, 0))
+            self.__others_frame.grid_columnconfigure(0, weight=1)
+            self.__format_hints = {str(item.id): self.__instant_format_hint(item) for item in self.__others}
+            self.__formats_pending = can_ask
+            self.__paint_others()
+            self.__load_posters([(str(item.id), item.poster, str(item.id)) for item in self.__others],
+                                self.__on_related_poster)
+            if can_ask:
+                service.request_formats(self.anime_info, self.provider_id, self.__on_format_hints)
+        if line_ids and can_ask:
+            service.request_franchise(self.anime_info, self.provider_id, self.__on_franchise_line)
+
+    # --- Línea principal --------------------------------------------------
+    def __carousel_item(self, anime_id: Union[str, int], title: str, order_text: str, year: Optional[int],
+                        anime_format: Optional[AnimeFormat], records: List[AnimeRecord],
+                        current: bool = False) -> CarouselItem:
+        """Una temporada del carrusel; sin formato del proveedor, el deducido del título."""
+        style = "solid"
+        if anime_format is None:
+            anime_format = deduce_format_from_title(title)
+            style = "dashed"
+        status = self.__own_status() if current else self.__related_status(anime_id, title, records)
+        return CarouselItem(key=str(anime_id), title=title, order_text=order_text, current=current, year=year,
+                            format_text=FORMAT_LABELS.get(anime_format), format_style=style, status=status)
+
+    def __current_poster_job(self) -> Tuple[str, Optional[str], Optional[str]]:
+        """Póster de esta ficha para el carrusel: el que ya hay en disco con el nombre de la fila."""
+        return str(self.anime_info.id), self.persistence_poster_url, self.persistence_anime_id
+
+    def __show_known_line(self, prequel: Optional[RelatedAnime], sequel: Optional[RelatedAnime],
+                          walking: bool) -> None:
+        """Lo que se sabe sin red: la temporada anterior, esta y la siguiente, y un hueco más allá de cada una."""
+        records = self.__library_records()
+        items: List[Optional[CarouselItem]] = []
+        if prequel is not None:
+            items += [None, self.__carousel_item(prequel.id, prequel.title, "Anterior", prequel.year,
+                                                 prequel.format, records)]
+        current_index = len(items)
+        items.append(self.__carousel_item(self.anime_info.id, self.anime_info.title, "Estás aquí", None,
+                                          self.anime_info.format, records, current=True))
+        if sequel is not None:
+            items += [self.__carousel_item(sequel.id, sequel.title, "Siguiente", sequel.year, sequel.format, records),
+                      None]
+        if not walking:
+            items = [item for item in items if item is not None]
+            current_index = next(index for index, item in enumerate(items) if item.current)
+        self.__line_titles = {item.key: item.title for item in items if item is not None}
+        self.__carousel.show(items, current_index,
+                             hint="recorriendo la franquicia…" if walking else None,
+                             note="Recorriendo la franquicia en segundo plano. La pestaña ya se puede usar."
+                             if walking else None,
+                             browsable=not walking)
+        self.__load_posters([(str(item.id), item.poster, str(item.id)) for item in (prequel, sequel)
+                             if item is not None] + [self.__current_poster_job()], self.__on_carousel_poster)
+
+    def __on_franchise_line(self, line: FranchiseLine) -> None:
+        """Pinta la línea principal recorrida. Llega en el hilo de Tk, y puede llegar tarde."""
+        if self.__carousel is None or not self.__carousel.winfo_exists():
+            return
+        records = self.__library_records()
+        items = []
+        for index, entry in enumerate(line.entries):
+            current = index == line.current_index
+            items.append(self.__carousel_item(entry.id, entry.title, "Estás aquí" if current else f"T{index + 1}",
+                                              entry.year, entry.format, records, current=current))
+        hint = None
+        if line.truncated:
+            hint = f"se muestran {len(line.entries)} temporadas; la franquicia sigue"
+        elif line.interrupted:
+            hint = "no se ha podido recorrer entera"
+        self.__line_titles = {item.key: item.title for item in items}
+        self.__carousel.show(items, line.current_index, hint=hint)
+        jobs = [(entry.id, entry.poster, entry.id) for index, entry in enumerate(line.entries)
+                if index != line.current_index]
+        self.__load_posters(jobs + [self.__current_poster_job()], self.__on_carousel_poster)
+
+    def __open_line_entry(self, anime_id: str) -> None:
+        self.__open_related(anime_id, self.__line_titles.get(anime_id, ""))
+
+    def __on_carousel_poster(self, key: str, image: Image.Image) -> None:
+        if self.__carousel is not None and self.__carousel.winfo_exists():
+            self.__carousel.set_poster(key, image)
+
+    # --- Resto de relacionados --------------------------------------------
+    @staticmethod
+    def __instant_format_hint(related: RelatedAnime) -> FormatHint:
+        """El formato que se sabe sin red: el del proveedor o, si no, el deducido del título."""
+        if related.format is not None:
+            return FormatHint(related.format)
+        deduced = deduce_format_from_title(related.title)
+        return FormatHint(deduced, deduced=True) if deduced is not None else FormatHint(None)
+
+    def __on_format_hints(self, hints: Dict[str, FormatHint]) -> None:
+        """Repinta los relacionados con los formatos completos. Llega en el hilo de Tk."""
+        if self.__others_frame is None or not self.__others_frame.winfo_exists():
+            return
+        for related in self.__others:
+            hint = hints.get(str(related.id))
+            if hint is not None and hint.format is not None:
+                self.__format_hints[str(related.id)] = hint
+        self.__formats_pending = False
+        self.__paint_others()
+
+    def __group_of(self, related: RelatedAnime) -> str:
+        """En qué grupo de la pestaña va un relacionado: por formato, y las versiones alternativas aparte."""
+        if related.relation == AnimeRelationType.ALTERNATIVE:
+            return GROUP_ALTERNATIVES
+        hint = self.__format_hints.get(str(related.id))
+        anime_format = hint.format if hint is not None else None
+        if anime_format == AnimeFormat.MOVIE:
+            return GROUP_MOVIES
+        if anime_format in (AnimeFormat.SERIES, AnimeFormat.ONA):
+            return GROUP_SERIES
+        if anime_format in (AnimeFormat.OVA, AnimeFormat.SPECIAL):
+            return GROUP_OVAS
+        return GROUP_UNKNOWN
+
+    def __paint_others(self) -> None:
+        """Pinta los relacionados que no son de la línea principal, por grupos, y la leyenda."""
+        frame = self.__others_frame
+        for child in frame.winfo_children():
+            child.destroy()
+        self.__related_cards.clear()
+
+        records = self.__library_records()
+        groups: Dict[str, List[RelatedAnime]] = {name: [] for name in RELATION_GROUPS}
+        for related in self.__others:
+            groups[self.__group_of(related)].append(related)
+        width_hint = self.__tabs.winfo_width() if self.__tabs.winfo_width() > 1 else \
+            Metrics.WINDOW_W - Metrics.SIDEBAR_W - 2 * Metrics.CONTENT_PAD_X
+
+        row = 0
+        for name in RELATION_GROUPS:
+            if not groups[name]:
+                continue
+            ctk.CTkLabel(frame, text=name.upper(), font=Theme.font(*Theme.T_LABEL), text_color=Theme.TXT_3,
+                         height=16, anchor="w").grid(row=row, column=0, sticky="w",
+                                                     pady=(RELATIONS_GROUP_GAP if row else 0, 10))
+            grid = RelatedGrid(frame)
+            grid.grid(row=row + 1, column=0, sticky="ew")
+            grid.set_cards([self.__related_card(grid, related, records) for related in groups[name]], width_hint)
+            row += 2
+        self.__paint_relations_legend(frame, row)
+
+    def __related_card(self, parent: RelatedGrid, related: RelatedAnime, records: List[AnimeRecord]) -> RelatedCard:
+        """Tarjeta de un relacionado, con su formato, de dónde sale ese formato y su estado."""
+        related_id = str(related.id)
+        hint = self.__format_hints.get(related_id) or FormatHint(None)
+        if hint.format is not None:
+            format_text, format_style = FORMAT_LABELS[hint.format], "dashed" if hint.deduced else "solid"
+        else:
+            format_text, format_style = ("…" if self.__formats_pending else "¿?"), "dotted"
+        card = RelatedCard(
+            parent,
+            related.title,
+            RELATION_LABELS.get(related.relation, "Otro"),
+            on_click=lambda: self.__open_related(related.id, related.title),
+            year=related.year,
+            format_text=format_text,
+            format_style=format_style,
+            source=hint.short_name,
+            status=self.__related_status(related.id, related.title, records),
+            with_poster=related.poster is not None or find_cached_poster_path(related_id) is not None
+        )
+        poster = self.__related_posters.get(related_id)
+        if poster is not None:
+            card.set_poster(poster)
+        self.__related_cards[related_id] = card
+        return card
+
+    def __paint_relations_legend(self, frame: ctk.CTkFrame, row: int) -> None:
+        """Leyenda de los formatos: de qué proveedor salen, cuáles se han deducido y si aún falta alguno."""
+        hints = [self.__format_hints.get(str(related.id)) for related in self.__others]
+        short_names = sorted({hint.short_name for hint in hints if hint is not None and hint.short_name})
+        any_deduced = any(hint is not None and hint.deduced for hint in hints)
+        any_missing = any(hint is None or hint.format is None for hint in hints)
+        if not (short_names or any_deduced or (any_missing and self.__formats_pending)):
+            return
+        legend = ctk.CTkFrame(frame, height=1, fg_color=Theme.TRANSPARENT)
+        legend.grid(row=row, column=0, sticky="w", pady=(14, 0))
+        meta_font = Theme.font(*Theme.T_META)
+        parts: List[ctk.CTkBaseClass] = []
+        if any_missing and self.__formats_pending:
+            parts.append(ctk.CTkLabel(legend, text="Buscando el formato que falta…", font=meta_font,
+                                      text_color=Theme.TXT_3, height=18))
+        providers = {self.anime_provider_mgr.get_provider_info(provider_id).short_name: provider_id
+                     for provider_id in self.anime_provider_mgr.list_providers()}
+        for short_name in short_names:
+            parts.append(ctk.CTkLabel(legend, text=short_name, font=Theme.font(10, True), text_color=Theme.ACCENT,
+                                      height=18))
+            parts.append(ctk.CTkLabel(
+                legend, text=f"formato facilitado por "
+                             f"{self.anime_provider_mgr.get_provider_name(providers.get(short_name))}",
+                font=meta_font, text_color=Theme.TXT_3, height=18))
+        if any_deduced:
+            parts.append(format_chip(legend, "OVA", "dashed"))
+            parts.append(ctk.CTkLabel(legend, text="deducido del título", font=meta_font, text_color=Theme.TXT_3,
+                                      height=18))
+        for column, part in enumerate(parts):
+            part.grid(row=0, column=column, padx=(0 if column == 0 else 6, 0))
+
+    def __on_related_poster(self, key: str, image: Image.Image) -> None:
+        self.__related_posters[key] = image
+        card = self.__related_cards.get(key)
+        if card is not None and card.winfo_exists():
+            card.set_poster(image)
+
+    # --- Pósters ----------------------------------------------------------
+    def __load_posters(self, jobs: List[Tuple[str, Optional[str], Optional[str]]],
+                       deliver: Callable[[str, Image.Image], None]) -> None:
+        """Busca en un hilo los pósters, uno detrás de otro, y los entrega en el hilo de Tk.
+
+        :param jobs: (clave con la que se entrega, URL o None, id con el que buscarlo en disco).
+        :param deliver: Recibe (clave, imagen); comprueba él si su widget sigue vivo.
+        """
+        jobs = [job for job in jobs if job[1] or job[2]]
+        if not jobs:
+            return
+        main_window = self.main_window
+
+        def _work():
+            for key, url, disk_id in jobs:
+                image = _related_poster(url, disk_id)
+                if image is None:
+                    continue
+                try:
+                    main_window.after(0, deliver, key, image)
+                except RuntimeError:
+                    return
+
+        threading.Thread(target=_work, daemon=True).start()
+
+    # ------------------------------------------------------------------
     # Lista de episodios
     # ------------------------------------------------------------------
-    def __build_episodes(self, content: ctk.CTkFrame) -> None:
-        """Cabecera de la lista (título, orden y buscador) y el cuerpo de filas."""
-        episodes_frame = ctk.CTkFrame(content, fg_color=Theme.TRANSPARENT)
-        episodes_frame.grid(row=1, column=0, sticky="ew", padx=Metrics.CONTENT_PAD_X,
-                            pady=(EPISODES_PAD_TOP, SHEET_PAD_BOTTOM))
-        episodes_frame.grid_columnconfigure(0, weight=1)
+    def __build_tabs(self, content: ctk.CTkFrame) -> None:
+        """Pestañas debajo de la ficha. Solo se construye la de Episodios; las demás, al abrirlas."""
+        self.__tabs = TabBar(content)
+        self.__tabs.grid(row=1, column=0, sticky="ew", padx=Metrics.CONTENT_PAD_X,
+                         pady=(EPISODES_PAD_TOP, SHEET_PAD_BOTTOM))
+        self.__tabs.add_tab(TAB_EPISODES, "Episodios", self.__build_episodes_tab,
+                            count=len(self.anime_info.episodes))
+        if self.anime_info.related:
+            self.__tabs.add_tab(TAB_RELATIONS, "Temporadas y relacionados", self.__build_relations_tab)
 
-        header = ctk.CTkFrame(episodes_frame, height=1, fg_color=Theme.TRANSPARENT)
-        header.grid(row=0, column=0, sticky="ew", pady=(0, 8))
-        header.grid_columnconfigure(0, weight=1)
-
-        title = ctk.CTkLabel(
-            header,
-            text="Episodios",
-            font=Theme.font(*Theme.T_ROW),
-            text_color=Theme.TXT,
-            anchor="w"
-        )
-        title.grid(row=0, column=0, sticky="w")
-
+    def __build_episodes_tab(self, body: ctk.CTkFrame, tools: ctk.CTkFrame) -> None:
+        """Orden y buscador en la zona de herramientas, y las filas de episodio en el cuerpo."""
         self.__sort_button = ctk.CTkButton(
-            header,
+            tools,
             text=self.__sort_text(),
             width=1,
             height=EPISODE_CONTROL_H,
@@ -1446,10 +1974,10 @@ class AnimeWindowViewer:
             border_color=Theme.LINE,
             command=self.__toggle_sort_order
         )
-        self.__sort_button.grid(row=0, column=1, sticky="e", padx=(9, 0))
+        self.__sort_button.grid(row=0, column=0, sticky="e")
 
         self.search_entry = ctk.CTkEntry(
-            header,
+            tools,
             placeholder_text="Ir al episodio…",
             width=EPISODE_SEARCH_W,
             height=EPISODE_CONTROL_H,
@@ -1461,13 +1989,10 @@ class AnimeWindowViewer:
             text_color=Theme.TXT,
             placeholder_text_color=Theme.TXT_3
         )
-        self.search_entry.grid(row=0, column=2, sticky="e", padx=(9, 0))
+        self.search_entry.grid(row=0, column=1, sticky="e", padx=(9, 0))
         self.search_entry.bind("<Return>", self.__search_episodes)
 
-        self.__episodes_body = ctk.CTkFrame(episodes_frame, height=1, fg_color=Theme.TRANSPARENT)
-        self.__episodes_body.grid(row=1, column=0, sticky="ew")
-        self.__episodes_body.grid_columnconfigure(0, weight=1)
-
+        self.__episodes_body = body
         self.__display_episodes()
 
     def __sort_text(self) -> str:
@@ -1656,6 +2181,9 @@ class AnimeWindowViewer:
         content = self.main_window.content_frame
         canvas = getattr(content, "_parent_canvas", None)
         if canvas is None or row is None or not row.winfo_exists():
+            return
+        # Con otra pestaña delante la fila no está colocada y medirla daría cualquier cosa.
+        if self.__tabs is None or self.__tabs.selected != TAB_EPISODES:
             return
 
         # La fila acaba de nacer y los servidores de debajo también: sin esto,
@@ -2156,10 +2684,20 @@ class AnimeWindowViewer:
             watched = sum(1 for episode in self.anime_info.episodes if self.watched_status.get(episode.id, False))
             check_note = f"Marcado como visto · {watched} de {total}"
         buttons = [("Volver a la ficha", self.main_window.close_player, False)]
+        body = ""
         following = self.__adjacent_episode(episode_info.id, 1)
+        sequel = closest_related(self.anime_info.related or [], AnimeRelationType.SEQUEL) if following is None else None
         if following is not None:
             buttons.append((f"Ver el episodio {following.id}", lambda: self.__play_episode(following), True))
-        self.__player.show_message(f"Has terminado el episodio {episode_info.id}", "", buttons,
+        elif sequel is not None:
+            # Último episodio de una temporada con secuela: se ofrece empezarla por el 1,
+            # por el mismo camino que abrir un relacionado.
+            body = f"Era el último episodio. Sigue con «{sequel.title}»."
+            title_font = Theme.font(Theme.T_UI[0], True)
+            buttons.append((f"Empezar {Theme.ellipsize(sequel.title, title_font, END_CARD_TITLE_W, 1)}",
+                            lambda: self.__open_related(sequel.id, sequel.title, focus_episode=1,
+                                                        force_ascending=True), True))
+        self.__player.show_message(f"Has terminado el episodio {episode_info.id}", body, buttons,
                                    subtitle=subtitle, check_note=check_note, closable=True)
 
     def __mark_finished_episode(self, episode_id: Any) -> bool:
