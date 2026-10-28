@@ -10,7 +10,7 @@ y el id numérico interno que exige ese endpoint no son intercambiables.
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "APIs.jkanime"
 __module__ = "jkanime.py"
-__version__ = "0.3"
+__version__ = "0.4"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 import json
@@ -108,6 +108,7 @@ class JKAnime(AnimeProvider):
     PROVIDER_NAME = "JKAnime"
     PROVIDER_SHORT_NAME = "JK"
     BASE_URL = BASE_URL
+    RELATIONS_CARRY_FORMAT = True
 
     def search_animes_by_genres_and_order(self, genres: List[AnimeGenreFilter], order: str = None,
                                           page: int = None) -> Tuple[List[AnimeInfo], int]:
@@ -290,6 +291,35 @@ class JKAnime(AnimeProvider):
         :return: Ficha del anime, o None si falla la primera petición.
         """
         session = requests.Session()
+        page = self.__get_anime_page(anime_id, session)
+        if page is None:
+            return None
+        html, anime_info = page
+        anime_info.episodes = self.__get_episodes(html, anime_id, session)
+        return anime_info
+
+    def get_anime_relations(self, anime_id: Union[str, int]) -> Optional[AnimeInfo]:
+        """Obtiene la ficha de un anime sin el POST de episodios: una sola petición.
+
+        :param anime_id: Identificador (slug) del anime.
+        :return: Ficha del anime con episodes a None, o None si falla la petición.
+        """
+        page = self.__get_anime_page(anime_id)
+        return page[1] if page is not None else None
+
+    # ------------------------------------------------------------------
+    # Helpers privados de parseo
+    # ------------------------------------------------------------------
+
+    @classmethod
+    def __get_anime_page(cls, anime_id: Union[str, int],
+                         session: requests.Session = None) -> Optional[Tuple[str, AnimeInfo]]:
+        """Descarga y parsea la ficha de un anime, sin pedir sus episodios.
+
+        :param anime_id: Identificador (slug) del anime.
+        :param session: Sesión a reutilizar; la necesita el POST de episodios posterior.
+        :return: Tupla (HTML de la ficha, ficha con episodes a None), o None si falla.
+        """
         try:
             response = _fetch(f"{BASE_URL}/{anime_id}", session=session)
             response.raise_for_status()
@@ -315,26 +345,15 @@ class JKAnime(AnimeProvider):
         og_image = soup.select_one("meta[property='og:image']")
         poster = og_image.get("content", "") if og_image else ""
 
-        genres = self.__extract_genres(soup)
-        anime_format = self.__extract_format(soup)
-        related = self.__extract_relations(soup)
-
-        episodes = self.__get_episodes(html, anime_id, session)
-
-        return AnimeInfo(
+        return html, AnimeInfo(
             id=anime_id,
             title=title,
             poster=poster,
             synopsis=synopsis,
-            genres=genres,
-            episodes=episodes,
-            format=anime_format,
-            related=related,
+            genres=cls.__extract_genres(soup),
+            format=cls.__extract_format(soup),
+            related=cls.__extract_relations(soup),
         )
-
-    # ------------------------------------------------------------------
-    # Helpers privados de parseo
-    # ------------------------------------------------------------------
 
     @staticmethod
     def __translate_genre(genre: AnimeGenreFilter) -> str:

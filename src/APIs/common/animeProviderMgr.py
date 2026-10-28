@@ -1,7 +1,7 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "APIs.common"
 __module__ = "animeProviderMgr.py"
-__version__ = "0.5"
+__version__ = "0.6"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 import difflib
@@ -40,6 +40,9 @@ class AnimeProvider(ABC):
 
     #: URL base del sitio.
     BASE_URL: str = NotImplemented
+
+    #: True si los relacionados de su ficha traen su propio formato. Opcional.
+    RELATIONS_CARRY_FORMAT: bool = False
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
@@ -112,6 +115,18 @@ class AnimeProvider(ABC):
         :return: Ficha completa (sinopsis, géneros, episodios...).
         """
         raise NotImplementedError
+
+    def get_anime_relations(self, anime_id: Union[str, int]) -> Optional[AnimeInfo]:
+        """Obtiene la ficha de un anime sin garantizar sus episodios.
+
+        Basta para leer título, formato, póster y relacionados. Por defecto es
+        get_anime_info; un proveedor que pague una petición aparte por los
+        episodios la sobrescribe para ahorrársela.
+
+        :param anime_id: Identificador del anime en el proveedor.
+        :return: Ficha del anime, con episodes posiblemente a None; o None si falla.
+        """
+        return self.get_anime_info(anime_id)
 
     def is_available(self, timeout: float = 5.0) -> bool:
         """Comprueba si el proveedor responde, haciendo una petición a BASE_URL.
@@ -343,6 +358,23 @@ class AnimeProviderManager:
         :return: Tupla (AnimeInfo, provider_id), o (None, None) si nadie respondió.
         """
         return self.call_with_fallback("get_anime_info", anime_id, provider_id=provider_id, strict=strict)
+
+    def get_anime_relations(self, anime_id, provider_id: AnimeProviderId) -> Optional[AnimeInfo]:
+        """Ficha ligera de un anime en un proveedor concreto, sin fallback.
+
+        El slug solo significa algo en el sitio que lo dio, así que nunca se
+        pregunta a otro proveedor.
+
+        :param anime_id: Identificador del anime en ese proveedor.
+        :param provider_id: Proveedor al que se pregunta; debe estar registrado.
+        :return: Ficha sin garantía de episodios, o None si no responde.
+        """
+        if provider_id not in self._providers:
+            print(f"No se pueden pedir los relacionados: proveedor no registrado {provider_id}")
+            return None
+        result, _ = self.call_with_fallback("get_anime_relations", anime_id, provider_id=provider_id,
+                                            strict=True)
+        return result
 
     def search_animes_by_query(self, query: str = None, page: int = None,
                                provider_id: AnimeProviderId = None, strict: bool = False):
