@@ -1,7 +1,7 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "APIs.common"
 __module__ = "animeProviderMgr.py"
-__version__ = "0.6"
+__version__ = "0.7"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 import difflib
@@ -14,6 +14,9 @@ import requests
 from APIs.common.models import AnimeGenreFilter, AnimeInfo, AnimeProviderId, ProviderInfo, ServerInfo
 
 AnimeSearchResult = Tuple[List[AnimeInfo], int]
+
+#: Géneros sin equivalente común ya avisados, por proveedor: el aviso sale una vez por sesión.
+_WARNED_GENRES = set()
 
 
 class UnknownProviderError(Exception):
@@ -127,6 +130,37 @@ class AnimeProvider(ABC):
         :return: Ficha del anime, con episodes posiblemente a None; o None si falla.
         """
         return self.get_anime_info(anime_id)
+
+    def genre_filters(self, genres: List[str]) -> List[AnimeGenreFilter]:
+        """Traduce los géneros de una ficha de este proveedor al catálogo común. Sin red.
+
+        Lo que no tenga equivalente en AnimeGenreFilter se descarta, con un aviso
+        la primera vez que aparece en la sesión.
+
+        :param genres: Slugs de género tal como los da AnimeInfo.genres.
+        :return: Géneros comunes, en el mismo orden y sin repetir.
+        """
+        filters: List[AnimeGenreFilter] = []
+        for slug in genres or []:
+            genre = self._genre_from_slug(slug)
+            if genre is None:
+                if (self.PROVIDER_ID, slug) not in _WARNED_GENRES:
+                    _WARNED_GENRES.add((self.PROVIDER_ID, slug))
+                    print(f"Aviso: el género {slug!r} de {self.PROVIDER_NAME} no está en el catálogo común; se ignora")
+            elif genre not in filters:
+                filters.append(genre)
+        return filters
+
+    def _genre_from_slug(self, slug: str) -> Optional[AnimeGenreFilter]:
+        """El género común de un slug del sitio. Por defecto, el de igual value; un sitio con slugs propios lo sobrescribe.
+
+        :param slug: Slug de género del sitio.
+        :return: Género común, o None si no tiene equivalente.
+        """
+        try:
+            return AnimeGenreFilter(slug)
+        except ValueError:
+            return None
 
     def is_available(self, timeout: float = 5.0) -> bool:
         """Comprueba si el proveedor responde, haciendo una petición a BASE_URL.
@@ -389,6 +423,19 @@ class AnimeProviderManager:
         result, _ = self.call_with_fallback("search_animes_by_genres_and_order", genres, order, page,
                                             provider_id=provider_id, strict=strict)
         return result if result is not None else ([], 1)
+
+    def genre_filters(self, genres: List[str], provider_id: Optional[AnimeProviderId]) -> List[AnimeGenreFilter]:
+        """Géneros de una ficha traducidos al catálogo común por el proveedor que la sirvió. Sin red.
+
+        :param genres: Slugs de género de la ficha.
+        :param provider_id: Proveedor que la sirvió.
+        :return: Géneros comunes; [] si el proveedor no está registrado.
+        """
+        provider = self._providers.get(provider_id)
+        if provider is None:
+            print(f"No se pueden traducir los géneros: proveedor no registrado {provider_id}")
+            return []
+        return provider.genre_filters(genres)
 
     def get_anime_episode_servers(self, anime_id, episode_id, provider_id: AnimeProviderId = None,
                                   strict: bool = False) -> List[ServerInfo]:

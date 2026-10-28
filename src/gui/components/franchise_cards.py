@@ -1,7 +1,7 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "gui.components"
 __module__ = "franchise_cards.py"
-__version__ = "0.1"
+__version__ = "0.2"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 """Piezas con las que la ficha enseña la franquicia de un anime.
@@ -231,8 +231,10 @@ class ClickableCard(ctk.CTkFrame):
 
 def _poster_slot(parent, size: Tuple[int, int], radius: int) -> ctk.CTkLabel:
     """Hueco de póster del tamaño final, en gris hasta que llegue la imagen."""
+    # font= aunque no lleve texto: el CTkFont propio que crearía sin él muere en el
+    # hilo que recoja la basura y puede bloquearlo contra el de Tk (ver PosterGrid).
     return ctk.CTkLabel(parent, text="", width=size[0], height=size[1], corner_radius=radius,
-                        fg_color=Theme.LINE_SOFT)
+                        font=Theme.font(*Theme.T_UI), fg_color=Theme.LINE_SOFT)
 
 
 def _show_poster(slot: ctk.CTkLabel, image: Image.Image, size: Tuple[int, int], radius: int) -> None:

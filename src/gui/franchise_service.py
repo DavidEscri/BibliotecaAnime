@@ -1,7 +1,7 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "gui"
 __module__ = "franchise_service.py"
-__version__ = "0.2"
+__version__ = "0.3"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 """Recorrido en segundo plano de la franquicia de un anime.
@@ -282,6 +282,36 @@ class FranchiseService:
         if missing:
             hints.update(self.__formats_from_other_provider(anime_info, provider_id, missing))
         return hints
+
+    def known_franchise_ids(self, anime_info: AnimeInfo, provider_id: Optional[AnimeProviderId]) -> Set[str]:
+        """Slugs de la franquicia de un anime que ya se conocen, sin salir a la red.
+
+        Son sus relacionados directos y, de cada uno cuya página ya esté en la
+        caché, los de esa página, y así sucesivamente: lo que haya recorrido la
+        pestaña de relacionados en la sesión entra entero.
+
+        :param anime_info: Ficha del anime, con sus relacionados.
+        :param provider_id: Proveedor que sirvió esa ficha; los slugs son suyos.
+        :return: Slugs de la franquicia, sin el del propio anime.
+        """
+        own_id = str(anime_info.id)
+        franchise: Set[str] = set()
+        pending: List[AnimeInfo] = [anime_info]
+        visited: Set[str] = {own_id}
+        while pending:
+            page = pending.pop()
+            for related in page.related or []:
+                related_id = str(related.id)
+                franchise.add(related_id)
+                if related_id in visited:
+                    continue
+                visited.add(related_id)
+                with self.__lock:
+                    cached = self.__pages.get((provider_id, related_id))
+                if cached is not None:
+                    pending.append(cached)
+        franchise.discard(own_id)
+        return franchise
 
     # ------------------------------------------------------------------
     # Recorrido

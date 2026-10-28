@@ -1,7 +1,7 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "gui"
 __module__ = "anime_window.py"
-__version__ = "0.13"
+__version__ = "0.14"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 """Ficha de detalle de un anime: la pantalla desde la que se ve un episodio.
@@ -31,14 +31,15 @@ from tkinter import messagebox
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 from PIL import Image
 
-from APIs.common.models import AnimeFormat, AnimeInfo, AnimeProviderId, AnimeRelationType, EpisodeInfo, \
-    RelatedAnime, ServerInfo
+from APIs.common.models import AnimeFormat, AnimeGenreFilter, AnimeInfo, AnimeOrderFilter, AnimeProviderId, \
+    AnimeRelationType, EpisodeInfo, RelatedAnime, ServerInfo
 from APIs.common.animeProviderMgr import AnimeProviderManager, AnimeProviderManagerSingleton
 from APIs.resolvers import registry
 from APIs.resolvers.base import MediaSource
 from dataPersistence.animesPersistence import AnimeStatus, AnimeRecord
 from gui.components.franchise_cards import CAROUSEL_POSTER, CarouselItem, RelatedCard, RelatedGrid, \
     SeasonCarousel, SeasonLink, format_chip
+from gui.components.poster_grid import PosterGrid, PosterItem
 from gui.components.status_pill import StatusPill
 from gui.components.tab_bar import TabBar
 from gui.components.video_player import VideoPlayer, player_icon
@@ -170,6 +171,14 @@ END_CARD_TITLE_W = 150
 #: Claves de las pestañas de la ficha.
 TAB_EPISODES = "episodes"
 TAB_RELATIONS = "relations"
+TAB_RECOMMENDATIONS = "recommendations"
+#: «Te puede interesar»: cuántos se enseñan a la vez, por cuántos géneros del
+#: anime se busca, a qué tamaño y la separación entre la explicación, los
+#: pósters y el botón de abajo.
+RECOMMENDATIONS_SHOWN = 4
+RECOMMENDATION_GENRES = 2
+RECOMMENDATION_POSTER = Metrics.GRID5_POSTER
+RECOMMENDATIONS_GAP = 12
 #: Separación entre los bloques de la pestaña de relacionados.
 RELATIONS_BLOCK_GAP = 26
 RELATIONS_GROUP_GAP = 20
@@ -209,9 +218,6 @@ class SheetVisit:
     provider_id: Optional[AnimeProviderId]
     anime_record: Optional[AnimeRecord]
 
-
-# TODO: Al final de la lista de episodios nuevo frame del estilo. "Si te ha gustado One piece, te puede interesar..." y
-#  mostrar 4 animes con los mimos generos.
 
 # TODO: Agregar botón para alternar entre el manga y el anime.
 
@@ -321,36 +327,39 @@ def sync_saved_posters_async(animes_persistence, anime_info: AnimeInfo) -> None:
     threading.Thread(target=_sync, daemon=True).start()
 
 
-def _related_poster(url: Optional[str], disk_id: Optional[str]) -> Optional[Image.Image]:
-    """Póster de una temporada o un relacionado: del disco, de lo bajado en la sesión o de la red.
+def _related_poster(url: Optional[str], disk_id: Optional[str],
+                    size: Tuple[int, int] = CAROUSEL_POSTER) -> Optional[Image.Image]:
+    """Póster de una temporada, un relacionado o una recomendación: del disco, de lo bajado en la sesión o de la red.
 
     Sale a la red: solo desde un hilo daemon.
 
     :param url: URL del póster, o None si el proveedor no la da.
     :param disk_id: anime_id con el que buscarlo entre los pósters ya guardados.
-    :return: La imagen reducida al tamaño del carrusel, o None si no hay forma.
+    :param size: Mayor tamaño al que se va a pintar.
+    :return: La imagen reducida a ese tamaño, o None si no hay forma.
     """
     if disk_id:
         path = find_cached_poster_path(disk_id)
         if path is not None:
             try:
                 with Image.open(path) as image:
-                    return image.convert("RGB").resize(CAROUSEL_POSTER, Image.LANCZOS)
+                    return image.convert("RGB").resize(size, Image.LANCZOS)
             except Exception as e:
                 print(f"No se pudo leer el póster {path}: {e}")
     if not url:
         return None
+    cache_key = f"{size[0]}x{size[1]} {url}"
     with _RELATED_POSTERS_LOCK:
-        cached = _RELATED_POSTERS.get(url)
+        cached = _RELATED_POSTERS.get(cache_key)
         if cached is not None:
-            _RELATED_POSTERS.move_to_end(url)
+            _RELATED_POSTERS.move_to_end(cache_key)
             return cached
     image = download_poster(url)
     if image is None:
         return None
-    image = image.convert("RGB").resize(CAROUSEL_POSTER, Image.LANCZOS)
+    image = image.convert("RGB").resize(size, Image.LANCZOS)
     with _RELATED_POSTERS_LOCK:
-        _RELATED_POSTERS[url] = image
+        _RELATED_POSTERS[cache_key] = image
         while len(_RELATED_POSTERS) > _RELATED_POSTERS_MAX:
             _RELATED_POSTERS.popitem(last=False)
     return image
@@ -738,6 +747,26 @@ class AnimeWindowViewer:
         self.__open_request_seq: int = 0
         #: Título de cada temporada del carrusel, para buscarla en la biblioteca al abrirla.
         self.__line_titles: Dict[str, str] = {}
+
+        # --- Te puede interesar --------------------------------------------
+        #: Géneros por los que se busca: los primeros del anime que tienen equivalente común.
+        self.__rec_genres: List[AnimeGenreFilter] = []
+        self.__rec_reason: Optional[ctk.CTkFrame] = None
+        self.__rec_reason_labels: List[ctk.CTkLabel] = []
+        self.__rec_grid: Optional[PosterGrid] = None
+        self.__rec_button: Optional[ctk.CTkButton] = None
+        #: Lo que queda tras filtrar, en el orden del proveedor, con su fila guardada si la tiene.
+        self.__rec_candidates: List[Tuple[AnimeInfo, Optional[AnimeRecord]]] = []
+        #: Slugs ya vistos en alguna página, para no contar dos veces lo que repita el sitio.
+        self.__rec_seen: set = set()
+        self.__rec_dropped_finished: int = 0
+        self.__rec_dropped_franchise: int = 0
+        self.__rec_next_page: int = 1
+        self.__rec_last_page: int = 1
+        #: Primer candidato a la vista: 0 o RECOMMENDATIONS_SHOWN.
+        self.__rec_view: int = 0
+        #: Última búsqueda pedida: una respuesta con otro número llega tarde.
+        self.__rec_request_seq: int = 0
 
         # --- Reproductor acoplado ------------------------------------------
         self.__player: Optional[VideoPlayer] = None
@@ -1922,11 +1951,13 @@ class AnimeWindowViewer:
 
     # --- Pósters ----------------------------------------------------------
     def __load_posters(self, jobs: List[Tuple[str, Optional[str], Optional[str]]],
-                       deliver: Callable[[str, Image.Image], None]) -> None:
+                       deliver: Callable[[str, Image.Image], None],
+                       size: Tuple[int, int] = CAROUSEL_POSTER) -> None:
         """Busca en un hilo los pósters, uno detrás de otro, y los entrega en el hilo de Tk.
 
         :param jobs: (clave con la que se entrega, URL o None, id con el que buscarlo en disco).
         :param deliver: Recibe (clave, imagen); comprueba él si su widget sigue vivo.
+        :param size: Tamaño al que se reducen.
         """
         jobs = [job for job in jobs if job[1] or job[2]]
         if not jobs:
@@ -1935,7 +1966,7 @@ class AnimeWindowViewer:
 
         def _work():
             for key, url, disk_id in jobs:
-                image = _related_poster(url, disk_id)
+                image = _related_poster(url, disk_id, size)
                 if image is None:
                     continue
                 try:
@@ -1944,6 +1975,210 @@ class AnimeWindowViewer:
                     return
 
         threading.Thread(target=_work, daemon=True).start()
+
+    # ------------------------------------------------------------------
+    # Te puede interesar
+    # ------------------------------------------------------------------
+    def __build_recommendations_tab(self, body: ctk.CTkFrame, _tools: ctk.CTkFrame) -> None:
+        """Por qué se recomienda, cuatro pósters y el botón para ver otros cuatro.
+
+        La búsqueda se pide aquí, al abrir la pestaña: abrir la ficha no sale a la red.
+        """
+        self.__rec_reason = ctk.CTkFrame(body, height=1, fg_color=Theme.TRANSPARENT)
+        self.__rec_reason.grid(row=0, column=0, sticky="w")
+        text_font = Theme.font(*Theme.T_UI)
+        self.__rec_reason_labels = [
+            ctk.CTkLabel(self.__rec_reason, text="", font=text_font, text_color=Theme.TXT_3, height=20),
+            ctk.CTkLabel(self.__rec_reason, text="", font=Theme.font(Theme.T_UI[0], True), text_color=Theme.TXT,
+                         height=20),
+            ctk.CTkLabel(self.__rec_reason, text="", font=text_font, text_color=Theme.TXT_3, height=20),
+        ]
+        for column, label in enumerate(self.__rec_reason_labels):
+            label.grid(row=0, column=column, padx=(0 if column == 0 else 5, 0))
+
+        self.__rec_grid = PosterGrid(body, columns=RECOMMENDATIONS_SHOWN, poster_size=RECOMMENDATION_POSTER,
+                                     on_click=self.__open_recommendation, max_columns=RECOMMENDATIONS_SHOWN)
+        self.__rec_grid.grid(row=1, column=0, sticky="ew", pady=(RECOMMENDATIONS_GAP, 0))
+        self.__rec_button = ctk.CTkButton(
+            body,
+            text="",
+            width=1,
+            height=30,
+            corner_radius=Metrics.RADIUS_CONTROL,
+            font=Theme.font(Theme.T_UI[0], True),
+            fg_color=Theme.TRANSPARENT,
+            hover_color=Theme.ACCENT_SOFT,
+            text_color=Theme.ACCENT,
+            command=self.__on_recommendations_button
+        )
+        self.__request_recommendations(view=0, may_continue=True)
+
+    def __request_recommendations(self, view: int, may_continue: bool) -> None:
+        """Pide en un hilo la página siguiente de la búsqueda por géneros, al proveedor de la ficha y sin fallback.
+
+        :param view: Primer candidato que se enseñará cuando llegue.
+        :param may_continue: Si puede pedir una página más, sin que nadie la pida, cuando
+            tras filtrar no lleguen para llenar la vista.
+        """
+        self.__rec_request_seq += 1
+        request = self.__rec_request_seq
+        page, genres, provider_id = self.__rec_next_page, list(self.__rec_genres), self.provider_id
+        self.__show_recommendations_loading(view)
+        main_window = self.main_window
+
+        def _search():
+            # strict=True: los slugs tienen que ser del proveedor de la ficha, que es con el que se abren.
+            animes, last_page = self.anime_provider_mgr.search_animes_by_genres_and_order(
+                genres, AnimeOrderFilter.CALIFICACIÓN.value, page, provider_id=provider_id, strict=True)
+            try:
+                main_window.after(0, self.__on_recommendations, request, page, animes, last_page, view,
+                                  may_continue)
+            except RuntimeError:
+                pass
+
+        threading.Thread(target=_search, daemon=True).start()
+
+    def __on_recommendations(self, request: int, page: int, animes: List[AnimeInfo], last_page: int, view: int,
+                             may_continue: bool) -> None:
+        """Filtra la página llegada y pinta. En el hilo de Tk, y puede llegar tarde."""
+        if request != self.__rec_request_seq or self.__rec_grid is None or not self.__rec_grid.winfo_exists():
+            return
+        if not animes:
+            # El gestor devuelve lo mismo cuando el sitio falla que cuando no hay nada, y una
+            # búsqueda por géneros del propio sitio no viene vacía: se trata como un fallo.
+            self.__rec_last_page = page - 1
+            if not self.__rec_seen:
+                self.__show_recommendations_error()
+            else:
+                self.__show_recommendations(view)
+            return
+        self.__rec_next_page, self.__rec_last_page = page + 1, max(1, last_page)
+        self.__add_recommendation_candidates(animes)
+        if (may_continue and len(self.__rec_candidates) < view + RECOMMENDATIONS_SHOWN
+                and self.__rec_next_page <= self.__rec_last_page):
+            self.__request_recommendations(view, may_continue=False)
+            return
+        self.__show_recommendations(view)
+
+    def __add_recommendation_candidates(self, animes: List[AnimeInfo]) -> None:
+        """Quita de la página el propio anime, su franquicia y lo finalizado, y cuenta lo quitado.
+
+        La franquicia es la que se conoce sin red: los relacionados de la ficha y lo
+        que haya recorrido la pestaña de relacionados. Lo guardado se busca como los
+        sellos de esa pestaña, por slug y luego por título (``find_saved_duplicate()``).
+        """
+        records = self.__library_records()
+        records_by_slug = {str(record.anime_id): record for record in records}
+        franchise = self.main_window.franchise_service.known_franchise_ids(self.anime_info, self.provider_id)
+        own_ids = {str(self.anime_info.id), self.persistence_anime_id}
+        for anime in animes:
+            anime_id = str(anime.id)
+            if anime_id in self.__rec_seen or anime_id in own_ids:
+                continue
+            self.__rec_seen.add(anime_id)
+            if anime_id in franchise:
+                self.__rec_dropped_franchise += 1
+                continue
+            anime_record = records_by_slug.get(anime_id) or find_saved_duplicate(
+                records, anime.title, exclude_anime_id=self.persistence_anime_id)
+            if anime_record is not None and anime_record.is_finished:
+                self.__rec_dropped_finished += 1
+                continue
+            self.__rec_candidates.append((anime, anime_record))
+
+    def __show_recommendations_loading(self, view: int) -> None:
+        """Cuatro pósters vacíos mientras llega la búsqueda."""
+        if view == 0 and not self.__rec_candidates:
+            self.__set_rec_reason(f"Buscando animes de {self.__rec_genres_text(' y ')}…")
+        else:
+            self.__set_rec_reason(f"Buscando otros {RECOMMENDATIONS_SHOWN}…")
+        self.__rec_grid.show([PosterItem(key=None, title="") for _ in range(RECOMMENDATIONS_SHOWN)])
+        self.__rec_button.grid_remove()
+
+    def __show_recommendations(self, view: int) -> None:
+        """Pinta los candidatos a partir de ``view``, con su sello si ya son tuyos, y el botón que toque."""
+        self.__rec_view = view
+        if not self.__rec_candidates:
+            self.__set_rec_reason(f"No hay más animes de {self.__rec_genres_text(' y ')} que no tengas terminados")
+            self.__rec_grid.clear()
+            self.__rec_button.grid_remove()
+            return
+
+        self.__set_rec_reason("Porque te gusta", self.__rec_genres_text(" · "), self.__rec_dropped_text())
+        items: List[PosterItem] = []
+        jobs: List[Tuple[str, Optional[str], Optional[str]]] = []
+        for anime, anime_record in self.__rec_candidates[view:view + RECOMMENDATIONS_SHOWN]:
+            key = str(anime.id)
+            poster_path = find_cached_poster_path(key)
+            status = library_status(anime_record)
+            items.append(PosterItem(key=key, title=anime.title, poster_path=poster_path,
+                                    badge=StatusPill.text(status) if status is not None else None,
+                                    badge_status=status))
+            if poster_path is None:
+                jobs.append((key, anime.poster or None, None))
+        self.__rec_grid.show(items)
+        self.__load_posters(jobs, self.__on_recommendation_poster, RECOMMENDATION_POSTER)
+
+        if view > 0:
+            self.__show_rec_button("← Ver los primeros")
+        elif len(self.__rec_candidates) > RECOMMENDATIONS_SHOWN:
+            self.__show_rec_button(f"Ver otros {RECOMMENDATIONS_SHOWN} →")
+        else:
+            self.__rec_button.grid_remove()
+
+    def __show_recommendations_error(self) -> None:
+        """La búsqueda no ha devuelto nada: se dice y se ofrece repetirla, solo a mano."""
+        provider_name = self.anime_provider_mgr.get_provider_name(self.provider_id)
+        self.__set_rec_reason(f"No se han podido buscar animes de {self.__rec_genres_text(' y ')} en {provider_name}.")
+        self.__rec_grid.clear()
+        self.__show_rec_button("Reintentar")
+
+    def __on_recommendations_button(self) -> None:
+        """«Ver otros 4», «← Ver los primeros» o «Reintentar». Solo sale a la red si lo bajado no llega para cuatro más."""
+        if not self.__rec_seen:
+            self.__request_recommendations(view=0, may_continue=True)
+        elif self.__rec_view > 0:
+            self.__show_recommendations(0)
+        elif (len(self.__rec_candidates) < 2 * RECOMMENDATIONS_SHOWN
+              and self.__rec_next_page <= self.__rec_last_page):
+            self.__request_recommendations(RECOMMENDATIONS_SHOWN, may_continue=False)
+        else:
+            self.__show_recommendations(RECOMMENDATIONS_SHOWN)
+
+    def __show_rec_button(self, text: str) -> None:
+        self.__rec_button.configure(text=text)
+        self.__rec_button.grid(row=2, column=0, sticky="e")
+
+    def __set_rec_reason(self, *parts: str) -> None:
+        """Rellena la línea de arriba: texto en gris, géneros en negrita y lo quitado en gris. Lo vacío se esconde."""
+        for label, text in zip(self.__rec_reason_labels, list(parts) + [""] * len(self.__rec_reason_labels)):
+            label.configure(text=text)
+            if text:
+                label.grid()
+            else:
+                label.grid_remove()
+
+    def __rec_genres_text(self, separator: str) -> str:
+        return separator.join(refactor_genre_text(genre.name) for genre in self.__rec_genres)
+
+    def __rec_dropped_text(self) -> str:
+        """«· se han quitado 2 que ya has terminado y 1 de esta misma franquicia», o nada."""
+        parts = []
+        if self.__rec_dropped_finished:
+            parts.append(f"{self.__rec_dropped_finished} que ya has terminado")
+        if self.__rec_dropped_franchise:
+            parts.append(f"{self.__rec_dropped_franchise} de esta misma franquicia")
+        return f"· se han quitado {' y '.join(parts)}" if parts else ""
+
+    def __on_recommendation_poster(self, key: str, image: Image.Image) -> None:
+        if self.__rec_grid is not None and self.__rec_grid.winfo_exists():
+            self.__rec_grid.set_poster(key, image)
+
+    def __open_recommendation(self, key: Any) -> None:
+        """Abre una recomendación por el camino de los relacionados: su fila si la tiene, y esta ficha en el historial."""
+        anime = next((anime for anime, _ in self.__rec_candidates if str(anime.id) == str(key)), None)
+        if anime is not None:
+            self.__open_related(anime.id, anime.title)
 
     # ------------------------------------------------------------------
     # Lista de episodios
@@ -1957,6 +2192,11 @@ class AnimeWindowViewer:
                             count=len(self.anime_info.episodes))
         if self.anime_info.related:
             self.__tabs.add_tab(TAB_RELATIONS, "Temporadas y relacionados", self.__build_relations_tab)
+        if self.provider_id is not None:
+            self.__rec_genres = self.anime_provider_mgr.genre_filters(self.anime_info.genres or [],
+                                                                      self.provider_id)[:RECOMMENDATION_GENRES]
+        if self.__rec_genres:
+            self.__tabs.add_tab(TAB_RECOMMENDATIONS, "Te puede interesar", self.__build_recommendations_tab)
 
     def __build_episodes_tab(self, body: ctk.CTkFrame, tools: ctk.CTkFrame) -> None:
         """Orden y buscador en la zona de herramientas, y las filas de episodio en el cuerpo."""
