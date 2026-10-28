@@ -78,6 +78,7 @@ a = Analysis(
         'gui.components.view_header',
         'gui.anime_window',
         'gui.episode_refresher',
+        'gui.franchise_service',
         'gui.main_window',
         'utils.buttons.utilsButtons',
         'utils.db.sqlite',

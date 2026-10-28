@@ -29,6 +29,7 @@ from gui.sidebarButtons.searchAnimes.searchAnimes import SearchButton, AnimeSear
 from gui.sidebarButtons.watchingAnimes.watchingAnimes import WatchingAnimeButton
 from gui.components.sidebar import Sidebar
 from gui.episode_refresher import EpisodeRefresher
+from gui.franchise_service import FranchiseService
 from gui.theme import Metrics, Theme
 
 from utils.utils import get_resource_path, download_images_progress, download_animes_poster
@@ -96,6 +97,7 @@ class MainWindow(ctk.CTk):
         # Antes que las vistas: se suscriben a él al construirse.
         self.episode_refresher: EpisodeRefresher = EpisodeRefresher(self, self.anime_provider_mgr,
                                                                     self.animes_persistence)
+        self.franchise_service: FranchiseService = FranchiseService(self, self.anime_provider_mgr)
 
         self.load_sidebar_buttons()
         self.protocol("WM_DELETE_WINDOW", self.__on_close)
