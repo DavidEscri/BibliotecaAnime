@@ -1,7 +1,7 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "APIs.animeflv"
 __module__ = "animeflv.py"
-__version__ = "0.4"
+__version__ = "0.5"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 import time
@@ -27,6 +27,7 @@ class AnimeFLV(AnimeProvider):
 
     PROVIDER_ID = AnimeProviderId.ANIMEFLV
     PROVIDER_NAME = "AnimeFLV"
+    PROVIDER_SHORT_NAME = "FLV"
     BASE_URL = BASE_URL
 
     def search_animes_by_genres_and_order(self, genres: List[AnimeGenreFilter], order: str = None,

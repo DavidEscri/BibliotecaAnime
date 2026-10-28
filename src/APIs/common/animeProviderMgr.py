@@ -1,7 +1,7 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "APIs.common"
 __module__ = "animeProviderMgr.py"
-__version__ = "0.4"
+__version__ = "0.5"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 import difflib
@@ -23,10 +23,10 @@ class UnknownProviderError(Exception):
 class AnimeProvider(ABC):
     """Contrato que debe cumplir cualquier proveedor de anime.
 
-    Cada proveedor concreto define PROVIDER_ID, PROVIDER_NAME y BASE_URL como
-    atributos de clase, implementa los métodos abstractos devolviendo siempre
-    las estructuras comunes de APIs.common.models, y traduce internamente
-    cualquier slug de género propio de su sitio a AnimeGenreFilter.
+    Cada proveedor concreto define PROVIDER_ID, PROVIDER_NAME, PROVIDER_SHORT_NAME
+    y BASE_URL como atributos de clase, implementa los métodos abstractos
+    devolviendo siempre las estructuras comunes de APIs.common.models, y traduce
+    internamente cualquier slug de género o tipo de relación propio de su sitio.
     """
 
     #: Identificador único del proveedor; debe ser un miembro de AnimeProviderId.
@@ -35,13 +35,16 @@ class AnimeProvider(ABC):
     #: Nombre legible para mostrar en la interfaz.
     PROVIDER_NAME: str = NotImplemented
 
+    #: Siglas con las que la interfaz marca un dato que aporta este proveedor.
+    PROVIDER_SHORT_NAME: str = NotImplemented
+
     #: URL base del sitio.
     BASE_URL: str = NotImplemented
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
         if ABC not in cls.__bases__:
-            for attr in ("PROVIDER_ID", "PROVIDER_NAME", "BASE_URL"):
+            for attr in ("PROVIDER_ID", "PROVIDER_NAME", "PROVIDER_SHORT_NAME", "BASE_URL"):
                 if getattr(cls, attr, NotImplemented) is NotImplemented:
                     raise NotImplementedError(
                         f"{cls.__name__} debe definir el atributo de clase '{attr}'"
@@ -56,9 +59,10 @@ class AnimeProvider(ABC):
     def provider_info(cls) -> ProviderInfo:
         """Ficha de identidad del proveedor, construida desde sus atributos de clase.
 
-        :return: ProviderInfo con id, nombre y URL base.
+        :return: ProviderInfo con id, nombre, URL base y siglas.
         """
-        return ProviderInfo(id=cls.PROVIDER_ID, name=cls.PROVIDER_NAME, base_url=cls.BASE_URL)
+        return ProviderInfo(id=cls.PROVIDER_ID, name=cls.PROVIDER_NAME, base_url=cls.BASE_URL,
+                            short_name=cls.PROVIDER_SHORT_NAME)
 
     @abstractmethod
     def search_animes_by_genres_and_order(self, genres: List[AnimeGenreFilter], order: str = None,

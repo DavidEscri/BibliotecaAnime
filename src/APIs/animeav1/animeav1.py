@@ -6,28 +6,61 @@ no como HTML navegable por selectores. Se extraen con regex, con fallback al DOM
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "APIs.animeav1"
 __module__ = "animeav1.py"
-__version__ = "0.6"
+__version__ = "0.7"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
+import json
 import re
 import time
 
 import requests
 
-from typing import List, Optional, Union, Tuple
+from typing import Dict, List, Optional, Union, Tuple
 from bs4 import BeautifulSoup
 from urllib.parse import urlencode, urlparse, parse_qs
 
-from APIs.common.animeProviderMgr import AnimeProvider
-from APIs.common.models import AnimeGenreFilter, AnimeOrderFilter, AnimeProviderId, ServerInfo, EpisodeInfo, AnimeInfo
+from APIs.common.animeProviderMgr import AnimeProvider, AnimeProviderManager
+from APIs.common.models import (AnimeFormat, AnimeGenreFilter, AnimeInfo, AnimeOrderFilter, AnimeProviderId,
+                                AnimeRelationType, EpisodeInfo, RelatedAnime, ServerInfo)
 from utils.http_session import thread_session
 
 BASE_URL = "https://animeav1.com"
 CATALOG_URL = f"{BASE_URL}/catalogo"
 MEDIA_URL = f"{BASE_URL}/media"
+COVER_URL = "https://cdn.animeav1.com/covers/{id}.jpg"
 
 # Fragmento que identifica el <script> de hidratación de SvelteKit con los datos de la página.
 _SVELTE_PAYLOAD_MARKER = "kit.start(app, element, {"
+
+# Cadena JS entre comillas dobles, con escapes.
+_JS_STRING = r'"((?:[^"\\]|\\.)*)"'
+
+# Códigos de relations[].type del payload; el resto se agrupa en OTHER.
+_RELATION_CODES: Dict[int, AnimeRelationType] = {
+    1: AnimeRelationType.PREQUEL,
+    2: AnimeRelationType.SEQUEL,
+    4: AnimeRelationType.ALTERNATIVE,
+}
+
+# Resumen, historia completa, historia principal y otro: conocidos, y OTHER sin aviso.
+_OTHER_RELATION_CODES = {6, 7, 8, 10}
+
+# Etiquetas de la sección «Relacionados» del DOM, ya normalizadas.
+_DOM_RELATION_LABELS: Dict[str, AnimeRelationType] = {
+    "precuela": AnimeRelationType.PREQUEL,
+    "secuela": AnimeRelationType.SEQUEL,
+    "version alternativa": AnimeRelationType.ALTERNATIVE,
+}
+
+# category.malId del payload, que es un código estable; category.name es texto para humanos.
+_FORMAT_CODES: Dict[str, AnimeFormat] = {
+    "TV": AnimeFormat.SERIES,
+    "Movie": AnimeFormat.MOVIE,
+    "OVA": AnimeFormat.OVA,
+    "TV Special": AnimeFormat.SPECIAL,
+    "Special": AnimeFormat.SPECIAL,
+    "ONA": AnimeFormat.ONA,
+}
 
 
 def _fetch(url: str, **kwargs) -> requests.Response:
@@ -46,10 +79,23 @@ def _fetch(url: str, **kwargs) -> requests.Response:
     return response
 
 
+def _unescape_js(text: str) -> str:
+    """Deshace los escapes de una cadena JS entre comillas dobles.
+
+    :param text: Contenido de la cadena, sin las comillas.
+    :return: Texto sin escapes; el original si no es una cadena válida.
+    """
+    try:
+        return json.loads(f'"{text}"')
+    except ValueError:
+        return text.replace('\\"', '"')
+
+
 class AnimeAV1(AnimeProvider):
 
     PROVIDER_ID = AnimeProviderId.ANIMEAV1
     PROVIDER_NAME = "AnimeAV1"
+    PROVIDER_SHORT_NAME = "AV1"
     BASE_URL = BASE_URL
 
     def search_animes_by_genres_and_order(self, genres: List[AnimeGenreFilter], order: str = None,
@@ -171,6 +217,8 @@ class AnimeAV1(AnimeProvider):
                 title = None
                 synopsis = None
                 episodes_count = 0
+                anime_format = None
+                related = None
 
                 if payload is not None:
                     title_match = re.search(r'title:\s*"(.+?)",', payload)
@@ -183,6 +231,9 @@ class AnimeAV1(AnimeProvider):
                         synopsis = synopsis_match.group(1).replace('\\n', '\n').replace('\\"', '"')
                     if episodes_match:
                         episodes_count = int(episodes_match.group(1))
+
+                    anime_format = self.__extract_format(payload)
+                    related = self.__extract_relations(payload)
 
                 # Fallbacks por si el payload cambia de formato entre despliegues del sitio
                 if title is None:
@@ -201,6 +252,9 @@ class AnimeAV1(AnimeProvider):
                 if episodes_count == 0:
                     episodes_count = self.__count_episodes_from_dom(soup, anime_id)
 
+                if related is None:
+                    related = self.__extract_relations_from_dom(soup)
+
                 episodes = [EpisodeInfo(id=i, anime=anime_id) for i in range(1, episodes_count + 1)]
 
                 return AnimeInfo(
@@ -210,6 +264,8 @@ class AnimeAV1(AnimeProvider):
                     synopsis=synopsis,
                     genres=genres,
                     episodes=episodes,
+                    format=anime_format,
+                    related=related,
                 )
 
             except requests.RequestException as exc:
@@ -310,6 +366,134 @@ class AnimeAV1(AnimeProvider):
             if match:
                 episode_numbers.add(int(match.group(1)))
         return max(episode_numbers) if episode_numbers else 0
+
+    @staticmethod
+    def __extract_format(payload: str) -> Optional[AnimeFormat]:
+        """Lee el formato del anime de category.malId en el payload.
+
+        :param payload: Payload de SvelteKit de la ficha.
+        :return: Formato del anime, o None si no viene o no se reconoce.
+        """
+        match = re.search(r'category:\{[^{}]*?malId:"([^"]*)"', payload)
+        if match is None:
+            return None
+        anime_format = _FORMAT_CODES.get(match.group(1))
+        if anime_format is None:
+            print(f"Aviso: formato de AnimeAV1 desconocido {match.group(1)!r}; se deja sin formato")
+        return anime_format
+
+    @classmethod
+    def __extract_relations(cls, payload: str) -> Optional[List[RelatedAnime]]:
+        """Lee los relacionados directos del array relations del payload.
+
+        La relación no trae su formato; el año sale de startDate y el póster, del id.
+
+        :param payload: Payload de SvelteKit de la ficha.
+        :return: Relacionados, o None si el payload no trae la clave relations.
+        """
+        array = cls.__extract_js_array(payload, "relations:")
+        if array is None:
+            return None
+
+        related: List[RelatedAnime] = []
+        for entry in re.split(r"(?=\{type:)", array):
+            type_match = re.search(r"type:(\d+)", entry)
+            slug_match = re.search(r"slug:" + _JS_STRING, entry)
+            title_match = re.search(r"title:" + _JS_STRING, entry)
+            if type_match is None or slug_match is None or title_match is None:
+                continue
+            id_match = re.search(r"\bid:(\d+)", entry)
+            year_match = re.search(r'startDate:"(\d{4})', entry)
+            related.append(RelatedAnime(
+                id=_unescape_js(slug_match.group(1)),
+                title=_unescape_js(title_match.group(1)),
+                relation=cls.__relation_from_code(int(type_match.group(1))),
+                year=int(year_match.group(1)) if year_match else None,
+                poster=COVER_URL.format(id=id_match.group(1)) if id_match else None,
+            ))
+        return related
+
+    @staticmethod
+    def __relation_from_code(code: int) -> AnimeRelationType:
+        """Traduce un código de relations[].type al tipo de relación común.
+
+        :param code: Código numérico del payload.
+        :return: Tipo de relación; OTHER para cualquier código sin traducción.
+        """
+        if code in _RELATION_CODES:
+            return _RELATION_CODES[code]
+        if code not in _OTHER_RELATION_CODES:
+            print(f"Aviso: tipo de relación de AnimeAV1 desconocido ({code}); se trata como «Otro»")
+        return AnimeRelationType.OTHER
+
+    @staticmethod
+    def __extract_relations_from_dom(soup: BeautifulSoup) -> List[RelatedAnime]:
+        """Lee los relacionados de la sección «Relacionados» del DOM.
+
+        Fallback para cuando el payload no trae relations.
+
+        :param soup: Ficha del anime ya parseada.
+        :return: Relacionados, o [] si la ficha no tiene esa sección.
+        """
+        heading = next((h2 for h2 in soup.select("main h2") if "Relacionados" in h2.get_text()), None)
+        section = heading.find_parent("section") if heading is not None else None
+        if section is None:
+            return []
+
+        related: List[RelatedAnime] = []
+        for article in section.select("article"):
+            link = article.select_one("a[href^='/media/']")
+            title_el = article.select_one("h3")
+            if link is None or title_el is None:
+                continue
+            label_el = article.select_one("header span")
+            label = AnimeProviderManager.normalize_title(label_el.get_text(strip=True)) if label_el else ""
+            year_el = article.find_previous_sibling("div")
+            year_text = year_el.get_text(strip=True) if year_el is not None else ""
+            img_el = article.select_one("img")
+            related.append(RelatedAnime(
+                id=urlparse(link.get("href", "")).path.removeprefix("/media/").strip("/"),
+                title=title_el.get_text(strip=True),
+                relation=_DOM_RELATION_LABELS.get(label, AnimeRelationType.OTHER),
+                year=int(year_text) if year_text.isdigit() else None,
+                poster=img_el.get("src") if img_el is not None else None,
+            ))
+        return related
+
+    @staticmethod
+    def __extract_js_array(payload: str, key: str) -> Optional[str]:
+        """Recorta el contenido del array JS que sigue a una clave, contando corchetes.
+
+        Respeta las cadenas, porque un título puede llevar corchetes («[Oshi no Ko]»).
+
+        :param payload: Texto JS donde buscar.
+        :param key: Clave seguida del array, con sus dos puntos (p. ej. "relations:").
+        :return: Lo que hay entre los corchetes, o None si la clave no está o no se cierra.
+        """
+        start = payload.find(key + "[")
+        if start == -1:
+            return None
+        open_pos = start + len(key)
+        depth = 0
+        in_string = escaped = False
+        for pos in range(open_pos, len(payload)):
+            char = payload[pos]
+            if in_string:
+                if escaped:
+                    escaped = False
+                elif char == "\\":
+                    escaped = True
+                elif char == '"':
+                    in_string = False
+            elif char == '"':
+                in_string = True
+            elif char == "[":
+                depth += 1
+            elif char == "]":
+                depth -= 1
+                if depth == 0:
+                    return payload[open_pos + 1:pos]
+        return None
 
     @staticmethod
     def __apply_client_side_order(animes: List[AnimeInfo], order: str) -> List[AnimeInfo]:

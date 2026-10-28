@@ -5,7 +5,7 @@ Ningún proveedor debe redefinir estas clases: se importan siempre desde aquí.
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "APIs.models"
 __module__ = "models.py"
-__version__ = "0.2"
+__version__ = "0.3"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 from dataclasses import dataclass
@@ -39,6 +39,7 @@ class ProviderInfo:
     id: AnimeProviderId
     name: str
     base_url: str
+    short_name: str
 
 
 class AnimeGenreFilter(Enum):
@@ -95,6 +96,44 @@ class AnimeOrderFilter(Enum):
     CALIFICACIÓN = "rating"
 
 
+class AnimeFormat(Enum):
+    """Formato de emisión de un anime.
+
+    Los textos que ve el usuario («Serie», «Película»…) son cosa de la interfaz.
+    """
+    SERIES = "series"
+    MOVIE = "movie"
+    OVA = "ova"
+    SPECIAL = "special"
+    ONA = "ona"
+
+
+class AnimeRelationType(Enum):
+    """Relación de un anime con otro de su franquicia.
+
+    Solo cuatro a propósito: cualquier otro tipo que dé un sitio (adicional,
+    derivado, resumen…) lo traduce el proveedor a OTHER.
+    """
+    PREQUEL = "prequel"
+    SEQUEL = "sequel"
+    ALTERNATIVE = "alternative"
+    OTHER = "other"
+
+
+@dataclass
+class RelatedAnime:
+    """Anime relacionado con otro, tal como lo anuncia la ficha de este último.
+
+    format, year y poster valen None cuando el proveedor no los da en la relación.
+    """
+    id: Union[str, int]
+    title: str
+    relation: AnimeRelationType
+    format: Optional[AnimeFormat] = None
+    year: Optional[int] = None
+    poster: Optional[str] = None
+
+
 @dataclass
 class ServerInfo:
     server: str
@@ -109,6 +148,11 @@ class EpisodeInfo:
 
 @dataclass
 class AnimeInfo:
+    """Anime tal como lo sirve un proveedor.
+
+    related vale [] si el anime no tiene relacionados y None si el proveedor no
+    sabe darlos: la interfaz distingue «no tiene» de «no lo sé».
+    """
     id: Union[str, int]
     title: str
     poster: str
@@ -116,3 +160,5 @@ class AnimeInfo:
     genres: Optional[List[str]] = None
     episodes: Optional[List[EpisodeInfo]] = None
     provider_id: Optional[AnimeProviderId] = None
+    format: Optional[AnimeFormat] = None
+    related: Optional[List[RelatedAnime]] = None
