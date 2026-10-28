@@ -1,15 +1,17 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "sidebarButtons"
 __module__ = "recentAnimes.py"
-__version__ = "0.7"
+__version__ = "0.8"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 import os
 import threading
+import customtkinter as ctk
 
 from typing import List, Union
 
 from APIs.common.animeProviderMgr import AnimeProviderManager, AnimeProviderManagerSingleton
+from APIs.common.models import AnimeInfo
 from dataPersistence.animesPersistence import AnimeRecord
 from gui.anime_window import AnimeWindowViewer, open_saved_anime, show_anime_info_error
 from gui.components.empty_state import EmptyState, glyph as empty_glyph
@@ -48,23 +50,34 @@ class RecentAnimeButton(utilsButtons.SidebarButton):
     def show_frame(self):
         """Revela la barra lateral (oculta durante la carga) y pinta esta vista."""
         self.main_window.sidebar_frame.grid(row=0, column=0, rowspan=8, sticky="nsew")
-
-        self.main_window.clear_frame()
         self.__show_recent_animes()
 
     # ------------------------------------------------------------------
     # Construcción de la vista
     # ------------------------------------------------------------------
     def __show_recent_animes(self):
-        self.main_window.clear_frame()
-        self.__resume_band = None
-        content = self.main_window.content_frame
-        content.grid_columnconfigure(0, weight=1)
+        """Reutiliza la página si estrenos, proveedor y «Retomar» no han cambiado.
 
-        header = ViewHeader(content, "Nuevos lanzamientos", self.__subtitle())
+        La banda «Retomar» pide su refresco de episodios en los dos casos.
+        """
+        recent_animes = self.main_window.recent_animes
+        resume_records = self.__resume_records() if recent_animes else []
+        subtitle = self.__subtitle()
+        signature = (tuple((anime.id, anime.title) for anime in recent_animes), subtitle,
+                     utilsButtons.saved_rows_signature(resume_records))
+        page = self.main_window.show_view(self, signature)
+        if page is not None:
+            self.__show_page(page, recent_animes, resume_records, subtitle)
+        elif self.__resume_band is not None:
+            self.main_window.episode_refresher.refresh(resume_records, urgent=True)
+
+    def __show_page(self, content: ctk.CTkFrame, recent_animes: List[AnimeInfo],
+                    resume_records: List[AnimeRecord], subtitle: str):
+        self.__resume_band = None
+
+        header = ViewHeader(content, "Nuevos lanzamientos", subtitle)
         header.grid(row=0, column=0, sticky="ew")
 
-        recent_animes = self.main_window.recent_animes
         if not recent_animes:
             # El hueco no significa "no tienes nada": el catálogo no es del
             # usuario, así que una lista vacía es que ningún proveedor respondió.
@@ -80,7 +93,6 @@ class RecentAnimeButton(utilsButtons.SidebarButton):
             empty_state.grid(row=1, column=0, pady=(60, 0))
             return
 
-        resume_records = self.__resume_records()
         resume_band = ResumeBand(content, resume_records, on_click=self.__on_saved_anime_click)
         if resume_band.has_content():
             resume_band.grid(row=1, column=0, sticky="ew",

@@ -1,7 +1,7 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "sidebarButtons"
 __module__ = "searchAnimes.py"
-__version__ = "0.4"
+__version__ = "0.5"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 """«Buscar»: la única pestaña que trae cosas de fuera, y la única que puede duplicarte la biblioteca.
@@ -102,6 +102,8 @@ class SearchButton(utilsButtons.SidebarButton):
         self.__displayed: Dict[str, Tuple[AnimeInfo, Optional[AnimeRecord]]] = {}
 
         # --- Widgets de la vista ------------------------------------------
+        #: Página de la vista, donde va también el estado vacío.
+        self.__page: Optional[ctk.CTkFrame] = None
         self.__query_entry: Optional[ctk.CTkEntry] = None
         self.__chips: Optional[GenreChips] = None
         self.__order_menu: Optional[OrderMenu] = None
@@ -116,13 +118,24 @@ class SearchButton(utilsButtons.SidebarButton):
     # Construcción de la vista
     # ------------------------------------------------------------------
     def show_frame(self):
-        self.main_window.clear_frame()
-        self.__show_browser()
+        """Reutiliza la página si la biblioteca no ha cambiado; si no, la reconstruye.
 
-    def __show_browser(self):
-        content = self.main_window.content_frame
-        content.grid_columnconfigure(0, weight=1)
+        La última búsqueda no entra en la firma: solo la cambia esta vista, así
+        que la página conservada ya la enseña. Lo que sí entra es lo que decide
+        los sellos y la fila que se pasa a la ficha.
+        """
+        signature = tuple(
+            (str(anime_record.anime_id), anime_record.title, anime_record.provider_id,
+             anime_record.is_favourite, anime_record.is_watching, anime_record.is_finished,
+             anime_record.is_pending)
+            for anime_record in self.animes_persistence.get_all_animes()
+        )
+        page = self.main_window.show_view(self, signature)
+        if page is not None:
+            self.__show_browser(page)
 
+    def __show_browser(self, content: ctk.CTkFrame):
+        self.__page = content
         self.__build_query_box(content)
         self.__build_filters(content)
 
@@ -442,7 +455,7 @@ class SearchButton(utilsButtons.SidebarButton):
 
         providers = len(self.anime_provider_mgr.list_providers_info())
         empty_state = EmptyState(
-            self.main_window.content_frame,
+            self.__page,
             message,
             icon=empty_glyph("search"),
             hint=(f"Han respondido los {providers} proveedores y ninguno lo tiene."

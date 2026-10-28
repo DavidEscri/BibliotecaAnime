@@ -1,7 +1,7 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "sidebarButtons"
 __module__ = "favouriteAnimes.py"
-__version__ = "0.5"
+__version__ = "0.6"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 """«Favoritos»: rejilla de cinco con la calificación personal debajo de cada título.
@@ -87,18 +87,19 @@ class FavouritesButton(utilsButtons.SidebarButton):
         self.__show_favourite_animes()
 
     def __show_favourite_animes(self):
-        self.main_window.clear_frame()
-        self.__show_browser()
+        """Reutiliza la página si los favoritos no han cambiado; si no, la reconstruye."""
+        favourite_animes: List[AnimeRecord] = self.animes_persistence.get_favourite_animes()
+        # El orden no entra en la firma: solo lo cambia esta vista, así que la
+        # página conservada ya lo enseña.
+        page = self.main_window.show_view(self, utilsButtons.saved_rows_signature(favourite_animes))
+        if page is not None:
+            self.__show_browser(page, favourite_animes)
 
     # ------------------------------------------------------------------
     # Construcción de la vista
     # ------------------------------------------------------------------
-    def __show_browser(self):
-        content = self.main_window.content_frame
-        content.grid_columnconfigure(0, weight=1)
-
+    def __show_browser(self, content: ctk.CTkFrame, favourite_animes: List[AnimeRecord]):
         self.__order = self.main_window.user_persistence.get_favourites_order()
-        favourite_animes: List[AnimeRecord] = self.animes_persistence.get_favourite_animes()
 
         header = ViewHeader(content, "Favoritos", self.__subtitle(favourite_animes))
         header.grid(row=0, column=0, sticky="ew")

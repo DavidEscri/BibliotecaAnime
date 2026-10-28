@@ -1,7 +1,7 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "utils"
 __module__ = "utils.py"
-__version__ = "0.6"
+__version__ = "0.7"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 import os
@@ -223,6 +223,31 @@ def find_cached_poster_path(anime_id) -> str | None:
         if os.path.exists(image_path):
             return image_path
     return None
+
+
+def find_cached_poster_paths(anime_ids: list) -> list:
+    """Como ``find_cached_poster_path()`` para varios animes, con un listado por carpeta.
+
+    Es lo que usa una vista al entrar para saber si sus pósters siguen igual: un
+    ``stat`` por anime y carpeta cuesta más que listar las seis carpetas.
+
+    :param anime_ids: Ids de los animes, en cualquier orden.
+    :return: Ruta del póster de cada uno, o None si no hay, en el mismo orden.
+    """
+    base_dir = get_resource_path("resources/images")
+    folders = []
+    for subfolder in POSTER_FOLDERS:
+        folder_path = os.path.join(base_dir, subfolder)
+        try:
+            folders.append((folder_path, set(os.listdir(folder_path))))
+        except OSError:
+            continue
+    paths = []
+    for anime_id in anime_ids:
+        file_name = f"{anime_id}.jpg"
+        paths.append(next((os.path.join(folder_path, file_name)
+                           for folder_path, file_names in folders if file_name in file_names), None))
+    return paths
 
 
 def download_poster(poster_url: str) -> Image.Image | None:

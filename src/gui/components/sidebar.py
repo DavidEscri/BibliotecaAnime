@@ -1,7 +1,7 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "gui.components"
 __module__ = "sidebar.py"
-__version__ = "0.2"
+__version__ = "0.3"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 """Barra lateral del rediseño: navegación, proveedor y apariencia.
@@ -163,7 +163,13 @@ class _NavItem:
     # Estado
     # ------------------------------------------------------------------
     def set_active(self, active: bool) -> None:
-        """Marca el ítem como activo o no, y repinta."""
+        """Marca el ítem como activo o no, y repinta solo si cambia.
+
+        Cambiar de vista solo cambia dos ítems: repintar los seis cuesta más que
+        volver a enseñar una vista conservada.
+        """
+        if active == self.__active:
+            return
         self.__active = active
         self.__paint()
 

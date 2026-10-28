@@ -1,7 +1,7 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "sidebarButtons"
 __module__ = "watchingAnimes.py"
-__version__ = "0.7"
+__version__ = "0.8"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 import os
@@ -67,17 +67,24 @@ class WatchingAnimeButton(utilsButtons.SidebarButton):
         self.__show_watching_animes()
 
     def __show_watching_animes(self):
-        self.main_window.clear_frame()
-        self.__show_browser()
+        """Reutiliza la página si «Viendo» no ha cambiado; si no, la reconstruye.
+
+        Los últimos vistos entran en la firma porque deciden qué anime va en el
+        panel lateral. El refresco de episodios se pide igual en los dos casos.
+        """
+        watching_animes: List[AnimeRecord] = self.animes_persistence.get_watching_animes()
+        signature = (utilsButtons.saved_rows_signature(watching_animes),
+                     tuple(self.main_window.user_persistence.get_last_watched_ids()))
+        page = self.main_window.show_view(self, signature)
+        if page is not None:
+            self.__show_browser(page, watching_animes)
+        elif watching_animes:
+            self.main_window.episode_refresher.refresh(watching_animes, urgent=True)
 
     # ------------------------------------------------------------------
     # Construcción de la vista
     # ------------------------------------------------------------------
-    def __show_browser(self):
-        content = self.main_window.content_frame
-        content.grid_columnconfigure(0, weight=1)
-
-        watching_animes: List[AnimeRecord] = self.animes_persistence.get_watching_animes()
+    def __show_browser(self, content: ctk.CTkFrame, watching_animes: List[AnimeRecord]):
         self.__watching_animes = watching_animes
         self.__side_panel = None
         self.__rows = {}

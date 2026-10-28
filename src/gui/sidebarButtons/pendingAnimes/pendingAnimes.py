@@ -1,7 +1,7 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "sidebarButtons"
 __module__ = "pendingAnimes.py"
-__version__ = "0.9"
+__version__ = "0.10"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 """«Pendientes»: la cola de lo que todavía no has empezado.
@@ -88,18 +88,24 @@ class PendingAnimeButton(utilsButtons.SidebarButton):
         self.__show_pending_animes()
 
     def __show_pending_animes(self):
-        self.main_window.clear_frame()
-        self.__show_browser()
+        """Reutiliza la página si «Pendientes» no ha cambiado; si no, la reconstruye.
+
+        El refresco de episodios se pide igual en los dos casos.
+        """
+        pending_animes: List[AnimeRecord] = self.animes_persistence.get_pending_animes()
+        # El orden no entra en la firma: solo lo cambia esta vista, así que la
+        # página conservada ya lo enseña.
+        page = self.main_window.show_view(self, utilsButtons.saved_rows_signature(pending_animes))
+        if page is not None:
+            self.__show_browser(page, pending_animes)
+        elif pending_animes:
+            self.main_window.episode_refresher.refresh(self.__sort_animes(pending_animes), urgent=True)
 
     # ------------------------------------------------------------------
     # Construcción de la vista
     # ------------------------------------------------------------------
-    def __show_browser(self):
-        content = self.main_window.content_frame
-        content.grid_columnconfigure(0, weight=1)
-
+    def __show_browser(self, content: ctk.CTkFrame, pending_animes: List[AnimeRecord]):
         self.__order = self.main_window.user_persistence.get_pending_order()
-        pending_animes: List[AnimeRecord] = self.animes_persistence.get_pending_animes()
         self.__pending_animes = pending_animes
         self.__rows = {}
 
