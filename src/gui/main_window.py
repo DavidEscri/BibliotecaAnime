@@ -1,9 +1,10 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "gui"
 __module__ = "main_window.py"
-__version__ = "0.8"
+__version__ = "0.9"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
+import copy
 import ctypes
 import threading
 import tkinter
@@ -11,7 +12,8 @@ import customtkinter as ctk
 
 from tkinter import messagebox
 from ctypes import wintypes
-from typing import Any, Callable, List, Optional, Tuple
+from dataclasses import dataclass
+from typing import Any, Callable, Dict, List, Optional, Tuple
 from PIL import Image, ImageSequence
 
 from APIs.animeav1.animeav1 import AnimeAV1Singleton
@@ -33,6 +35,14 @@ from gui.franchise_service import FranchiseService
 from gui.theme import Metrics, Theme
 
 from utils.utils import get_resource_path, download_images_progress, download_animes_poster
+
+
+@dataclass
+class ViewPage:
+    """Página conservada de una vista: su marco y la firma de lo que tiene pintado."""
+
+    frame: ctk.CTkFrame
+    signature: Any
 
 
 class MainWindow(ctk.CTk):
@@ -141,16 +151,60 @@ class MainWindow(ctk.CTk):
         #: Geometría, maximizado y ancho mínimo de la barra lateral de antes de
         #: la pantalla completa; None fuera de ella.
         self.__fullscreen_restore: Optional[Tuple[str, bool, int]] = None
+        #: Página de cada vista de la barra lateral, por vista. Viven toda la sesión.
+        self.__view_pages: Dict[Any, ViewPage] = {}
 
     def clear_frame(self):
-        """Destruye todos los widgets hijos del content_frame.
+        """Vacía el content_frame: esconde las páginas de las vistas y destruye lo demás.
 
-        Cambiar de vista pasa siempre por aquí, así que también cierra el
-        reproductor si estaba abierto: si no, mpv seguiría sonando debajo.
+        Lo demás es la ficha, que se rehace cada vez. Cambiar de vista pasa
+        siempre por aquí, así que también cierra el reproductor si estaba
+        abierto: si no, mpv seguiría sonando debajo.
         """
         self.close_player()
+        page_frames = [page.frame for page in self.__view_pages.values()]
         for widget in self.content_frame.winfo_children():
-            widget.destroy()
+            if any(widget is frame for frame in page_frames):
+                widget.grid_remove()
+            else:
+                widget.destroy()
+
+    def show_view(self, view: Any, signature: Any) -> Optional[ctk.CTkFrame]:
+        """Enseña la página de una vista: la que ya tenía si sus datos no han cambiado.
+
+        Reconstruir una vista cuesta cientos de milisegundos de widgets nuevos.
+        La firma es lo que la vista pinta, sacado de lo que ya lee al entrar:
+        si coincide con la de la última vez, la página se vuelve a colocar tal
+        cual; si no, se vacía para que la vista construya encima.
+
+        :param view: Vista de la barra lateral que se quiere enseñar.
+        :param signature: Datos de los que depende lo pintado, comparables con ``==``.
+            Se guarda una copia: la vista puede modificar sus filas en memoria.
+        :return: ``None`` si se ha reutilizado la página, o la página vacía donde construir.
+        """
+        self.clear_frame()
+        page = self.__view_pages.get(view)
+        reused = page is not None and page.signature == signature
+        if page is None:
+            frame = ctk.CTkFrame(self.content_frame, width=1, height=1, corner_radius=0,
+                                 fg_color=Theme.TRANSPARENT)
+            frame.grid_columnconfigure(0, weight=1)
+            page = ViewPage(frame, copy.deepcopy(signature))
+            self.__view_pages[view] = page
+        elif not reused:
+            for widget in page.frame.winfo_children():
+                widget.destroy()
+            page.signature = copy.deepcopy(signature)
+        page.frame.grid(row=0, column=0, sticky=ctk.NSEW)
+        # Toda vista entra arriba, venga de donde venga el desplazamiento.
+        self.content_frame._parent_canvas.yview_moveto(0)
+        if reused:
+            return None
+        if page.frame.winfo_width() <= 1:
+            # Recién creada no mide nada todavía, y las rejillas sacan sus columnas
+            # del ancho de la página: sin esto pintarían las del diseño y repintarían.
+            page.frame.update_idletasks()
+        return page.frame
 
     def create_content_frame(self) -> ctk.CTkScrollableFrame:
         """:return: CTkScrollableFrame compartido por todas las vistas, ya en el grid."""

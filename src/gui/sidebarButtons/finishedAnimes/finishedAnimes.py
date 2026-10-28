@@ -1,7 +1,7 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "sidebarButtons"
 __module__ = "finishedAnimes.py"
-__version__ = "0.5"
+__version__ = "0.6"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 """«Finalizados»: el archivo, en rejilla de seis con el sello de completado sobre la carátula.
@@ -71,17 +71,16 @@ class FinishedAnimeButton(utilsButtons.SidebarButton):
         self.__show_finished_animes()
 
     def __show_finished_animes(self):
-        self.main_window.clear_frame()
-        self.__show_browser()
+        """Reutiliza la página si los finalizados no han cambiado; si no, la reconstruye."""
+        finished_animes: List[AnimeRecord] = self.animes_persistence.get_finished_animes()
+        page = self.main_window.show_view(self, utilsButtons.saved_rows_signature(finished_animes))
+        if page is not None:
+            self.__show_browser(page, finished_animes)
 
     # ------------------------------------------------------------------
     # Construcción de la vista
     # ------------------------------------------------------------------
-    def __show_browser(self):
-        content = self.main_window.content_frame
-        content.grid_columnconfigure(0, weight=1)
-
-        finished_animes: List[AnimeRecord] = self.animes_persistence.get_finished_animes()
+    def __show_browser(self, content: ctk.CTkFrame, finished_animes: List[AnimeRecord]):
 
         header = ViewHeader(content, "Finalizados", self.__subtitle(finished_animes))
         header.grid(row=0, column=0, sticky="ew")

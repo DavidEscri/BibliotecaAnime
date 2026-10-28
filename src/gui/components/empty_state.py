@@ -128,7 +128,7 @@ def _draw(draw_glyph: Callable[[ImageDraw.ImageDraw, float, str], None],
 class EmptyState(ctk.CTkFrame):
     """El hueco de una vista, explicado y con una salida.
 
-    Se coloca centrado porque la columna 0 del ``content_frame`` lleva peso.
+    Se coloca centrado porque la columna 0 de la página de cada vista lleva peso.
     """
 
     #: Alto del botón de acción. Es el de un control de una línea, no el de los
