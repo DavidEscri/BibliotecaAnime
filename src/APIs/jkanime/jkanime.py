@@ -10,7 +10,7 @@ y el id numérico interno que exige ese endpoint no son intercambiables.
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "APIs.jkanime"
 __module__ = "jkanime.py"
-__version__ = "0.4"
+__version__ = "0.5"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 import json
@@ -52,6 +52,8 @@ _GENRE_TRANSLATIONS: Dict[AnimeGenreFilter, str] = {
     AnimeGenreFilter.SUPERPODERES: "super-poderes",
     AnimeGenreFilter.SUSPENSO: "thriller",
 }
+# La inversa, para leer los géneros de una ficha: el resto de slugs son ya el value del enum.
+_GENRES_FROM_SLUG: Dict[str, AnimeGenreFilter] = {slug: genre for genre, slug in _GENRE_TRANSLATIONS.items()}
 
 # 'popularidad' se deja adrede sin 'orden': orden=asc invertiría el criterio.
 _ORDER_TRANSLATIONS: Dict[str, Dict[str, str]] = {
@@ -359,6 +361,14 @@ class JKAnime(AnimeProvider):
     def __translate_genre(genre: AnimeGenreFilter) -> str:
         """Traduce un género del catálogo común al slug propio de JKAnime."""
         return _GENRE_TRANSLATIONS.get(genre, genre.value)
+
+    def _genre_from_slug(self, slug: str) -> Optional[AnimeGenreFilter]:
+        """Traduce un slug de género de JKAnime al catálogo común.
+
+        :param slug: Slug de género de la ficha (``/genero/<slug>/``).
+        :return: Género común, o None si no tiene equivalente.
+        """
+        return _GENRES_FROM_SLUG.get(slug) or super()._genre_from_slug(slug)
 
     @staticmethod
     def __slug_from_url(url: str) -> Optional[str]:

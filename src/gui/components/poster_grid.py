@@ -1,10 +1,10 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "gui.components"
 __module__ = "poster_grid.py"
-__version__ = "0.4"
+__version__ = "0.5"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
-"""Rejilla de pósters: el componente que comparten nuevos, favoritos, finalizados y buscar.
+"""Rejilla de pósters: el componente que comparten nuevos, favoritos, finalizados, buscar y «Te puede interesar».
 
 Una celda son hasta cinco piezas: el póster, un sello opcional superpuesto en la
 esquina, el título a dos líneas, una fila libre que construye la vista (las
@@ -27,14 +27,15 @@ contenedor, así que añadir o quitar una línea de contenido no toca ningún í
 """
 
 from dataclasses import dataclass
-from typing import Any, Callable, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import customtkinter as ctk
+from PIL import Image
 
 from dataPersistence.animesPersistence import AnimeStatus
 from gui.components.status_pill import StatusPill
 from gui.theme import Metrics, Theme
-from utils.utils import load_rounded_image
+from utils.utils import load_rounded_image, round_image
 
 
 @dataclass
@@ -110,6 +111,7 @@ class PosterGrid(ctk.CTkFrame):
                  extra_builder: Optional[Callable[[ctk.CTkFrame, PosterItem],
                                                   Optional[ctk.CTkBaseClass]]] = None,
                  on_columns_changed: Optional[Callable[[int], None]] = None,
+                 max_columns: Optional[int] = None,
                  **kwargs):
         """Construye la rejilla.
 
@@ -136,11 +138,15 @@ class PosterGrid(ctk.CTkFrame):
             pintar dos veces. Sin él, la rejilla se recoloca sola con los últimos
             ítems que recibió, que es lo que necesita «Buscar» (allí quien pagina
             es el proveedor, y qué animes trae una página no depende del ancho).
+        :param max_columns: tope de columnas aunque quepan más, para una rejilla
+            de número fijo de pósters («Te puede interesar»); el ancho sobrante se
+            reparte entre ellas. None no pone tope.
         """
         super().__init__(parent, height=1, corner_radius=0, fg_color=Theme.TRANSPARENT, **kwargs)
 
+        self.__max_columns = max_columns
         #: Columnas del diseño. Solo se usan cuando no hay ancho que medir.
-        self.reference_columns = max(1, columns)
+        self.reference_columns = max(1, columns if max_columns is None else min(columns, max_columns))
         #: Columnas que se están pintando ahora mismo.
         self.columns = self.reference_columns
         self.poster_size = poster_size
@@ -158,6 +164,11 @@ class PosterGrid(ctk.CTkFrame):
         #: Las imágenes hay que guardarlas: Tk no mantiene referencia a la imagen
         #: de un widget y el recolector se la llevaría, dejando la celda en blanco.
         self.__images: List[ctk.CTkImage] = []
+        #: Póster de cada celda pintada, por ``key``, para cambiarlo con ``set_poster()``.
+        self.__poster_labels: Dict[Any, ctk.CTkLabel] = {}
+        #: Pósters llegados después de pintar, por ``key``. Se guarda el dibujo PIL, no
+        #: el CTkImage, y sobreviven al repintado por cambio de columnas.
+        self.__late_posters: Dict[Any, Image.Image] = {}
 
         # add="+" y no un bind a secas: CTkBaseClass ya tiene atado su propio
         # <Configure> (mantiene _current_width / _current_height) y sustituirlo lo rompería.
@@ -183,7 +194,8 @@ class PosterGrid(ctk.CTkFrame):
         available = self.__available_width()
         if available <= 0:
             return self.reference_columns
-        return max(1, available // (self.poster_size[0] + Metrics.GRID_GAP_X))
+        columns = max(1, available // (self.poster_size[0] + Metrics.GRID_GAP_X))
+        return columns if self.__max_columns is None else min(columns, self.__max_columns)
 
     def __available_width(self) -> int:
         """Ancho útil, o 0 si todavía no hay nada que medir.
@@ -257,11 +269,28 @@ class PosterGrid(ctk.CTkFrame):
         """Destruye las celdas y suelta las imágenes."""
         self.__clear_cells()
         self.__items = []
+        self.__late_posters.clear()
+
+    def set_poster(self, key: Any, image: Image.Image) -> None:
+        """Pone el póster de una celda que se pintó sin él, porque había que bajarlo.
+
+        :param key: ``key`` del ítem.
+        :param image: Póster ya cargado, a cualquier tamaño: se reduce al de la rejilla.
+        """
+        self.__late_posters[key] = image
+        poster_label = self.__poster_labels.get(key)
+        if poster_label is None or not poster_label.winfo_exists():
+            return
+        poster = round_image(image, self.poster_size, Metrics.RADIUS_POSTER)
+        self.__images.append(poster)
+        poster_label.configure(image=poster)
 
     def destroy(self) -> None:
         """Destruye la rejilla soltando sus imágenes, porque la vista conserva la referencia a ella."""
         self.__images.clear()
         self.__items = []
+        self.__poster_labels.clear()
+        self.__late_posters.clear()
         super().destroy()
 
     def __render(self, items: List[PosterItem]) -> None:
@@ -278,6 +307,7 @@ class PosterGrid(ctk.CTkFrame):
         for widget in self.winfo_children():
             widget.destroy()
         self.__images.clear()
+        self.__poster_labels.clear()
 
     def __build_cell(self, item: PosterItem, row: int, column: int) -> None:
         """Construye y coloca una celda completa: póster, sello, título, fila libre y pie."""
@@ -289,10 +319,18 @@ class PosterGrid(ctk.CTkFrame):
         cell.grid(row=row, column=column, padx=gap_x, pady=(0, Metrics.GRID_GAP_Y), sticky="n")
         cell.grid_columnconfigure(0, minsize=self.poster_size[0])
 
-        image = load_rounded_image(item.poster_path or "", self.poster_size, Metrics.RADIUS_POSTER)
+        late_poster = self.__late_posters.get(item.key)
+        if late_poster is not None:
+            image = round_image(late_poster, self.poster_size, Metrics.RADIUS_POSTER)
+        else:
+            image = load_rounded_image(item.poster_path or "", self.poster_size, Metrics.RADIUS_POSTER)
         self.__images.append(image)
-        poster_label = ctk.CTkLabel(cell, text="", image=image)
+        # font= aunque no lleve texto: sin él, CTkLabel crea su propio CTkFont, que
+        # muere en el hilo que recoja la basura, y su __del__ llama a Tcl desde ahí:
+        # si ese hilo está arrancando, el de Tk espera por él y se bloquean los dos.
+        poster_label = ctk.CTkLabel(cell, text="", image=image, font=Theme.font(*Theme.T_UI))
         poster_label.grid(row=0, column=0)
+        self.__poster_labels[item.key] = poster_label
 
         if item.badge:
             # El glifo se crea aquí y no en la vista: un CTkImage que sobrevive a su
