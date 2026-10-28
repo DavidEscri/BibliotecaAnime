@@ -2,8 +2,8 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-10-20 · rama `feature/reproductor-embebido` · último commit de código **`f3fc229`** (fase 5 del reproductor) |
-| **Última revisión** | 2026-10-27 (**`<Configure>` de la raíz**, B17): `MainWindow` filtra en Tcl los `<Configure>` que no son de la ventana, el suyo y el de CTk; el reproductor se sigue reajustando al cambiar solo el alto (§12, `relayout()`). Antes, 2026-10-27 (**refresco de episodios**): «Viendo» y «Pendientes» se suscriben a `EpisodeRefresher` y repintan en el sitio; `AnimeRow` y `SidePanel` ganan `update_record()`. Antes, 2026-10-20 (**reproductor in-app**): **§12 nuevo**, el reproductor acoplado —`player_frame` encima de `content_frame`, la columna de información, `VideoPlayer` y `PlayerControls` (con su parámetro `floating`), las tarjetas de estado y la pantalla completa con barra flotante—; `VideoPlayer` entra en el mapa como **12.º componente**; `Theme` gana `VIDEO_BG` (**24** tokens) y `Metrics` las medidas `PLAYER_*`; `MainWindow` gana `player_frame` y seis métodos; la ficha pide los servidores en un hilo daemon y `__play_video()` ya no es solo `webbrowser.open()`; §10 gana el hilo de mpv. Antes, 2026-09-02 (**rejillas adaptables y sinopsis**): `PosterGrid` deja de tener un número fijo de columnas y lo **calcula del ancho**, con `on_columns_changed` para que la vista repagine; `Pager` estrena `set_page_size()`; el tamaño de página pasa de ser una constante a ser `columnas × 2 filas`. La ficha quita el tope de 74 caracteres de la sinopsis y estrena `wrap_synopsis()`, porque `wraplength` no puede con los saltos que trae el proveedor ([trampas 41 y 42](10-invariantes-y-trampas.md)). Antes, 2026-09-01 (**abrir la ficha por un episodio**): la ficha estrena `focus_episode` / `force_ascending` y dos métodos (`__focus_on_episode`, `__scroll_to_episode`); `AnimeRow` corrige sus ataduras —el clic saltaba el botón pero no su interior, así que la píldora **nunca ejecutó su `command`** ([trampa 40](10-invariantes-y-trampas.md))—; «Viendo» y «Pendientes» dejan de llevar al anime y llevan al episodio. Antes, 2026-09-01 (**ancho de las fichas de género**): `GenreChips` explica **quién decide el ancho de una ficha** y por qué el componente tiene que contarlo él ([trampa 39](10-invariantes-y-trampas.md)); se añade la regla general de que en CustomTkinter `width` es una petición, no un contrato. Antes, 2026-09-01 (**refresco de la banda «Retomar»**): `ResumeBand` y `ResumeCard` estrenan `update_record()`; la portada pasa a ser la **única vista que sale a la red por datos ya guardados**, y se explica por qué va sin *fallback*. Antes, 2026-09-01 (**hover de la lista de episodios**): `EpisodeRow` ata el hover a todos sus hijos y guarda la fila resaltada en un atributo de clase; se explica por qué `AnimeRow` no sufre lo mismo, y la regla de `bind()` gana su consecuencia con el ratón real. Antes, 2026-08-31 (**fondo de la pantalla de carga**): el apartado *Arranque* explica que la pantalla de carga es la ventana entera pintada de `Theme.BG`, y qué se veía antes. Antes, 2026-08-21 (**rediseño de interfaz, fases 1-9**): documento **reescrito entero**. Nacen `gui/theme.py` y los **11** componentes de `gui/components/`; la barra lateral pasa de seis botones sueltos a un `Sidebar` plegable; `SidebarButton` deja de ser un widget; las 6 vistas se rehacen y la ficha crece de 1 156 a 1 734 líneas |
+| **Fecha** | 2026-10-28 · rama `release/0.5.0` · último commit de código **`7bbbb3c`** |
+| **Última revisión** | 2026-10-28 (**versión 0.5.0**): **§5 reescrito**: las vistas construyen en **su página**, que `clear_frame()` esconde y `show_view()` reutiliza si la firma de datos coincide (B13); §2 al día (`show_view`, `franchise_service`). La ficha (**§8**) gana la **línea de temporadas** en la cabecera, **pestañas perezosas** (Episodios · Temporadas y relacionados · Te puede interesar), el carrusel, los grupos por formato, «← Volver a …» y la tarjeta de fin con la secuela. §6 gana **`TabBar`** y **`franchise_cards`** (**15** componentes), y `PosterGrid` sus `max_columns` y `set_poster()`. Antes, 2026-10-27 (**`<Configure>` de la raíz**, B17): `MainWindow` filtra en Tcl los `<Configure>` que no son de la ventana, el suyo y el de CTk; el reproductor se sigue reajustando al cambiar solo el alto (§12, `relayout()`). Antes, 2026-10-27 (**refresco de episodios**): «Viendo» y «Pendientes» se suscriben a `EpisodeRefresher` y repintan en el sitio; `AnimeRow` y `SidePanel` ganan `update_record()`. Antes, 2026-10-20 (**reproductor in-app**): **§12 nuevo**, el reproductor acoplado —`player_frame` encima de `content_frame`, la columna de información, `VideoPlayer` y `PlayerControls` (con su parámetro `floating`), las tarjetas de estado y la pantalla completa con barra flotante—; `VideoPlayer` entra en el mapa como **12.º componente**; `Theme` gana `VIDEO_BG` (**24** tokens) y `Metrics` las medidas `PLAYER_*`; `MainWindow` gana `player_frame` y seis métodos; la ficha pide los servidores en un hilo daemon y `__play_video()` ya no es solo `webbrowser.open()`; §10 gana el hilo de mpv. Antes, 2026-09-02 (**rejillas adaptables y sinopsis**): `PosterGrid` deja de tener un número fijo de columnas y lo **calcula del ancho**, con `on_columns_changed` para que la vista repagine; `Pager` estrena `set_page_size()`; el tamaño de página pasa de ser una constante a ser `columnas × 2 filas`. La ficha quita el tope de 74 caracteres de la sinopsis y estrena `wrap_synopsis()`, porque `wraplength` no puede con los saltos que trae el proveedor ([trampas 41 y 42](10-invariantes-y-trampas.md)). Antes, 2026-09-01 (**abrir la ficha por un episodio**): la ficha estrena `focus_episode` / `force_ascending` y dos métodos (`__focus_on_episode`, `__scroll_to_episode`); `AnimeRow` corrige sus ataduras —el clic saltaba el botón pero no su interior, así que la píldora **nunca ejecutó su `command`** ([trampa 40](10-invariantes-y-trampas.md))—; «Viendo» y «Pendientes» dejan de llevar al anime y llevan al episodio. Antes, 2026-09-01 (**ancho de las fichas de género**): `GenreChips` explica **quién decide el ancho de una ficha** y por qué el componente tiene que contarlo él ([trampa 39](10-invariantes-y-trampas.md)); se añade la regla general de que en CustomTkinter `width` es una petición, no un contrato. Antes, 2026-09-01 (**refresco de la banda «Retomar»**): `ResumeBand` y `ResumeCard` estrenan `update_record()`; la portada pasa a ser la **única vista que sale a la red por datos ya guardados**, y se explica por qué va sin *fallback*. Antes, 2026-09-01 (**hover de la lista de episodios**): `EpisodeRow` ata el hover a todos sus hijos y guarda la fila resaltada en un atributo de clase; se explica por qué `AnimeRow` no sufre lo mismo, y la regla de `bind()` gana su consecuencia con el ratón real. Antes, 2026-08-31 (**fondo de la pantalla de carga**): el apartado *Arranque* explica que la pantalla de carga es la ventana entera pintada de `Theme.BG`, y qué se veía antes. Antes, 2026-08-21 (**rediseño de interfaz, fases 1-9**): documento **reescrito entero**. Nacen `gui/theme.py` y los **11** componentes de `gui/components/`; la barra lateral pasa de seis botones sueltos a un `Sidebar` plegable; `SidebarButton` deja de ser un widget; las 6 vistas se rehacen y la ficha crece de 1 156 a 1 734 líneas |
 | **Cubre** | `src/gui/theme.py`, `src/gui/components/**` (incluido `video_player.py`), `src/gui/main_window.py`, `src/gui/anime_window.py`, `src/gui/sidebarButtons/**`, `src/utils/buttons/utilsButtons.py` |
 
 Procedencia: ✅ verificado en ejecución (arranque real de la GUI) · 📖 leído en código · ⚠️ sin verificar.
@@ -35,16 +35,21 @@ gui/
 │   ├── status_pill.py       StatusPill — texto, colores y glifo de cada estado
 │   ├── genre_chips.py       GenreChips — fichas de género seleccionables
 │   ├── empty_state.py       EmptyState — icono, frase y acción cuando no hay nada que enseñar
+│   ├── order_menu.py        OrderMenu — el desplegable de orden de tres vistas
+│   ├── tab_bar.py           TabBar — pestañas de la ficha, con cuerpo perezoso (0.5.0)
+│   ├── franchise_cards.py   SeasonLink, SeasonCarousel, RelatedCard… — la franquicia en la ficha (0.5.0)
 │   └── video_player.py      VideoPlayer + PlayerControls — mpv incrustado, tarjetas de estado y barra (§12)
+├── episode_refresher.py     EpisodeRefresher — refresca episodios guardados, sin interfaz
+├── franchise_service.py     FranchiseService — recorre la franquicia y completa formatos, sin interfaz (0.5.0)
 ├── main_window.py           el hub
-├── anime_window.py          AnimeWindowViewer + EpisodeRow + open_saved_anime()
+├── anime_window.py          AnimeWindowViewer + EpisodeRow + open_saved_anime() + SheetVisit
 └── sidebarButtons/<vista>/  las 6 vistas: solo deciden qué datos van en cada componente
 ```
 
 **La regla que sostiene todo lo demás**: una vista **compone**, no dibuja. Si necesita una variante
 de un componente, se le añade un parámetro; **no se bifurca el fichero**. Se ha cumplido: `AnimeRow`
 la comparten «Viendo» y «Pendientes» con dos parámetros de diferencia, y `PosterGrid` sirve a las
-tres rejillas.
+tres rejillas y, desde la 0.5.0, a «Te puede interesar» de la ficha (con `max_columns=4`).
 
 ---
 
@@ -87,17 +92,19 @@ vista muta directamente.
 
 | Atributo | Qué es |
 |---|---|
-| `content_frame` | Un **único** `CTkScrollableFrame` que las 7 vistas reutilizan. `clear_frame()` destruye sus hijos **y antes cierra el reproductor**, si lo hay |
+| `content_frame` | Un **único** `CTkScrollableFrame`. 🆕 *(0.5.0)* Dentro vive **una página por vista** (§5) y la ficha. `clear_frame()` **esconde** las páginas, **destruye** la ficha y antes cierra el reproductor, si lo hay |
 | `player_frame` 🆕 | El panel del reproductor: **hermano** de `content_frame`, no hijo. Nace oculto; con él a la vista ocupa la fila 0 y `content_frame` baja a la fila 1 (§12) |
 | `sidebar_frame` | La instancia de `Sidebar`. `None` hasta `load_sidebar_buttons()` |
 | `recent_animes`, `favourite_animes`, `watching_animes`, `pending_animes`, `finished_animes` | Listas cacheadas. **Solo se llenan al arrancar**; quien cambie un estado tiene que releerlas antes de `refresh_sidebar_counts()` ([trampa 31](10-invariantes-y-trampas.md)) |
 | `animes_persistence`, `user_persistence`, `anime_provider_mgr` | Los tres singletons |
+| `episode_refresher`, `franchise_service` 🆕 | Los dos servicios sin interfaz: refresco de episodios guardados y recorrido de la franquicia ([03 §11 y §15](03-flujos-de-ejecucion.md)) |
 | `last_search_instance` | La última búsqueda, para que volver a «Buscar» la encuentre igual |
 
 **API pública que usan las vistas** (además de la que ya había):
 
 | Método | Para qué |
 |---|---|
+| `show_view(vista, firma)` 🆕 *(0.5.0)* | Enseña la página de la vista; `None` si la reutiliza, o la página vacía donde construir (§5) |
 | `navigate_to(etiqueta)` 🆕 | Abre otra vista **por su etiqueta de barra lateral** y deja la barra marcándola. Es lo que usan los botones de los estados vacíos. Devuelve `False` si la etiqueta no existe: **no lanza** |
 | `retry_recent_animes()` 🆕 | Vuelve a pedir los estrenos. Lo llama el botón «Reintentar» de la portada |
 | `refresh_sidebar_counts()` | Repinta los contadores desde las listas cacheadas |
@@ -211,20 +218,42 @@ dejó fuera del plan: el rediseño es solo interfaz y esto vive en `utils/`.
 
 ## 5. Ciclo de vida de una vista
 
-Sigue siendo el mismo patrón, con dos cambios:
+🆕 **Cambió el 2026-10-28 (B13): las vistas ya no se rehacen en cada visita.**
 
 ```
 sidebar → _NavItem.__handle_click → Sidebar.__on_item_click
    → set_active(destino) → destino.sidebar_command()
-        → main_window.clear_frame()          # destruye los hijos de content_frame
-        → construir ViewHeader + componentes en content_frame
+        → leer lo de siempre (BD, estrenos…) y calcular la firma
+        → page = main_window.show_view(self, firma)
+             # clear_frame(): esconde las páginas, destruye la ficha, cierra el reproductor
+        → page is None  → nada más: la página conservada ya está a la vista
+        → page          → construir ViewHeader + componentes EN LA PÁGINA, no en content_frame
 ```
+
+- **La página** es un `CTkFrame` transparente (`width=1, height=1`), hijo de `content_frame`, en la
+  fila 0, columna 0, `sticky="nsew"`, con su columna 0 de peso. Vive toda la sesión.
+- **La firma** es lo que la vista pinta, sacado de lo que **ya** lee al entrar (filas, pósters en
+  disco, estrenos, estados). Si coincide con la de la última construcción, se reutiliza; si no, la
+  página se vacía y se construye como antes. **Ningún camino de escritura avisa a nadie**: si algo
+  cambió, la BD ya no coincide (la lección de la [trampa 31](10-invariantes-y-trampas.md)). Tabla de
+  firmas y de qué reconstruye cada cambio en [03 §18](03-flujos-de-ejecucion.md).
+- **Fuera de la firma a propósito**: el orden de Favoritos/Pendientes, la calificación y la última
+  búsqueda. Solo los cambia la propia vista, así que la página ya los enseña.
+- **Se conserva** el buscador local con su filtro y la página del paginador; **no** el desplazamiento
+  (`show_view()` vuelve siempre arriba).
+- **Ocultas siguen vivas**: sus suscripciones a `EpisodeRefresher` repintan aunque no se vean, y el
+  tamaño y el tema se les aplican al volver (`<Configure>` al recolocarlas). La primera construcción
+  mide la página antes (`update_idletasks()`, [trampa 75](10-invariantes-y-trampas.md)).
+- **La ficha no es una página**: sigue componiendo en `content_frame` y se destruye al salir.
+- ✅ Medido el 2026-10-28: volver a una vista cuesta **37-136 ms** (antes 226-466). Lo que queda es Tk
+  repintando los lienzos de la página ([trampa 74](10-invariantes-y-trampas.md)). Conservar las seis
+  cuesta ~30 MB y ~1 100 ventanas de Tk, **una vez**.
 
 1. 🔴 **`clear_frame()` no deshace la configuración de rejilla del `content_frame`.** Los pesos de
    filas y columnas **sobreviven**, y una columna con peso y sin widgets también recibe el espacio
    sobrante: la ficha repartía peso entre cuatro columnas y la vista siguiente pintaba en una columna
    0 estrecha. **Toda vista que reparta peso tiene que deshacerlo**; la ficha lo hace en su salida
-   ([trampa 32](10-invariantes-y-trampas.md)).
+   ([trampa 32](10-invariantes-y-trampas.md)). Las páginas solo usan la columna 0.
 2. **El `time.sleep(0.1)` tras `clear_frame()` desapareció.** Solo estaba para que `winfo_width()` no
    valiera 1 al calcular columnas; con rejillas de número fijo no se mide nada. **No lo reintroduzcas.**
 
@@ -278,6 +307,10 @@ cambiaría de valor ([trampa 41](10-invariantes-y-trampas.md)).
   burbujean), que es justo lo que hace que pulsar una estrella no abra la ficha.
 - Los pósters se cargan con `load_rounded_image()`: **CustomTkinter no redondea la `image` de un
   widget** por mucho `corner_radius` que tenga; el recorte hay que traerlo hecho desde PIL.
+- 🆕 *(0.5.0)* **`max_columns`**: tope de columnas aunque quepan más, con el sobrante repartido. «Te
+  puede interesar» usa 4 de 216 × 324. **`set_poster(key, imagen)`**: un póster que llega después
+  (de un hilo), guardado en PIL para que sobreviva al repintado por cambio de columnas. La etiqueta
+  del póster lleva `font=` aunque no tenga texto ([trampa 77](10-invariantes-y-trampas.md)).
 
 ### `Pager`
 Dos modos, sin subclase:
@@ -405,6 +438,37 @@ Recibe el icono **ya construido**: las cuatro vistas de biblioteca pasan el glif
 (`StatusPill.icon(..., gap=0)`), y el módulo solo dibuja los dos que no existían —nube tachada y
 lupa— con PIL. **Cero PNG nuevos**, así que la deuda **B11** no crece.
 
+### `TabBar` 🆕 *(2026-10-28)*
+
+Las pestañas de la ficha. `add_tab(key, texto, builder, count=None)` registra una pestaña; su cuerpo
+**no se construye** hasta la primera vez que se abre, cuando `TabBar` llama a `builder(body, tools)`:
+`body` es el cuerpo de la pestaña y `tools`, la zona de la derecha de la barra que solo se ve con ella
+activa (allí van el orden y el buscador de Episodios). `select(key)`, `selected()`, `has_tab(key)` y
+`on_change(key)`. Se coloca con `sticky="ew"`.
+
+- La raya inferior es de **2 px colocada medio fuera** de su marco para verse de 1: un `CTkFrame` de
+  1 px no pinta ([trampa 71](10-invariantes-y-trampas.md)). Cada pestaña pinta su tramo, porque un
+  marco transparente encima de una raya común la taparía.
+- Sin contenedor de cuerpos ni marcos intermedios: cada widget cuesta ~3,5 ms al abrir la ficha
+  ([trampa 72](10-invariantes-y-trampas.md)).
+- Tipografía `Theme.T_TAB` (14, negrita), el único token que añadió la 0.5.0. Sin colores nuevos.
+
+### `franchise_cards` 🆕 *(2026-10-28)*
+
+Las piezas de la franquicia, separadas de `TabBar` porque no saben de pestañas. **No piden nada a la
+red**: los pósters los entrega la ficha con `set_poster()`.
+
+| Pieza | Qué es |
+|---|---|
+| `SeasonLink` | Enlace de temporada de la cabecera: flecha, título recortado y píldora de estado. Sin marco interior |
+| `SeasonCarousel` + `CarouselItem` | La línea principal: 5 tarjetas de 176 × 264 (`GRID6_POSTER`), flechas, contador y la actual marcada. `show(items, current_index, hint)` acepta `None` como hueco |
+| `RelatedCard` + `RelatedGrid` | Tarjeta de un «otro» (póster de 48 × 72 o solo texto) y la rejilla que las reparte por el ancho, 300 px mínimo |
+| `format_chip(parent, texto, style, text_color)` | La ficha de formato. `style` es `solid`, `dashed` o `dotted`, y el borde es una **imagen PIL** supermuestreada: CustomTkinter no dibuja bordes discontinuos |
+| `ClickableCard` | Base de las tarjetas pulsables: `bind_card()` ata clic y hover a **todo el subárbol** con `tkinter.Misc.bind(…, "+")`, no con el `bind` de CTk, que ataría dos veces ([trampa 73](10-invariantes-y-trampas.md)) |
+
+⚠️ El discontinuo y el punteado van en `TXT_3`, no en `LINE`: con `LINE` no se distinguían en el tema
+oscuro. Las etiquetas de póster llevan `font=` aunque no tengan texto ([trampa 77](10-invariantes-y-trampas.md)).
+
 ---
 
 ## 7. Las 6 vistas
@@ -481,10 +545,12 @@ y **solo pinta la última**.
 
 ## 8. `AnimeWindowViewer` — sigue sin ser una ventana
 
-📖 `gui/anime_window.py` (**2 429** líneas; 1 924 antes del reproductor). Reemplaza el contenido de `content_frame`.
+📖 `gui/anime_window.py` (**3 244** líneas; 2 429 antes de la 0.5.0). Reemplaza el contenido de `content_frame`.
 
 **Disposición**: bloque de proveedor + póster de 248 × 372 (redondeado) + título `T_SHEET` + sinopsis
-+ fichas de género a la izquierda; los **4 botones de estado** en fila; y la lista de episodios.
++ fichas de género a la izquierda; 🆕 la **línea de temporadas** (fila 4 de la columna, solo si hay
+precuela o secuela); los **4 botones de estado** en fila (bajan a la fila 7, y los vistos a la 5); y
+🆕 las **pestañas**, la primera de las cuales es la lista de episodios.
 
 **Los botones de estado se encienden y se apagan** (fase 8), en vez de cambiar de texto para decir
 cuál de las dos acciones tocaba. Los cuatro comparten un único `command`, `__toggle_status()`, que
@@ -498,12 +564,12 @@ interruptor «Visto».
 desplegarlos no empuja nada, y la fila impar mide cero mientras está vacía.
 
 🔴 **El hover se ata a TODOS los hijos de la fila; el clic, solo a la fila y a sus dos etiquetas**
-(`anime_window.py:420-435`, dos bucles a propósito). El interruptor recibe `<Enter>` / `<Leave>` pero
-no `<Button-1>` —tiene su propio comando y marcar un episodio no debe abrir sus servidores—, y el
-**separador de 1 px** también va atado, porque `place(rely=1.0, relwidth=1.0)` lo pone en la última
-fila de píxeles de cada episodio y **bajar de un episodio al siguiente obliga a cruzarlo**. Dejarlo
-fuera era una salida de la que no llegaba ningún `<Leave>`, y el resaltado se quedaba encendido en
-todos los episodios recorridos ([trampa 37](10-invariantes-y-trampas.md), resuelta el 2026-09-01).
+(`EpisodeRow.__bind_interactions()`, dos bucles a propósito). El interruptor recibe `<Enter>` /
+`<Leave>` pero no `<Button-1>` —tiene su propio comando y marcar un episodio no debe abrir sus
+servidores—. Un hijo sin atar es una salida de la que no llega ningún `<Leave>`, y el resaltado se
+quedaba encendido en todos los episodios recorridos ([trampa 37](10-invariantes-y-trampas.md),
+resuelta el 2026-09-01). 🆕 El **separador de 1 px** que la provocaba se **quitó** en la 0.5.0: no
+se había pintado nunca ([trampa 71](10-invariantes-y-trampas.md)) y costaba ~2 ms por fila.
 Encima de eso, `EpisodeRow.__hovered` —atributo **de clase**— guarda la fila resaltada y la que se
 enciende apaga a la anterior: **no puede haber dos a la vez** aunque se pierda un evento.
 
@@ -532,6 +598,67 @@ Tres decisiones que no se ven leyendo la firma:
 1 174 episodios · usa "Ir al episodio…"»), que es lo que convierte el buscador de al lado en la
 salida evidente. **La lista no se reordena al abrir** ([trampa 8](10-invariantes-y-trampas.md)), y el
 botón de orden dice **el orden que llega del proveedor**: no es el mismo en todos.
+
+### Pestañas, temporadas y «Te puede interesar» 🆕 *(2026-10-28, versión 0.5.0)*
+
+Diseño aprobado en `plan-050/DISENO-VISUAL.html` (decisiones P1-P8 del usuario); flujos con su hilo
+en [03 §16 y §17](03-flujos-de-ejecucion.md).
+
+🔴 **Abrir una ficha no sale más a la red que antes.** Todo lo nuevo que pide algo lo pide **al
+abrir su pestaña**. La ficha abre **siempre en «Episodios»**, idéntica a la de antes salvo por la
+barra y, si la hay, la línea de temporadas. ✅ Medido contra `develop` alternando: ±3 % (trampa 72).
+
+**La línea de temporadas** (`__build_season_links`, `SeasonLink`): «◀ Temporada anterior» y
+«Temporada siguiente ▶» con el título y la píldora del estado de **tu** fila. Solo cuentan precuela y
+secuela; con varias, la más cercana por año (`closest_related()`). Sin ninguna, no se pinta.
+
+**La barra de pestañas** (`TabBar`) se pinta **siempre**, aunque solo haya «Episodios»: hace de
+encabezado de la lista, con su contador y, a la derecha, el orden y el buscador «Ir al episodio…».
+Las otras dos se **añaden** solo si tienen algo que enseñar, y su cuerpo se construye la primera vez
+que se abren:
+
+| Pestaña | Aparece si | Al abrirla |
+|---|---|---|
+| Episodios | siempre | ya construida |
+| Temporadas y relacionados | `anime_info.related` no está vacío | carrusel de la línea principal + «otros» agrupados por formato; pide la franquicia, los formatos y los pósters |
+| Te puede interesar | algún género del anime traduce al catálogo común (`genre_filters()`) | una búsqueda por los dos primeros géneros, `strict=True` |
+
+**«Temporadas y relacionados»**:
+
+- **Carrusel** (`SeasonCarousel`): 5 a la vista, la actual lo más centrada posible, flechas que avanzan
+  **de una en una** con contador «3–7 de 7» y que se apagan en su extremo; si la franquicia cabe, sin
+  flechas (P6, P7). Mientras se recorre, enseña lo conocido y **un hueco más allá de cada vecino**, con
+  «recorriendo la franquicia…»: el servicio no da el total.
+- **Otros**, en tarjetas de 300 px mínimo (`RelatedGrid`), agrupados en Películas · Series y ONA ·
+  OVAs y especiales · Versiones alternativas · Sin formato (P3). Una segunda secuela o precuela sale
+  aquí con su tipo.
+- **Formato** (`format_chip()`, dibujado con PIL): borde continuo si lo dice un proveedor, discontinuo
+  si se dedujo del título, punteado («…») mientras se pide; «¿?» si no se supo. Las **siglas** del
+  proveedor solo si no es el que sirve la ficha (P8).
+- **Sellos** de estado en cada tarjeta, buscados en las **listas del hub** (sin leer la BD) con
+  `library_status()`, la regla de «Buscar».
+- **Pósters**: AnimeAV1 los da en la relación; JKAnime no, así que sus «otros» van **sin póster** y los
+  de la línea salen de las páginas que recorre el servicio. Un hilo por tanda: disco → memoria de
+  sesión (120 PIL, ~17 MB como mucho) → red.
+
+**«Te puede interesar»**: línea «Porque te gusta A · B», `PosterGrid` de 4 (216 × 324) con sello,
+«Ver otros 4» / «← Ver los primeros», y estados de cargando (las 4 celdas grises), vacío («No hay más
+animes de A y B que no tengas terminados») y error con **«Reintentar» a mano**. Sin la línea de
+géneros bajo cada póster de la maqueta: ningún resultado de búsqueda los trae.
+
+**Abrir un relacionado o una recomendación** reemplaza la ficha y deja **«← Volver a <título>»** arriba
+(P2). Si está guardado, se abre **su fila** con `open_saved_anime(..., history=…)` (trampa 21); si no,
+se pide en un hilo con `strict=True`. Volver reconstruye la anterior desde su `SheetVisit`, **sin red**.
+
+**Tarjeta de fin** (§12): al terminar el **último** episodio de una temporada con secuela, «Era el
+último episodio. Sigue con «X».» y el botón «Empezar X», que abre la secuela por el episodio 1.
+
+**Lo que no se hizo como en la maqueta** (anotado en `plan-050/ESTADO.md`): sin teclado en las
+pestañas (un `CTkFrame` no toma el foco), pestañas no fijas al desplazar (no se puede dentro del
+`CTkScrollableFrame`), tarjetas de 300 px en vez de 260 (el texto no cabía) y «Cargando» sin el aro
+animado.
+
+🔴 `__scroll_to_episode()` no hace nada con otra pestaña delante ([trampa 79](10-invariantes-y-trampas.md)).
 
 ### El bloque de proveedor
 Hasta tres líneas: `Proveedor: X` (quién sirvió lo que ves), `En tu biblioteca: Y` (de quién es tu
@@ -626,6 +753,13 @@ abandona el marco **desde un hijo sin `bind`**, el canvas no recibe ningún `<Le
 queda encendido para siempre ([trampa 37](10-invariantes-y-trampas.md)). La regla que sale de ahí:
 **el hover se ata a todos los hijos**, aunque el clic no.
 
+🆕 **Y desde la 0.5.0, dos más** (2026-10-28): la ficha lanza hilos al abrir sus pestañas (el
+recorrido de la franquicia, los formatos, los pósters, la búsqueda de «Te puede interesar» y la
+apertura de un relacionado no guardado), todos con `after(0, …)` y descartando lo que llegue con la
+ficha ya fuera de pantalla. Y **un widget de CustomTkinter sin `font=` puede congelar la aplicación**
+al destruirse justo antes de lanzar un hilo ([trampa 77](10-invariantes-y-trampas.md)): todo widget
+nuevo lleva `font=`, aunque no tenga texto.
+
 Detalle completo en [07-concurrencia-e-hilos.md](07-concurrencia-e-hilos.md).
 
 ---
@@ -634,8 +768,10 @@ Detalle completo en [07-concurrencia-e-hilos.md](07-concurrencia-e-hilos.md).
 
 1. Crear `gui/sidebarButtons/<vista>/<vista>.py` con la cabecera obligatoria.
 2. Heredar de `utilsButtons.SidebarButton`, pasando la etiqueta y los dos iconos.
-3. Implementar `show_frame()`: `main_window.clear_frame()` → `ViewHeader` → los componentes que
-   necesite. **No dibujes nada que ya esté en `gui/components/`.**
+3. Implementar `show_frame()`: leer sus datos → calcular su **firma** → `page =
+   main_window.show_view(self, firma)` → si `page` es `None`, terminar; si no, `ViewHeader` y los
+   componentes **en `page`**, nunca en `content_frame` (§5, desde la 0.5.0). **No dibujes nada que ya
+   esté en `gui/components/`.**
 4. Registrarla en `MainWindow.load_sidebar_buttons()`, en la lista `destinations` y —si lleva
    contador— en `counter_providers`.
 5. **Declararla en `hiddenimports` del `.spec`**, o el `.exe` no arrancará.

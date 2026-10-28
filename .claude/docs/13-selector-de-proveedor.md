@@ -447,7 +447,7 @@ Cada fase deja la app **arrancable**. Si retomas la tarea, mira aquí dónde est
 | Fase | Qué entra | Estado |
 |---|---|---|
 | **1** | `userPersistence.py` + `DB_user.db` | ✅ 23/23 comprobaciones |
-| **2** | Métodos nuevos del manager (`get_provider_names`, `get_provider_id_by_name`, `get_anime_info_with_provider`, `normalize_title`, `resolve_anime_in_provider`). ⚠️ Los dos primeros **ya no existen**: los sustituyeron `list_provider_infos()` y `get_provider_info_by_name()` el 2026-08-16 | ✅ 26/26 |
+| **2** | Métodos nuevos del manager (`get_provider_names`, `get_provider_id_by_name`, `get_anime_info_with_provider`, `normalize_title`, `resolve_anime_in_provider`). ⚠️ Los dos primeros **ya no existen**: los sustituyeron `list_providers_info()` y `get_provider_info_by_name()` el 2026-08-16 | ✅ 26/26 |
 | **3** | Desplegable de la sidebar + persistencia + recarga de recientes ([D7](#d7--la-preferencia-se-lee-de-forma-síncrona-en-mainwindow__init__), [D8](#d8--al-cambiar-el-predeterminado-se-recarga-la-lista-de-recientes)) | ✅ verificado con la app real |
 | **4** | Desplegable de la ficha + identidad doble ([D5](#d5--identidad-de-visualización-vs-identidad-de-persistencia)) + `strict` en servidores | ✅ 25/25 sobre copia de la BD real |
 | **5** | Propagar `provider_id` en los 6 puntos de clic | ✅ escrito; ⚠️ no probado clic a clic |
@@ -607,7 +607,7 @@ Lo que esta tarea deja listo (y lo que no) para el punto grande del roadmap:
 |---|---|
 | Preferencia por tipo de medio | La clave es `default_anime_provider`, no `default_provider`. `default_manga_provider` es una fila más, **sin migración** |
 | Cualquier preferencia futura | Clave/valor genérico ([D2](#d2--tabla-clavevalor-genérica-no-una-columna-por-preferencia)): el desplegable global anime/manga/ambos de la esquina inferior izquierda ya tiene dónde guardarse |
-| Poblar el desplegable | **`list_provider_infos()`** es la única fuente del contenido del widget; cuando existan proveedores de manga se filtra por tipo de medio ahí, no en la GUI |
+| Poblar el desplegable | **`list_providers_info()`** es la única fuente del contenido del widget; cuando existan proveedores de manga se filtra por tipo de medio ahí, no en la GUI |
 | Identificar un proveedor | 🆕 `AnimeProviderId` + `ProviderInfo` ([04 §1b](04-modelo-de-datos.md)). `ProviderInfo` es donde irá el **tipo de medio** como un campo más; hoy tiene `id`, `name` y `base_url` |
 
 **Lo que NO resuelve**: `AnimeProviderManager` registra proveedores en un único diccionario plano, sin

@@ -2,8 +2,8 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-10-20 · rama `feature/reproductor-embebido` · último commit de código **`f3fc229`** (fase 5 del reproductor) |
-| **Última revisión** | 2026-10-27 (**conexiones por hilo**): `hiddenimports` pasa a **40** nombres con `utils.http_session`, y el `_fetch` de §3 pide con `thread_session()`. Antes, 2026-10-27 (**refresco de episodios**): `hiddenimports` pasa a **39** nombres con `gui.episode_refresher`. Antes, 2026-10-20 (**reproductor in-app**): **§9 nuevo, «Añadir un resolutor»**, con MP4Upload como caso real; **§6** gana la DLL de libmpv en `binaries`, `hiddenimports` a **37** y sus anclas al día. Antes, 2026-08-17: **§6 reescrito** — 8 pasos en vez de 6, con la verificación compilando, la regla de no volver a meter datos de usuario en `datas`, la copia de los ficheros legales tras `COLLECT` y la regeneración de `THIRD-PARTY-NOTICES.txt`. Antes, 2026-08-16: §2 reescrito con el **caso real ya ejecutado** (`provider_id` en medio del enum, con reconstrucción de tabla) y §3 con el paso 0 nuevo — añadir un proveedor empieza por `AnimeProviderId` |
+| **Fecha** | 2026-10-28 · rama `release/0.5.0` · último commit de código **`7bbbb3c`** |
+| **Última revisión** | 2026-10-28 (**versión 0.5.0**): §1 — una vista nueva calcula su **firma** y construye en la página de `show_view()`, nunca en `content_frame`; §3 — el proveedor define también **`PROVIDER_SHORT_NAME`** (cuatro atributos) y puede sobrescribir `get_anime_relations` y `_genre_from_slug`, y declarar `RELATIONS_CARRY_FORMAT`; §4 — los campos `format` y `related` como ejemplo de campo que **no** se persiste, y anclas al día; §6 — `hiddenimports` a **43**. Antes, 2026-10-27 (**conexiones por hilo**): `hiddenimports` pasa a **40** nombres con `utils.http_session`, y el `_fetch` de §3 pide con `thread_session()`. Antes, 2026-10-27 (**refresco de episodios**): `hiddenimports` pasa a **39** nombres con `gui.episode_refresher`. Antes, 2026-10-20 (**reproductor in-app**): **§9 nuevo, «Añadir un resolutor»**, con MP4Upload como caso real; **§6** gana la DLL de libmpv en `binaries`, `hiddenimports` a **37** y sus anclas al día. Antes, 2026-08-17: **§6 reescrito** — 8 pasos en vez de 6, con la verificación compilando, la regla de no volver a meter datos de usuario en `datas`, la copia de los ficheros legales tras `COLLECT` y la regeneración de `THIRD-PARTY-NOTICES.txt`. Antes, 2026-08-16: §2 reescrito con el **caso real ya ejecutado** (`provider_id` en medio del enum, con reconstrucción de tabla) y §3 con el paso 0 nuevo — añadir un proveedor empieza por `AnimeProviderId` |
 | **Cubre** | recetas operativas sobre los módulos de `src/` + `MiBibliotecaAnime.spec` |
 
 Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ sin verificar.
@@ -31,6 +31,12 @@ Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ si
    `__author__/__subsystem__/__module__/__version__/__info__` con `__subsystem__ = "sidebarButtons"`.
 2. Hereda de `utilsButtons.SidebarButton`; implementa **`show_frame()`** (punto de entrada
    programático) y `show_<vista>()` (el `command`).
+   🆕 **Desde la 0.5.0 (B13) la vista no construye en `content_frame`**: lee sus datos, calcula su
+   **firma** —todo lo que pinta, sacado de lo que acaba de leer; para filas guardadas,
+   `saved_rows_signature()`— y llama a `page = self.main_window.show_view(self, firma)`. Si `page` es
+   `None`, la página conservada ya está a la vista y **no se construye nada**; si no, construye **en
+   `page`**. Lo que solo cambie la propia vista (un orden, un filtro) se deja **fuera** de la firma
+   ([06 §5](06-gui-y-vistas.md), [03 §18](03-flujos-de-ejecucion.md)).
 3. Respeta el reparto de filas de `content_frame` ([06 §4](06-gui-y-vistas.md)): la rejilla de
    resultados va en `row=5`.
 4. Registra en `main_window.py:159-164` con `sidebar_button_row + 7`:
@@ -72,6 +78,9 @@ Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ si
       se adapta nunca.
 - [ ] La rejilla recalcula columnas al redimensionar y volver a entrar.
 - [ ] Cambiar a otra vista y volver **no** deja widgets huérfanos.
+- [ ] 🆕 Volver sin cambios **reutiliza** la página (no construye nada); cambiar lo que pinta desde
+      otro sitio y volver **la reconstruye**. Si no, a la firma le falta ese dato.
+- [ ] 🆕 Todo widget nuevo de CustomTkinter lleva `font=` ([trampa 77](10-invariantes-y-trampas.md)).
 - [ ] La carpeta de pósters está en `.gitignore` si se genera en runtime.
 - [ ] `hiddenimports` actualizado.
 
@@ -316,9 +325,19 @@ la sesión, y un **pin** al lado escribe en `DB_user.db`.
    ⚠️ **Una rejilla vacía no significa que haga falta un navegador.** Antes de concluir que el sitio
    necesita renderizado JS, busca el payload en el HTML crudo (`grep 'animes *= *{'`). Es la
    **trampa 24**, y descartó una tarde de trabajo mal enfocado.
-2. Crea la clase con los **3 atributos obligatorios** ya en el esqueleto — sin ellos el módulo no
-   importa (trampa 11).
+2. Crea la clase con los **4 atributos obligatorios** ya en el esqueleto —`PROVIDER_ID`,
+   `PROVIDER_NAME`, 🆕 `PROVIDER_SHORT_NAME` (sus siglas, que la interfaz pone a lo que aporta; elige
+   unas que no choquen con `AV1`, `JK` ni `FLV`) y `BASE_URL`—; sin ellos el módulo no importa
+   (trampa 11).
 3. Implementa los **5 métodos**. Devuelve siempre tipos de `APIs.common.models`.
+   🆕 *(0.5.0)* En la ficha, rellena **`format`** y **`related`** si el sitio los da: `related` es una
+   lista de `RelatedAnime` (`[]` si no tiene) y lo que no sea precuela, secuela o versión alternativa
+   va como `OTHER` ([05 §1](05-proveedores-y-scraping.md), [trampa 59](10-invariantes-y-trampas.md)).
+   Si el sitio **no sabe** dar relaciones, déjalo en `None` y la ficha no enseñará la pestaña. Tres
+   piezas opcionales: sobrescribe **`get_anime_relations`** si la ficha completa cuesta más de una
+   petición (los episodios aparte, como JKAnime); sobrescribe **`_genre_from_slug`** si traduces
+   géneros, para que «Te puede interesar» pueda volver al catálogo común; y pon
+   **`RELATIONS_CARRY_FORMAT = True`** si sus relacionados traen formato.
 4. 🟡 **Fija la codificación** si el sitio no envía `charset` (trampa 14). Copia el patrón ya
    implantado en `animeav1.py:37-56`: un `_fetch()` de módulo por el que pasen **todas** las peticiones,
    en vez de repetir la línea en cada método.
@@ -372,7 +391,7 @@ la sesión, y un **pin** al lado escribe en `DB_user.db`.
 
 - [ ] `AnimeProviderId` tiene su miembro, y su `value` es el que quieres para siempre.
 - [ ] El módulo **importa** sin `NotImplementedError`.
-- [ ] El desplegable de la sidebar lo muestra **sin tocar la GUI**: sale de `list_provider_infos()`,
+- [ ] El desplegable de la sidebar lo muestra **sin tocar la GUI**: sale de `list_providers_info()`,
       que se deriva de los proveedores registrados. Si has tenido que editar `main_window.py` para que
       aparezca el nombre, algo está mal.
 - [ ] Los 5 métodos verificados con el script de [09 §2](09-verificacion-y-pruebas.md) y las
@@ -415,14 +434,20 @@ la sesión, y un **pin** al lado escribe en `DB_user.db`.
 
 **Pasos**
 
-1. Añade el campo **al final** de la dataclass y **con valor por defecto** (`models.py:86-93`), o
-   romperás todas las construcciones posicionales existentes.
-2. `AnimeInfo` se construye en: `animeflv.py:62,111,171,228`, `animeav1.py:229,269`. Revisa los seis.
+1. Añade el campo **al final** de la dataclass y **con valor por defecto** (`AnimeInfo` en
+   `models.py:149-163`), o romperás todas las construcciones posicionales existentes. Es lo que se
+   hizo con `format` y `related` en la 0.5.0.
+2. `AnimeInfo` se construye en los tres proveedores (búscalo con `git grep -n "AnimeInfo(" -- src/`:
+   hoy, además, `jkanime.__get_anime_page` y `__parse_directory_entry`) y en la GUI a partir de filas
+   guardadas (`anime_window.py`, `pendingAnimes.py`). Comprueba también las **copias**:
+   `dataclasses.replace()` y `deepcopy` conservan el campo; una construcción a mano, no.
 3. Si debe persistirse, **no basta con el modelo**: hay que tocar `AnimeField`, `AnimeRecord`,
    `to_db_dict`, `from_db_dict` y `from_anime_info` (`:151-172`) — sigue §2. La migración de la BD ya
    es automática.
 4. Si es opcional y un proveedor no lo tiene, déjalo en `None` — es el patrón de `synopsis`,
-   `genres` y `episodes`.
+   `genres` y `episodes`. Si «no tiene» y «no se sabe» significan cosas distintas para la interfaz,
+   usa `[]` para lo primero y `None` para lo segundo, como `related`
+   ([04 §1c](04-modelo-de-datos.md)).
 
 **Checklist**
 
@@ -482,7 +507,7 @@ la barra diagonal del icono «sin conexión».
 
 **Pasos**
 
-1. **Revisa `hiddenimports`.** ✅ **Al día el 2026-10-27**: **40** nombres —las conexiones por hilo añadieron `utils.http_session`—, auditados con AST en las dos direcciones. Antes, **39** —el refresco de episodios añadió `gui.episode_refresher`—. Antes, ✅ **al día el 2026-10-21**: **38** nombres —la auditoría de rendimiento añadió `gui.components.order_menu`—, auditados con AST en las dos direcciones. Antes, ✅ **al día el 2026-10-20**: **37** nombres —36 módulos de `src/` y
+1. **Revisa `hiddenimports`.** ✅ **Al día el 2026-10-28**: **43** nombres —la 0.5.0 añadió `gui.franchise_service`, `gui.components.tab_bar` y `gui.components.franchise_cards`—, auditados con AST en las dos direcciones. Antes, el 2026-10-27, **40** —las conexiones por hilo añadieron `utils.http_session`—. Antes, **39** —el refresco de episodios añadió `gui.episode_refresher`—. Antes, ✅ **al día el 2026-10-21**: **38** nombres —la auditoría de rendimiento añadió `gui.components.order_menu`—, auditados con AST en las dos direcciones. Antes, ✅ **al día el 2026-10-20**: **37** nombres —36 módulos de `src/` y
    `mpv`, el binding de libmpv, que `video_player.py` importa **dentro** de `load_mpv()` y el análisis
    estático no ve—, auditados con AST en las dos direcciones. El reproductor añadió los cinco
    `APIs.resolvers.*` y `gui.components.video_player`. Antes, ✅ **al día el 2026-08-21**: **30** nombres, auditados en las dos direcciones con AST —todos resuelven a un fichero real de `src/` y ningún módulo de `src/` queda sin declarar, salvo `app.py`, que es el script de entrada. El rediseño añadió `gui.theme` y los **11** `gui.components.*`. 🔴 **Todo módulo nuevo bajo `src/` hay que declararlo aquí**, o el `.exe` compila y revienta al arrancar. Antes, Entre el 2026-08-06 y el

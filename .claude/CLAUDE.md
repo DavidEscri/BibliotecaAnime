@@ -18,7 +18,7 @@ internamente lo pedido usando [`.claude/COMO-PEDIR-TAREAS.md`](COMO-PEDIR-TAREAS
    primero que hay que aclarar, y lo que más cambia el tamaño del trabajo.
 3. **Ficheros exactos y frontera de alcance.** Las 4 vistas de estado son casi idénticas línea por
    línea: decide si la tarea afecta a una o a las cuatro.
-4. **¿Es una trampa conocida?** Coteja con `docs/10-invariantes-y-trampas.md` (**58** trampas con su
+4. **¿Es una trampa conocida?** Coteja con `docs/10-invariantes-y-trampas.md` (**80** trampas con su
    síntoma) **antes** de investigar desde cero.
 5. **Nivel de verificación** — ejecutar la GUI · script en el scratchpad · solo lectura. No hay
    tests: si no se ejecuta, se entrega marcado como no verificado.
@@ -49,6 +49,10 @@ cachea los pósters en disco. Todo el estado es local; no hay backend propio.
 Desde el 2026-10-20 **reproduce los episodios dentro de la propia ventana**, con mpv incrustado
 (`python-mpv` + `libmpv-2.dll`), para los servidores cuyo hoster sabe resolver. Los demás —y cualquier
 fallo— **siguen abriendo el navegador**, que es lo que hacía antes.
+
+Desde la **0.5.0** (2026-10-28) la ficha sabe de la **franquicia**: temporada anterior y siguiente en
+la cabecera, y pestañas —Episodios · Temporadas y relacionados · Te puede interesar— que **no salen a
+la red hasta que se abren**. Y cambiar de vista **conserva** la vista en vez de rehacerla (B13).
 
 ---
 
@@ -96,10 +100,21 @@ El código de la GUI **nunca** habla con un sitio concreto. Todo pasa por tres p
 
 **Contrato de `AnimeProvider`** — cinco métodos abstractos: `get_recent_animes`, `get_anime_info`,
 `search_animes_by_query`, `search_animes_by_genres_and_order`, `get_anime_episode_servers`. Toda subclase concreta debe
-definir `PROVIDER_ID`, `PROVIDER_NAME` y `BASE_URL`; `__init_subclass__` lanza `NotImplementedError` al importar si
-falta alguno **o si `PROVIDER_ID` no es un miembro de `AnimeProviderId`**. Las búsquedas devuelven siempre
+definir `PROVIDER_ID`, `PROVIDER_NAME`, **`PROVIDER_SHORT_NAME`** (siglas, desde la 0.5.0) y `BASE_URL`;
+`__init_subclass__` lanza `NotImplementedError` al importar si falta alguno **o si `PROVIDER_ID` no es un miembro de
+`AnimeProviderId`** ([trampa 11](docs/10-invariantes-y-trampas.md)). Las búsquedas devuelven siempre
 `Tuple[List[AnimeInfo], int]` (resultados, última página). `provider_info()` ya viene implementado: construye un
-`ProviderInfo` desde esos tres atributos, y es lo que puebla el desplegable de la sidebar.
+`ProviderInfo` desde esos cuatro atributos, y es lo que puebla el desplegable de la sidebar.
+
+🆕 **Relaciones y formato** (0.5.0). La ficha de AnimeAV1 y JKAnime trae `AnimeInfo.format` y
+`AnimeInfo.related` (`List[RelatedAnime]`, con `AnimeRelationType` y `AnimeFormat` en `models.py`): **`[]` = no
+tiene relacionados, `None` = el proveedor no sabe** (AnimeFLV y todos los listados). Solo hay **cuatro** tipos
+—precuela, secuela, versión alternativa y `OTHER`—, y cada proveedor traduce el resto; «Historia principal» y
+«Predecesor» **no** son precuelas ([trampa 59](docs/10-invariantes-y-trampas.md)). 🔴 **No se persisten**. Dos
+métodos **no abstractos** nuevos: `get_anime_relations()` (por defecto, `get_anime_info`; JKAnime lo sobrescribe sin el
+POST de episodios) y `genre_filters()` (sin red, de vuelta al catálogo común; gancho `_genre_from_slug`). El wrapper
+del manager `get_anime_relations(anime_id, provider_id)` es **siempre `strict=True`**. Detalle en
+[`docs/05 §1, §3 y §3b`](docs/05-proveedores-y-scraping.md) y [`docs/04 §1c`](docs/04-modelo-de-datos.md).
 
 ⚠️ **`PROVIDER_ID` es un enum desde el 2026-08-16**, no una cadena: su `value` es lo que se persiste en
 `ANIMES.provider_id` y en `USER_SETTINGS`, así que **elegirlo es una decisión permanente**. Añadir un proveedor
@@ -274,10 +289,16 @@ dos piezas que antes no existían:
   ni hereda del padre — sale del gris por defecto de CustomTkinter, que no es de `Theme`. No hay
   literal que buscar, porque el problema es la **ausencia** de uno. Le pasaba a la pantalla de carga
   hasta el 2026-08-31 ([trampa 36](docs/10-invariantes-y-trampas.md)).
-- **`gui/components/`** — **13** piezas compartidas: `Sidebar`, `ViewHeader`, `PosterGrid`, `Pager`,
+- **`gui/components/`** — **15** piezas compartidas: `Sidebar`, `ViewHeader`, `PosterGrid`, `Pager`,
   `AnimeRow`, `SidePanel`, `ResumeBand`, `RatingStars`, `StatusPill`, `GenreChips`, `EmptyState`,
-  desde el 2026-09-24 **`VideoPlayer`** (`video_player.py`, ver *El reproductor acoplado* más abajo)
-  y desde el 2026-10-21 **`OrderMenu`**, el desplegable de orden de tres vistas.
+  desde el 2026-09-24 **`VideoPlayer`** (`video_player.py`, ver *El reproductor acoplado* más abajo),
+  desde el 2026-10-21 **`OrderMenu`**, el desplegable de orden de tres vistas, y desde la 0.5.0
+  **`TabBar`** (pestañas con cuerpo perezoso) y **`franchise_cards`** (carrusel, tarjetas de
+  relacionado y la ficha de formato dibujada con PIL).
+  🔴 **Todo widget de CustomTkinter lleva `font=`, aunque no tenga texto** (2026-10-28). Sin ella crea
+  su propio `CTkFont` en un ciclo de referencias, y si el recolector lo libera en un hilo recién creado
+  por el de Tk, **la aplicación se congela** sin error ([trampa 77](docs/10-invariantes-y-trampas.md)).
+  Quedan **17** sin ella (**B18**).
   🔴 **Nada que viva toda la sesión puede apuntar a un widget que se destruye** (2026-10-21). En
   CustomTkinter 5.2.2 hay tres formas silenciosas de hacerlo, y las tres hacían crecer la memoria
   con cada cambio de vista (49 → 239 MB en 75):
@@ -349,9 +370,17 @@ constructor no cambió, así que las seis vistas heredan igual. Quien pinta es `
 el destino como widget, **no existe**.
 
 **Vistas** (`gui/sidebarButtons/<vista>/`): heredan de `utilsButtons.SidebarButton`, se instancian en
-`MainWindow.load_sidebar_buttons()` y siguen todas el mismo patrón — `show_frame()` → `clear_frame()`
-→ componer en `main_window.content_frame` → `__on_anime_click()` → la ficha.
-Para una vista nueva: heredar de `SidebarButton`, implementar `show_frame()`, registrarla en
+`MainWindow.load_sidebar_buttons()` y siguen todas el mismo patrón — `show_frame()` → leer sus datos y
+calcular su **firma** → `page = main_window.show_view(self, firma)` → si `page` es `None`, nada más; si no,
+componer **en `page`** → `__on_anime_click()` → la ficha.
+🔴 **Desde la 0.5.0 (B13) las vistas se conservan.** Cada una tiene **su página** dentro de `content_frame`, que
+`clear_frame()` **esconde** (la ficha sí se destruye), y `show_view()` la reutiliza si la firma —lo que la vista
+pinta, sacado de lo que ya lee al entrar— coincide. **La invalidación es la firma, no un aviso**: ningún camino de
+escritura tiene que acordarse de nada. Se conservan el buscador y la página del paginador; el desplazamiento vuelve
+arriba. ✅ Volver a una vista cuesta **37-136 ms** (eran 226-466). La firma se guarda como **copia**
+([trampa 80](docs/10-invariantes-y-trampas.md)). Detalle en [`docs/06 §5`](docs/06-gui-y-vistas.md) y
+[`docs/03 §18`](docs/03-flujos-de-ejecucion.md).
+Para una vista nueva: heredar de `SidebarButton`, implementar `show_frame()` con su firma, registrarla en
 `load_sidebar_buttons()` **y declararla en `hiddenimports` del `.spec`**
 ([`docs/11 §1`](docs/11-playbooks.md)).
 
@@ -444,6 +473,16 @@ emisión** mentía en la banda «Retomar», en las barras de «Viendo» y en la 
 **relee la fila** antes de escribir —si entretanto cambió de proveedor, el dato ya no es suyo— y
 **se salta las filas sin `provider_id`**. Detalle en [`docs/03 §11`](docs/03-flujos-de-ejecucion.md).
 
+🆕 **El segundo servicio sin interfaz es `FranchiseService`** (`gui/franchise_service.py`, 0.5.0), en
+`MainWindow.franchise_service`. Los sitios solo dan relaciones **de un salto**, así que recorre la línea
+principal (precuela ← anime → secuela) **una petición por temporada**, en un hilo por llamada y con una caché de
+páginas para toda la sesión: Kusuriya desde la S1 son 2 GET, y desde la S3 después, 0. Las peticiones a un mismo
+sitio se **turnan y espacian** 0,5 s con un lock por proveedor; tope de 25 temporadas; una página que falló no se
+repite en 2 min. Completa el formato de los relacionados —relación → caché → título → **como mucho una** ficha al
+otro proveedor con el mismo slug, descartada si allí es otro anime ([trampa 64](docs/10-invariantes-y-trampas.md))—.
+⚠️ **No numera peticiones**: la ficha descarta lo que llega tarde. Detalle en
+[`docs/03 §15`](docs/03-flujos-de-ejecucion.md) y [`docs/07 §1d`](docs/07-concurrencia-e-hilos.md).
+
 ⚠️ **Los contadores de la barra salen de las listas cacheadas del hub, y esas listas solo se llenan al
 arrancar.** Quien cambie un estado tiene que **releerlas** antes de llamar a
 `refresh_sidebar_counts()` ([trampa 31](docs/10-invariantes-y-trampas.md)).
@@ -452,9 +491,27 @@ arrancar.** Quien cambie un estado tiene que **releerlas** antes de llamar a
 secundario revienta con `invalid command name ...!ctkcanvas` al destruir una vista que tenía un
 `<Configure>` encolado.
 
-**`AnimeWindowViewer`** (`gui/anime_window.py`, 2 429 líneas) no es una ventana: reemplaza el contenido
-de `content_frame`. Muestra el bloque de proveedor + póster de 248 × 372 + sinopsis + géneros, los 4
-botones de estado y la lista de episodios (**los 25 primeros**, `[:25]`).
+**`AnimeWindowViewer`** (`gui/anime_window.py`, 3 244 líneas) no es una ventana: reemplaza el contenido
+de `content_frame`. Muestra el bloque de proveedor + póster de 248 × 372 + sinopsis + géneros, la línea de
+temporadas, los 4 botones de estado y las **pestañas**, la primera de las cuales es la lista de episodios
+(**los 25 primeros**, `[:25]`).
+
+🔴 **Abrir una ficha no sale más a la red que antes de la 0.5.0** (1 GET en AnimeAV1, GET + POST en JKAnime). La
+línea «◀ Temporada anterior · Temporada siguiente ▶» y las pestañas se montan con lo que ya trae `anime_info`, y
+`TabBar` construye cada pestaña **la primera vez que se abre**:
+
+- **Temporadas y relacionados** (solo si hay relacionados): carrusel de la línea principal —5 a la vista, flechas de
+  una en una— y el resto agrupado por formato, con sellos de estado y las siglas del proveedor que aportó cada dato.
+- **Te puede interesar** (si algún género traduce): **una** búsqueda `strict=True` por los dos primeros géneros
+  —AnimeAV1 los combina con **O** ([trampa 66](docs/10-invariantes-y-trampas.md))—, quitando lo finalizado, el
+  propio anime y su franquicia; 4 pósters con sello y «Ver otros 4», que no pide nada si hay candidatos.
+- **Abrir un relacionado o una recomendación** pasa por `__open_related()`: si está guardado, **su fila** vía
+  `open_saved_anime(..., history=…)` (trampa 21); si no, un hilo `strict=True` con número de petición. La ficha nueva
+  abre en Episodios con **«← Volver a …»**, que reconstruye la anterior desde su `SheetVisit` **sin red**.
+- Al terminar el **último** episodio de una temporada con secuela, la tarjeta de fin ofrece **«Empezar <secuela>»**.
+
+Detalle en [`docs/06 §8`](docs/06-gui-y-vistas.md) y [`docs/03 §16 y §17`](docs/03-flujos-de-ejecucion.md); diseño
+aprobado en `.claude/plan-050/DISENO-VISUAL.html`.
 
 🔴 **La sinopsis se normaliza al pintar, no al raspar** (2026-09-02). `wraplength` se recalcula en
 cada `<Configure>` desde el rediseño, pero **no puede deshacer un `\n` que traiga el texto**: Tk lo
@@ -475,13 +532,12 @@ servidores en la impar de debajo, así que desplegarlos no empuja nada; el corte
 pantalla**; y el botón de orden dice **el orden que llega del proveedor**, que no es el mismo en
 todos. La ficha además **refresca los contadores** de la barra al cambiar un estado.
 
-🔴 **En `EpisodeRow`, el hover va atado a los cinco hijos y el clic solo a tres.** El interruptor y el
-separador de 1 px reciben `<Enter>` / `<Leave>` pero no `<Button-1>`: `CTkFrame.bind()` ata al canvas
-interno, que es **hermano** de los demás hijos y no su ancestro, así que salir de la fila por un hijo
-sin atar **no manda ningún `<Leave>`** y el episodio se queda resaltado para siempre. Recorrer la
-lista despacio dejaba encendidos todos los episodios por los que pasabas — y **deprisa no se
-reproduce**, porque el salto se salta el separador ([trampa 37](docs/10-invariantes-y-trampas.md),
-resuelta el 2026-09-01). Encima, `EpisodeRow.__hovered` es un atributo **de clase**: la fila que se
+🔴 **En `EpisodeRow`, el hover va atado a los cuatro hijos y el clic solo a tres.** El interruptor
+recibe `<Enter>` / `<Leave>` pero no `<Button-1>`: `CTkFrame.bind()` ata al canvas interno, que es
+**hermano** de los demás hijos y no su ancestro, así que salir de la fila por un hijo sin atar **no manda
+ningún `<Leave>`** y el episodio se queda resaltado para siempre. Le pasaba con el separador de 1 px entre
+filas ([trampa 37](docs/10-invariantes-y-trampas.md), resuelta el 2026-09-01), que la 0.5.0 **quitó**: no
+se había pintado nunca, porque un `CTkFrame` de 1 px no pinta ([trampa 71](docs/10-invariantes-y-trampas.md)). Encima, `EpisodeRow.__hovered` es un atributo **de clase**: la fila que se
 enciende apaga a la anterior, así que no puede haber dos. Si añades un hijo a la fila, **átalo**.
 
 **El bloque de proveedor** son hasta tres líneas: `Proveedor: X` (de dónde vienen los datos que ves),
@@ -583,6 +639,12 @@ lo que daba por hecho la investigación previa. Detalle completo en
 - 🆕 `EpisodeRefresher` (2026-10-27) lanza **como mucho un hilo daemon por proveedor**, que muere al
   vaciar su cola; su estado compartido va bajo un `Lock`, y escribir en la BD y avisar a las vistas
   vuelve al hilo de Tk con `after(0, …)`.
+- 🆕 `FranchiseService` (0.5.0) lanza **un hilo por llamada**; su caché va bajo un `Lock` y las
+  peticiones a un mismo proveedor, bajo **otro lock por proveedor** que las turna y espacia. La ficha
+  suma tres hilos más: pósters de las pestañas, abrir un relacionado no guardado y «Te puede
+  interesar». Son **22** en total ([`docs/07 §1`](docs/07-concurrencia-e-hilos.md)).
+- 🆕 Las vistas **ocultas siguen vivas**: sus suscripciones a `EpisodeRefresher` las repintan aunque
+  no se vean. La ficha no: sus hilos comprueban que sigue en pantalla además del número de petición.
 - 🆕 **Una `requests.Session` por hilo, nunca compartida** (2026-10-27, B16). AnimeAV1 (`_fetch`) y
   las descargas de pósters piden con `thread_session()` (`utils/http_session.py`): la sesión vive en
   un `threading.local`, muere con su hilo y **no guarda cookies**, así que solo se reutiliza la
@@ -615,13 +677,14 @@ lo que daba por hecho la investigación previa. Detalle completo en
 
 ## Notas de mantenimiento
 
-- **`MiBibliotecaAnime.spec`**: `hiddenimports` tiene **40** nombres desde el 2026-10-27 —39 módulos
+- **`MiBibliotecaAnime.spec`**: `hiddenimports` tiene **43** nombres desde el 2026-10-28 —42 módulos
   de `src/` y `mpv`, que `video_player.py` importa **dentro** de `load_mpv()` y el análisis estático no
-  ve—. ✅ Auditado con AST en las dos direcciones el 2026-10-27: todos resuelven a ficheros reales y **ningún módulo
+  ve—. ✅ Auditado con AST en las dos direcciones el 2026-10-28: todos resuelven a ficheros reales y **ningún módulo
   de `src/` queda sin declarar** salvo `app.py`, que es el script de entrada. El reproductor añadió los
   cinco `APIs.resolvers.*` y `gui.components.video_player`; la auditoría de rendimiento,
   `gui.components.order_menu`; el refresco de episodios, `gui.episode_refresher`; las conexiones por
-  hilo, `utils.http_session`. 🔴 **Todo módulo nuevo bajo `src/` hay que
+  hilo, `utils.http_session`; la 0.5.0, `gui.franchise_service`, `gui.components.tab_bar` y
+  `gui.components.franchise_cards`. 🔴 **Todo módulo nuevo bajo `src/` hay que
   declararlo aquí**, o el `.exe` compila y revienta al arrancar.
 - **`binaries`** lleva `('vendor/libmpv-2.dll', 'vendor')` —destino **`vendor`**, no `'.'`—, porque
   `load_mpv()` la busca en `get_resource_path("vendor")`, que en el `.exe` es `_internal/vendor`; y
@@ -637,15 +700,14 @@ lo que daba por hecho la investigación previa. Detalle completo en
   ✅ **0.2.2 compilada y probada por el usuario el 2026-10-21** (`HLS`, Desu y navegador).
 - La versión de la app vive en `APP_VERSION` dentro del `.spec`.
 - `resources/DB/` y las carpetas de pósters están en `.gitignore`: se generan en tiempo de ejecución.
-- Hay **4** `# TODO:` en el código, en dos ficheros. En `anime_window.py`, los dos sueltos a nivel
-  de módulo, antes de `_CARRIAGE_RETURN`: «Si te ha gustado X, te puede interesar…» (4 animes del
-  mismo género al final de la lista de episodios) y el botón para alternar entre manga y anime. En
-  `jkanime.py`, uno dentro de `search_animes_by_query` (con texto vacío, buscar en el directorio en
-  vez de en `SEARCH_URL`) y otro dentro de `get_recent_animes` (acotar lo que recoge de la portada).
+- Hay **3** `# TODO:` en el código, en dos ficheros. En `anime_window.py`, uno suelto a nivel de
+  módulo, antes de `_CARRIAGE_RETURN`: el botón para alternar entre manga y anime. En `jkanime.py`,
+  uno dentro de `search_animes_by_query` (con texto vacío, buscar en el directorio en vez de en
+  `SEARCH_URL`) y otro dentro de `get_recent_animes` (acotar lo que recoge de la portada).
   Se citan **por su texto, no por su línea**, porque los números se desplazan con cualquier cambio
-  en el fichero. ✅ Reinventariados el 2026-10-27 con el grep. El del selector de proveedor se cerró el 2026-07-30 y el de
+  en el fichero. ✅ Reinventariados el 2026-10-28 con el grep. El del selector de proveedor se cerró el 2026-07-30, el de
   `main_window.py:32` —quitar «Anime» de los botones y el título— el 2026-08-20, con la fase 1 del
-  rediseño.
+  rediseño, y «Si te ha gustado X, te puede interesar…» el 2026-10-28, con la pestaña «Te puede interesar».
   ⚠️ **Este apartado se ha equivocado tres veces**: hasta el 2026-08-07 citaba dos TODOs inventados;
   hasta el 2026-08-16 se dejó fuera los dos reales de `jkanime.py`; y el 2026-08-21 el propio grep
   devolvía 5 por un comentario que hablaba de uno ya cerrado. Inventaríalos con
@@ -726,6 +788,14 @@ cerrados —el pin y la integración de un proveedor nuevo el 2026-08-06, y la c
    los hosters aplazados (**B14**), recordar el minuto donde lo dejaste (una columna más, no pedida),
    elegir calidad o subtítulos (los playlists no ofrecen alternativas) y descargar episodios.
 
+5. ✅ ~~**Versión 0.5.0: temporadas y relacionados, «Te puede interesar» y B13**~~ — **hecha el
+   2026-10-28**, en **6 fases**, una por sesión (`.claude/plan-050/`, con el diseño aprobado en su
+   `DISENO-VISUAL.html` y las decisiones P1-P8 del usuario). Tampoco estaba en la lista. Cierra el
+   bloque «Si te ha gustado *X*…» y **B13**. **Deja sin hacer, a propósito**: persistir las
+   relaciones, relaciones en AnimeFLV, recomendaciones de fuera del proveedor y el **aviso de «nueva
+   temporada»** para lo finalizado (**P5, aparcado**), con su regla ya fijada: **no avisar si esa
+   temporada ya está en la biblioteca**, en cualquier estado.
+
 Después, sin orden fijado. **El rediseño se llevó por delante buena parte de lo que había aquí**:
 
 - ✅ ~~Renombrar «animes recientes» a **nuevos lanzamientos**~~ — fase 1.
@@ -740,7 +810,9 @@ Después, sin orden fijado. **El rediseño se llevó por delante buena parte de 
   - ✅ ~~En «viendo», resultados en cascada de uno por fila indicando el último capítulo visto~~ — fase 3.
   - ✅ ~~En «favoritos», calificación personal guardada y ordenación por ella~~ — fase 5, columna
     `rating` ([`docs/04 §3b`](docs/04-modelo-de-datos.md)).
-- Bloque «Si te ha gustado *X*, te puede interesar…» al final de la lista de episodios, con 4 animes del mismo género.
+- ✅ ~~Bloque «Si te ha gustado *X*, te puede interesar…»~~ — es la pestaña «Te puede interesar» de la 0.5.0.
+- **P5**: aviso de «nueva temporada» en «Finalizados» (aparcado; regla arriba). `FranchiseService` ya
+  sabe recorrer la línea; falta decidir cuándo se pide, porque son peticiones que nadie ha pedido.
 - Integrar más proveedores (MonosChinos2, TioAnime) y proveedores de manga.
 - **Deuda que deja el rediseño**, por orden de lo que más molesta:
   1. ✅ ~~**La petición de servidores de la ficha sigue en el hilo de Tkinter**~~ — **cerrada el
@@ -758,15 +830,19 @@ Después, sin orden fijado. **El rediseño se llevó por delante buena parte de 
      plano tras la portada y al entrar, y se repintan en el sitio. ⚠️ **«Finalizados» queda fuera a
      propósito**: lo terminado casi nunca crece, y son 24 peticiones más
      ([trampa 38](docs/10-invariantes-y-trampas.md), [`docs/12 §4`](docs/12-deuda-tecnica-y-roadmap.md)).
-  5. **B13**: cambiar de vista bloquea la interfaz **270-620 ms**. ✅ Rediagnosticada el 2026-10-21:
-     ~70 % es crear los widgets de CustomTkinter (8-12 mil llamadas a Tcl por vista), y los JPG cuestan
-     menos de 60 ms. Una caché de `CTkImage` **no** es el arreglo, y además reintroduciría la
-     [trampa 55](docs/10-invariantes-y-trampas.md). La palanca es conservar las vistas construidas en
-     vez de rehacerlas. Opcional ([`docs/12 §4`](docs/12-deuda-tecnica-y-roadmap.md)).
+  5. ✅ ~~**B13**: cambiar de vista bloquea la interfaz **270-620 ms**~~ — **cerrada con medida el
+     2026-10-28** (0.5.0, fase 5): las vistas se conservan y volver cuesta **37-136 ms**. ⚠️ El
+     objetivo de 50 ms solo lo cumple «Buscar»: lo que queda es Tk repintando los lienzos de la
+     página, y bajar más exige **menos widgets por vista** ([trampa 74](docs/10-invariantes-y-trampas.md),
+     [`docs/12 §4`](docs/12-deuda-tecnica-y-roadmap.md)).
   6. ✅ ~~**B16-B17**~~ — **cerradas el 2026-10-27**: AnimeAV1 y los pósters piden con una
      `requests.Session` **por hilo** (la precarga de la portada, 3,8 → 2,95 s), y el `<Configure>`
      de la raíz —el nuestro **y el de CTk**— se filtra en Tcl: 464 pasos a Python por cambio de vista
      → 0. Ninguna de las dos se nota a ojo ([`docs/12 §4`](docs/12-deuda-tecnica-y-roadmap.md)).
+- **Deuda que deja la 0.5.0**:
+  1. **B18**: 17 widgets de CustomTkinter sin `font=`, que pueden congelar la aplicación como lo hizo
+     «Reintentar» ([trampa 77](docs/10-invariantes-y-trampas.md)). Arreglo mecánico en once ficheros.
+  2. **C13**: `library_status()` de la ficha y `__saved_status()` de «Buscar» repiten la misma regla.
 - **Deuda que deja el reproductor**:
   1. **B14**: los hosters sin resolutor siguen abriendo el navegador. Lo que más valdría es un segundo
      hoster por proveedor que no dependa del mismo origen: zilla estuvo caído tres días en septiembre.
@@ -787,21 +863,21 @@ Guía de colaboración (cómo plantear una tarea en este repo, qué asumo por de
 cambian mi comportamiento): [`.claude/COMO-PEDIR-TAREAS.md`](COMO-PEDIR-TAREAS.md).
 
 **Antes de tocar cualquier cosa, lee [`docs/10-invariantes-y-trampas.md`](docs/10-invariantes-y-trampas.md)**
-— **58** trampas con su síntoma observable.
+— **80** trampas con su síntoma observable.
 
 | Documento | Qué responde |
 |---|---|
 | [docs/README.md](docs/README.md) | Índice, mapa de lectura «si tocas X, lee Y», cómo mantenerlo vivo |
 | [docs/01-arquitectura.md](docs/01-arquitectura.md) | Capas, dependencias permitidas/prohibidas, invariantes de diseño |
 | [docs/02-mapa-de-modulos.md](docs/02-mapa-de-modulos.md) | Ficha por módulo: API pública, dependencias, efectos secundarios |
-| [docs/03-flujos-de-ejecucion.md](docs/03-flujos-de-ejecucion.md) | Los **13** flujos en diagramas de secuencia, con el hilo de cada paso |
+| [docs/03-flujos-de-ejecucion.md](docs/03-flujos-de-ejecucion.md) | Los **17** flujos en diagramas de secuencia, con el hilo de cada paso |
 | [docs/04-modelo-de-datos.md](docs/04-modelo-de-datos.md) | `AnimeInfo` vs `AnimeRecord`, esquema real de `ANIMES`, rangos, estados |
 | [docs/05-proveedores-y-scraping.md](docs/05-proveedores-y-scraping.md) | Contrato, payload de AnimeAV1, selectores de AnimeFLV, fallback, diagnóstico **y los hosters de vídeo (§9)** |
 | [docs/06-gui-y-vistas.md](docs/06-gui-y-vistas.md) | `MainWindow` como hub, ciclo de vida de una vista, layout, temas |
 | [docs/07-concurrencia-e-hilos.md](docs/07-concurrencia-e-hilos.md) | Qué corre en qué hilo, reglas y carreras conocidas |
 | [docs/08-convenciones-y-estilo.md](docs/08-convenciones-y-estilo.md) | Cabecera obligatoria, singletons, **plantillas copiables** |
 | [docs/09-verificacion-y-pruebas.md](docs/09-verificacion-y-pruebas.md) | Cómo probar cada capa sin GUI; scripts listos; checklist manual |
-| [docs/10-invariantes-y-trampas.md](docs/10-invariantes-y-trampas.md) | **Empieza por aquí.** **58** trampas con síntoma observable |
+| [docs/10-invariantes-y-trampas.md](docs/10-invariantes-y-trampas.md) | **Empieza por aquí.** **80** trampas con síntoma observable |
 | [docs/11-playbooks.md](docs/11-playbooks.md) | Recetas: añadir vista, columna, proveedor, campo, **resolutor**; empaquetar |
 | [docs/12-deuda-tecnica-y-roadmap.md](docs/12-deuda-tecnica-y-roadmap.md) | TODOs con `fichero:línea`, discrepancias, riesgos, roadmap técnico **y licencia/cumplimiento de la distribución (§7)** |
 | [docs/13-selector-de-proveedor.md](docs/13-selector-de-proveedor.md) | Selector de proveedor, `DB_user.db` **y la columna `provider_id`** (§14). **Léelo antes de tocar `animeProviderMgr.py`, `main_window.py` o `anime_window.py`** |

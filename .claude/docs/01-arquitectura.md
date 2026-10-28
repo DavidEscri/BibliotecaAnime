@@ -2,8 +2,8 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-10-20 · rama `feature/reproductor-embebido` · último commit de código **`f3fc229`** (fase 5 del reproductor) |
-| **Última revisión** | 2026-10-27 (**conexiones por hilo**, B16): módulo nuevo **`utils/http_session.py`** en la tabla de dependencias —solo stdlib y `requests`—, que importan AnimeAV1 y `utils/utils.py`; este último deja de importar `requests` directamente. Antes, 2026-10-20 (**reproductor in-app**): la capa **`APIs/resolvers/`** entra en el diagrama y en la tabla de dependencias —solo stdlib, `requests` y ella misma; **no** la usa el manager; la llama la ficha—, junto con `VideoPlayer`, libmpv y los hosters; **I6 se cumple ya sin excepciones**; **I10** (la resolución no es un método de `AnimeProvider`) e **I11** (todo fallo de reproducción acaba en el navegador) nuevos; §6 gana `python-mpv` y la DLL. Antes, 2026-08-16 (**columna `provider_id`**): `DB_user.db` incorporada al diagrama, **I9 nuevo** (el proveedor es un tipo, no una cadena), §5 con las dos BD y §7 corregido — sí hay migraciones y sí hay configuración persistida |
+| **Fecha** | 2026-10-28 · rama `release/0.5.0` · último commit de código **`7bbbb3c`** |
+| **Última revisión** | 2026-10-28 (**versión 0.5.0**): `gui/franchise_service.py` entra en el diagrama y en la tabla de dependencias —como `EpisodeRefresher`, un servicio de la GUI **sin interfaz** que solo importa `APIs.common`—; `models.py` gana `RelatedAnime`, `AnimeRelationType` y `AnimeFormat`; `gui/components/` suma `TabBar` y `franchise_cards`. Ninguna regla de dependencia cambia. Antes, 2026-10-27 (**conexiones por hilo**, B16): módulo nuevo **`utils/http_session.py`** en la tabla de dependencias —solo stdlib y `requests`—, que importan AnimeAV1 y `utils/utils.py`; este último deja de importar `requests` directamente. Antes, 2026-10-20 (**reproductor in-app**): la capa **`APIs/resolvers/`** entra en el diagrama y en la tabla de dependencias —solo stdlib, `requests` y ella misma; **no** la usa el manager; la llama la ficha—, junto con `VideoPlayer`, libmpv y los hosters; **I6 se cumple ya sin excepciones**; **I10** (la resolución no es un método de `AnimeProvider`) e **I11** (todo fallo de reproducción acaba en el navegador) nuevos; §6 gana `python-mpv` y la DLL. Antes, 2026-08-16 (**columna `provider_id`**): `DB_user.db` incorporada al diagrama, **I9 nuevo** (el proveedor es un tipo, no una cadena), §5 con las dos BD y §7 corregido — sí hay migraciones y sí hay configuración persistida |
 | **Cubre** | `src/app.py`, `src/APIs/**`, `src/dataPersistence/**`, `src/gui/**`, `src/utils/**` |
 
 Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ sin verificar.
@@ -24,11 +24,12 @@ graph TD
         AW["anime_window.py<br/><b>AnimeWindowViewer</b><br/><i>ficha de detalle</i>"]
         BTN["utils/buttons/utilsButtons.py<br/><i>widgets reutilizables</i>"]
         VP["components/video_player.py<br/><b>VideoPlayer · PlayerControls</b><br/><i>mpv incrustado</i>"]
+        SRV["episode_refresher.py · franchise_service.py<br/><b>EpisodeRefresher · FranchiseService</b><br/><i>servicios sin interfaz</i>"]
     end
 
     subgraph L2["Dominio / acceso a datos"]
         MGR["APIs/common/animeProviderMgr.py<br/><b>AnimeProviderManager</b><br/><i>registro + fallback</i>"]
-        MODELS["APIs/common/models.py<br/><b>AnimeInfo · EpisodeInfo · ServerInfo</b><br/><b>AnimeProviderId · ProviderInfo</b><br/>AnimeGenreFilter · AnimeOrderFilter"]
+        MODELS["APIs/common/models.py<br/><b>AnimeInfo · EpisodeInfo · ServerInfo</b><br/><b>AnimeProviderId · ProviderInfo</b><br/>AnimeGenreFilter · AnimeOrderFilter<br/>RelatedAnime · AnimeRelationType · AnimeFormat"]
         PERS["dataPersistence/animesPersistence.py<br/><b>AnimesPersistence · AnimeRecord</b>"]
         UPERS["dataPersistence/userPersistence.py<br/><b>UserPersistence</b><br/><i>preferencias</i>"]
         RES["APIs/resolvers/<br/><b>registry · Resolver · MediaSource</b><br/>zilla · jkplayer · mp4upload"]
@@ -85,6 +86,9 @@ graph TD
     PERS -.->|get_resource_path| UTL
     AW --> RES
     AW --> VP
+    MW --> SRV
+    AW --> SRV
+    SRV --> MGR
     AW -.->|webbrowser.open| BR
     VP -.->|MediaSource| RES
     VP --> MPV
@@ -95,7 +99,7 @@ graph TD
     classDef dom fill:#dcfce7,stroke:#22c55e
     classDef inf fill:#fef3c7,stroke:#f59e0b
     classDef ext fill:#f3e8ff,stroke:#a855f7
-    class MW,VIEWS,AW,BTN,VP gui
+    class MW,VIEWS,AW,BTN,VP,SRV gui
     class MGR,MODELS,PERS,UPERS,RES dom
     class AV1,JK,FLV,SQL,UTL inf
     class NET,DB,UDB,FS,HOST,MPV,BR ext
@@ -114,6 +118,7 @@ graph TD
 | Desde | Puede importar | **Nunca debe importar** |
 |---|---|---|
 | `gui/**` | `APIs.common.*`, `dataPersistence.*`, `utils.*` | `APIs.animeflv.*` / `APIs.animeav1.*` / `APIs.jkanime.*` **salvo `main_window.py`** |
+| 🆕 `gui/franchise_service.py` | solo `APIs.common.*` y stdlib | `customtkinter`, el resto de `gui/**`, `dataPersistence/**`: de la ventana solo usa `after()` y `winfo_exists()` |
 | `APIs/<sitio>/` | `APIs.common.*`, `utils.utils`, 🆕 `utils.http_session` | cualquier cosa de `gui/` o `dataPersistence/` |
 | `APIs/common/` | solo stdlib + `requests` | `utils.*`, `gui/**`, `dataPersistence/**` |
 | 🆕 `APIs/resolvers/` | solo stdlib + `requests` + **ella misma** | `APIs.<sitio>.*`, `APIs.common.*`, `gui/**`, `dataPersistence/**`, `utils.*` |

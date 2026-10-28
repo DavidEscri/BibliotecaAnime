@@ -2,9 +2,9 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-10-20 · rama `feature/reproductor-embebido` · último commit de código **`f3fc229`** (fase 5 del reproductor). §1, §6 y §7 **reancladas enteras** contra ese árbol; §2, solo en las filas nuevas |
-| **Última revisión** | 2026-10-27 (**conexiones por hilo**, B16): **§1c nuevo** — AnimeAV1 y los pósters piden con `thread_session()`, una `requests.Session` **por hilo** y sin cookies, que reutiliza la conexión dentro de cada hilo y **no comparte nada entre hilos**; reglas nuevas en §3. Ningún hilo nuevo. Antes, 2026-10-27 (**refresco de episodios**): los hilos del refresco de episodios pasan a `EpisodeRefresher`: **como mucho uno por proveedor**, que muere al vaciar su cola, con el estado bajo un `Lock` y la escritura de vuelta en Tk. Antes, 2026-10-21 (**auditoría de rendimiento**): **C1 resuelta en el arranque** —la portada, el aviso sin estrenos y la barra de progreso se pintan ya en el hilo de Tk; antes la portada se construía desde el hilo daemon y tardaba **860-1 000 ms** en vez de ~200—, y **sale del hilo de Tk el último acceso a la red**, que no estaba contado: el póster de la ficha cuando no está en disco (hilo **#17**). Antes, 2026-10-20 (**reproductor in-app**): **C5 resuelta** —la petición de servidores salió del hilo de Tk el 2026-09-24 y ya **ningún** sitio de la GUI sale a la red desde él—; **16 hilos** (eran 13: tres nuevos de la ficha, para servidores, resolución y cambio de episodio) **más el de eventos de mpv**, que no es nuestro y tiene su propia regla (§1b, [trampa 46](10-invariantes-y-trampas.md)); `after()` pasa de 11 a **28**; §7 gana `WM_DELETE_WINDOW`, que no existía. ⚠️ El commit `cbd2721` (comentarios, −400 líneas) había desplazado todas las anclas de §1 y §6. Antes, 2026-09-01 (**abrir la ficha por un episodio**): **C5 sube de gravedad** — la petición de servidores ya no la dispara solo el usuario, la dispara también abrir la ficha desde «Viendo» o «Pendientes»; el `after(50 ms)` que lo envuelve es una tirita, no el arreglo. Antes, 2026-09-01 (**refresco de la banda «Retomar»**): hilo nuevo en la portada, y **§1, §2 y §6 reancladas enteras contra el código real** — la mitad de las líneas que citaban se habían movido con el rediseño y tres hilos del inventario **ya no existían**. Antes, 2026-08-31 (**fondo de la pantalla de carga**): anclas de `main_window.py` reverificadas en §1, §2 y §4 (iban ~29 líneas desplazadas) y `place_forget()` corregido a `destroy()` en C1; las de #5 a #13 **siguen sin verificar**. Antes, 2026-08-16 (**columna `provider_id`**): hilos a **13** (eran 8) y `after()` a **10** (eran 4); **C2 resuelta** — los 4 puntos que abren una ficha pintan ya en el hilo de Tk. C5 sigue viva |
-| **Cubre** | `src/gui/main_window.py`, `src/gui/anime_window.py`, `src/gui/components/video_player.py`, `src/gui/sidebarButtons/**`, `src/utils/utils.py`, `src/utils/http_session.py` |
+| **Fecha** | 2026-10-28 · rama `release/0.5.0` · último commit de código **`7bbbb3c`**. **§1 reanclada entera** contra ese árbol; §6 y §7 lo están contra `f3fc229` |
+| **Última revisión** | 2026-10-28 (**versión 0.5.0**): **22 hilos** (eran 17): dos de `FranchiseService` (#18 y #19) y tres de la ficha (#20 pósters de las pestañas, #21 abrir un relacionado no guardado, #22 «Te puede interesar»); **§1d nuevo**, el estado compartido de `FranchiseService` (un `Lock` + uno **por proveedor** que turna y espacia las peticiones); **§1e nuevo**, la congelación por `Font.__del__` en otro hilo ([trampa 77](10-invariantes-y-trampas.md)); §2 gana las vistas **ocultas** que siguen recibiendo repintados. Antes, 2026-10-27 (**conexiones por hilo**, B16): **§1c nuevo** — AnimeAV1 y los pósters piden con `thread_session()`, una `requests.Session` **por hilo** y sin cookies, que reutiliza la conexión dentro de cada hilo y **no comparte nada entre hilos**; reglas nuevas en §3. Ningún hilo nuevo. Antes, 2026-10-27 (**refresco de episodios**): los hilos del refresco de episodios pasan a `EpisodeRefresher`: **como mucho uno por proveedor**, que muere al vaciar su cola, con el estado bajo un `Lock` y la escritura de vuelta en Tk. Antes, 2026-10-21 (**auditoría de rendimiento**): **C1 resuelta en el arranque** —la portada, el aviso sin estrenos y la barra de progreso se pintan ya en el hilo de Tk; antes la portada se construía desde el hilo daemon y tardaba **860-1 000 ms** en vez de ~200—, y **sale del hilo de Tk el último acceso a la red**, que no estaba contado: el póster de la ficha cuando no está en disco (hilo **#17**). Antes, 2026-10-20 (**reproductor in-app**): **C5 resuelta** —la petición de servidores salió del hilo de Tk el 2026-09-24 y ya **ningún** sitio de la GUI sale a la red desde él—; **16 hilos** (eran 13: tres nuevos de la ficha, para servidores, resolución y cambio de episodio) **más el de eventos de mpv**, que no es nuestro y tiene su propia regla (§1b, [trampa 46](10-invariantes-y-trampas.md)); `after()` pasa de 11 a **28**; §7 gana `WM_DELETE_WINDOW`, que no existía. ⚠️ El commit `cbd2721` (comentarios, −400 líneas) había desplazado todas las anclas de §1 y §6. Antes, 2026-09-01 (**abrir la ficha por un episodio**): **C5 sube de gravedad** — la petición de servidores ya no la dispara solo el usuario, la dispara también abrir la ficha desde «Viendo» o «Pendientes»; el `after(50 ms)` que lo envuelve es una tirita, no el arreglo. Antes, 2026-09-01 (**refresco de la banda «Retomar»**): hilo nuevo en la portada, y **§1, §2 y §6 reancladas enteras contra el código real** — la mitad de las líneas que citaban se habían movido con el rediseño y tres hilos del inventario **ya no existían**. Antes, 2026-08-31 (**fondo de la pantalla de carga**): anclas de `main_window.py` reverificadas en §1, §2 y §4 (iban ~29 líneas desplazadas) y `place_forget()` corregido a `destroy()` en C1; las de #5 a #13 **siguen sin verificar**. Antes, 2026-08-16 (**columna `provider_id`**): hilos a **13** (eran 8) y `after()` a **10** (eran 4); **C2 resuelta** — los 4 puntos que abren una ficha pintan ya en el hilo de Tk. C5 sigue viva |
+| **Cubre** | `src/gui/main_window.py`, `src/gui/anime_window.py`, `src/gui/franchise_service.py`, `src/gui/episode_refresher.py`, `src/gui/components/video_player.py`, `src/gui/sidebarButtons/**`, `src/utils/utils.py`, `src/utils/http_session.py` |
 
 Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ sin verificar.
 
@@ -26,28 +26,36 @@ pero no de la ficha: si el póster no estaba en disco, lo bajaba **en el hilo de
 2026-10-21, cuando pasó a ser el **#17**. Son **17**.
 ⚠️ **Y tampoco era cierto de los botones de estado**: los cuatro `add_to_*` bajaban el póster en el
 hilo de Tk hasta el 2026-10-27, cuando pasó a hacerlo el **#16** (B7).
+🆕 **Reanclados otra vez el 2026-10-28** sobre `7bbbb3c`: la 0.5.0 añade **cinco** (#18-#22). Son **22**.
 
 | # | Dónde | Línea | Objetivo | Vuelve con `after`? |
 |---|---|---|---|---|
-| 1 | `main_window.__reload_recent_animes` | `:505` | `__reload_recent_animes_worker` — recarga al cambiar de proveedor | ✅ |
-| 2 | `main_window.__on_recent_animes_reloaded` | `:547` | `__preload_recent_animes_info` tras la recarga | — |
-| 3 | `main_window.show_loading_screen` | `:614` | `download_images_and_show_animes` — solo BD, red y disco; avisa del progreso con un callback | ✅ 🆕 (antes ❌, C1) |
-| 4 | `main_window.__on_startup_loaded` 🆕 | `:659` | `__preload_recent_animes_info`, ya desde el hilo de Tk | — |
-| 5 | `recentAnimes.__on_anime_click` | `:234` | `_load_and_show` (ficha) | ✅ |
+| 1 | `main_window.__reload_recent_animes` | `:577` | `__reload_recent_animes_worker` — recarga al cambiar de proveedor | ✅ |
+| 2 | `main_window.__on_recent_animes_reloaded` | `:619` | `__preload_recent_animes_info` tras la recarga | — |
+| 3 | `main_window.show_loading_screen` | `:686` | `download_images_and_show_animes` — solo BD, red y disco; avisa del progreso con un callback | ✅ 🆕 (antes ❌, C1) |
+| 4 | `main_window.__on_startup_loaded` 🆕 | `:731` | `__preload_recent_animes_info`, ya desde el hilo de Tk | — |
+| 5 | `recentAnimes.__on_anime_click` | `:209` | `_load_and_show` (ficha) | ✅ |
 | 6 | `EpisodeRefresher.refresh` 🆕 | `episode_refresher.py`, `refresh()` | `__work`: **uno por proveedor**, que termina al vaciar su cola. Lo piden la portada (al arrancar y al entrar), «Viendo» y «Pendientes» | ✅ |
-| 7 | `searchAnimes.__launch_search` | `:344` | `_search` — busca **y baja las carátulas** en el mismo hilo | ✅ |
-| 8 | `searchAnimes.__on_anime_click` | `:586` | abrir la ficha de un resultado | ✅ |
-| 9 | `anime_window.open_saved_anime` | `:310` | abrir un anime **de la biblioteca** | ✅ |
-| 10 | `anime_window.__repair_to_target_provider` | `:1075` | localizar el anime en el proveedor destino | ✅ |
-| 11 | `anime_window.__confirm_and_migrate` | `:1158` | migrar la fila + mover/bajar pósters | ✅ |
-| 12 | `anime_window.__toggle_servers_frame` | `:1769` | 🆕 `_fetch` — **servidores de un episodio** (cierra C5) | ✅ |
-| 13 | `anime_window.__play_video` | `:1971` | 🆕 `_resolve` — `registry.resolve()` del servidor pulsado | ✅ |
-| 14 | `anime_window.__play_episode` | `:2049` | 🆕 `_load` — servidores del episodio de al lado **y** su resolución, en serie | ✅ (dos `after`) |
-| 15 | `utilsButtons.SavedAnimeSearch.search` | `:151` | búsqueda web que completa a la local | ✅ |
-| 16 | `anime_window.sync_saved_posters_async` 🆕 | `:261` | `_sync` — releer la fila y poner sus pósters en las carpetas de sus estados, **bajo `_POSTER_SYNC_LOCK`**. La llaman los ocho botones de estado de la ficha y «Empezar» de «Pendientes»; sustituye a `pendingAnimes.__cache_poster_async` (2026-10-27, B7) | — |
-| 17 🆕 | `anime_window.__build_poster` | `:748` | `_download` — el póster de la ficha, **solo si no estaba en disco** | ✅ |
+| 7 | `searchAnimes.__launch_search` | `:351` | `_search` — busca **y baja las carátulas** en el mismo hilo | ✅ |
+| 8 | `searchAnimes.__on_anime_click` | `:593` | abrir la ficha de un resultado | ✅ |
+| 9 | `anime_window.open_saved_anime` | `:466` | abrir un anime **de la biblioteca** | ✅ |
+| 10 | `anime_window.__repair_to_target_provider` | `:1293` | localizar el anime en el proveedor destino | ✅ |
+| 11 | `anime_window.__confirm_and_migrate` | `:1376` | migrar la fila + mover/bajar pósters | ✅ |
+| 12 | `anime_window.__toggle_servers_frame` | `:2574` | 🆕 `_fetch` — **servidores de un episodio** (cierra C5) | ✅ |
+| 13 | `anime_window.__play_video` | `:2776` | 🆕 `_resolve` — `registry.resolve()` del servidor pulsado | ✅ |
+| 14 | `anime_window.__play_episode` | `:2854` | 🆕 `_load` — servidores del episodio de al lado **y** su resolución, en serie | ✅ (dos `after`) |
+| 15 | `utilsButtons.SavedAnimeSearch.search` | `:149` | búsqueda web que completa a la local | ✅ |
+| 16 | `anime_window.sync_saved_posters_async` 🆕 | `:327` | `_sync` — releer la fila y poner sus pósters en las carpetas de sus estados, **bajo `_POSTER_SYNC_LOCK`**. La llaman los ocho botones de estado de la ficha y «Empezar» de «Pendientes»; sustituye a `pendingAnimes.__cache_poster_async` (2026-10-27, B7) | — |
+| 17 🆕 | `anime_window.__build_poster` | `:952` | `_download` — el póster de la ficha, **solo si no estaba en disco** | ✅ |
+| 18 🆕 | `FranchiseService.request_franchise` | `franchise_service.py:170` | `__walk_and_deliver` — recorre la línea principal; **uno por llamada** (al abrir «Temporadas y relacionados») | ✅ (si la ventana existe) |
+| 19 🆕 | `FranchiseService.request_formats` | `franchise_service.py:186` | `__formats_and_deliver` — formatos de los relacionados, como mucho **una** petición al otro proveedor; en paralelo al #18 | ✅ (si la ventana existe) |
+| 20 🆕 | `anime_window.__load_posters` | `:1977` | `_work` — los pósters de una tanda de tarjetas (carrusel, «otros», recomendaciones), uno detrás de otro: disco → memoria de sesión (`_RELATED_POSTERS_LOCK`) → red | ✅ (una entrega por póster) |
+| 21 🆕 | `anime_window.__open_related` | `:1674` | `_load` — la ficha de un relacionado **no guardado**, `strict=True` al proveedor de la ficha. Con número de petición y `__is_on_screen()` | ✅ |
+| 22 🆕 | `anime_window.__request_recommendations` | `:2039` | `_search` — «Te puede interesar»: búsqueda por géneros `strict=True`. Con número de petición | ✅ |
 
-> 🆕 **#12, #13 y #14 llevan número de petición.** Cada uno compara, ya en el hilo de Tk, el número
+> 🆕 **#12, #13, #14, #21 y #22 llevan número de petición.** ⚠️ **#18 y #19 no**: `FranchiseService`
+> no numera, y quien lo llama (la ficha) descarta lo que llegue con ella ya fuera de pantalla.
+> Cada uno compara, ya en el hilo de Tk, el número
 > con el que salió contra el último pedido, y si no coincide **no pinta nada**: un despliegue plegado,
 > un servidor cambiado o un episodio saltado antes de que llegue la respuesta
 > ([03 §8 y §13](03-flujos-de-ejecucion.md)). Es la misma idea que la generación de la recarga de
@@ -133,6 +141,37 @@ cierra sin colgarse.
 
 ---
 
+### 1d. `FranchiseService`: el segundo estado compartido fuera del reproductor 🆕 *(2026-10-28)*
+
+📖 `gui/franchise_service.py`. Después de `EpisodeRefresher`, es el segundo sitio de la GUI con estado
+que tocan varios hilos a la vez: la caché de páginas `(proveedor, slug) → AnimeInfo`, los fallos
+recientes y la hora de la última petición a cada proveedor.
+
+- **`__lock`** (un `threading.Lock`) protege la caché y los fallos. Se suelta antes de salir a la red.
+- **Un lock por proveedor** (`__provider_locks`, creado con `setdefault` bajo `__lock`) **turna** las
+  peticiones a un mismo sitio y las **espacia** 0,5 s (`REQUEST_SPACING_S`), también entre recorridos
+  distintos. Dentro del turno se vuelve a mirar la caché: si otro hilo acaba de bajar la misma página,
+  no se pide dos veces. Dos proveedores distintos van **en paralelo**.
+- **De vuelta al hilo de Tk** solo con `after(0, …)`, y solo si la ventana existe; un `RuntimeError`
+  (la ventana se cerró) se traga. ⚠️ En un script sin `mainloop()` ese mismo `RuntimeError` hace que el
+  callback no llegue nunca ([trampa 67](10-invariantes-y-trampas.md)).
+- **No numera peticiones.** Es la ficha la que descarta lo que llega tarde, con `__is_on_screen()`.
+- Las llamadas síncronas (`walk_franchise`, `find_formats`) corren en el hilo que llama: **nunca desde
+  el de Tk**.
+
+### 1e. Lanzar un hilo justo después de destruir widgets puede congelar la aplicación 🔴 🆕 *(2026-10-28)*
+
+✅ Reproducido y diagnosticado con `faulthandler` durante la fase 4 de la 0.5.0
+([trampa 77](10-invariantes-y-trampas.md)). Un widget de CustomTkinter **sin `font=`** crea un
+`CTkFont` propio en un ciclo de referencias con él; al destruirlo, la fuente la libera el recolector
+**en el hilo en el que toque**. Si es un hilo que el de Tk acaba de crear, su `Font.__del__` espera al
+de Tk para llamar a Tcl, mientras el de Tk espera en `Thread.start()` a que ese hilo arranque. **Se
+bloquean los dos**, sin error y con la CPU a 0.
+
+**Regla**: `font=Theme.font(...)` en todo widget de CustomTkinter, aunque no tenga texto. Quedan 17
+sin ella (B18); hasta que se arreglen, cuidado con el patrón «destruir widgets y lanzar un hilo en el
+mismo callback».
+
 ## 2. Qué corre en qué hilo
 
 ✅ Anclajes reverificados el 2026-09-01 contra `704e894`.
@@ -181,6 +220,13 @@ cierra sin colgarse.
 > vistas), y la cuarta —**los servidores de vídeo**, C5— con la fase 2 del reproductor, el
 > 2026-09-24. Lo que sigue en el hilo de Tk es SQLite local y la descarga de pósters por estado.
 
+> 🆕 **Vistas ocultas** (2026-10-28, B13): desde que las vistas se conservan, una vista que no está a
+> la vista **sigue viva**. Sus suscripciones a `EpisodeRefresher` la repintan oculta (los widgets
+> existen, `winfo_exists()` da `True`), y la búsqueda web de `SavedAnimeSearch` que llegue con ella
+> oculta pinta en ella. Es lo correcto: al volver, ya está al día. Lo que **no** sigue vivo es la
+> ficha, que se destruye al salir; por eso sus hilos comprueban `__is_on_screen()` además del número
+> de petición.
+
 ---
 
 ## 3. Reglas para código nuevo
@@ -215,6 +261,11 @@ cierra sin colgarse.
    (§1b).
 7. 🆕 **Para pedir a un sitio, `thread_session().get(...)` con `timeout`** (§1c). Pídela en cada
    llamada, no la guardes en un atributo: así nunca acaba usándola otro hilo.
+8. 🆕 *(2026-10-28)* **`font=` en todo widget de CustomTkinter**, aunque no tenga texto (§1e,
+   [trampa 77](10-invariantes-y-trampas.md)).
+9. 🆕 *(2026-10-28)* **Un servicio que reparte peticiones a un sitio, turnadas y espaciadas por
+   proveedor**, como `FranchiseService` (§1d): un lock por proveedor, y la caché revisada otra vez
+   dentro del turno.
 
 ### ❌ NO
 

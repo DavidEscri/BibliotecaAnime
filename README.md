@@ -4,7 +4,7 @@
 
 **Tu biblioteca de anime: tu colección vive solo en tu equipo; el catálogo llega de proveedores web públicos.**
 
-[![Versión](https://img.shields.io/badge/Versi%C3%B3n-0.4.2-informational.svg?style=flat-square)](#)
+[![Versión](https://img.shields.io/badge/Versi%C3%B3n-0.5.0-informational.svg?style=flat-square)](#)
 [![Python Version](https://img.shields.io/badge/Python-3.10+-blue.svg?style=flat-square&logo=python)](https://www.python.org/)
 [![License: GPL-3.0](https://img.shields.io/badge/License-GPL--3.0-yellow.svg?style=flat-square)](LICENSE)
 [![OS: Windows](https://img.shields.io/badge/OS-Windows-lightgrey.svg?style=flat-square)](#)
@@ -27,6 +27,7 @@ A diferencia de plataformas como MyAnimeList o Anilist, este proyecto nace con u
 - **Catálogo de varios proveedores:** Los datos de los animes (fichas, episodios y enlaces) se obtienen por *web scraping* de sitios públicos de anime, con selección de proveedor y sistema de reserva si uno falla. **Esta parte sí requiere conexión a internet.**
 - **Rendimiento Nativo:** Una vez guardado un anime, navegar por tu biblioteca y buscar en ella es instantáneo y funciona sin conexión.
 - **Reproductor integrado:** Los episodios se ven dentro de la propia ventana, con pantalla completa, salto al episodio siguiente y marcado automático como visto al terminar. Los servidores que todavía no se pueden reproducir dentro se abren en el navegador.
+- **Temporadas y relacionados:** Cada ficha te lleva a la temporada anterior y a la siguiente, y reúne en una pestaña toda la franquicia —temporadas, películas, OVAs y especiales— con el estado de cada una en tu biblioteca. Una tercera pestaña, **Te puede interesar**, te sugiere animes de los mismos géneros que aún no has terminado.
 - **Gestión Integral (CRUD):** Añade nuevos animes, marca los episodios vistos y organízalos por estados (*Favoritos, Viendo, Finalizados, Pendientes*). Retoma lo que estabas viendo desde la portada y puntúa tus favoritos.
 - **Portable:** Posibilidad de compilar la aplicación en una carpeta autocontenida con su ejecutable (`.exe`) para llevar tu librería en un pendrive a cualquier parte.
 
@@ -186,7 +187,8 @@ MiBibliotecaAnime/
  - Integración con servicios de visualización de manga online.
  - Alternar entre visualización de anime y manga.
  - Capacidad de identificar el capitulo del manga por el que continuar tras finalizar un anime.
- - Mostrar animes/mangas relacionados que podrían gustar al usuario tras finalizar un anime/manga.
+ - Mostrar mangas relacionados que podrían gustar al usuario tras finalizar un anime o un manga.
+ - Avisar de las temporadas nuevas de los animes que ya has terminado.
  - Reproducir dentro de la aplicación los servidores que hoy se abren en el navegador.
 
 ## Contribuciones
