@@ -1,7 +1,7 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "gui.components"
 __module__ = "franchise_cards.py"
-__version__ = "0.2"
+__version__ = "0.3"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 """Piezas con las que la ficha enseña la franquicia de un anime.
@@ -144,7 +144,9 @@ def format_chip(parent, text: str, style: str = "solid", text_color: Optional[Co
 def _walk(widget):
     """El widget y todos sus descendientes de Tk, internos de CustomTkinter incluidos."""
     yield widget
-    for child in widget.winfo_children():
+    # El winfo_children de Tk y no el de CTkFrame, que oculta su lienzo: el que
+    # pinta el fondo de la tarjeta, que es donde cae casi todo clic.
+    for child in tkinter.Misc.winfo_children(widget):
         yield from _walk(child)
 
 

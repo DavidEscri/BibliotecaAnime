@@ -41,7 +41,7 @@ Toda afirmación de comportamiento va marcada:
 | [07-concurrencia-e-hilos.md](07-concurrencia-e-hilos.md) | Qué corre en qué hilo, reglas y carreras conocidas |
 | [08-convenciones-y-estilo.md](08-convenciones-y-estilo.md) | Cabecera obligatoria, idioma, singletons + **plantillas copiables** |
 | [09-verificacion-y-pruebas.md](09-verificacion-y-pruebas.md) | Cómo arrancar y probar; scripts listos para pegar; checklist manual |
-| [10-invariantes-y-trampas.md](10-invariantes-y-trampas.md) | **Lee esto siempre.** **80** trampas con síntoma observable |
+| [10-invariantes-y-trampas.md](10-invariantes-y-trampas.md) | **Lee esto siempre.** **81** trampas con síntoma observable |
 | [11-playbooks.md](11-playbooks.md) | Recetas paso a paso con ficheros exactos y checklist |
 | [12-deuda-tecnica-y-roadmap.md](12-deuda-tecnica-y-roadmap.md) | TODOs con `fichero:línea`, discrepancias, riesgos, roadmap técnico **y §7: licencia GPL-3.0 y cumplimiento de la distribución** |
 | [13-selector-de-proveedor.md](13-selector-de-proveedor.md) | Selector de proveedor, `DB_user.db` **y la columna `provider_id`** (§14): decisiones de diseño, qué quedó fuera y **qué está verificado y qué no** |
