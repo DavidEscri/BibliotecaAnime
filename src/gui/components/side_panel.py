@@ -1,7 +1,7 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "gui.components"
 __module__ = "side_panel.py"
-__version__ = "0.2"
+__version__ = "0.3"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 """Panel lateral de «Viendo»: la tarjeta grande de lo último que estabas viendo.
@@ -81,7 +81,7 @@ class SidePanel(ctk.CTkFrame):
         poster_path = find_cached_poster_path(anime_record.anime_id) or ""
         #: Referencia viva a la imagen: Tk no la mantiene y el panel saldría en blanco.
         self.__image = load_rounded_image(poster_path, Metrics.SHEET_POSTER, Metrics.RADIUS_POSTER)
-        poster_label = ctk.CTkLabel(card, text="", image=self.__image)
+        poster_label = ctk.CTkLabel(card, text="", font=Theme.font(*Theme.T_UI), image=self.__image)
         poster_label.grid(row=0, column=0, padx=self.CARD_PAD, pady=(self.CARD_PAD, 0))
 
         text_width = Metrics.SHEET_POSTER[0]

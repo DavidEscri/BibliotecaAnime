@@ -1,7 +1,7 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "gui.components"
 __module__ = "anime_row.py"
-__version__ = "0.3"
+__version__ = "0.4"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 """Fila en cascada de una vista de biblioteca: la unidad de «Viendo» y «Pendientes».
@@ -152,7 +152,7 @@ class AnimeRow(ctk.CTkFrame):
     def __build_poster(self, poster_size: Tuple[int, int]) -> None:
         poster_path = find_cached_poster_path(self.anime_record.anime_id) or ""
         self.__image = load_rounded_image(poster_path, poster_size, Metrics.RADIUS_CONTROL)
-        poster_label = ctk.CTkLabel(self.__body, text="", image=self.__image)
+        poster_label = ctk.CTkLabel(self.__body, text="", font=Theme.font(*Theme.T_UI), image=self.__image)
         poster_label.grid(row=0, column=0, padx=(12, 18), pady=16)
 
     def __build_middle(self, show_progress: bool) -> None:

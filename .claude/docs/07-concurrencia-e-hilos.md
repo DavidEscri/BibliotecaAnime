@@ -168,9 +168,8 @@ recientes y la hora de la última petición a cada proveedor.
 de Tk para llamar a Tcl, mientras el de Tk espera en `Thread.start()` a que ese hilo arranque. **Se
 bloquean los dos**, sin error y con la CPU a 0.
 
-**Regla**: `font=Theme.font(...)` en todo widget de CustomTkinter, aunque no tenga texto. Quedan 17
-sin ella (B18); hasta que se arreglen, cuidado con el patrón «destruir widgets y lanzar un hilo en el
-mismo callback».
+**Regla**: `font=Theme.font(...)` en todo widget de CustomTkinter, aunque no tenga texto. ✅ Desde el
+2026-10-29 (B18) no queda ninguno sin ella; uno nuevo sin `font=` reabre el riesgo.
 
 ## 2. Qué corre en qué hilo
 

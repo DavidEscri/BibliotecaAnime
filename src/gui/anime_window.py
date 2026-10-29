@@ -1,7 +1,7 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "gui"
 __module__ = "anime_window.py"
-__version__ = "0.14"
+__version__ = "0.15"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 """Ficha de detalle de un anime: la pantalla desde la que se ve un episodio.
@@ -368,7 +368,7 @@ def _related_poster(url: Optional[str], disk_id: Optional[str],
 def library_status(anime_record: Optional[AnimeRecord]) -> Optional[AnimeStatus]:
     """Qué estado se enseña de una fila: el excluyente que tenga y, si no tiene, «Favorito».
 
-    Es la misma regla que el sello de «Buscar».
+    Es la regla de todos los sellos: «Buscar», la ficha y «Te puede interesar».
 
     :param anime_record: Fila guardada, o None si el anime no está en la biblioteca.
     :return: Estado a mostrar, o None si no hay ninguno.
@@ -933,7 +933,7 @@ class AnimeWindowViewer:
         :param sheet: Bloque de la ficha donde va el póster.
         """
         cached_path = find_cached_poster_path(self.persistence_anime_id)
-        poster_label = ctk.CTkLabel(sheet, text="", image=load_rounded_image(
+        poster_label = ctk.CTkLabel(sheet, text="", font=Theme.font(*Theme.T_UI), image=load_rounded_image(
             cached_path, Metrics.SHEET_POSTER, Metrics.RADIUS_SHEET_POSTER))
         poster_label.grid(row=0, column=0, sticky="nw")
         if cached_path is not None:
@@ -1420,6 +1420,7 @@ class AnimeWindowViewer:
             button = ctk.CTkButton(
                 actions_frame,
                 text=StatusPill.text(status),
+                font=Theme.font(*Theme.T_UI),
                 width=1,
                 height=Metrics.STATUS_BUTTON_H,
                 corner_radius=Metrics.STATUS_BUTTON_RADIUS,

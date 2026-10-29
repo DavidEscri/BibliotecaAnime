@@ -1,7 +1,7 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "gui.components"
 __module__ = "rating_stars.py"
-__version__ = "0.1"
+__version__ = "0.2"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 """Calificación personal: cinco estrellas con medios puntos y su valor en cifra.
@@ -139,7 +139,7 @@ class RatingStars(ctk.CTkFrame):
         self.__star_images: Dict[float, ctk.CTkImage] = {}
 
         for index in range(self.STARS):
-            star_label = ctk.CTkLabel(self, text="", width=self.STAR_SLOT, height=self.STAR_PX)
+            star_label = ctk.CTkLabel(self, text="", font=Theme.font(*Theme.T_UI), width=self.STAR_SLOT, height=self.STAR_PX)
             star_label.grid(row=0, column=index)
             if on_change is not None:
                 star_label.configure(cursor="hand2")

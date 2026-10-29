@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Fecha** | 2026-10-28 · rama `release/0.5.0` · último commit de código **`7bbbb3c`** |
-| **Última revisión** | 2026-10-28 (**versión 0.5.0**): **tres módulos nuevos** con su ficha —`gui/franchise_service.py`, `gui/components/tab_bar.py` y `gui/components/franchise_cards.py`—; fichas de `models.py`, `animeProviderMgr.py`, `animeav1.py`, `jkanime.py`, `main_window.py`, `anime_window.py`, `poster_grid.py`, `sidebar.py`, `utils.py`, `utilsButtons.py` y las seis vistas al día; inventario recontado (**13 676 → 16 931** líneas, **43** módulos). Antes, 2026-10-27 (**conexiones y `<Configure>`**, B16-B17): **módulo nuevo `utils/http_session.py`**; `animeav1._fetch` y las descargas de `utils.py` piden con `thread_session()`; `main_window.py` gana `__bind_window_configure()`. Antes, 2026-10-27 (**refresco de episodios**): **módulo nuevo `gui/episode_refresher.py`**; `AnimeRow` y `SidePanel` ganan `update_record()`, y `recentAnimes.py` pierde `__refresh_resume_episodes()`. Antes, 2026-10-20 (**reproductor in-app**): **7 módulos nuevos** —los 6 de `APIs/resolvers/` (5 con contenido + `__init__.py` vacío) y `gui/components/video_player.py`— con su ficha; `main_window.py` y `anime_window.py` ganan su bloque del reproductor; inventario **recontado de cero** (**13 676** líneas en **37** módulos) y con la convención de conteo corregida, porque el commit `cbd2721` dejó la mitad de los ficheros terminando en salto de línea. Antes, 2026-09-02 (**rejillas adaptables y sinopsis**): recuentos rehechos (**11 599 → 11 920**); `poster_grid.py` **234 → 396** —calcula sus columnas del ancho—, `anime_window.py` **1 875 → 1 924** con `wrap_synopsis()`, `pager.py` **247 → 277** con `set_page_size()`, y las cuatro vistas de rejilla ([trampas 41 y 42](10-invariantes-y-trampas.md)). Antes, 2026-09-01 (**abrir la ficha por un episodio**): recuentos rehechos (**11 430 → 11 599**); `anime_window.py` **1 745 → 1 875** con `focus_episode` / `force_ascending` y sus dos métodos nuevos, `anime_row.py` **333 → 349** con la corrección de sus ataduras ([trampa 40](10-invariantes-y-trampas.md)), y las dos vistas de cascada. Antes, 2026-09-01 (**ancho de las fichas de género**): recuentos rehechos (**11 403 → 11 430**); `genre_chips.py` **333 → 360** con la aritmética real del ancho de un `CTkButton` ([trampa 39](10-invariantes-y-trampas.md)). Antes, 2026-09-01 (**refresco de la banda «Retomar»**): recuentos rehechos (**11 309 → 11 403**); `resume_card.py` estrena `update_record()` en sus **dos** clases y `recentAnimes.py`, `__refresh_resume_episodes()`; la tabla de «cómo abre la ficha» reanclada, que iba ~125 líneas desplazada. Antes, 2026-09-01 (**hover de la lista de episodios**): **ficha de `EpisodeRow` nueva** —no la tenía—, y recuentos rehechos con la convención del documento explicada. Antes, 2026-08-31 (**fondo de la pantalla de carga**): ficha de `MainWindow` reanclada —sus líneas iban ~29 desplazadas—, `show_loading_screen()` descrito de verdad y `__config_main_window()` añadido. Antes, 2026-08-21 (**rediseño de interfaz**): **12 módulos nuevos** en `gui/` —`theme.py` y los 11 de `gui/components/`— con su ficha; recuentos rehechos (**6 245 → 11 309** líneas); `utilsButtons.py` pierde 5 clases y `main_window.py` gana `navigate_to()`. Antes, 2026-08-16 (**columna `provider_id`**): recuentos rehechos — el proyecto pasa de 5 460 a **6 245** líneas; fichas de `models.py`, `animeProviderMgr.py`, `animesPersistence.py`, `utils.py`, `utilsButtons.py`, `main_window.py` y `anime_window.py` actualizadas |
+| **Última revisión** | 2026-10-29 (**estabilizar la 0.5.0**): recuentos de `anime_window.py`, `sidebar.py`, `searchAnimes.py`, `tab_bar.py` y `franchise_cards.py` (**16 931 → 16 922**); «Buscar» usa `library_status()` (C13). Antes, 2026-10-28 (**versión 0.5.0**): **tres módulos nuevos** con su ficha —`gui/franchise_service.py`, `gui/components/tab_bar.py` y `gui/components/franchise_cards.py`—; fichas de `models.py`, `animeProviderMgr.py`, `animeav1.py`, `jkanime.py`, `main_window.py`, `anime_window.py`, `poster_grid.py`, `sidebar.py`, `utils.py`, `utilsButtons.py` y las seis vistas al día; inventario recontado (**13 676 → 16 931** líneas, **43** módulos). Antes, 2026-10-27 (**conexiones y `<Configure>`**, B16-B17): **módulo nuevo `utils/http_session.py`**; `animeav1._fetch` y las descargas de `utils.py` piden con `thread_session()`; `main_window.py` gana `__bind_window_configure()`. Antes, 2026-10-27 (**refresco de episodios**): **módulo nuevo `gui/episode_refresher.py`**; `AnimeRow` y `SidePanel` ganan `update_record()`, y `recentAnimes.py` pierde `__refresh_resume_episodes()`. Antes, 2026-10-20 (**reproductor in-app**): **7 módulos nuevos** —los 6 de `APIs/resolvers/` (5 con contenido + `__init__.py` vacío) y `gui/components/video_player.py`— con su ficha; `main_window.py` y `anime_window.py` ganan su bloque del reproductor; inventario **recontado de cero** (**13 676** líneas en **37** módulos) y con la convención de conteo corregida, porque el commit `cbd2721` dejó la mitad de los ficheros terminando en salto de línea. Antes, 2026-09-02 (**rejillas adaptables y sinopsis**): recuentos rehechos (**11 599 → 11 920**); `poster_grid.py` **234 → 396** —calcula sus columnas del ancho—, `anime_window.py` **1 875 → 1 924** con `wrap_synopsis()`, `pager.py` **247 → 277** con `set_page_size()`, y las cuatro vistas de rejilla ([trampas 41 y 42](10-invariantes-y-trampas.md)). Antes, 2026-09-01 (**abrir la ficha por un episodio**): recuentos rehechos (**11 430 → 11 599**); `anime_window.py` **1 745 → 1 875** con `focus_episode` / `force_ascending` y sus dos métodos nuevos, `anime_row.py` **333 → 349** con la corrección de sus ataduras ([trampa 40](10-invariantes-y-trampas.md)), y las dos vistas de cascada. Antes, 2026-09-01 (**ancho de las fichas de género**): recuentos rehechos (**11 403 → 11 430**); `genre_chips.py` **333 → 360** con la aritmética real del ancho de un `CTkButton` ([trampa 39](10-invariantes-y-trampas.md)). Antes, 2026-09-01 (**refresco de la banda «Retomar»**): recuentos rehechos (**11 309 → 11 403**); `resume_card.py` estrena `update_record()` en sus **dos** clases y `recentAnimes.py`, `__refresh_resume_episodes()`; la tabla de «cómo abre la ficha» reanclada, que iba ~125 líneas desplazada. Antes, 2026-09-01 (**hover de la lista de episodios**): **ficha de `EpisodeRow` nueva** —no la tenía—, y recuentos rehechos con la convención del documento explicada. Antes, 2026-08-31 (**fondo de la pantalla de carga**): ficha de `MainWindow` reanclada —sus líneas iban ~29 desplazadas—, `show_loading_screen()` descrito de verdad y `__config_main_window()` añadido. Antes, 2026-08-21 (**rediseño de interfaz**): **12 módulos nuevos** en `gui/` —`theme.py` y los 11 de `gui/components/`— con su ficha; recuentos rehechos (**6 245 → 11 309** líneas); `utilsButtons.py` pierde 5 clases y `main_window.py` gana `navigate_to()`. Antes, 2026-08-16 (**columna `provider_id`**): recuentos rehechos — el proyecto pasa de 5 460 a **6 245** líneas; fichas de `models.py`, `animeProviderMgr.py`, `animesPersistence.py`, `utils.py`, `utilsButtons.py`, `main_window.py` y `anime_window.py` actualizadas |
 | **Cubre** | los **63** ficheros `.py` de `src/` (**43** con contenido + **20** `__init__.py` vacíos) |
 
 Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ sin verificar.
@@ -33,7 +33,7 @@ Todas las líneas citadas corresponden al **árbol de trabajo actual**, no al ú
 | `src/utils/http_session.py` | 34 | infraestructura |
 | `src/utils/buttons/utilsButtons.py` | 200 | GUI |
 | `src/gui/theme.py` | 295 | GUI · tokens |
-| `src/gui/components/sidebar.py` | 517 | GUI · componente |
+| `src/gui/components/sidebar.py` | 518 | GUI · componente |
 | `src/gui/components/anime_row.py` | 402 | GUI · componente |
 | `src/gui/components/genre_chips.py` | 339 | GUI · componente |
 | `src/gui/components/status_pill.py` | 213 | GUI · componente |
@@ -46,21 +46,22 @@ Todas las líneas citadas corresponden al **árbol de trabajo actual**, no al ú
 | `src/gui/components/view_header.py` | 80 | GUI · componente |
 | `src/gui/components/order_menu.py` | 53 | GUI · componente |
 | `src/gui/components/video_player.py` | 1 273 | GUI · componente |
-| `src/gui/components/tab_bar.py` 🆕 | **228** | GUI · componente |
-| `src/gui/components/franchise_cards.py` 🆕 | **601** | GUI · componente |
+| `src/gui/components/tab_bar.py` 🆕 | **229** | GUI · componente |
+| `src/gui/components/franchise_cards.py` 🆕 | **603** | GUI · componente |
 | `src/gui/episode_refresher.py` | 210 | GUI · servicio |
 | `src/gui/franchise_service.py` 🆕 | **455** | GUI · servicio |
 | `src/gui/main_window.py` | 773 | GUI |
-| `src/gui/anime_window.py` | 3 244 | GUI |
+| `src/gui/anime_window.py` | 3 245 | GUI |
 | `src/gui/sidebarButtons/recentAnimes/recentAnimes.py` | 216 | GUI · vista |
 | `src/gui/sidebarButtons/favouriteAnimes/favouriteAnimes.py` | 332 | GUI · vista |
 | `src/gui/sidebarButtons/finishedAnimes/finishedAnimes.py` | 260 | GUI · vista |
 | `src/gui/sidebarButtons/watchingAnimes/watchingAnimes.py` | 306 | GUI · vista |
 | `src/gui/sidebarButtons/pendingAnimes/pendingAnimes.py` | 364 | GUI · vista |
-| `src/gui/sidebarButtons/searchAnimes/searchAnimes.py` | 596 | GUI · vista |
+| `src/gui/sidebarButtons/searchAnimes/searchAnimes.py` | 582 | GUI · vista |
 
-**16 931 líneas** en **43 módulos** (más 20 `__init__.py`, ✅ **todos vacíos**). ✅ Recontado el
-2026-10-28 sobre `7bbbb3c`, con la misma convención: los saltos de línea, más uno si el fichero no
+**16 922 líneas** en **43 módulos** (más 20 `__init__.py`, ✅ **todos vacíos**). ✅ Recontado el
+2026-10-29 en `release/0.5.0` (eran 16 931 sobre `7bbbb3c`: «Buscar» pierde su copia de la regla del
+sello, −14), con la misma convención: los saltos de línea, más uno si el fichero no
 acaba en salto.
 
 **De dónde salen** respecto a las 13 676 del 2026-10-20:
@@ -793,7 +794,7 @@ de pestaña `TAB_EPISODES` / `TAB_RELATIONS` / `TAB_RECOMMENDATIONS` (`:172-174`
 `RECOMMENDATIONS_SHOWN = 4`, `RECOMMENDATION_GENRES = 2`, `RECOMMENDATION_POSTER` (216 × 324)
 (`:178-181`).
 
-Versión **0.14** (2026-10-28). **3 244 líneas**: es con diferencia el módulo más grande.
+Versión **0.15** (2026-10-29). **3 245 líneas**: es con diferencia el módulo más grande.
 
 **Funciones de módulo** (públicas, las importan las 6 vistas):
 
@@ -804,7 +805,7 @@ Versión **0.14** (2026-10-28). **3 244 líneas**: es con diferencia el módulo 
 | 🆕 `SheetVisit(anime_info, provider_id, anime_record)` | `:209-219` | *(0.5.0)* una ficha de la que se salió abriendo un relacionado; la cadena va en `history=` de ficha a ficha, sin estado en el hub |
 | 🆕 `find_saved_duplicate(records, title, exclude_anime_id=None)` | `:275-306` | el mismo anime guardado con otro slug, con `title_similarity()` ≥ 0.9. Pone también el sello de «Buscar», que abre la ficha **con esa fila**: por eso dos temporadas no pueden cruzarse ([trampa 58](10-invariantes-y-trampas.md)). **No** detecta títulos completamente distintos («Solo Leveling» / «Ore dake Level Up na Ken»): eso necesitaría red y esto corre en el hilo de la UI |
 | 🆕 `_related_poster(url, disk_id, size)` | `:330` | *(0.5.0)* el póster de un relacionado: disco → memoria de sesión acotada a 120 PIL (por tamaño + URL) → red. **Solo desde un hilo** |
-| 🆕 `library_status(anime_record)` | `:368-382` | *(0.5.0)* el estado que enseña un sello: el excluyente, o Favorito si no hay. Es la regla de `__saved_status()` de «Buscar» (siguen existiendo las dos) |
+| 🆕 `library_status(anime_record)` | `:368-382` | *(0.5.0)* el estado que enseña un sello: el excluyente, o Favorito si no hay. Es la regla de **todos** los sellos: desde el 2026-10-29 (C13) también la usa «Buscar», que tenía su copia |
 | 🆕 `open_saved_anime(main_window, anime_id, focus_episode=None, force_ascending=False, history=None)` | `:384-` | **punto de entrada único de las 4 vistas de estado** y, desde la 0.5.0, de abrir un relacionado guardado. Elige el proveedor con `provider_for_saved_anime()`, re-resuelve por título si hay desviación, y saca la petición del hilo de Tkinter. 🆕 Los dos últimos parámetros (2026-09-01) dejan la ficha abierta **por un episodio** ([03 §12](03-flujos-de-ejecucion.md)); solo los usan «Viendo» y «Pendientes» |
 
 ### 🆕 El reproductor acoplado *(2026-09-24 a 2026-10-20)*

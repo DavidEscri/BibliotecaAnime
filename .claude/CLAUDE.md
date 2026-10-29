@@ -298,7 +298,8 @@ dos piezas que antes no existían:
   🔴 **Todo widget de CustomTkinter lleva `font=`, aunque no tenga texto** (2026-10-28). Sin ella crea
   su propio `CTkFont` en un ciclo de referencias, y si el recolector lo libera en un hilo recién creado
   por el de Tk, **la aplicación se congela** sin error ([trampa 77](docs/10-invariantes-y-trampas.md)).
-  Quedan **17** sin ella (**B18**).
+  ✅ **Ninguno sin ella desde el 2026-10-29** (B18 cerrada); se comprueba recorriendo `src/` con `ast`
+  en busca de `CTkLabel`, `CTkButton`… sin `font=`.
   🔴 **Nada que viva toda la sesión puede apuntar a un widget que se destruye** (2026-10-21). En
   CustomTkinter 5.2.2 hay tres formas silenciosas de hacerlo, y las tres hacían crecer la memoria
   con cada cambio de vista (49 → 239 MB en 75):
@@ -840,9 +841,10 @@ Después, sin orden fijado. **El rediseño se llevó por delante buena parte de 
      de la raíz —el nuestro **y el de CTk**— se filtra en Tcl: 464 pasos a Python por cambio de vista
      → 0. Ninguna de las dos se nota a ojo ([`docs/12 §4`](docs/12-deuda-tecnica-y-roadmap.md)).
 - **Deuda que deja la 0.5.0**:
-  1. **B18**: 17 widgets de CustomTkinter sin `font=`, que pueden congelar la aplicación como lo hizo
-     «Reintentar» ([trampa 77](docs/10-invariantes-y-trampas.md)). Arreglo mecánico en once ficheros.
-  2. **C13**: `library_status()` de la ficha y `__saved_status()` de «Buscar» repiten la misma regla.
+  1. ✅ ~~**B18**~~ — **cerrada el 2026-10-29** en `release/0.5.0`: los 17 widgets sin `font=` la
+     llevan; tras abrir fichas y tarjetas del reproductor, el recolector libera **0** fuentes huérfanas
+     (eran 24), sin mover un píxel ([trampa 77](docs/10-invariantes-y-trampas.md)).
+  2. ✅ ~~**C13**~~ — **cerrada el 2026-10-29**: «Buscar» usa `library_status()`; su copia desaparece.
 - **Deuda que deja el reproductor**:
   1. **B14**: los hosters sin resolutor siguen abriendo el navegador. Lo que más valdría es un segundo
      hoster por proveedor que no dependa del mismo origen: zilla estuvo caído tres días en septiembre.

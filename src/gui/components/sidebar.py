@@ -1,7 +1,7 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "gui.components"
 __module__ = "sidebar.py"
-__version__ = "0.3"
+__version__ = "0.4"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 """Barra lateral del rediseño: navegación, proveedor y apariencia.
@@ -70,7 +70,7 @@ class _NavItem:
         self.accent_bar.grid(row=0, column=0, sticky="ns")
 
         self.expanded_icon = destination.sidebar_icon((Metrics.NAV_ICON, Metrics.NAV_ICON))
-        self.icon_label = ctk.CTkLabel(self.expanded_frame, text="", image=self.expanded_icon)
+        self.icon_label = ctk.CTkLabel(self.expanded_frame, text="", font=Theme.font(*Theme.T_UI), image=self.expanded_icon)
         self.icon_label.grid(row=0, column=1, padx=(Metrics.NAV_ITEM_PAD_X - 2, Metrics.NAV_ITEM_GAP))
 
         self.text_label = ctk.CTkLabel(
@@ -105,7 +105,7 @@ class _NavItem:
             (Metrics.NAV_COLLAPSED_ICON, Metrics.NAV_COLLAPSED_ICON)
         )
         self.collapsed_icon_label = ctk.CTkLabel(
-            self.collapsed_frame, text="", image=self.collapsed_icon
+            self.collapsed_frame, text="", font=Theme.font(*Theme.T_UI), image=self.collapsed_icon
         )
         self.collapsed_icon_label.grid(row=0, column=0)
 
@@ -349,6 +349,7 @@ class Sidebar(ctk.CTkFrame):
         self.pin_provider_button = ctk.CTkButton(
             self.__provider_frame,
             text="",
+            font=Theme.font(*Theme.T_UI),
             image=self.__pin_icon_unpinned,
             width=30,
             height=30,

@@ -1,7 +1,7 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "gui.components"
 __module__ = "empty_state.py"
-__version__ = "0.1"
+__version__ = "0.2"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 """Estado vacío de una vista: icono, una frase y una acción.
@@ -154,7 +154,7 @@ class EmptyState(ctk.CTkFrame):
 
         row = 0
         if icon is not None:
-            icon_label = ctk.CTkLabel(self, text="", image=icon)
+            icon_label = ctk.CTkLabel(self, text="", font=Theme.font(*Theme.T_UI), image=icon)
             icon_label.grid(row=row, column=0, pady=(0, 16))
             row += 1
 
