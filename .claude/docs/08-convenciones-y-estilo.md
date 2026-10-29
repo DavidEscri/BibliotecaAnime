@@ -333,6 +333,7 @@ class MiSitio(AnimeProvider):
     # Antes, en models.py:  MISITIO = "misitio"
     PROVIDER_ID = AnimeProviderId.MISITIO
     PROVIDER_NAME = "MiSitio"
+    PROVIDER_SHORT_NAME = "MS"   # siglas; obligatorio desde la 0.5.0 (trampa 11)
     BASE_URL = BASE_URL
 
     def search_animes_by_genres_and_order(self, genres: List[AnimeGenreFilter], order: str = None,

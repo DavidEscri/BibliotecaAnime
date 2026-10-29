@@ -1,6 +1,6 @@
 # -*- mode: python ; coding: utf-8 -*-
 
-APP_VERSION = "0.4.2"
+APP_VERSION = "0.5.0"
 
 block_cipher = None
 

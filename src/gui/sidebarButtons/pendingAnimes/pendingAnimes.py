@@ -1,7 +1,7 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "sidebarButtons"
 __module__ = "pendingAnimes.py"
-__version__ = "0.10"
+__version__ = "0.11"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 """«Pendientes»: la cola de lo que todavía no has empezado.
@@ -98,7 +98,10 @@ class PendingAnimeButton(utilsButtons.SidebarButton):
         page = self.main_window.show_view(self, utilsButtons.saved_rows_signature(pending_animes))
         if page is not None:
             self.__show_browser(page, pending_animes)
-        elif pending_animes:
+            return
+        for anime_row in self.__rows.values():
+            anime_row.refresh_hover()
+        if pending_animes:
             self.main_window.episode_refresher.refresh(self.__sort_animes(pending_animes), urgent=True)
 
     # ------------------------------------------------------------------

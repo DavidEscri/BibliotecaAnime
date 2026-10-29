@@ -1,7 +1,7 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "gui.components"
 __module__ = "resume_card.py"
-__version__ = "0.2"
+__version__ = "0.3"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 """Banda «Retomar donde lo dejaste» de la portada: hasta tres tarjetas en fila.
@@ -92,7 +92,7 @@ class ResumeCard(ctk.CTkFrame):
         self.__image = load_rounded_image(
             poster_path, Metrics.RESUME_CARD_POSTER, Metrics.RADIUS_CONTROL
         )
-        poster_label = ctk.CTkLabel(self, text="", image=self.__image)
+        poster_label = ctk.CTkLabel(self, text="", font=Theme.font(*Theme.T_UI), image=self.__image)
         poster_label.grid(row=0, column=0, rowspan=3, padx=(14, 12), pady=14, sticky="n")
 
         title_font = Theme.font(*Theme.T_CARD)

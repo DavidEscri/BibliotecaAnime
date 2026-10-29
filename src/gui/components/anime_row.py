@@ -1,7 +1,7 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "gui.components"
 __module__ = "anime_row.py"
-__version__ = "0.3"
+__version__ = "0.5"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 """Fila en cascada de una vista de biblioteca: la unidad de «Viendo» y «Pendientes».
@@ -152,7 +152,7 @@ class AnimeRow(ctk.CTkFrame):
     def __build_poster(self, poster_size: Tuple[int, int]) -> None:
         poster_path = find_cached_poster_path(self.anime_record.anime_id) or ""
         self.__image = load_rounded_image(poster_path, poster_size, Metrics.RADIUS_CONTROL)
-        poster_label = ctk.CTkLabel(self.__body, text="", image=self.__image)
+        poster_label = ctk.CTkLabel(self.__body, text="", font=Theme.font(*Theme.T_UI), image=self.__image)
         poster_label.grid(row=0, column=0, padx=(12, 18), pady=16)
 
     def __build_middle(self, show_progress: bool) -> None:
@@ -332,6 +332,17 @@ class AnimeRow(ctk.CTkFrame):
         if self.__pointer_inside():
             self.__action_button.grid()
 
+    def refresh_hover(self) -> None:
+        """Enciende o apaga el resaltado según dónde está de verdad el puntero.
+
+        Para cuando la vista vuelve a enseñar una página conservada: esconderla
+        no manda ``<Leave>``, así que la fila que se pulsó seguiría encendida.
+        """
+        if self.__pointer_inside():
+            self.__handle_enter()
+        else:
+            self.__clear_hover()
+
     # ------------------------------------------------------------------
     # Interacción
     # ------------------------------------------------------------------
@@ -388,6 +399,10 @@ class AnimeRow(ctk.CTkFrame):
         # si no, la píldora parpadearía justo al intentar pulsarla.
         if self.__pointer_inside():
             return
+        self.__clear_hover()
+
+    def __clear_hover(self) -> None:
+        """Apaga el resaltado y esconde la píldora."""
         self.__body.configure(fg_color=Theme.TRANSPARENT)
         if self.__action_button is not None:
             self.__action_button.grid_remove()

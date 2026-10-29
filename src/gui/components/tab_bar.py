@@ -1,7 +1,7 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "gui.components"
 __module__ = "tab_bar.py"
-__version__ = "0.1"
+__version__ = "0.2"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 """Barra de pestañas con cuerpo perezoso.
@@ -198,7 +198,8 @@ class TabBar(ctk.CTkFrame):
         """
         def walk(widget):
             yield widget
-            for child in widget.winfo_children():
+            # El winfo_children de Tk: el de CTkFrame oculta su lienzo, que es el fondo de la pestaña.
+            for child in tkinter.Misc.winfo_children(widget):
                 yield from walk(child)
 
         for widget in walk(tab.button):

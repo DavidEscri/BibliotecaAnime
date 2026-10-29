@@ -1,7 +1,7 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "sidebarButtons"
 __module__ = "searchAnimes.py"
-__version__ = "0.5"
+__version__ = "0.6"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 """«Buscar»: la única pestaña que trae cosas de fuera, y la única que puede duplicarte la biblioteca.
@@ -28,9 +28,9 @@ from typing import Dict, List, Optional, Tuple, Union
 
 from APIs.common.animeProviderMgr import AnimeProviderManager, AnimeProviderManagerSingleton
 from APIs.common.models import AnimeGenreFilter, AnimeOrderFilter, AnimeInfo, AnimeProviderId
-from dataPersistence.animesPersistence import (AnimeRecord, AnimeStatus, AnimesPersistence,
+from dataPersistence.animesPersistence import (AnimeRecord, AnimesPersistence,
                                                AnimesPersistenceSingleton)
-from gui.anime_window import AnimeWindowViewer, find_saved_duplicate, show_anime_info_error
+from gui.anime_window import AnimeWindowViewer, find_saved_duplicate, library_status, show_anime_info_error
 from gui.components.empty_state import EmptyState, glyph as empty_glyph
 from gui.components.genre_chips import GenreChips
 from gui.components.order_menu import OrderMenu
@@ -198,7 +198,7 @@ class SearchButton(utilsButtons.SidebarButton):
             os.path.join(self.__icon_path, "buscar.png"),
             (16, 16)
         )
-        icon_label = ctk.CTkLabel(query_frame, text="", image=search_icon)
+        icon_label = ctk.CTkLabel(query_frame, text="", font=Theme.font(*Theme.T_UI), image=search_icon)
         icon_label.grid(row=0, column=0, padx=(16, 11))
         icon_label.bind("<Button-1>", lambda _event: self.__on_query_submitted())
         icon_label.configure(cursor="hand2")
@@ -522,7 +522,7 @@ class SearchButton(utilsButtons.SidebarButton):
     def __poster_item(self, key: str, anime: AnimeInfo,
                       anime_record: Optional[AnimeRecord]) -> PosterItem:
         """Traduce un resultado a una celda, con su sello si ya es tuyo."""
-        status = self.__saved_status(anime_record)
+        status = library_status(anime_record)
         return PosterItem(
             key=key,
             title=anime.title,
@@ -530,20 +530,6 @@ class SearchButton(utilsButtons.SidebarButton):
             badge=StatusPill.text(status) if status is not None else None,
             badge_status=status
         )
-
-    @staticmethod
-    def __saved_status(anime_record: Optional[AnimeRecord]) -> Optional[AnimeStatus]:
-        """Qué dice el sello: el estado excluyente de la fila y, si no tiene, «Favorito».
-
-        :param anime_record: Fila guardada del resultado, o None si no está en la biblioteca.
-        :return: Estado a mostrar, o None si no está guardado.
-        """
-        if anime_record is None:
-            return None
-        status = StatusPill.other_status(anime_record)
-        if status is not None:
-            return status
-        return AnimeStatus.FAVOURITE if anime_record.is_favourite else None
 
     @staticmethod
     def __poster_path(anime: AnimeInfo) -> Optional[str]:

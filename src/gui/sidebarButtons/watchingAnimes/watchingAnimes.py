@@ -1,7 +1,7 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "sidebarButtons"
 __module__ = "watchingAnimes.py"
-__version__ = "0.8"
+__version__ = "0.9"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 import os
@@ -78,7 +78,10 @@ class WatchingAnimeButton(utilsButtons.SidebarButton):
         page = self.main_window.show_view(self, signature)
         if page is not None:
             self.__show_browser(page, watching_animes)
-        elif watching_animes:
+            return
+        for anime_row in self.__rows.values():
+            anime_row.refresh_hover()
+        if watching_animes:
             self.main_window.episode_refresher.refresh(watching_animes, urgent=True)
 
     # ------------------------------------------------------------------

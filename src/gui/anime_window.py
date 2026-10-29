@@ -1,7 +1,7 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "gui"
 __module__ = "anime_window.py"
-__version__ = "0.14"
+__version__ = "0.16"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 """Ficha de detalle de un anime: la pantalla desde la que se ve un episodio.
@@ -179,6 +179,8 @@ RECOMMENDATIONS_SHOWN = 4
 RECOMMENDATION_GENRES = 2
 RECOMMENDATION_POSTER = Metrics.GRID5_POSTER
 RECOMMENDATIONS_GAP = 12
+#: Lo que la fila de las recomendaciones conserva su alto al repintarse; Tk recoloca en unos 15 ms.
+REC_KEEP_HEIGHT_MS = 200
 #: Separación entre los bloques de la pestaña de relacionados.
 RELATIONS_BLOCK_GAP = 26
 RELATIONS_GROUP_GAP = 20
@@ -368,7 +370,7 @@ def _related_poster(url: Optional[str], disk_id: Optional[str],
 def library_status(anime_record: Optional[AnimeRecord]) -> Optional[AnimeStatus]:
     """Qué estado se enseña de una fila: el excluyente que tenga y, si no tiene, «Favorito».
 
-    Es la misma regla que el sello de «Buscar».
+    Es la regla de todos los sellos: «Buscar», la ficha y «Te puede interesar».
 
     :param anime_record: Fila guardada, o None si el anime no está en la biblioteca.
     :return: Estado a mostrar, o None si no hay ninguno.
@@ -933,7 +935,7 @@ class AnimeWindowViewer:
         :param sheet: Bloque de la ficha donde va el póster.
         """
         cached_path = find_cached_poster_path(self.persistence_anime_id)
-        poster_label = ctk.CTkLabel(sheet, text="", image=load_rounded_image(
+        poster_label = ctk.CTkLabel(sheet, text="", font=Theme.font(*Theme.T_UI), image=load_rounded_image(
             cached_path, Metrics.SHEET_POSTER, Metrics.RADIUS_SHEET_POSTER))
         poster_label.grid(row=0, column=0, sticky="nw")
         if cached_path is not None:
@@ -1420,6 +1422,7 @@ class AnimeWindowViewer:
             button = ctk.CTkButton(
                 actions_frame,
                 text=StatusPill.text(status),
+                font=Theme.font(*Theme.T_UI),
                 width=1,
                 height=Metrics.STATUS_BUTTON_H,
                 corner_radius=Metrics.STATUS_BUTTON_RADIUS,
@@ -2092,8 +2095,22 @@ class AnimeWindowViewer:
             self.__set_rec_reason(f"Buscando animes de {self.__rec_genres_text(' y ')}…")
         else:
             self.__set_rec_reason(f"Buscando otros {RECOMMENDATIONS_SHOWN}…")
-        self.__rec_grid.show([PosterItem(key=None, title="") for _ in range(RECOMMENDATIONS_SHOWN)])
+        self.__show_rec_items([PosterItem(key=None, title="") for _ in range(RECOMMENDATIONS_SHOWN)])
         self.__rec_button.grid_remove()
+
+    def __show_rec_items(self, items: List[PosterItem]) -> None:
+        """Repinta la rejilla de recomendaciones sin que la ficha salte arriba.
+
+        Cada celda nueva pide 200 px hasta que Tk coloca lo que lleva dentro, y ese
+        instante más baja basta para que el lienzo recorte el desplazamiento a cero.
+        La fila conserva su alto mientras tanto.
+        """
+        body = self.__rec_grid.master
+        row = self.__rec_grid.grid_info()["row"]
+        body.grid_rowconfigure(row, minsize=self.__rec_grid.winfo_height() + RECOMMENDATIONS_GAP)
+        self.__rec_grid.show(items)
+        self.main_window.after(REC_KEEP_HEIGHT_MS,
+                               lambda: body.winfo_exists() and body.grid_rowconfigure(row, minsize=0))
 
     def __show_recommendations(self, view: int) -> None:
         """Pinta los candidatos a partir de ``view``, con su sello si ya son tuyos, y el botón que toque."""
@@ -2116,7 +2133,7 @@ class AnimeWindowViewer:
                                     badge_status=status))
             if poster_path is None:
                 jobs.append((key, anime.poster or None, None))
-        self.__rec_grid.show(items)
+        self.__show_rec_items(items)
         self.__load_posters(jobs, self.__on_recommendation_poster, RECOMMENDATION_POSTER)
 
         if view > 0:

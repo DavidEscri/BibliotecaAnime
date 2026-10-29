@@ -1,7 +1,7 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "gui"
 __module__ = "main_window.py"
-__version__ = "0.9"
+__version__ = "0.10"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 import copy
@@ -646,7 +646,7 @@ class MainWindow(ctk.CTk):
         loading_image_path = get_resource_path("resources/images/utils/loading-image.gif")
         gif_image = Image.open(loading_image_path)
         gif_frames = [ctk.CTkImage(frame.copy(), size=(400, 400)) for frame in ImageSequence.Iterator(gif_image)]
-        loading_image_label = ctk.CTkLabel(loading_content, text="")
+        loading_image_label = ctk.CTkLabel(loading_content, text="", font=Theme.font(*Theme.T_UI))
         loading_image_label.pack(pady=20)
 
         progress_bar = ctk.CTkProgressBar(
