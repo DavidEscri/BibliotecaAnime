@@ -1,7 +1,7 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "APIs.common"
 __module__ = "animeProviderMgr.py"
-__version__ = "0.3"
+__version__ = "0.7"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 import difflib
@@ -15,6 +15,9 @@ from APIs.common.models import AnimeGenreFilter, AnimeInfo, AnimeProviderId, Pro
 
 AnimeSearchResult = Tuple[List[AnimeInfo], int]
 
+#: Géneros sin equivalente común ya avisados, por proveedor: el aviso sale una vez por sesión.
+_WARNED_GENRES = set()
+
 
 class UnknownProviderError(Exception):
     """Se lanza al pedir un proveedor con un PROVIDER_ID no registrado."""
@@ -23,10 +26,10 @@ class UnknownProviderError(Exception):
 class AnimeProvider(ABC):
     """Contrato que debe cumplir cualquier proveedor de anime.
 
-    Cada proveedor concreto define PROVIDER_ID, PROVIDER_NAME y BASE_URL como
-    atributos de clase, implementa los métodos abstractos devolviendo siempre
-    las estructuras comunes de APIs.common.models, y traduce internamente
-    cualquier slug de género propio de su sitio a AnimeGenreFilter.
+    Cada proveedor concreto define PROVIDER_ID, PROVIDER_NAME, PROVIDER_SHORT_NAME
+    y BASE_URL como atributos de clase, implementa los métodos abstractos
+    devolviendo siempre las estructuras comunes de APIs.common.models, y traduce
+    internamente cualquier slug de género o tipo de relación propio de su sitio.
     """
 
     #: Identificador único del proveedor; debe ser un miembro de AnimeProviderId.
@@ -35,13 +38,19 @@ class AnimeProvider(ABC):
     #: Nombre legible para mostrar en la interfaz.
     PROVIDER_NAME: str = NotImplemented
 
+    #: Siglas con las que la interfaz marca un dato que aporta este proveedor.
+    PROVIDER_SHORT_NAME: str = NotImplemented
+
     #: URL base del sitio.
     BASE_URL: str = NotImplemented
+
+    #: True si los relacionados de su ficha traen su propio formato. Opcional.
+    RELATIONS_CARRY_FORMAT: bool = False
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
         if ABC not in cls.__bases__:
-            for attr in ("PROVIDER_ID", "PROVIDER_NAME", "BASE_URL"):
+            for attr in ("PROVIDER_ID", "PROVIDER_NAME", "PROVIDER_SHORT_NAME", "BASE_URL"):
                 if getattr(cls, attr, NotImplemented) is NotImplemented:
                     raise NotImplementedError(
                         f"{cls.__name__} debe definir el atributo de clase '{attr}'"
@@ -56,9 +65,10 @@ class AnimeProvider(ABC):
     def provider_info(cls) -> ProviderInfo:
         """Ficha de identidad del proveedor, construida desde sus atributos de clase.
 
-        :return: ProviderInfo con id, nombre y URL base.
+        :return: ProviderInfo con id, nombre, URL base y siglas.
         """
-        return ProviderInfo(id=cls.PROVIDER_ID, name=cls.PROVIDER_NAME, base_url=cls.BASE_URL)
+        return ProviderInfo(id=cls.PROVIDER_ID, name=cls.PROVIDER_NAME, base_url=cls.BASE_URL,
+                            short_name=cls.PROVIDER_SHORT_NAME)
 
     @abstractmethod
     def search_animes_by_genres_and_order(self, genres: List[AnimeGenreFilter], order: str = None,
@@ -109,6 +119,49 @@ class AnimeProvider(ABC):
         """
         raise NotImplementedError
 
+    def get_anime_relations(self, anime_id: Union[str, int]) -> Optional[AnimeInfo]:
+        """Obtiene la ficha de un anime sin garantizar sus episodios.
+
+        Basta para leer título, formato, póster y relacionados. Por defecto es
+        get_anime_info; un proveedor que pague una petición aparte por los
+        episodios la sobrescribe para ahorrársela.
+
+        :param anime_id: Identificador del anime en el proveedor.
+        :return: Ficha del anime, con episodes posiblemente a None; o None si falla.
+        """
+        return self.get_anime_info(anime_id)
+
+    def genre_filters(self, genres: List[str]) -> List[AnimeGenreFilter]:
+        """Traduce los géneros de una ficha de este proveedor al catálogo común. Sin red.
+
+        Lo que no tenga equivalente en AnimeGenreFilter se descarta, con un aviso
+        la primera vez que aparece en la sesión.
+
+        :param genres: Slugs de género tal como los da AnimeInfo.genres.
+        :return: Géneros comunes, en el mismo orden y sin repetir.
+        """
+        filters: List[AnimeGenreFilter] = []
+        for slug in genres or []:
+            genre = self._genre_from_slug(slug)
+            if genre is None:
+                if (self.PROVIDER_ID, slug) not in _WARNED_GENRES:
+                    _WARNED_GENRES.add((self.PROVIDER_ID, slug))
+                    print(f"Aviso: el género {slug!r} de {self.PROVIDER_NAME} no está en el catálogo común; se ignora")
+            elif genre not in filters:
+                filters.append(genre)
+        return filters
+
+    def _genre_from_slug(self, slug: str) -> Optional[AnimeGenreFilter]:
+        """El género común de un slug del sitio. Por defecto, el de igual value; un sitio con slugs propios lo sobrescribe.
+
+        :param slug: Slug de género del sitio.
+        :return: Género común, o None si no tiene equivalente.
+        """
+        try:
+            return AnimeGenreFilter(slug)
+        except ValueError:
+            return None
+
     def is_available(self, timeout: float = 5.0) -> bool:
         """Comprueba si el proveedor responde, haciendo una petición a BASE_URL.
 
@@ -137,6 +190,11 @@ class AnimeProviderManager:
     #: Umbral de similitud de título por debajo del cual resolve_anime_in_provider
     #: considera que el anime no existe en el proveedor destino.
     TITLE_MATCH_THRESHOLD: float = 0.75
+
+    #: Numerales romanos que cuentan como número de temporada ("Overlord II").
+    #: Sin "i" ni "x", que sueltos suelen ser palabras ("Hunter x Hunter").
+    ROMAN_NUMERALS: Dict[str, int] = {"ii": 2, "iii": 3, "iv": 4, "v": 5,
+                                      "vi": 6, "vii": 7, "viii": 8, "ix": 9}
 
     def __init__(self):
         self._providers: Dict[AnimeProviderId, AnimeProvider] = {}
@@ -335,6 +393,23 @@ class AnimeProviderManager:
         """
         return self.call_with_fallback("get_anime_info", anime_id, provider_id=provider_id, strict=strict)
 
+    def get_anime_relations(self, anime_id, provider_id: AnimeProviderId) -> Optional[AnimeInfo]:
+        """Ficha ligera de un anime en un proveedor concreto, sin fallback.
+
+        El slug solo significa algo en el sitio que lo dio, así que nunca se
+        pregunta a otro proveedor.
+
+        :param anime_id: Identificador del anime en ese proveedor.
+        :param provider_id: Proveedor al que se pregunta; debe estar registrado.
+        :return: Ficha sin garantía de episodios, o None si no responde.
+        """
+        if provider_id not in self._providers:
+            print(f"No se pueden pedir los relacionados: proveedor no registrado {provider_id}")
+            return None
+        result, _ = self.call_with_fallback("get_anime_relations", anime_id, provider_id=provider_id,
+                                            strict=True)
+        return result
+
     def search_animes_by_query(self, query: str = None, page: int = None,
                                provider_id: AnimeProviderId = None, strict: bool = False):
         """:return: Tupla (lista de animes, última página); ([], 1) si ningún proveedor responde."""
@@ -348,6 +423,19 @@ class AnimeProviderManager:
         result, _ = self.call_with_fallback("search_animes_by_genres_and_order", genres, order, page,
                                             provider_id=provider_id, strict=strict)
         return result if result is not None else ([], 1)
+
+    def genre_filters(self, genres: List[str], provider_id: Optional[AnimeProviderId]) -> List[AnimeGenreFilter]:
+        """Géneros de una ficha traducidos al catálogo común por el proveedor que la sirvió. Sin red.
+
+        :param genres: Slugs de género de la ficha.
+        :param provider_id: Proveedor que la sirvió.
+        :return: Géneros comunes; [] si el proveedor no está registrado.
+        """
+        provider = self._providers.get(provider_id)
+        if provider is None:
+            print(f"No se pueden traducir los géneros: proveedor no registrado {provider_id}")
+            return []
+        return provider.genre_filters(genres)
 
     def get_anime_episode_servers(self, anime_id, episode_id, provider_id: AnimeProviderId = None,
                                   strict: bool = False) -> List[ServerInfo]:
@@ -375,6 +463,46 @@ class AnimeProviderManager:
         without_accents = "".join(char for char in decomposed if not unicodedata.combining(char))
         return re.sub(r"[^a-z0-9]+", " ", without_accents.lower()).strip()
 
+    @classmethod
+    def title_numbers(cls, title: str) -> List[int]:
+        """Los números de un título (temporada, parte, año…), ordenados.
+
+        "2nd Season", "Season 2" y "II" dan todos [2], para que el mismo anime
+        escrito a la manera de cada sitio siga coincidiendo.
+
+        :param title: Título, normalizado o no.
+        :return: Números del título de menor a mayor; vacío si no lleva ninguno.
+        """
+        numbers: List[int] = []
+        for token in cls.normalize_title(title).split():
+            digits = re.search(r"\d+", token)
+            if digits is not None:
+                numbers.append(int(digits.group()))
+            elif token in cls.ROMAN_NUMERALS:
+                numbers.append(cls.ROMAN_NUMERALS[token])
+        return sorted(numbers)
+
+    @classmethod
+    def title_similarity(cls, title_a: str, title_b: str) -> float:
+        """Parecido entre dos títulos para decidir si son el mismo anime.
+
+        Si sus números no coinciden es 0: "X 2nd Season" y "X 3rd Season" se
+        parecen mucho como texto, pero son animes distintos.
+
+        :param title_a: Primer título.
+        :param title_b: Segundo título.
+        :return: 1.0 si son iguales normalizados; 0.0 si alguno está vacío o sus
+            números difieren; si no, el ratio de difflib.
+        """
+        normalized_a, normalized_b = cls.normalize_title(title_a), cls.normalize_title(title_b)
+        if not normalized_a or not normalized_b:
+            return 0.0
+        if normalized_a == normalized_b:
+            return 1.0
+        if cls.title_numbers(normalized_a) != cls.title_numbers(normalized_b):
+            return 0.0
+        return difflib.SequenceMatcher(None, normalized_a, normalized_b).ratio()
+
     def resolve_anime_in_provider(self, anime_info: AnimeInfo, provider_id: AnimeProviderId,
                                   threshold: float = None) -> Optional[AnimeInfo]:
         """Localiza el equivalente de un anime en otro proveedor por similitud de título.
@@ -393,8 +521,7 @@ class AnimeProviderManager:
             return None
 
         threshold = self.TITLE_MATCH_THRESHOLD if threshold is None else threshold
-        target_title = self.normalize_title(anime_info.title)
-        if not target_title:
+        if not self.normalize_title(anime_info.title):
             print("No se puede resolver el anime: no tiene título con el que buscar")
             return None
 
@@ -409,13 +536,11 @@ class AnimeProviderManager:
         best_candidate: Optional[AnimeInfo] = None
         best_ratio: float = 0.0
         for candidate in candidates:
-            candidate_title = self.normalize_title(candidate.title)
-            if candidate_title == target_title:
-                best_candidate, best_ratio = candidate, 1.0
-                break
-            ratio = difflib.SequenceMatcher(None, target_title, candidate_title).ratio()
+            ratio = self.title_similarity(anime_info.title, candidate.title)
             if ratio > best_ratio:
                 best_candidate, best_ratio = candidate, ratio
+            if ratio == 1.0:
+                break
 
         if best_candidate is None or best_ratio < threshold:
             print(f"[{provider_id.value}] {anime_info.title!r} no encontrado "

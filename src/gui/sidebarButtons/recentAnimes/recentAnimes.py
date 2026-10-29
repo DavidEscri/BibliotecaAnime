@@ -1,16 +1,17 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "sidebarButtons"
 __module__ = "recentAnimes.py"
-__version__ = "0.5"
+__version__ = "0.8"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 import os
 import threading
+import customtkinter as ctk
 
-from typing import List, Tuple, Union
+from typing import List, Union
 
 from APIs.common.animeProviderMgr import AnimeProviderManager, AnimeProviderManagerSingleton
-from APIs.common.models import EpisodeInfo
+from APIs.common.models import AnimeInfo
 from dataPersistence.animesPersistence import AnimeRecord
 from gui.anime_window import AnimeWindowViewer, open_saved_anime, show_anime_info_error
 from gui.components.empty_state import EmptyState, glyph as empty_glyph
@@ -37,32 +38,46 @@ class RecentAnimeButton(utilsButtons.SidebarButton):
 
     def __init__(self, main_window, icon_path: str, row: int, column: int):
         icon_path_light = icon_path_dark = os.path.join(icon_path, "recientes.png")
-        super().__init__(main_window.sidebar_frame, "Nuevos lanzamientos", row, column, self.__show_animes_recientes, icon_path_light, icon_path_dark)
+        super().__init__(main_window.sidebar_frame, "Nuevos lanzamientos", row, column, self.__show_recent_animes, icon_path_light, icon_path_dark)
 
         self.main_window = main_window
         self.anime_provider_mgr: AnimeProviderManager = AnimeProviderManagerSingleton()
         self.__poster_grid: PosterGrid | None = None
         self.__pager: Pager | None = None
+        self.__resume_band: ResumeBand | None = None
+        main_window.episode_refresher.subscribe(self.__on_episodes_refreshed)
 
     def show_frame(self):
         """Revela la barra lateral (oculta durante la carga) y pinta esta vista."""
         self.main_window.sidebar_frame.grid(row=0, column=0, rowspan=8, sticky="nsew")
-
-        self.main_window.clear_frame()
-        self.__show_animes_recientes()
+        self.__show_recent_animes()
 
     # ------------------------------------------------------------------
     # Construcción de la vista
     # ------------------------------------------------------------------
-    def __show_animes_recientes(self):
-        self.main_window.clear_frame()
-        content = self.main_window.content_frame
-        content.grid_columnconfigure(0, weight=1)
+    def __show_recent_animes(self):
+        """Reutiliza la página si estrenos, proveedor y «Retomar» no han cambiado.
 
-        header = ViewHeader(content, "Nuevos lanzamientos", self.__subtitle())
+        La banda «Retomar» pide su refresco de episodios en los dos casos.
+        """
+        recent_animes = self.main_window.recent_animes
+        resume_records = self.__resume_records() if recent_animes else []
+        subtitle = self.__subtitle()
+        signature = (tuple((anime.id, anime.title) for anime in recent_animes), subtitle,
+                     utilsButtons.saved_rows_signature(resume_records))
+        page = self.main_window.show_view(self, signature)
+        if page is not None:
+            self.__show_page(page, recent_animes, resume_records, subtitle)
+        elif self.__resume_band is not None:
+            self.main_window.episode_refresher.refresh(resume_records, urgent=True)
+
+    def __show_page(self, content: ctk.CTkFrame, recent_animes: List[AnimeInfo],
+                    resume_records: List[AnimeRecord], subtitle: str):
+        self.__resume_band = None
+
+        header = ViewHeader(content, "Nuevos lanzamientos", subtitle)
         header.grid(row=0, column=0, sticky="ew")
 
-        recent_animes = self.main_window.recent_animes
         if not recent_animes:
             # El hueco no significa "no tienes nada": el catálogo no es del
             # usuario, así que una lista vacía es que ningún proveedor respondió.
@@ -78,12 +93,12 @@ class RecentAnimeButton(utilsButtons.SidebarButton):
             empty_state.grid(row=1, column=0, pady=(60, 0))
             return
 
-        resume_records = self.__resume_records()
         resume_band = ResumeBand(content, resume_records, on_click=self.__on_saved_anime_click)
         if resume_band.has_content():
             resume_band.grid(row=1, column=0, sticky="ew",
                              padx=Metrics.CONTENT_PAD_X, pady=(0, 28))
-            self.__refresh_resume_episodes(resume_band, resume_records)
+            self.__resume_band = resume_band
+            self.main_window.episode_refresher.refresh(resume_records, urgent=True)
 
         self.__poster_grid = PosterGrid(content, columns=6, poster_size=Metrics.GRID6_POSTER,
                                         on_click=self.__on_anime_click,
@@ -126,53 +141,13 @@ class RecentAnimeButton(utilsButtons.SidebarButton):
     # ------------------------------------------------------------------
     # Refresco de la banda «Retomar»
     # ------------------------------------------------------------------
-    def __refresh_resume_episodes(self, resume_band: ResumeBand, anime_records: List[AnimeRecord]) -> None:
-        """Vuelve a preguntar por los episodios de lo que hay en la banda «Retomar».
+    def __on_episodes_refreshed(self, anime_record: AnimeRecord) -> None:
+        """Repinta la tarjeta de la banda si el anime que ha cambiado está en ella.
 
-        Sin esto, un anime en emisión seguiría mostrando el recuento de
-        episodios del día que se abrió su ficha por última vez. Se hace al
-        entrar en la portada, en un hilo aparte, para no retrasar el arranque.
-
-        :param resume_band: Banda a repintar si cambia algún recuento.
-        :param anime_records: Filas de la banda a comprobar.
+        :param anime_record: Fila ya releída de la BD.
         """
-        if not anime_records:
-            return
-
-        def _apply(fresh_episodes: List[Tuple[str, List[EpisodeInfo]]]) -> None:
-            """Ya en el hilo de Tkinter: persiste lo que haya cambiado y repinta."""
-            if not self.main_window.winfo_exists():
-                return
-            for anime_id, episodes in fresh_episodes:
-                anime_record = self.main_window.animes_persistence.get_anime_by_anime_id(anime_id)
-                if anime_record is None or len(anime_record.episodes) == len(episodes):
-                    continue
-                if not self.main_window.animes_persistence.update_anime_episodes(anime_id, episodes):
-                    continue
-                print(f"«{anime_record.title}» pasa de {len(anime_record.episodes)} "
-                      f"a {len(episodes)} episodios")
-                # La banda puede haberse ido mientras se pedían los datos (otra
-                # vista, u otra visita a esta). La escritura ya está hecha, así que
-                # la próxima visita leerá el dato bueno de todas formas.
-                if not resume_band.winfo_exists():
-                    continue
-                updated_record = self.main_window.animes_persistence.get_anime_by_anime_id(anime_id)
-                if updated_record is not None:
-                    resume_band.update_record(updated_record)
-
-        def _fetch() -> None:
-            fresh_episodes: List[Tuple[str, List[EpisodeInfo]]] = []
-            for anime_record in anime_records:
-                anime_info, _ = self.anime_provider_mgr.get_anime_info_with_provider(
-                    anime_record.anime_id, provider_id=anime_record.provider_id, strict=True)
-                # Sin episodios no se toca nada: un corte de red o un cambio en el
-                # HTML del sitio no puede vaciar la lista que ya está guardada.
-                if anime_info is not None and anime_info.episodes:
-                    fresh_episodes.append((anime_record.anime_id, anime_info.episodes))
-            if fresh_episodes:
-                self.main_window.after(0, _apply, fresh_episodes)
-
-        threading.Thread(target=_fetch, daemon=True).start()
+        if self.__resume_band is not None and self.__resume_band.winfo_exists():
+            self.__resume_band.update_record(anime_record)
 
     def __on_columns_changed(self, columns: int) -> None:
         """La ventana ha cambiado de ancho y ahora cabe otro número de columnas.

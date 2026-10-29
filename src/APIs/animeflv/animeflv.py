@@ -1,7 +1,7 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "APIs.animeflv"
 __module__ = "animeflv.py"
-__version__ = "0.3"
+__version__ = "0.5"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 import time
@@ -13,7 +13,6 @@ from typing import List, Union, Tuple
 from bs4 import BeautifulSoup
 from urllib.parse import urlencode
 
-from utils.utils import removeprefix
 from APIs.common.animeProviderMgr import AnimeProvider
 from APIs.common.models import AnimeGenreFilter, AnimeProviderId, ServerInfo, EpisodeInfo, AnimeInfo
 
@@ -28,6 +27,7 @@ class AnimeFLV(AnimeProvider):
 
     PROVIDER_ID = AnimeProviderId.ANIMEFLV
     PROVIDER_NAME = "AnimeFLV"
+    PROVIDER_SHORT_NAME = "FLV"
     BASE_URL = BASE_URL
 
     def search_animes_by_genres_and_order(self, genres: List[AnimeGenreFilter], order: str = None,
@@ -66,7 +66,7 @@ class AnimeFLV(AnimeProvider):
         for element in elements:
             query_animes.append(
                 AnimeInfo(
-                    id=removeprefix(element.select_one("div.Description a.Button")["href"][1:], "anime/"),
+                    id=element.select_one("div.Description a.Button")["href"][1:].removeprefix("anime/"),
                     title=element.select_one("div.Title").string,
                     poster=f"{element.select_one('div.Image figure img').get('src', '')}",
                 )
@@ -114,7 +114,7 @@ class AnimeFLV(AnimeProvider):
         for element in elements:
             query_animes.append(
                 AnimeInfo(
-                    id=removeprefix(element.select_one("div.Description a.Button")["href"][1:], "anime/"),
+                    id=element.select_one("div.Description a.Button")["href"][1:].removeprefix("anime/"),
                     title=element.select_one("div.Title").string,
                     poster=f"{element.select_one('div.Image figure img').get('src', '')}",
                 )
@@ -168,7 +168,7 @@ class AnimeFLV(AnimeProvider):
         for element in elements:
             recent_animes.append(
                 AnimeInfo(
-                    id=removeprefix(element.select_one("div.Description a.Button")["href"][1:], "anime/"),
+                    id=element.select_one("div.Description a.Button")["href"][1:].removeprefix("anime/"),
                     title=element.select_one("div.Title").string,
                     poster=f"{BASE_URL}{element.select_one('div.Image figure img').get('src', '')}",
                 )

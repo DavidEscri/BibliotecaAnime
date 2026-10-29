@@ -2,9 +2,9 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-10-20 · rama `feature/reproductor-embebido` · último commit de código **`f3fc229`** (fase 5 del reproductor) |
-| **Última revisión** | 2026-10-20 (**reproductor in-app**): **7 módulos nuevos** —los 6 de `APIs/resolvers/` (5 con contenido + `__init__.py` vacío) y `gui/components/video_player.py`— con su ficha; `main_window.py` y `anime_window.py` ganan su bloque del reproductor; inventario **recontado de cero** (**13 676** líneas en **37** módulos) y con la convención de conteo corregida, porque el commit `cbd2721` dejó la mitad de los ficheros terminando en salto de línea. Antes, 2026-09-02 (**rejillas adaptables y sinopsis**): recuentos rehechos (**11 599 → 11 920**); `poster_grid.py` **234 → 396** —calcula sus columnas del ancho—, `anime_window.py` **1 875 → 1 924** con `wrap_synopsis()`, `pager.py` **247 → 277** con `set_page_size()`, y las cuatro vistas de rejilla ([trampas 41 y 42](10-invariantes-y-trampas.md)). Antes, 2026-09-01 (**abrir la ficha por un episodio**): recuentos rehechos (**11 430 → 11 599**); `anime_window.py` **1 745 → 1 875** con `focus_episode` / `force_ascending` y sus dos métodos nuevos, `anime_row.py` **333 → 349** con la corrección de sus ataduras ([trampa 40](10-invariantes-y-trampas.md)), y las dos vistas de cascada. Antes, 2026-09-01 (**ancho de las fichas de género**): recuentos rehechos (**11 403 → 11 430**); `genre_chips.py` **333 → 360** con la aritmética real del ancho de un `CTkButton` ([trampa 39](10-invariantes-y-trampas.md)). Antes, 2026-09-01 (**refresco de la banda «Retomar»**): recuentos rehechos (**11 309 → 11 403**); `resume_card.py` estrena `update_record()` en sus **dos** clases y `recentAnimes.py`, `__refresh_resume_episodes()`; la tabla de «cómo abre la ficha» reanclada, que iba ~125 líneas desplazada. Antes, 2026-09-01 (**hover de la lista de episodios**): **ficha de `EpisodeRow` nueva** —no la tenía—, y recuentos rehechos con la convención del documento explicada. Antes, 2026-08-31 (**fondo de la pantalla de carga**): ficha de `MainWindow` reanclada —sus líneas iban ~29 desplazadas—, `show_loading_screen()` descrito de verdad y `__config_main_window()` añadido. Antes, 2026-08-21 (**rediseño de interfaz**): **12 módulos nuevos** en `gui/` —`theme.py` y los 11 de `gui/components/`— con su ficha; recuentos rehechos (**6 245 → 11 309** líneas); `utilsButtons.py` pierde 5 clases y `main_window.py` gana `navigate_to()`. Antes, 2026-08-16 (**columna `provider_id`**): recuentos rehechos — el proyecto pasa de 5 460 a **6 245** líneas; fichas de `models.py`, `animeProviderMgr.py`, `animesPersistence.py`, `utils.py`, `utilsButtons.py`, `main_window.py` y `anime_window.py` actualizadas |
-| **Cubre** | los **57** ficheros `.py` de `src/` (**37** con contenido + **20** `__init__.py` vacíos) |
+| **Fecha** | 2026-10-28 · rama `release/0.5.0` · último commit de código **`7bbbb3c`** |
+| **Última revisión** | 2026-10-29 (**estabilizar la 0.5.0**): recuentos de `anime_window.py`, `anime_row.py`, `sidebar.py`, las vistas «Viendo», «Pendientes» y «Buscar», `tab_bar.py` y `franchise_cards.py` (**16 931 → 16 959**); «Buscar» usa `library_status()` (C13) y `AnimeRow` gana `refresh_hover()` (trampa 82). Antes, 2026-10-28 (**versión 0.5.0**): **tres módulos nuevos** con su ficha —`gui/franchise_service.py`, `gui/components/tab_bar.py` y `gui/components/franchise_cards.py`—; fichas de `models.py`, `animeProviderMgr.py`, `animeav1.py`, `jkanime.py`, `main_window.py`, `anime_window.py`, `poster_grid.py`, `sidebar.py`, `utils.py`, `utilsButtons.py` y las seis vistas al día; inventario recontado (**13 676 → 16 931** líneas, **43** módulos). Antes, 2026-10-27 (**conexiones y `<Configure>`**, B16-B17): **módulo nuevo `utils/http_session.py`**; `animeav1._fetch` y las descargas de `utils.py` piden con `thread_session()`; `main_window.py` gana `__bind_window_configure()`. Antes, 2026-10-27 (**refresco de episodios**): **módulo nuevo `gui/episode_refresher.py`**; `AnimeRow` y `SidePanel` ganan `update_record()`, y `recentAnimes.py` pierde `__refresh_resume_episodes()`. Antes, 2026-10-20 (**reproductor in-app**): **7 módulos nuevos** —los 6 de `APIs/resolvers/` (5 con contenido + `__init__.py` vacío) y `gui/components/video_player.py`— con su ficha; `main_window.py` y `anime_window.py` ganan su bloque del reproductor; inventario **recontado de cero** (**13 676** líneas en **37** módulos) y con la convención de conteo corregida, porque el commit `cbd2721` dejó la mitad de los ficheros terminando en salto de línea. Antes, 2026-09-02 (**rejillas adaptables y sinopsis**): recuentos rehechos (**11 599 → 11 920**); `poster_grid.py` **234 → 396** —calcula sus columnas del ancho—, `anime_window.py` **1 875 → 1 924** con `wrap_synopsis()`, `pager.py` **247 → 277** con `set_page_size()`, y las cuatro vistas de rejilla ([trampas 41 y 42](10-invariantes-y-trampas.md)). Antes, 2026-09-01 (**abrir la ficha por un episodio**): recuentos rehechos (**11 430 → 11 599**); `anime_window.py` **1 745 → 1 875** con `focus_episode` / `force_ascending` y sus dos métodos nuevos, `anime_row.py` **333 → 349** con la corrección de sus ataduras ([trampa 40](10-invariantes-y-trampas.md)), y las dos vistas de cascada. Antes, 2026-09-01 (**ancho de las fichas de género**): recuentos rehechos (**11 403 → 11 430**); `genre_chips.py` **333 → 360** con la aritmética real del ancho de un `CTkButton` ([trampa 39](10-invariantes-y-trampas.md)). Antes, 2026-09-01 (**refresco de la banda «Retomar»**): recuentos rehechos (**11 309 → 11 403**); `resume_card.py` estrena `update_record()` en sus **dos** clases y `recentAnimes.py`, `__refresh_resume_episodes()`; la tabla de «cómo abre la ficha» reanclada, que iba ~125 líneas desplazada. Antes, 2026-09-01 (**hover de la lista de episodios**): **ficha de `EpisodeRow` nueva** —no la tenía—, y recuentos rehechos con la convención del documento explicada. Antes, 2026-08-31 (**fondo de la pantalla de carga**): ficha de `MainWindow` reanclada —sus líneas iban ~29 desplazadas—, `show_loading_screen()` descrito de verdad y `__config_main_window()` añadido. Antes, 2026-08-21 (**rediseño de interfaz**): **12 módulos nuevos** en `gui/` —`theme.py` y los 11 de `gui/components/`— con su ficha; recuentos rehechos (**6 245 → 11 309** líneas); `utilsButtons.py` pierde 5 clases y `main_window.py` gana `navigate_to()`. Antes, 2026-08-16 (**columna `provider_id`**): recuentos rehechos — el proyecto pasa de 5 460 a **6 245** líneas; fichas de `models.py`, `animeProviderMgr.py`, `animesPersistence.py`, `utils.py`, `utilsButtons.py`, `main_window.py` y `anime_window.py` actualizadas |
+| **Cubre** | los **63** ficheros `.py` de `src/` (**43** con contenido + **20** `__init__.py` vacíos) |
 
 Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ sin verificar.
 Todas las líneas citadas corresponden al **árbol de trabajo actual**, no al último commit.
@@ -16,46 +16,66 @@ Todas las líneas citadas corresponden al **árbol de trabajo actual**, no al ú
 | Ruta | Líneas | Capa |
 |---|---:|---|
 | `src/app.py` | 17 | arranque |
-| `src/APIs/common/models.py` | 118 | dominio |
-| `src/APIs/common/animeProviderMgr.py` | 442 | dominio |
-| `src/APIs/animeav1/animeav1.py` | 336 | infraestructura |
-| `src/APIs/jkanime/jkanime.py` | 486 | infraestructura |
+| `src/APIs/common/models.py` | 164 | dominio |
+| `src/APIs/common/animeProviderMgr.py` | 567 | dominio |
+| `src/APIs/animeav1/animeav1.py` | 523 | infraestructura |
+| `src/APIs/jkanime/jkanime.py` | 614 | infraestructura |
 | `src/APIs/animeflv/animeflv.py` | 243 | infraestructura |
-| `src/APIs/resolvers/base.py` 🆕 | **67** | resolución |
-| `src/APIs/resolvers/registry.py` 🆕 | **63** | resolución |
-| `src/APIs/resolvers/zilla.py` 🆕 | **54** | resolución |
-| `src/APIs/resolvers/jkplayer.py` 🆕 | **115** | resolución |
-| `src/APIs/resolvers/mp4upload.py` 🆕 | **63** | resolución |
-| `src/dataPersistence/animesPersistence.py` | 722 | dominio/datos |
-| `src/dataPersistence/userPersistence.py` | 329 | dominio/datos |
+| `src/APIs/resolvers/base.py` | 67 | resolución |
+| `src/APIs/resolvers/registry.py` | 63 | resolución |
+| `src/APIs/resolvers/zilla.py` | 54 | resolución |
+| `src/APIs/resolvers/jkplayer.py` | 115 | resolución |
+| `src/APIs/resolvers/mp4upload.py` | 63 | resolución |
+| `src/dataPersistence/animesPersistence.py` | 729 | dominio/datos |
+| `src/dataPersistence/userPersistence.py` | 358 | dominio/datos |
 | `src/utils/db/sqlite.py` | 494 | infraestructura |
-| `src/utils/utils.py` | 326 | infraestructura |
-| `src/utils/buttons/utilsButtons.py` | 188 | GUI |
-| `src/gui/theme.py` | 293 | GUI · tokens |
-| `src/gui/components/sidebar.py` | 511 | GUI · componente |
-| `src/gui/components/anime_row.py` | 326 | GUI · componente |
-| `src/gui/components/genre_chips.py` | 340 | GUI · componente |
-| `src/gui/components/status_pill.py` | 216 | GUI · componente |
+| `src/utils/utils.py` | 343 | infraestructura |
+| `src/utils/http_session.py` | 34 | infraestructura |
+| `src/utils/buttons/utilsButtons.py` | 200 | GUI |
+| `src/gui/theme.py` | 295 | GUI · tokens |
+| `src/gui/components/sidebar.py` | 518 | GUI · componente |
+| `src/gui/components/anime_row.py` | 417 | GUI · componente |
+| `src/gui/components/genre_chips.py` | 339 | GUI · componente |
+| `src/gui/components/status_pill.py` | 213 | GUI · componente |
 | `src/gui/components/pager.py` | 256 | GUI · componente |
-| `src/gui/components/poster_grid.py` | 356 | GUI · componente |
-| `src/gui/components/empty_state.py` | 199 | GUI · componente |
+| `src/gui/components/poster_grid.py` | 405 | GUI · componente |
+| `src/gui/components/empty_state.py` | 198 | GUI · componente |
 | `src/gui/components/resume_card.py` | 230 | GUI · componente |
-| `src/gui/components/side_panel.py` | 214 | GUI · componente |
-| `src/gui/components/rating_stars.py` | 203 | GUI · componente |
+| `src/gui/components/side_panel.py` | 231 | GUI · componente |
+| `src/gui/components/rating_stars.py` | 206 | GUI · componente |
 | `src/gui/components/view_header.py` | 80 | GUI · componente |
-| `src/gui/components/order_menu.py` 🆕 | **53** | GUI · componente |
-| `src/gui/components/video_player.py` 🆕 | **1 237** | GUI · componente |
-| `src/gui/main_window.py` | **680** | GUI |
-| `src/gui/anime_window.py` | **2 429** | GUI |
-| `src/gui/sidebarButtons/recentAnimes/recentAnimes.py` | 241 | GUI · vista |
-| `src/gui/sidebarButtons/favouriteAnimes/favouriteAnimes.py` | 345 | GUI · vista |
-| `src/gui/sidebarButtons/finishedAnimes/finishedAnimes.py` | 261 | GUI · vista |
-| `src/gui/sidebarButtons/watchingAnimes/watchingAnimes.py` | 265 | GUI · vista |
-| `src/gui/sidebarButtons/pendingAnimes/pendingAnimes.py` | 342 | GUI · vista |
-| `src/gui/sidebarButtons/searchAnimes/searchAnimes.py` | 589 | GUI · vista |
+| `src/gui/components/order_menu.py` | 53 | GUI · componente |
+| `src/gui/components/video_player.py` | 1 273 | GUI · componente |
+| `src/gui/components/tab_bar.py` 🆕 | **229** | GUI · componente |
+| `src/gui/components/franchise_cards.py` 🆕 | **603** | GUI · componente |
+| `src/gui/episode_refresher.py` | 210 | GUI · servicio |
+| `src/gui/franchise_service.py` 🆕 | **455** | GUI · servicio |
+| `src/gui/main_window.py` | 773 | GUI |
+| `src/gui/anime_window.py` | 3 261 | GUI |
+| `src/gui/sidebarButtons/recentAnimes/recentAnimes.py` | 216 | GUI · vista |
+| `src/gui/sidebarButtons/favouriteAnimes/favouriteAnimes.py` | 332 | GUI · vista |
+| `src/gui/sidebarButtons/finishedAnimes/finishedAnimes.py` | 260 | GUI · vista |
+| `src/gui/sidebarButtons/watchingAnimes/watchingAnimes.py` | 309 | GUI · vista |
+| `src/gui/sidebarButtons/pendingAnimes/pendingAnimes.py` | 367 | GUI · vista |
+| `src/gui/sidebarButtons/searchAnimes/searchAnimes.py` | 582 | GUI · vista |
 
-**13 676 líneas** en **37 módulos** (más 20 `__init__.py`, ✅ **todos vacíos**). ✅ Recontado de cero
-el 2026-10-20 sobre `f3fc229`, **como las enseña un editor**: los saltos de línea, más uno si el
+**16 959 líneas** en **43 módulos** (más 20 `__init__.py`, ✅ **todos vacíos**). ✅ Recontado el
+2026-10-29 en `release/0.5.0` (eran 16 931 sobre `7bbbb3c`: «Buscar» pierde su copia de la regla del
+sello, −14; `AnimeRow.refresh_hover()` y el alto conservado de «Te puede interesar», +37), con la misma convención: los saltos de línea, más uno si el fichero no
+acaba en salto.
+
+**De dónde salen** respecto a las 13 676 del 2026-10-20:
+
+- **Entre el reproductor y la 0.5.0** (2026-10-21 a 2026-10-27): `order_menu.py` (53),
+  `http_session.py` (34) y `episode_refresher.py` (210), más la auditoría de rendimiento y B12.
+- **La 0.5.0** (2026-10-28, fases 1-5 del plan `plan-050/`): **+2 842 / −155** en `src/`. Tres módulos
+  nuevos —`gui/franchise_service.py` (455), `gui/components/tab_bar.py` (228) y
+  `gui/components/franchise_cards.py` (601)—, `anime_window.py` **+888** (pestañas, temporadas,
+  relacionados, «Te puede interesar», historial), `animeav1.py` **+192** y `jkanime.py` **+156**
+  (relaciones y formato), `animeProviderMgr.py` **+99** (siglas, `get_anime_relations`,
+  `genre_filters`), `models.py` **+50** y las seis vistas (páginas conservadas, B13).
+
+Antes, el 2026-10-20: **13 676 líneas** en **37 módulos**, recontado de cero sobre `f3fc229`, **como las enseña un editor**: los saltos de línea, más uno si el
 fichero no acaba en salto. ⚠️ **La convención de antes —`wc -l` + 1 por módulo— ya no vale**: suponía
 que casi ningún fichero terminaba en salto, y desde `cbd2721` la mitad sí, así que habría dado 13 706.
 
@@ -106,13 +126,16 @@ Los **19** `__init__.py` están **vacíos** (0 bytes) y solo marcan paquete; el 
 
 | Símbolo | Línea | Detalle |
 |---|---|---|
-| 🆕 `AnimeProviderId(Enum)` | `:18-31` | **3 miembros**. Valor = id corto y **estable**: es lo que se persiste |
-| 🆕 `ProviderInfo` | `:34-47` | `frozen`. `id: AnimeProviderId`, `name: str`, `base_url: str` |
-| `AnimeGenreFilter(Enum)` | `:50-97` | **40 miembros**. Valor = slug (`ACCIÓN = "accion"`) |
-| `AnimeOrderFilter(Enum)` | `:100-103` | `POR_DEFECTO="default"`, `ALFABÉTICAMENTE="title"`, `CALIFICACIÓN="rating"` |
-| `ServerInfo` | `:106-109` | `server: str`, `url: str` |
-| `EpisodeInfo` | `:112-115` | `id: Union[str,int]`, `anime: str` |
-| `AnimeInfo` | `:118-131` | `id`, `title`, `poster` + `synopsis=None`, `genres=None`, `episodes=None`, 🆕 `provider_id=None` |
+| 🆕 `AnimeProviderId(Enum)` | `:16-24` | **3 miembros**. Valor = id corto y **estable**: es lo que se persiste |
+| 🆕 `ProviderInfo` | `:32-42` | `frozen`. `id: AnimeProviderId`, `name: str`, `base_url: str`, 🆕 `short_name: str` (2026-10-28, sin default) |
+| `AnimeGenreFilter(Enum)` | `:45-90` | **40 miembros**. Valor = slug (`ACCIÓN = "accion"`) |
+| `AnimeOrderFilter(Enum)` | `:93-96` | `POR_DEFECTO="default"`, `ALFABÉTICAMENTE="title"`, `CALIFICACIÓN="rating"` |
+| 🆕 `AnimeFormat(Enum)` | `:99-108` | `SERIES`, `MOVIE`, `OVA`, `SPECIAL`, `ONA` (2026-10-28) |
+| 🆕 `AnimeRelationType(Enum)` | `:111-120` | `PREQUEL`, `SEQUEL`, `ALTERNATIVE`, `OTHER` — **solo cuatro**, a propósito |
+| 🆕 `RelatedAnime` | `:123-134` | `id`, `title`, `relation` + `format=None`, `year=None`, `poster=None` |
+| `ServerInfo` | `:137-140` | `server: str`, `url: str` |
+| `EpisodeInfo` | `:143-146` | `id: Union[str,int]`, `anime: str` |
+| `AnimeInfo` | `:149-163` | `id`, `title`, `poster` + `synopsis=None`, `genres=None`, `episodes=None`, `provider_id=None`, 🆕 `format=None`, `related=None` (`[]` = no tiene · `None` = no se sabe) |
 
 **Entrantes**: proveedores, `animeProviderMgr`, `animesPersistence`, `utilsButtons`, `main_window`,
 `anime_window`, todas las vistas.
@@ -127,6 +150,9 @@ Los **19** `__init__.py` están **vacíos** (0 bytes) y solo marcan paquete; el 
 > `None` significa «este `AnimeInfo` **no pasó por el manager**» (lo construyó alguien a mano), no
 > «no se sabe». Detalle en [04 §1b](04-modelo-de-datos.md).
 
+> 🆕 **`format` y `related` no se persisten** (2026-10-28): viven en memoria la sesión. Ver
+> [04 §1c](04-modelo-de-datos.md). Versión del módulo: **0.3**.
+
 > ⚠️ **Añadir un proveedor obliga a tocar este fichero**, que antes no hacía falta: un miembro más en
 > `AnimeProviderId`. Sin él, la clase del proveedor **no importa** ([11 §3](11-playbooks.md)).
 
@@ -136,53 +162,65 @@ Los **19** `__init__.py` están **vacíos** (0 bytes) y solo marcan paquete; el 
 
 **Responsabilidad**: contrato `AnimeProvider` (ABC) + registro y fallback (`AnimeProviderManager`).
 
-### `AnimeProvider` (`:24-128`)
+Versión **0.7** (2026-10-28).
+
+### `AnimeProvider` (`:26-179`)
 
 | Miembro | Línea |
 |---|---|
-| `PROVIDER_ID` / `PROVIDER_NAME` / `BASE_URL` | `:48` / `:51` / `:55` — 🆕 `PROVIDER_ID` es un `AnimeProviderId` |
-| `__init_subclass__` | `:57-75` — valida los 3 atributos **y** que `PROVIDER_ID` sea del enum |
-| 🆕 `provider_info() -> ProviderInfo` *(classmethod)* | `:77-85` — **ya implementado**; no lo sobrescribas |
-| `search_animes_by_genres_and_order(genres, order=None, page=None) -> (List[AnimeInfo], int)` | `:87-91` |
-| `search_animes_by_query(query=None, page=None) -> (List[AnimeInfo], int)` | `:93-96` |
-| `get_anime_episode_servers(anime_id, episode_id) -> List[ServerInfo]` | `:98-101` |
-| `get_recent_animes() -> List[AnimeInfo]` | `:103-105` |
-| `get_anime_info(anime_id) -> AnimeInfo` | `:107-108` |
-| `is_available(timeout=5.0) -> bool` | `:110-126` — `GET BASE_URL` |
+| `PROVIDER_ID` / `PROVIDER_NAME` / 🆕 `PROVIDER_SHORT_NAME` / `BASE_URL` | `:36` / `:39` / `:42` / `:45` — `PROVIDER_ID` es un `AnimeProviderId`; las siglas, desde el 2026-10-28 |
+| 🆕 `RELATIONS_CARRY_FORMAT = False` | `:48` — **opcional**: `True` si los relacionados de su ficha traen formato (JKAnime) |
+| `__init_subclass__` | `:50-63` — valida los **4** atributos **y** que `PROVIDER_ID` sea del enum |
+| `provider_info() -> ProviderInfo` *(classmethod)* | `:65-72` — **ya implementado**; no lo sobrescribas |
+| `search_animes_by_genres_and_order(genres, order=None, page=None) -> (List[AnimeInfo], int)` | `:74-84` |
+| `search_animes_by_query(query=None, page=None) -> (List[AnimeInfo], int)` | `:86-94` |
+| `get_anime_episode_servers(anime_id, episode_id) -> List[ServerInfo]` | `:96-104` |
+| `get_recent_animes() -> List[AnimeInfo]` | `:106-112` |
+| `get_anime_info(anime_id) -> AnimeInfo` | `:114-120` |
+| 🆕 `get_anime_relations(anime_id) -> Optional[AnimeInfo]` | `:122-132` — **no abstracto**: por defecto `get_anime_info`; JKAnime lo sobrescribe sin el POST |
+| 🆕 `genre_filters(genres) -> List[AnimeGenreFilter]` | `:134-152` — **no abstracto, sin red**; descarta lo que no traduce con un aviso por sesión (`_WARNED_GENRES`, `:19`) |
+| 🆕 `_genre_from_slug(slug)` | `:154-163` — el gancho que sobrescribe un sitio con slugs propios |
+| `is_available(timeout=5.0) -> bool` | `:165-175` — `GET BASE_URL` |
 
-> ✅ **Trampa**: la comprobación es `if ABC not in cls.__bases__` (`:62`). Como solo `AnimeProvider`
+> ✅ **Trampa**: la comprobación es `if ABC not in cls.__bases__` (`:52`). Como solo `AnimeProvider`
 > lista `ABC` entre sus bases, **cualquier** subclase — incluida una clase base intermedia
-> abstracta — debe definir los 3 atributos o `NotImplementedError` salta **al importar**.
+> abstracta — debe definir los 4 atributos o `NotImplementedError` salta **al importar**.
 
-### `AnimeProviderManager` (`:131-460`)
+### `AnimeProviderManager` (`:181-559`)
+
+Anclas de esta tabla y de la siguiente reubicadas contra el código el 2026-10-28.
 
 | Método | Línea | Nota |
 |---|---|---|
-| `register(provider, default=False)` | `:173-181` | el primero registrado queda por defecto aunque no lo pidas |
-| `unregister(provider_id)` | `:183-186` | si era el default, pasa al siguiente registrado |
-| `set_default` / `get_default_provider_id` | `:188-194` | `set_default` lanza `UnknownProviderError` |
-| `get(provider_id=None)` | `:196-203` | lanza `UnknownProviderError` |
-| `list_providers()` / `list_available_providers()` | `:205-247` | la segunda hace **una petición HTTP por proveedor** |
-| `_ordered_providers(provider_id=None)` | `:249-259` | preferido primero, resto por orden de registro |
-| 🆕 `__stamp_provider(result, provider_id)` | `:262-283` | sella quién respondió en cada `AnimeInfo` del resultado |
-| `__is_empty_result(result)` | `:285-291` | `None`, `[]`, o `([], …)` cuentan como vacío |
-| `call_with_fallback(...) -> (Any, Optional[AnimeProviderId])` | `:293-334` | devuelve `(None, None)` si todos fallan |
-| wrappers `get_recent_animes`, `get_anime_info`, `search_animes_by_query`, `search_animes_by_genres_and_order`, `get_anime_episode_servers` | `:340-382` | mismos nombres que el contrato + `provider_id=`, `strict=` |
-| `AnimeProviderManagerSingleton` | `:463-469` | |
+| `register(provider, default=False)` | `:203-211` | el primero registrado queda por defecto aunque no lo pidas |
+| `unregister(provider_id)` | `:213-220` | si era el default, pasa al siguiente registrado |
+| `set_default` / `get_default_provider_id` | `:222-233` | `set_default` lanza `UnknownProviderError` |
+| `get(provider_id=None)` | `:235-246` | lanza `UnknownProviderError` |
+| `list_providers()` / `list_available_providers()` | `:248` / `:287` | la segunda hace **una petición HTTP por proveedor** |
+| `_ordered_providers(provider_id=None)` | `:291-303` | preferido primero, resto por orden de registro |
+| 🆕 `__stamp_provider(result, provider_id)` | `:305-320` | sella quién respondió en cada `AnimeInfo` del resultado |
+| `__is_empty_result(result)` | `:322-330` | `None`, `[]`, o `([], …)` cuentan como vacío |
+| `call_with_fallback(...) -> (Any, Optional[AnimeProviderId])` | `:332-375` | devuelve `(None, None)` si todos fallan |
+| wrappers `get_recent_animes`, `get_anime_info`, `search_animes_by_query`, `search_animes_by_genres_and_order`, `get_anime_episode_servers` | `:377-449` | mismos nombres que el contrato + `provider_id=`, `strict=` |
+| 🆕 `get_anime_relations(anime_id, provider_id)` | `:396-411` | **siempre `strict=True`**, sin parámetro `strict`; valida que el proveedor esté registrado (trampa 13). Lo usa `FranchiseService` |
+| 🆕 `genre_filters(genres, provider_id)` | `:427-438` | sin red; `[]` si el proveedor no está registrado. Lo usa «Te puede interesar» |
+| `AnimeProviderManagerSingleton` | `:561-567` | |
 
 **Añadidos el 2026-07-30** ([13](13-selector-de-proveedor.md)) — v0.1 → v0.2, **revisados el
 2026-08-16** (v0.3): todo lo que era `str` ahora es `AnimeProviderId`.
 
 | Método | Línea | Nota |
 |---|---|---|
-| `get_provider_name(provider_id)` | `:222-231` | nombre legible. 🆕 **tolera `None`** → `"desconocido"`; si el id no está registrado devuelve su `.value` |
-| 🆕 `get_provider_info(provider_id) -> ProviderInfo\|None` | `:208-211` | ficha de un proveedor registrado |
-| 🆕 `list_provider_infos() -> List[ProviderInfo]` | `:213-220` | **única** fuente del contenido de los desplegables de la GUI, en orden de registro. Sustituye a `get_provider_names()` |
-| 🆕 `get_provider_info_by_name(nombre)` | `:233-243` | vuelta atrás: los widgets muestran nombre, el código usa enums. Sustituye a `get_provider_id_by_name()` |
-| `get_anime_info_with_provider(...)` | `:348-361` | expone el `provider_id` que `call_with_fallback` ya devolvía y los wrappers tiraban |
-| `normalize_title(title)` *(static)* | `:385-396` | minúsculas, sin tildes, resto a espacios |
-| `resolve_anime_in_provider(anime_info, provider_id, threshold=None)` | `:398-460` | localiza el mismo anime en otro proveedor por título. **2 peticiones HTTP** → solo desde hilo secundario. Devuelve `None` antes que un falso positivo. ✅ **Vuelve a tener llamantes** desde el 2026-08-16: `open_saved_anime()` y el botón «Actualizar a …» |
-| `TITLE_MATCH_THRESHOLD = 0.75` | `:167` | ✅ **calibrado el 2026-08-16** contra los 3 sitios reales; no ha necesitado moverse |
+| `get_provider_name(provider_id)` | `:265-274` | nombre legible. 🆕 **tolera `None`** → `"desconocido"`; si el id no está registrado devuelve su `.value` |
+| 🆕 `get_provider_info(provider_id) -> ProviderInfo\|None` | `:252-259` | ficha de un proveedor registrado |
+| 🆕 `list_providers_info() -> List[ProviderInfo]` | `:261-263` | **única** fuente del contenido de los desplegables de la GUI, en orden de registro. Sustituye a `get_provider_names()` |
+| 🆕 `get_provider_info_by_name(nombre)` | `:276-285` | vuelta atrás: los widgets muestran nombre, el código usa enums. Sustituye a `get_provider_id_by_name()` |
+| `get_anime_info_with_provider(...)` | `:388-394` | expone el `provider_id` que `call_with_fallback` ya devolvía y los wrappers tiraban |
+| `normalize_title(title)` *(static)* | `:451-465` | minúsculas, sin tildes, resto a espacios |
+| 🆕 `title_numbers(title)` *(class)* | `:467-485` | los números del título, ordenados: dígitos de cada palabra («2nd» → 2) y romanos II-IX de `ROMAN_NUMERALS` (`:196-197`, sin «i» ni «x») |
+| 🆕 `title_similarity(a, b)` *(class)* | `:486-505` | **el** parecido para decidir identidad: 1.0 si son iguales normalizados, **0.0 si sus números difieren**, si no `SequenceMatcher`. La usan `resolve_anime_in_provider()`, `find_saved_duplicate()` y `match_animes_from_search()` ([trampa 58](10-invariantes-y-trampas.md), v0.4, 2026-10-26) |
+| `resolve_anime_in_provider(anime_info, provider_id, threshold=None)` | `:506-559` | localiza el mismo anime en otro proveedor por título. **2 peticiones HTTP** → solo desde hilo secundario. Devuelve `None` antes que un falso positivo. ✅ **Vuelve a tener llamantes** desde el 2026-08-16: `open_saved_anime()` y el botón «Actualizar a …» |
+| `TITLE_MATCH_THRESHOLD = 0.75` | `:192` | ✅ **calibrado el 2026-08-16** contra los 3 sitios reales; no ha necesitado moverse. ⚠️ Con las temporadas sí fallaba —«X» / «X 2nd Season» da 0.80—: lo separa `title_similarity()`, no el umbral |
 
 > ⚠️ **Dos métodos desaparecieron** en el cambio a enum: `get_provider_names()` y
 > `get_provider_id_by_name()`. Si encuentras una cita a ellos en documentación o en un script del
@@ -203,7 +241,7 @@ clave/valor. Esquema y razonamiento: [04 §0](04-modelo-de-datos.md), [13](13-se
 | `UserSettingField` | enum columna + tipo SQLite, igual que `AnimeField` |
 | `UserSettingKey` | claves válidas. Añadir una preferencia es **un miembro aquí**, sin migración |
 | `UserSetting` | dataclass de una fila, con `from_db_dict()` |
-| `UserPersistence(ServiceDB)` | `start()`, `validate_db_integrity()`, `get_setting()`, `set_setting()` (upsert), `get_all_settings()`, `get_default_provider_id()`, `set_default_provider_id()` |
+| `UserPersistence(ServiceDB)` | `start()`, `validate_db_integrity()`, `get_setting()`, `set_setting()` (upsert), `get_all_settings()`, `get_default_provider_id()`, `set_default_provider_id()`, y un par `get_*` / `set_*` por preferencia: plegado de la barra, últimos vistos, orden de Favoritos y 🆕 orden de Pendientes (`get_pending_order()` / `set_pending_order()`) |
 | `UserPersistenceSingleton` | `__new__` devuelve la instancia real |
 
 **Dependencias**: `utils.db.sqlite` (`ServiceDB`, `TableSchema`), `utils.utils.get_resource_path`.
@@ -223,9 +261,10 @@ por defecto. Una preferencia perdida no puede impedir arrancar la aplicación.
 **Constantes**: `BASE_URL` `:28`, `CATALOG_URL=/catalogo` `:29`, `MEDIA_URL=/media` `:30`,
 `_SVELTE_PAYLOAD_MARKER = "kit.start(app, element, {"` `:34`.
 
-**Helper de módulo**: `_fetch(url, **kwargs) -> Response` `:37-56`. **Único punto del módulo que llama
-a `requests.get`**; fuerza UTF-8 cuando el sitio no declara charset. Los 5 métodos de red pasan por él
-— saltárselo reintroduce el mojibake ([05 §7](05-proveedores-y-scraping.md), trampa 14).
+**Helper de módulo**: `_fetch(url, **kwargs) -> Response` `:33-46`. **Único punto del módulo que sale
+a la red** —con `thread_session().get` desde el 2026-10-27 (v0.6, B16); antes `requests.get`—, con
+`timeout=10` por defecto; fuerza UTF-8 cuando el sitio no declara charset. Los 5 métodos de red pasan
+por él — saltárselo reintroduce el mojibake ([05 §7](05-proveedores-y-scraping.md), trampa 14).
 
 | Método público | Línea | Efecto de red |
 |---|---|---|
@@ -239,8 +278,26 @@ a `requests.get`**; fuerza UTF-8 cuando el sitio no declara charset. Los 5 méto
 `__get_last_page` `:300-312` · `__extract_genres` `:314-331` · `__count_episodes_from_dom` `:333-346` ·
 `__apply_client_side_order` `:348-358`. Singleton `:361-367`.
 
-**Salientes**: `utils.utils.removeprefix` (`:24`), `APIs.common.*`.
+**Salientes**: `APIs.common.*`. Desde el 2026-10-27 no importa nada de `utils/`: el *slug* sale con `str.removeprefix`.
 ✅ Verificado: los 5 métodos funcionan. Detalle del payload en [05 §2](05-proveedores-y-scraping.md).
+
+🆕 **v0.7 (2026-10-28, relaciones y formato)** — anclas al día de lo nuevo; las de las tablas de
+arriba van desplazadas (`get_anime_info` está hoy en `:201-276`):
+
+| Pieza | Línea | Qué hace |
+|---|---|---|
+| `PROVIDER_SHORT_NAME = "AV1"` | clase | siglas ([05 §1](05-proveedores-y-scraping.md)) |
+| `COVER_URL` | `:30` | `https://cdn.animeav1.com/covers/{id}.jpg`, el póster de un relacionado |
+| `_RELATION_CODES` / `_OTHER_RELATION_CODES` | `:39-46` | `1`/`2`/`4` → precuela/secuela/alternativa; `6`/`7`/`8`/`10` → `OTHER` sin aviso |
+| `_DOM_RELATION_LABELS` / `_FORMAT_CODES` | `:49-63` | etiquetas del *fallback* y `category.malId` → `AnimeFormat` |
+| `__extract_format(payload)` | `:371-384` | formato del propio anime |
+| `__extract_relations(payload)` | `:386-415` | el array `relations`, entrada a entrada con regex independientes del orden |
+| `__relation_from_code(code)` | `:417-428` | código desconocido → `OTHER` con `print` |
+| `__extract_relations_from_dom(soup)` | `:430-462` | *fallback*: la sección «Relacionados» del DOM |
+| `__extract_js_array(payload, key)` | `:464-497` | recorta un array JS **contando corchetes y respetando cadenas** ([trampa 60](10-invariantes-y-trampas.md)) |
+
+`get_anime_info` rellena `format` y `related` (siempre lista, `[]` sin sección). `get_anime_relations`
+es el de la clase base: la misma ficha, con sus 3 reintentos ([trampa 63](10-invariantes-y-trampas.md)).
 
 ---
 
@@ -282,6 +339,22 @@ Tres cosas que lo separan de los otros dos proveedores:
 ✅ Verificado el 2026-08-06: 50/50 comprobaciones sobre el sitio real, más 12/12 de registro y
 fallback ([09 §3d](09-verificacion-y-pruebas.md)).
 
+🆕 **v0.5 (2026-10-28, relaciones, formato y géneros de vuelta)** — anclas al día de lo nuevo:
+
+| Pieza | Línea | Qué hace |
+|---|---|---|
+| `PROVIDER_SHORT_NAME = "JK"`, `RELATIONS_CARRY_FORMAT = True` | clase | sus relacionados traen formato |
+| `_GENRES_FROM_SLUG` | `:56` | la inversa de `_GENRE_TRANSLATIONS`, para `_genre_from_slug` (`:365-372`) |
+| `_RELATION_LABELS` / `_OTHER_RELATION_LABELS` / `_FORMAT_LABELS` | `:69-86` | etiquetas normalizadas, sin tildes como las escribe el sitio |
+| `get_anime_info` | `:285-301` | `__get_anime_page()` + el POST de episodios: **2 peticiones**, como antes |
+| `get_anime_relations` | `:303-310` | solo `__get_anime_page()`: **1 petición**, sin `Session` ni POST |
+| `__get_anime_page(anime_id, session=None)` | `:317-359` | descarga y parsea la ficha sin episodios; devuelve `(html, AnimeInfo)` |
+| `__extract_format(soup)` | `:482-496` | el primer `li[rel='tipo']` |
+| `__extract_relations(soup)` | `:498-523` | recorre los hermanos `h5`/`a` del `<h3>Temporadas y relacionados</h3>` ([trampa 61](10-invariantes-y-trampas.md)) |
+| `__relation_from_label` / `__split_format` | `:525-553` | tipo por etiqueta; formato solo si el paréntesis es uno conocido ([trampa 62](10-invariantes-y-trampas.md)) |
+
+El resto de anclas de las tablas de arriba van desplazadas ~+90 líneas.
+
 ---
 
 ## `src/APIs/animeflv/animeflv.py` — fallback
@@ -300,6 +373,9 @@ fallback ([09 §3d](09-verificacion-y-pruebas.md)).
 
 Singleton `:239-245`. El usuario confirma que el sitio está **caído / en desuso**; no se invierte más
 esfuerzo en diagnosticarlo.
+
+🆕 **v0.5 (2026-10-28)**: solo `PROVIDER_SHORT_NAME = "FLV"`. Sin relaciones: su `related` queda en
+`None` y la ficha no enseña la pestaña de temporadas.
 
 > ✅ **Asimetría real de pósters**: `get_recent_animes` `:174` y `get_anime_info` `:197` **prefijan**
 > `BASE_URL` al `src`; las dos búsquedas (`:65`, `:114`) **no**. Es correcto: en la portada el `src`
@@ -383,7 +459,7 @@ pool; transacciones solo en las migraciones.
 | `TableSchema.create_sql(table_name=None)` | `:73-82` | el parámetro permite crear la tabla temporal de la reconstrucción |
 | `SqlUtils.insert_sql(sql, params) -> bool` | `:90-104` | conexión abierta y cerrada por llamada |
 | `SqlUtils.update_sql(sql, params) -> bool` | `:106-120` | ✅ **devuelve `True` aunque no afecte a ninguna fila** |
-| `SqlUtils.query_sql(sql, params, list_field) -> (bool, list)` | `:122-144` | mapea **por posición** `columna[i] → list_field[i]` |
+| `SqlUtils.query_sql(sql, params, list_field) -> Tuple[bool, list]` | `:122-144` | mapea **por posición** `columna[i] → list_field[i]` |
 | `SqlUtils.create_db(sql) -> bool` | `:146-160` | |
 | `SqlUtils.execute_transaction(statements) -> bool` | `:162-192` | todo o nada, con `ROLLBACK`; usado por las migraciones |
 | `SqlUtils.get_table_names()` | `:194-210` | tablas de usuario (excluye `sqlite_%`) |
@@ -417,12 +493,10 @@ pool; transacciones solo en las migraciones.
 
 | Función | Línea | Efecto |
 |---|---|---|
-| `removeprefix(text, prefix_text)` | `:24-38` | ⚠️ **devuelve `None`** si los tipos difieren (falta `else`) |
 | `refactor_genre_text(genre_text)` | `:41-45` | `capitalize()` + `-`/`_` → espacio |
-| `update_gif(label, gif_frames, root, frame=0)` | `:48-51` | ⚠️ **código muerto y roto**: `root.after(100, update_gif, frame)` pasaría `frame` como `label`. Sin llamadas en `src/` |
-| `download_anime_poster_by_status(status, anime)` | `:53-60` | red + disco → `resources/images/{status.name.lower()}/{id}.jpg`, `(130,185)` |
+| `download_anime_poster_by_status(status, anime)` | `:38` | red + disco → `resources/images/{status.name.lower()}/{id}.jpg`, `(248, 372)`. Desde el 2026-10-27 solo la llaman `sync_status_posters` y la migración de fila, las dos fuera del hilo de Tk |
 | 🆕 `move_anime_poster_by_status(status, old_id, new_id) -> bool` | `:62-79` | **renombra** el póster cacheado al cambiar el `anime_id`. `False` si no había nada que mover → quien llama lo descarga. Usa `os.replace`, no `os.rename`: en Windows `rename` falla si el destino existe |
-| `remove_anime_poster_by_status(status, anime)` | `:81-88` | borra ese fichero; si no existe, imprime y vuelve |
+| 🆕 `sync_status_posters(anime, statuses)` | `:71` | deja `{id}.jpg` en las carpetas de los estados activos (`statuses`: estado → bool) **y solo en ésas**: completa primero —copiando de cualquiera de las 6 carpetas antes que descargar— y borra después. Puede salir a la red: **no desde el hilo de Tk**. Nunca lanza. Sustituye a `remove_anime_poster_by_status`, retirada el 2026-10-27 (B7) |
 | `download_animes_poster(images_path, animes)` | `:90-124` | descarga las que faltan (8 hilos) y **purga huérfanas** `:116-124` |
 | `download_images_progress(images_path, recent_animes, on_progress)` 🆕 | `:149` | igual + progreso 90 %→100 % por el callback, **desde los workers**; desde el 2026-10-21 ya no recibe widgets |
 | `find_cached_poster_path(anime_id) -> str \| None` | `:215` | busca `{id}.jpg` en las **6** carpetas de `POSTER_FOLDERS` (`:212`), sin red |
@@ -437,6 +511,31 @@ pool; transacciones solo en las migraciones.
 > **toda carpeta a la que escriba `download_anime_poster_by_status` debe estar en `:187`**, y todo
 > `CTkImage` nuevo necesita `size=` explícito.
 
+🆕 *(2026-10-27, v0.6, B16)* Las cuatro descargas —`download_anime_poster_by_status`,
+`download_animes_poster`, `download_images_progress` y `download_poster`— piden con
+`thread_session().get(…, timeout=_REQUEST_TIMEOUT)`, así que cada *worker* del pool reutiliza su
+conexión entre pósters. El módulo ya no importa `requests`.
+
+🆕 *(2026-10-28, v0.7, B13)* `find_cached_poster_paths(anime_ids)` (`:228-251`): la ruta en disco de
+**muchos** pósters con **un listado por carpeta** en vez de un `stat` por póster. La usan las vistas
+para calcular su firma al entrar ([03 §18](03-flujos-de-ejecucion.md)); costaba 8 ms con `stat`.
+
+---
+
+## `src/utils/http_session.py` 🆕 *(2026-10-27)*
+
+**Responsabilidad**: dar a cada hilo su propia `requests.Session`, para reutilizar la conexión TCP +
+TLS entre las peticiones de ese hilo sin compartir nada entre hilos (B16).
+**Dependencias**: solo stdlib (`threading`, `http.cookiejar`) y `requests`.
+
+| Función | Línea | Efecto |
+|---|---|---|
+| `thread_session() -> requests.Session` | `:21` | la sesión del hilo que llama, guardada en un `threading.local` y creada la primera vez. **Sin cookies** (`DefaultCookiePolicy(allowed_domains=[])`): las recibe pero no las guarda ni las reenvía. Muere con el hilo |
+
+**La usan**: `animeav1._fetch` y las cuatro descargas de `utils.py`. **No la usan**, a propósito,
+JKAnime (su ficha necesita cookies para el CSRF), AnimeFLV, el manager ni los resolutores
+([07 §1c](07-concurrencia-e-hilos.md)).
+
 ---
 
 ## `src/utils/buttons/utilsButtons.py`
@@ -449,10 +548,11 @@ fuera del plan: el rediseño es solo interfaz y esto vive en `utils/`.
 
 | Símbolo | Línea | Rol |
 |---|---|---|
-| `filter_animes_by_title(records, query)` | `:43-71` | búsqueda **local** en la biblioteca, sin red y sin mirar el proveedor ([trampa 26](10-invariantes-y-trampas.md)) |
-| `match_animes_from_search(records, results)` | `:74-109` | traduce resultados web → filas guardadas, por slug **y** por título |
-| `SavedAnimeSearch` | `:112-176` | el buscador de las 4 vistas de estado: local al instante + web con `after(0,…)`. Contador de generación y guarda de visibilidad |
-| `SidebarButton` | `:179-224` | **no es un widget**: describe un destino (`sidebar_text`, `sidebar_command`, `sidebar_icon(size)`) y declara `show_frame()` abstracto. Quien pinta es `gui.components.sidebar.Sidebar` |
+| `filter_animes_by_title(records, query)` | `:33-57` | búsqueda **local** en la biblioteca, sin red y sin mirar el proveedor ([trampa 26](10-invariantes-y-trampas.md)) |
+| `match_animes_from_search(records, results)` | `:59-89` | traduce resultados web → filas guardadas, por slug **y** por título, con `title_similarity()` ≥ 0.75: dos temporadas no se cruzan ([trampa 58](10-invariantes-y-trampas.md)) |
+| `SavedAnimeSearch` | `:90-150` | el buscador de las 4 vistas de estado: local al instante + web con `after(0,…)`. Contador de generación y guarda de visibilidad |
+| 🆕 `saved_rows_signature(records)` | `:152-163` | *(2026-10-28, v0.5)* la firma de una lista de filas guardadas: lo que la vista pinta de cada una. Es lo que `MainWindow.show_view()` compara para decidir si reutiliza la página ([03 §18](03-flujos-de-ejecucion.md)) |
+| `SidebarButton` | `:166-200` | **no es un widget**: describe un destino (`sidebar_text`, `sidebar_command`, `sidebar_icon(size)`) y declara `show_frame()` abstracto. Quien pinta es `gui.components.sidebar.Sidebar` |
 
 **Efectos**: lee iconos de disco (`load_dual_image`) y **la red** en `SavedAnimeSearch` (hilo daemon).
 Ya **no consulta la BD**: la consulta por género y orden se fue con `AccordionFilterButton`.
@@ -495,7 +595,7 @@ Si cambia uno, cambia el otro.
 
 ---
 
-## `src/gui/components/` — las 13 piezas compartidas
+## `src/gui/components/` — las 15 piezas compartidas
 
 Todas viven en `gui/components/`, todas importan de `gui.theme` y **ninguna conoce a `MainWindow`**:
 reciben datos y callbacks. Una vista **compone**; si necesita una variante, se añade un **parámetro**,
@@ -503,18 +603,20 @@ nunca una copia del fichero.
 
 | Módulo | API pública | Nace en | Notas |
 |---|---|---|---|
-| `sidebar.py` | `Sidebar` (+ `_NavItem`, privado) | fase 1 | La barra entera: 6 destinos, plegado persistido, proveedor con pin y apariencia. `navigate_to(etiqueta)` 🆕 |
+| `sidebar.py` | `Sidebar` (+ `_NavItem`, privado) | fase 1 | La barra entera: 6 destinos, plegado persistido, proveedor con pin y apariencia. `navigate_to(etiqueta)` 🆕. *(0.5.0, v0.3)* `_NavItem.set_active()` no repinta si no cambia ([trampa 76](10-invariantes-y-trampas.md)) |
 | `view_header.py` | `ViewHeader` | fase 1 | Título + subtítulo + `controls_frame`. Alto fijo 80 |
 | `order_menu.py` 🆕 | `OrderMenu` | auditoría de rendimiento (2026-10-21) | El desplegable de orden de Favoritos, Pendientes y Buscar, con los colores del tema. Su `destroy()` saca su menú interno del registro de escalado, que `CTkOptionMenu` no hace ([trampa 56](10-invariantes-y-trampas.md)) |
-| `poster_grid.py` | `PosterGrid`, `PosterItem` | fase 2 | Rejilla que **calcula sus columnas del ancho** (`columns_that_fit()`); `columns` pasó a ser la referencia del diseño, no el número real. Sello con `place()` —el ítem trae `badge_status` y la rejilla dibuja el glifo 🆕—, pie y `extra_builder`. 🆕 Su `destroy()` suelta las imágenes ([trampa 55](10-invariantes-y-trampas.md)). 🔴 La vista **tiene** que colocarla con `sticky="ew"` ([trampa 41](10-invariantes-y-trampas.md)); `on_columns_changed` traspasa el repintado a quien lo pasa |
+| `poster_grid.py` | `PosterGrid`, `PosterItem` | fase 2 | Rejilla que **calcula sus columnas del ancho** (`columns_that_fit()`); `columns` pasó a ser la referencia del diseño, no el número real. 🆕 *(0.5.0, v0.5)* `max_columns` (tope aunque quepan más; «Te puede interesar» usa 4) y `set_poster(key, imagen)` para pósters que llegan después, guardados en PIL para sobrevivir al repintado por columnas; la etiqueta del póster lleva `font=` ([trampa 77](10-invariantes-y-trampas.md)). Sello con `place()` —el ítem trae `badge_status` y la rejilla dibuja el glifo 🆕—, pie y `extra_builder`. 🆕 Su `destroy()` suelta las imágenes ([trampa 55](10-invariantes-y-trampas.md)). 🔴 La vista **tiene** que colocarla con `sticky="ew"` ([trampa 41](10-invariantes-y-trampas.md)); `on_columns_changed` traspasa el repintado a quien lo pasa |
 | `pager.py` | `Pager` | fase 2 | `set_total()` (corta la lista) o `set_pages()` (pagina el proveedor). 🆕 `set_page_size()`, porque el tamaño de página sale de las columnas que quepan y conserva el **primer elemento visible**, no el número de página |
 | `resume_card.py` | `ResumeBand`, `ResumeCard`, `resume_progress()`, `resume_caption()` | fase 2 | `resume_progress()` es el **único** sitio donde se calcula por dónde ibas. 🆕 `update_record()` repinta el pie y la barra de **una** tarjeta sin recrear la banda |
-| `anime_row.py` | `AnimeRow`, `RowAction` | fase 3 | Fila en cascada con acción en hover. La comparten «Viendo» y «Pendientes». 🔴 `__bind_interactions()` (`:278-312`) ata el **hover** a todos los descendientes de `__body` y el **clic** a todos menos el **subárbol** de la píldora, con `add="+"` para no pisar lo que CustomTkinter monta dentro ([trampa 40](10-invariantes-y-trampas.md)) |
-| `side_panel.py` | `SidePanel` | fase 3 | Los 290 px de la derecha en «Viendo» |
+| `anime_row.py` | `AnimeRow`, `RowAction` | fase 3 | Fila en cascada con acción en hover. La comparten «Viendo» y «Pendientes». 🔴 `__bind_interactions()` ata el **hover** a todos los descendientes de `__body` y el **clic** a todos menos el **subárbol** de la píldora, con `add="+"` para no pisar lo que CustomTkinter monta dentro ([trampa 40](10-invariantes-y-trampas.md)). 🆕 `update_record(record, action, meta_text)` repinta barra, texto de la derecha y píldora en el sitio; si crea la barra o la píldora después de construirse, las ata con `__bind_widget()` igual que al principio. 🆕 `refresh_hover()` recalcula el resaltado con el puntero real; lo llaman las dos vistas al reutilizar su página ([trampa 82](10-invariantes-y-trampas.md)) |
+| `side_panel.py` | `SidePanel` | fase 3 | Los 290 px de la derecha en «Viendo». 🆕 `update_record()` repinta pie, barra, contador y botón |
 | `rating_stars.py` | `RatingStars` | fase 5 | Cinco estrellas con medios puntos, dibujadas con PIL |
 | `status_pill.py` | `StatusPill` | fase 5 | Texto, colores y glifo de los 4 estados. `other_status()`, `icon()` |
 | `genre_chips.py` | `GenreChips` | fase 7 | Fichas de género. Colocadas con `place()`, no con `grid()`, así que el componente **lleva a mano la cuenta del ancho** — y esa cuenta incluye lo que `CTkButton` reserva por dentro ([trampa 39](10-invariantes-y-trampas.md)) |
 | `empty_state.py` | `EmptyState`, `glyph()`, `ICON_SIZE` | fase 9 | Icono, frase, pista y acción. Dibuja «nube tachada» y «lupa» con PIL |
+| `tab_bar.py` 🆕 | `TabBar` | 0.5.0, fase 3 (2026-10-28) | Pestañas con contador opcional y herramientas a la derecha de la activa. `add_tab(key, texto, builder, count=None)`, `select(key)`, `selected()`, `has_tab(key)`, `on_change`. 🔴 **El cuerpo es perezoso**: `builder(body, tools)` se llama **la primera vez** que se abre la pestaña, y es lo que mantiene el coste de abrir la ficha. Raya de 2 px colocada medio fuera ([trampa 71](10-invariantes-y-trampas.md)) |
+| `franchise_cards.py` 🆕 | `SeasonLink`, `SeasonCarousel`, `CarouselItem`, `RelatedCard`, `RelatedGrid`, `ClickableCard`, `format_chip()` | 0.5.0, fase 3 | La franquicia en la ficha: enlace de temporada de la cabecera, carrusel de 5 con flechas de una en una, tarjetas de «otros» de 300 px mínimo y la ficha de formato con borde continuo, discontinuo (deducido) o punteado (pidiéndose), **dibujado con PIL**. `ClickableCard.bind_card()` ata clic y hover a todo el subárbol con el `bind` de Tk ([trampa 73](10-invariantes-y-trampas.md)). **No salen a la red**: los pósters los entrega la ficha con `set_poster()` |
 | `video_player.py` 🆕 | `VideoPlayer`, `PlayerControls`, `PlaybackState`, `player_icon()`, `load_mpv()`, `format_time()` | reproductor, fase 3 (2026-09-24) | **El único componente que no es solo de pintar**: incrusta mpv vía `wid`, recoge sus eventos con una cola y un sondeo, y crea dos `Toplevel` (barra flotante y deslizador de volumen). Constantes `POLL_MS`, `SEEK_STEP`, `IDLE_HIDE_MS`, `VOLUME_GRACE_MS`, `FOREGROUND_CHECK_MS`, `NETWORK_TIMEOUT_S`, `END_TOLERANCE_S`. API completa en [06 §12](06-gui-y-vistas.md) |
 
 **Quién usa qué**:
@@ -522,14 +624,15 @@ nunca una copia del fichero.
 | Componente | Lo usan |
 |---|---|
 | `ViewHeader` | las 5 vistas con título (todas menos «Buscar») |
-| `PosterGrid` | Nuevos, Favoritos, Finalizados, Buscar |
+| `PosterGrid` | Nuevos, Favoritos, Finalizados, Buscar y, desde la 0.5.0, la ficha («Te puede interesar») |
 | `Pager` | Nuevos, Favoritos, Finalizados, Buscar |
 | `AnimeRow` | Viendo, Pendientes |
-| `StatusPill` | Favoritos, Finalizados, Buscar, la ficha y `EmptyState` |
+| `StatusPill` | Favoritos, Finalizados, Buscar, la ficha, `EmptyState` y `franchise_cards` |
 | `EmptyState` | las 6 vistas |
 | `Sidebar` | `MainWindow` |
 | `SidePanel`, `ResumeBand`, `RatingStars`, `GenreChips` | una vista cada uno |
 | `VideoPlayer` | la ficha (`AnimeWindowViewer`), dentro de `player_frame` del hub |
+| 🆕 `TabBar`, `franchise_cards` | la ficha |
 
 ⚠️ **`resume_card.py` es dos cosas, y la tabla de arriba solo cuenta una.** Sus *widgets*
 (`ResumeBand` / `ResumeCard`) los usa **una** vista, la portada; pero sus dos **funciones puras**
@@ -557,6 +660,65 @@ arranca ([11 §6](11-playbooks.md)).
 
 ---
 
+## `src/gui/episode_refresher.py` 🆕 *(2026-10-27)*
+
+**Rol**: refresca en segundo plano la columna `episodes` de las filas guardadas y avisa a las vistas
+para que repinten en el sitio. Es el **único** sitio del proyecto que escribe en `ANIMES` **sin que el
+usuario haya pedido nada** ([03 §11](03-flujos-de-ejecucion.md), [trampa 38](10-invariantes-y-trampas.md)).
+
+**API pública** (`EpisodeRefresher`, una instancia en `MainWindow.episode_refresher`):
+
+| Símbolo | Qué hace |
+|---|---|
+| `refresh(records, urgent=False)` | Encola lo que no se haya comprobado en `FRESH_FOR_S` y vuelve en ~1 ms. Se salta las filas sin `provider_id`, las que ya están en curso y las de un proveedor caído. `urgent` las pone delante, en el orden dado |
+| `subscribe(listener)` | `listener(AnimeRecord)` en el hilo de Tk, con la fila **releída** tras escribirla |
+| `cached_info(anime_id, provider_id)` | Una **copia** de la ficha que trajo el refresco, si es de ese proveedor y sigue fresca; si no, `None`. La usa `open_saved_anime()` |
+| `FRESH_FOR_S` | 30 min: cuánto vale una comprobación, y cuánto se deja de pedir a un proveedor caído |
+| `PROVIDER_FAILURES_LIMIT` | 2 fallos seguidos dan el proveedor por caído |
+
+**Dependencias**: `APIs.common` (gestor y modelos) y `dataPersistence.animesPersistence`. **No importa
+nada de `gui/`** ni de CustomTkinter: de la ventana solo usa `after()` y `winfo_exists()`.
+
+**Efectos secundarios**: un hilo daemon **por proveedor** mientras tenga cola; peticiones con
+`strict=True`; `update_anime_episodes()` en el hilo de Tk, solo si el recuento cambió y la fila sigue
+siendo de ese proveedor.
+
+---
+
+## `src/gui/franchise_service.py` 🆕 *(2026-10-28, versión 0.5.0)*
+
+**Rol**: recorre en segundo plano la **línea principal** de una franquicia (precuela ← anime →
+secuela, salto a salto) y completa el **formato** de los relacionados, con una caché de páginas de
+sesión. Sin interfaz: lo usa la ficha al abrir sus pestañas ([03 §15](03-flujos-de-ejecucion.md)).
+Versión **0.3**.
+
+**API pública** (`FranchiseService`, una instancia en `MainWindow.franchise_service`, creada justo
+detrás de `episode_refresher`):
+
+| Símbolo | Línea | Qué hace |
+|---|---|---|
+| `request_franchise(anime_info, provider_id, callback)` | `:158-171` | Hilo daemon; `callback(FranchiseLine)` en el hilo de Tk. Vuelve en el acto |
+| `request_formats(anime_info, provider_id, callback)` | `:173-187` | Hilo daemon; `callback({id: FormatHint})`, una entrada por relacionado |
+| `walk_franchise(...)` / `find_formats(...)` | `:230` / `:259` | Las versiones **síncronas**, para scripts. ⚠️ Pueden salir a la red: nunca desde el hilo de Tk |
+| `known_franchise_ids(anime_info, provider_id)` | `:286` | Slugs de la franquicia **ya conocidos**, sin red. Lo usa «Te puede interesar» |
+| `closest_related(related, relation, …)` | `:60` | Función de módulo: la precuela (año más tardío) o la secuela (más temprano) entre varias. La comparten el recorrido, la cabecera, el carrusel y la tarjeta de fin |
+| `deduce_format_from_title(title)` | `:45` | Función de módulo, sin red: Película > OVA > ONA > Especial > Serie por palabras del título |
+| `FranchiseLine(entries, current_index, truncated, interrupted)` | `:98` | La línea; `truncated` = paró por el tope, `interrupted` = falló una petición |
+| `FranchiseEntry(id, title, format, year, poster)` | `:84` | Una temporada de la línea |
+| `FormatHint(format, deduced, short_name)` | `:113` | `deduced` → borde discontinuo; `short_name` = siglas si lo dio otro proveedor |
+| `MAX_LINE_LENGTH` · `REQUEST_SPACING_S` · `RETRY_FAILED_AFTER_S` | `:134-138` | 25 entradas · 0,5 s · 2 min |
+
+**Dependencias**: `APIs.common` (gestor y modelos). **No importa nada de `gui/`** ni de
+CustomTkinter: de la ventana solo usa `after()` y `winfo_exists()`.
+
+**Efectos secundarios**: un hilo daemon **por llamada**; peticiones `get_anime_relations` con
+`strict=True`, turnadas y espaciadas por un lock **por proveedor**; como mucho **una** ficha a un
+proveedor con `RELATIONS_CARRY_FORMAT` por petición de formatos. Estado compartido (caché, fallos)
+bajo `Lock` ([07 §1](07-concurrencia-e-hilos.md)). ⚠️ **No numera peticiones**: quien llama descarta
+lo que llegue tarde.
+
+---
+
 ## `src/gui/main_window.py`
 
 **Responsabilidad**: ventana raíz y **hub de estado compartido**. Composition root de proveedores.
@@ -565,17 +727,30 @@ arranca ([11 §6](11-playbooks.md)).
 `recent_animes`, `favourite_animes`, `finished_animes`, `watching_animes`, `pending_animes`,
 `last_search_instance`, `images_path`, `animes_persistence`, `anime_provider_mgr`,
 **`user_persistence`**, `sidebar_frame`, `content_frame` y 🆕 `player_frame` (`:127`).
+🆕 *(2026-10-28)* `franchise_service` (`FranchiseService`, creado justo detrás de `episode_refresher`).
+
+🆕 **v0.9 (2026-10-28, B13): las páginas de las vistas.**
+
+| Pieza | Línea | Qué hace |
+|---|---|---|
+| `ViewPage(frame, signature)` | `:41-46` | *dataclass*: el marco de una vista y la firma de lo que tiene pintado. Viven toda la sesión en `__view_pages` |
+| `clear_frame()` | `:157-170` | cierra el reproductor, **esconde** (`grid_remove`) las páginas y **destruye** lo demás, que es la ficha |
+| `show_view(vista, firma) -> CTkFrame \| None` | `:172-207` | `clear_frame()` + vuelve a colocar la página de la vista; `None` si la firma coincide (reutilizar) o la página **vacía** para construir. Guarda `deepcopy(firma)` ([trampa 80](10-invariantes-y-trampas.md)), entra siempre arriba y mide la página recién creada ([trampa 75](10-invariantes-y-trampas.md)) |
+
+Flujo en [03 §18](03-flujos-de-ejecucion.md). Las anclas de la tabla siguiente son anteriores a la
+0.5.0: búscalas por nombre.
 
 | Método | Nota |
 |---|---|
 | `__init__` | registra proveedores, **captura el predeterminado del registro** (`:63`) **antes** de aplicar la preferencia guardada, arranca `UserPersistence` de forma síncrona, `load_sidebar_buttons()`, `show_loading_screen()` |
-| `clear_frame()` | `:139` — 🆕 **cierra antes el reproductor** (`close_player()`) y luego destruye los hijos de `content_frame` |
+| `clear_frame()` | 🆕 **cierra antes el reproductor** (`close_player()`); desde el 2026-10-28 esconde las páginas de las vistas y destruye el resto (ver arriba) |
 | 🆕 `show_player_frame(dueño)` | `:165` — `player_frame` a la fila 0 y `content_frame` a la fila 1. Si otro dueño tenía el panel, se le cierra |
 | 🆕 `hide_player_frame()` | `:184` — retira el panel y devuelve la columna entera a `content_frame`, **reponiendo el peso** de la fila 0 |
 | 🆕 `close_player()` | `:199` — llama al `close_player()` del dueño y retira el panel. Sin efecto si no hay |
 | 🆕 `enter_player_fullscreen()` / `exit_player_fullscreen()` / `is_player_fullscreen()` | `:214`, `:246`, `:210` — pantalla completa **manual** en el monitor de la ventana ([trampa 51](10-invariantes-y-trampas.md)) |
 | 🆕 `__monitor_rect()` | `:271` — `MonitorFromWindow` + `GetMonitorInfoW` por `ctypes`; si falla, la pantalla principal |
-| 🆕 `__on_window_configure()` / `__on_close()` | `:293`, `:298` — reajustar el reproductor también cuando cambia **solo el alto**; parar mpv antes de destruir la ventana (`WM_DELETE_WINDOW`) |
+| 🆕 `__bind_window_configure()` | `:297` — *(2026-10-27, B17)* ata el `<Configure>` de la raíz con un script Tcl que descarta los de los demás widgets **antes** de llegar a Python (`"%W" eq "."`), y dentro llama al `_update_dimensions_event` de CTk —al que sustituye— y a `__on_window_configure()` |
+| 🆕 `__on_window_configure()` / `__on_close()` | `:309`, `:314` — reajustar el reproductor también cuando cambia **solo el alto** (sin argumentos desde el 2026-10-27: el filtro ya está en Tcl); parar mpv antes de destruir la ventana (`WM_DELETE_WINDOW`) |
 | `create_sidebar_frame` / `create_content_frame` | |
 | `__config_main_window()` | `:96-108` — título, geometría, icono, **`fg_color=Theme.BG` de la raíz de Tk** (`:104`) y pesos de la rejilla |
 | `load_sidebar_buttons()` | instancia las 6 vistas + **desplegable de proveedor y su pin** (en un frame propio) + selector de apariencia |
@@ -612,17 +787,26 @@ tras `cbd2721`: búscalas por nombre.
 **Responsabilidad**: `AnimeWindowViewer` — la ficha de detalle. **No es una ventana**: reemplaza el
 contenido de `content_frame`.
 
-**Constantes de módulo**: 🆕 `DUPLICATE_TITLE_THRESHOLD = 0.9` (`:31`), `STATUS_SECTION_NAMES`
-(`:36-41`, cómo se llama cada estado de cara al usuario) y 🆕 `FOCUS_DELAY_MS = 50` /
-`FOCUS_SCROLL_MARGIN = 24` (`:143` y `:146`, la apertura por un episodio).
+**Constantes de módulo**: 🆕 `DUPLICATE_TITLE_THRESHOLD = 0.9` (`:65`), `STATUS_SECTION_NAMES`
+(`:69`, cómo se llama cada estado de cara al usuario), 🆕 `FOCUS_DELAY_MS = 50` /
+`FOCUS_SCROLL_MARGIN = 24` (`:149` y `:152`, la apertura por un episodio) y 🆕 *(0.5.0)* las claves
+de pestaña `TAB_EPISODES` / `TAB_RELATIONS` / `TAB_RECOMMENDATIONS` (`:172-174`) y
+`RECOMMENDATIONS_SHOWN = 4`, `RECOMMENDATION_GENRES = 2`, `RECOMMENDATION_POSTER` (216 × 324)
+(`:178-181`).
+
+Versión **0.16** (2026-10-29). **3 261 líneas**: es con diferencia el módulo más grande.
 
 **Funciones de módulo** (públicas, las importan las 6 vistas):
 
 | Función | Línea | Nota |
 |---|---|---|
 | `show_anime_info_error(anime_id)` | `:50-66` | `print` + `messagebox.showerror`. Se llama cuando `get_anime_info` devuelve `None`; sin ella, el clic no hacía nada (trampa 10) |
-| 🆕 `find_saved_duplicate(records, title, exclude_anime_id=None)` | `:69-105` | el mismo anime guardado con otro slug, por título normalizado. **No** detecta títulos completamente distintos («Solo Leveling» / «Ore dake Level Up na Ken»): eso necesitaría red y esto corre en el hilo de la UI |
-| 🆕 `open_saved_anime(main_window, anime_id, focus_episode=None, force_ascending=False)` | `:211-289` | **punto de entrada único de las 4 vistas de estado**. Elige el proveedor con `provider_for_saved_anime()`, re-resuelve por título si hay desviación, y saca la petición del hilo de Tkinter. 🆕 Los dos últimos parámetros (2026-09-01) dejan la ficha abierta **por un episodio** ([03 §12](03-flujos-de-ejecucion.md)); solo los usan «Viendo» y «Pendientes» |
+| `wrap_synopsis(synopsis)` | `:235-253` | saltos sueltos a espacio, párrafos conservados ([trampa 42](10-invariantes-y-trampas.md)) |
+| 🆕 `SheetVisit(anime_info, provider_id, anime_record)` | `:209-219` | *(0.5.0)* una ficha de la que se salió abriendo un relacionado; la cadena va en `history=` de ficha a ficha, sin estado en el hub |
+| 🆕 `find_saved_duplicate(records, title, exclude_anime_id=None)` | `:275-306` | el mismo anime guardado con otro slug, con `title_similarity()` ≥ 0.9. Pone también el sello de «Buscar», que abre la ficha **con esa fila**: por eso dos temporadas no pueden cruzarse ([trampa 58](10-invariantes-y-trampas.md)). **No** detecta títulos completamente distintos («Solo Leveling» / «Ore dake Level Up na Ken»): eso necesitaría red y esto corre en el hilo de la UI |
+| 🆕 `_related_poster(url, disk_id, size)` | `:330` | *(0.5.0)* el póster de un relacionado: disco → memoria de sesión acotada a 120 PIL (por tamaño + URL) → red. **Solo desde un hilo** |
+| 🆕 `library_status(anime_record)` | `:368-382` | *(0.5.0)* el estado que enseña un sello: el excluyente, o Favorito si no hay. Es la regla de **todos** los sellos: desde el 2026-10-29 (C13) también la usa «Buscar», que tenía su copia |
+| 🆕 `open_saved_anime(main_window, anime_id, focus_episode=None, force_ascending=False, history=None)` | `:384-` | **punto de entrada único de las 4 vistas de estado** y, desde la 0.5.0, de abrir un relacionado guardado. Elige el proveedor con `provider_for_saved_anime()`, re-resuelve por título si hay desviación, y saca la petición del hilo de Tkinter. 🆕 Los dos últimos parámetros (2026-09-01) dejan la ficha abierta **por un episodio** ([03 §12](03-flujos-de-ejecucion.md)); solo los usan «Viendo» y «Pendientes» |
 
 ### 🆕 El reproductor acoplado *(2026-09-24 a 2026-10-20)*
 
@@ -738,17 +922,24 @@ seis. `recentAnimes.py` sigue siendo la única con `show_frame()` que revela la 
 | Vista | Cómo abre la ficha | Buscador |
 |---|---|---|
 | `recentAnimes.py` | hilo propio (`:205-232`) → `after(0,…)`; pide al proveedor que trajo la portada | — |
-| las **4 de estado** | 🆕 `open_saved_anime()` (`anime_window.py:256-334`) | 🆕 `SavedAnimeSearch`: local + web |
+| las **4 de estado** | 🆕 `open_saved_anime()` (`anime_window.py:384`) | 🆕 `SavedAnimeSearch`: local + web |
 | `searchAnimes.py` | 🆕 hilo propio (`:363-382`) → `after(0,…)`; **arrastra el `provider_id`** del resultado, porque su `id` es el slug de ESE sitio | propio, contra el proveedor |
 
 `searchAnimes.py` añade `AnimeSearch` (`:24-31`, `dataclasses.dataclass` de la stdlib), paginación
 (`:273-330`) y un frame de carga con GIF (`:171-216`).
 
-🆕 **`recentAnimes.py` es también la única que refresca datos guardados** (`:131-180`,
-`__refresh_resume_episodes()`): al entrar en la vista relee los episodios de las ≤3 filas de la banda
-«Retomar» y reescribe la columna `episodes` si el proveedor sirve más que la biblioteca. Es el único
-sitio del proyecto que escribe en `ANIMES` **sin que el usuario haya pedido nada**, así que va con
-`strict=True` — sin *fallback* ([03 §11](03-flujos-de-ejecucion.md), [trampa 38](10-invariantes-y-trampas.md)).
+🆕 **`recentAnimes.py`, `watchingAnimes.py` y `pendingAnimes.py` refrescan sus datos guardados a
+través de `EpisodeRefresher`** (2026-10-27; antes solo la portada, con su propio
+`__refresh_resume_episodes()`, ya retirado): piden `refresh(..., urgent=True)` al entrar y se
+suscriben en su `__init__` para repintar en el sitio la fila que cambie. La escritura en `ANIMES` la
+hace el servicio, nunca la vista ([03 §11](03-flujos-de-ejecucion.md), [trampa 38](10-invariantes-y-trampas.md)).
+
+🆕 **Desde el 2026-10-28 (B13) las seis construyen en su página, no en `content_frame`**: leen lo de
+siempre, calculan su firma (`saved_rows_signature()` en las de biblioteca) y llaman a
+`main_window.show_view(self, firma)`; si devuelve `None`, la página conservada ya está a la vista y
+no se construye nada. Versiones: `recentAnimes` 0.8, `favouriteAnimes` 0.6, `finishedAnimes` 0.6,
+`watchingAnimes` 0.8, `pendingAnimes` 0.10, `searchAnimes` 0.5 (su estado vacío cuelga de la página).
+Flujo y firmas en [03 §18](03-flujos-de-ejecucion.md).
 
 > ⚠️ **Las 4 vistas de estado ya no son intercambiables con las otras dos** en lo que toca al clic y
 > al buscador. Al copiar código de una a otra, mira primero cuál de los dos grupos es: las de estado

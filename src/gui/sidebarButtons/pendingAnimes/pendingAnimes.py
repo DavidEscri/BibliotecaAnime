@@ -1,7 +1,7 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "sidebarButtons"
 __module__ = "pendingAnimes.py"
-__version__ = "0.5"
+__version__ = "0.11"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 """«Pendientes»: la cola de lo que todavía no has empezado.
@@ -12,20 +12,21 @@ cabecera lleva orden por duración, y la fila una acción «Empezar» que mueve
 el anime a «Viendo» y abre su ficha por el primer episodio.
 
 Todo lo que se pinta sale de la biblioteca guardada: la vista funciona sin
-conexión. Solo salen a la red la búsqueda del proveedor (que se suma a la
-local), abrir una ficha y cachear el póster tras «Empezar».
+conexión y no espera a nadie. Al entrar pide a ``EpisodeRefresher`` que
+compruebe sus filas y repinta en el sitio las que cambien, **sin reordenar**:
+una fila que salta de sitio bajo el cursor no es un refresco silencioso.
 """
 
 import os
-import threading
 import customtkinter as ctk
 
-from typing import List, Optional, Union
+from typing import Dict, List, Optional, Union
 
 from APIs.common.animeProviderMgr import AnimeProviderManager, AnimeProviderManagerSingleton
 from APIs.common.models import AnimeInfo
 from dataPersistence.animesPersistence import AnimesPersistence, AnimesPersistenceSingleton, AnimeStatus, AnimeRecord
-from gui.anime_window import open_saved_anime
+from dataPersistence.userPersistence import UserPersistence
+from gui.anime_window import open_saved_anime, sync_saved_posters_async
 from gui.components.anime_row import AnimeRow, RowAction
 from gui.components.empty_state import EmptyState, ICON_SIZE as EMPTY_ICON_SIZE
 from gui.components.order_menu import OrderMenu
@@ -34,14 +35,14 @@ from gui.components.status_pill import StatusPill
 from gui.components.view_header import ViewHeader
 from gui.theme import Metrics, Theme
 from utils.buttons import utilsButtons
-from utils.utils import download_anime_poster_by_status
 
-#: Criterios de orden de la cola, tal y como se leen en el desplegable. El texto
-#: es la clave: es lo que devuelve el ``OrderMenu`` y lo que se compara.
-ORDER_SHORTEST = "Más cortos primero"
-ORDER_LONGEST = "Más largos primero"
-ORDER_TITLE = "Título (A-Z)"
-ORDER_VALUES = [ORDER_SHORTEST, ORDER_LONGEST, ORDER_TITLE]
+#: Texto de cada criterio de orden en el desplegable. La clave es lo que se
+#: persiste; así renombrar una opción no invalida la preferencia guardada.
+ORDER_LABELS: Dict[str, str] = {
+    UserPersistence.PENDING_ORDER_SHORTEST: "Más cortos primero",
+    UserPersistence.PENDING_ORDER_LONGEST:  "Más largos primero",
+    UserPersistence.PENDING_ORDER_TITLE:    "Título (A-Z)",
+}
 
 
 class PendingAnimeButton(utilsButtons.SidebarButton):
@@ -56,17 +57,23 @@ class PendingAnimeButton(utilsButtons.SidebarButton):
         # pendientes_light/dark.png son los dos de tinta negra, así que no sirven
         # como par (claro, oscuro); se usa el icono único, que es bicolor.
         icon_path_light = icon_path_dark = os.path.join(icon_path, "pendientes.png")
-        super().__init__(main_window.sidebar_frame, "Pendientes", row, column, self.show_pending_animes, icon_path_light, icon_path_dark)
+        super().__init__(main_window.sidebar_frame, "Pendientes", row, column, self.__show_pending_animes, icon_path_light, icon_path_dark)
 
         self.main_window = main_window
         self.anime_provider_mgr: AnimeProviderManager = AnimeProviderManagerSingleton()
         self.animes_persistence: AnimesPersistence = AnimesPersistenceSingleton()
         self.__list_frame: Optional[ctk.CTkFrame] = None
-        #: Orden elegido en la cabecera. Vive en memoria a propósito: no se persiste.
-        self.__order: str = ORDER_SHORTEST
+        #: Criterio elegido; se persiste entre sesiones.
+        self.__order: str = UserPersistence.PENDING_ORDER_SHORTEST
         #: Última lista pintada, sin ordenar. Hace falta para que cambiar el
         #: orden reordene **lo que hay en pantalla** y no deshaga la búsqueda.
         self.__displayed_animes: List[AnimeRecord] = []
+        self.__header: Optional[ViewHeader] = None
+        #: Filas de la cascada en pantalla, por ``anime_id``.
+        self.__rows: Dict[str, AnimeRow] = {}
+        #: Todo «Pendientes», no solo lo filtrado: de aquí sale el subtítulo.
+        self.__pending_animes: List[AnimeRecord] = []
+        main_window.episode_refresher.subscribe(self.__on_episodes_refreshed)
         # Buscador de la pestaña: coincidencias locales al instante, completadas
         # después con lo que encuentre el proveedor seleccionado.
         self.__search = utilsButtons.SavedAnimeSearch(
@@ -78,23 +85,36 @@ class PendingAnimeButton(utilsButtons.SidebarButton):
         )
 
     def show_frame(self):
-        self.show_pending_animes()
+        self.__show_pending_animes()
 
-    def show_pending_animes(self):
-        self.main_window.clear_frame()
-        self.__show_browser()
+    def __show_pending_animes(self):
+        """Reutiliza la página si «Pendientes» no ha cambiado; si no, la reconstruye.
+
+        El refresco de episodios se pide igual en los dos casos.
+        """
+        pending_animes: List[AnimeRecord] = self.animes_persistence.get_pending_animes()
+        # El orden no entra en la firma: solo lo cambia esta vista, así que la
+        # página conservada ya lo enseña.
+        page = self.main_window.show_view(self, utilsButtons.saved_rows_signature(pending_animes))
+        if page is not None:
+            self.__show_browser(page, pending_animes)
+            return
+        for anime_row in self.__rows.values():
+            anime_row.refresh_hover()
+        if pending_animes:
+            self.main_window.episode_refresher.refresh(self.__sort_animes(pending_animes), urgent=True)
 
     # ------------------------------------------------------------------
     # Construcción de la vista
     # ------------------------------------------------------------------
-    def __show_browser(self):
-        content = self.main_window.content_frame
-        content.grid_columnconfigure(0, weight=1)
-
-        pending_animes: List[AnimeRecord] = self.animes_persistence.get_pending_animes()
+    def __show_browser(self, content: ctk.CTkFrame, pending_animes: List[AnimeRecord]):
+        self.__order = self.main_window.user_persistence.get_pending_order()
+        self.__pending_animes = pending_animes
+        self.__rows = {}
 
         header = ViewHeader(content, "Pendientes", self.__subtitle(pending_animes))
         header.grid(row=0, column=0, sticky="ew")
+        self.__header = header
         self.__build_controls(header)
 
         if not pending_animes:
@@ -114,12 +134,13 @@ class PendingAnimeButton(utilsButtons.SidebarButton):
         self.__list_frame.grid_columnconfigure(0, weight=1)
 
         self.__display_animes(pending_animes)
+        self.main_window.episode_refresher.refresh(self.__sort_animes(pending_animes), urgent=True)
 
     def __build_controls(self, header: ViewHeader) -> None:
         """Orden y buscador local, en la zona de controles de la cabecera."""
-        order_optionmenu = OrderMenu(header.controls_frame, values=ORDER_VALUES,
+        order_optionmenu = OrderMenu(header.controls_frame, values=list(ORDER_LABELS.values()),
                                      command=self.__on_order_changed)
-        order_optionmenu.set(self.__order)
+        order_optionmenu.set(ORDER_LABELS[self.__order])
         order_optionmenu.grid(row=0, column=0, padx=(0, 14))
 
         search_entry = ctk.CTkEntry(
@@ -194,9 +215,13 @@ class PendingAnimeButton(utilsButtons.SidebarButton):
     # ------------------------------------------------------------------
     # Orden
     # ------------------------------------------------------------------
-    def __on_order_changed(self, order: str) -> None:
-        """Reordena lo que ya está en pantalla, sin volver a la BD ni deshacer la búsqueda."""
-        self.__order = order
+    def __on_order_changed(self, label: str) -> None:
+        """Guarda el criterio y reordena lo que ya está en pantalla, sin deshacer la búsqueda."""
+        for order, order_label in ORDER_LABELS.items():
+            if order_label == label:
+                self.__order = order
+                break
+        self.main_window.user_persistence.set_pending_order(self.__order)
         self.__display_animes(self.__displayed_animes)
 
     def __sort_animes(self, pending_animes: List[AnimeRecord]) -> List[AnimeRecord]:
@@ -208,12 +233,12 @@ class PendingAnimeButton(utilsButtons.SidebarButton):
         :param pending_animes: Pendientes a ordenar.
         :return: Lista ordenada.
         """
-        if self.__order == ORDER_TITLE:
+        if self.__order == UserPersistence.PENDING_ORDER_TITLE:
             return sorted(pending_animes, key=lambda record: AnimeProviderManager.normalize_title(record.title))
 
         known = [record for record in pending_animes if record.episodes]
         unknown = [record for record in pending_animes if not record.episodes]
-        known.sort(key=lambda record: len(record.episodes), reverse=(self.__order == ORDER_LONGEST))
+        known.sort(key=lambda record: len(record.episodes), reverse=(self.__order == UserPersistence.PENDING_ORDER_LONGEST))
         return known + unknown
 
     # ------------------------------------------------------------------
@@ -225,6 +250,7 @@ class PendingAnimeButton(utilsButtons.SidebarButton):
             return
         for widget in self.__list_frame.winfo_children():
             widget.destroy()
+        self.__rows = {}
 
         self.__displayed_animes = pending_animes
 
@@ -247,13 +273,42 @@ class PendingAnimeButton(utilsButtons.SidebarButton):
                 anime_record,
                 poster_size=Metrics.ROW_PENDING_POSTER,
                 show_progress=False,
-                action=RowAction("Empezar", self.__on_start_watching),
+                action=self.__row_action(),
                 on_click=self.__on_anime_click,
                 meta_text=self.__meta_text(anime_record),
                 text_width=self.TITLE_W,
                 show_separator=(index != last_index)
             )
             anime_row.grid(row=index, column=0, sticky="ew")
+            self.__rows[str(anime_record.anime_id)] = anime_row
+
+    def __row_action(self) -> RowAction:
+        """:return: La píldora «Empezar», la misma para todas las filas."""
+        return RowAction("Empezar", self.__on_start_watching)
+
+    def __on_episodes_refreshed(self, anime_record: AnimeRecord) -> None:
+        """Repinta en el sitio la duración de la fila y el subtítulo, si el anime está en la cola.
+
+        No reordena: la fila se moverá a su sitio en la siguiente visita.
+
+        :param anime_record: Fila ya releída de la BD.
+        """
+        anime_id = str(anime_record.anime_id)
+        if not any(str(record.anime_id) == anime_id for record in self.__pending_animes):
+            return
+
+        def _replace(records: List[AnimeRecord]) -> List[AnimeRecord]:
+            return [anime_record if str(record.anime_id) == anime_id else record for record in records]
+
+        self.__pending_animes = _replace(self.__pending_animes)
+        self.__displayed_animes = _replace(self.__displayed_animes)
+
+        if self.__header is not None and self.__header.winfo_exists():
+            self.__header.set_subtitle(self.__subtitle(self.__pending_animes))
+        anime_row = self.__rows.get(anime_id)
+        if anime_row is not None and anime_row.winfo_exists():
+            anime_row.update_record(anime_record, action=self.__row_action(),
+                                    meta_text=self.__meta_text(anime_record))
 
     # ------------------------------------------------------------------
     # Navegación y acciones
@@ -286,7 +341,7 @@ class PendingAnimeButton(utilsButtons.SidebarButton):
             return
         print(f"{anime_record.title} movido de pendientes a viendo.")
 
-        self.__cache_poster_async(anime_info)
+        sync_saved_posters_async(self.animes_persistence, anime_info)
         self.__refresh_library_counts()
         # El episodio sale de resume_progress() y no de un 1 fijo: si el anime
         # volvió a la cola a medias, "empezar" sigue por donde se dejó.
@@ -295,22 +350,6 @@ class PendingAnimeButton(utilsButtons.SidebarButton):
         next_episode, _episodes, _fraction = resume_progress(anime_record)
         open_saved_anime(self.main_window, anime_record.anime_id,
                          focus_episode=next_episode, force_ascending=True)
-
-    def __cache_poster_async(self, anime_info: AnimeInfo) -> None:
-        """Deja una copia del póster en ``resources/images/watching/``.
-
-        Va en un hilo daemon porque es una **petición HTTP** y esto lo llama el
-        hilo de Tkinter. Nadie la espera: ``find_cached_poster_path()`` recorre
-        las seis carpetas, así que mientras tanto la fila sigue encontrando la
-        imagen en ``pending/``.
-        """
-        def _download():
-            try:
-                download_anime_poster_by_status(AnimeStatus.WATCHING, anime_info)
-            except Exception as error:
-                print(f"No se pudo cachear el póster de {anime_info.title} en «viendo»: {error}")
-
-        threading.Thread(target=_download, daemon=True).start()
 
     def __refresh_library_counts(self) -> None:
         """Repone los dos contadores que cambian al empezar un anime.

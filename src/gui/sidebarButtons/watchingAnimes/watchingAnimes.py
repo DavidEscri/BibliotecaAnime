@@ -1,13 +1,13 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "sidebarButtons"
 __module__ = "watchingAnimes.py"
-__version__ = "0.5"
+__version__ = "0.9"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 import os
 import customtkinter as ctk
 
-from typing import List, Optional, Union
+from typing import Dict, List, Optional, Union
 
 from APIs.common.animeProviderMgr import AnimeProviderManager, AnimeProviderManagerSingleton
 from dataPersistence.animesPersistence import (AnimesPersistence, AnimesPersistenceSingleton, AnimeRecord,
@@ -31,8 +31,8 @@ class WatchingAnimeButton(utilsButtons.SidebarButton):
     paginador: son pocos y caben de una vez.
 
     Todo lo que se pinta sale de la biblioteca guardada: la vista funciona sin
-    conexión. Lo único que sale a la red es la búsqueda del proveedor, que se
-    suma a la local y nunca quita resultados, y abrir una ficha.
+    conexión y no espera a nadie. Al entrar pide a ``EpisodeRefresher`` que
+    compruebe sus filas, y repinta en el sitio las que cambien.
     """
 
     def __init__(self, main_window, icon_path, row, column):
@@ -40,12 +40,19 @@ class WatchingAnimeButton(utilsButtons.SidebarButton):
         # dos temas; no hay variante clara/oscura porque viendo_light/dark.png
         # son de tinta negra y una de las dos sería invisible según el tema.
         icon_path_light = icon_path_dark = os.path.join(icon_path, "viendo.png")
-        super().__init__(main_window.sidebar_frame, "Viendo", row, column, self.show_watching_animes, icon_path_light, icon_path_dark)
+        super().__init__(main_window.sidebar_frame, "Viendo", row, column, self.__show_watching_animes, icon_path_light, icon_path_dark)
 
         self.main_window = main_window
         self.anime_provider_mgr: AnimeProviderManager = AnimeProviderManagerSingleton()
         self.animes_persistence: AnimesPersistence = AnimesPersistenceSingleton()
         self.__list_frame: Optional[ctk.CTkFrame] = None
+        self.__header: Optional[ViewHeader] = None
+        self.__side_panel: Optional[SidePanel] = None
+        #: Filas de la cascada en pantalla, por ``anime_id``.
+        self.__rows: Dict[str, AnimeRow] = {}
+        #: Todo «Viendo», no solo lo filtrado: de aquí sale el subtítulo.
+        self.__watching_animes: List[AnimeRecord] = []
+        main_window.episode_refresher.subscribe(self.__on_episodes_refreshed)
         # Buscador de la pestaña: coincidencias locales al instante, completadas
         # después con lo que encuentre el proveedor seleccionado.
         self.__search = utilsButtons.SavedAnimeSearch(
@@ -57,23 +64,37 @@ class WatchingAnimeButton(utilsButtons.SidebarButton):
         )
 
     def show_frame(self):
-        self.show_watching_animes()
+        self.__show_watching_animes()
 
-    def show_watching_animes(self):
-        self.main_window.clear_frame()
-        self.__show_browser()
+    def __show_watching_animes(self):
+        """Reutiliza la página si «Viendo» no ha cambiado; si no, la reconstruye.
+
+        Los últimos vistos entran en la firma porque deciden qué anime va en el
+        panel lateral. El refresco de episodios se pide igual en los dos casos.
+        """
+        watching_animes: List[AnimeRecord] = self.animes_persistence.get_watching_animes()
+        signature = (utilsButtons.saved_rows_signature(watching_animes),
+                     tuple(self.main_window.user_persistence.get_last_watched_ids()))
+        page = self.main_window.show_view(self, signature)
+        if page is not None:
+            self.__show_browser(page, watching_animes)
+            return
+        for anime_row in self.__rows.values():
+            anime_row.refresh_hover()
+        if watching_animes:
+            self.main_window.episode_refresher.refresh(watching_animes, urgent=True)
 
     # ------------------------------------------------------------------
     # Construcción de la vista
     # ------------------------------------------------------------------
-    def __show_browser(self):
-        content = self.main_window.content_frame
-        content.grid_columnconfigure(0, weight=1)
-
-        watching_animes: List[AnimeRecord] = self.animes_persistence.get_watching_animes()
+    def __show_browser(self, content: ctk.CTkFrame, watching_animes: List[AnimeRecord]):
+        self.__watching_animes = watching_animes
+        self.__side_panel = None
+        self.__rows = {}
 
         header = ViewHeader(content, "Viendo", self.__subtitle(watching_animes))
         header.grid(row=0, column=0, sticky="ew")
+        self.__header = header
         self.__build_search_controls(header)
 
         if not watching_animes:
@@ -100,19 +121,20 @@ class WatchingAnimeButton(utilsButtons.SidebarButton):
 
         side_record = self.__side_panel_record(watching_animes)
         if side_record is not None:
-            side_panel = SidePanel(
+            self.__side_panel = SidePanel(
                 body,
                 side_record,
                 provider_name=self.__provider_name(side_record),
                 # El botón lleva al episodio; el póster y el título, a la ficha a
                 # secas. Es el mismo reparto que en la fila: la acción es la que
                 # promete un episodio concreto, y solo ella tiene que cumplirlo.
-                on_action=lambda _anime_id, record=side_record: self.__on_row_action(record),
+                on_action=lambda _anime_id: self.__on_row_action(self.__side_panel.anime_record),
                 on_click=self.__on_anime_click
             )
-            side_panel.grid(row=0, column=1, sticky="n", padx=(32, 0))
+            self.__side_panel.grid(row=0, column=1, sticky="n", padx=(32, 0))
 
         self.__display_animes(watching_animes)
+        self.main_window.episode_refresher.refresh(watching_animes, urgent=True)
 
     def __build_search_controls(self, header: ViewHeader) -> None:
         """Buscador local de la pestaña, en la zona de controles de la cabecera."""
@@ -202,6 +224,7 @@ class WatchingAnimeButton(utilsButtons.SidebarButton):
             return
         for widget in self.__list_frame.winfo_children():
             widget.destroy()
+        self.__rows = {}
 
         if not watching_animes:
             empty_label = ctk.CTkLabel(
@@ -227,6 +250,27 @@ class WatchingAnimeButton(utilsButtons.SidebarButton):
                 show_separator=(index != last_index)
             )
             anime_row.grid(row=index, column=0, sticky="ew")
+            self.__rows[str(anime_record.anime_id)] = anime_row
+
+    def __on_episodes_refreshed(self, anime_record: AnimeRecord) -> None:
+        """Repinta en el sitio la fila, el panel y el subtítulo si el anime está en «Viendo».
+
+        :param anime_record: Fila ya releída de la BD.
+        """
+        anime_id = str(anime_record.anime_id)
+        if not any(str(record.anime_id) == anime_id for record in self.__watching_animes):
+            return
+        self.__watching_animes = [anime_record if str(record.anime_id) == anime_id else record
+                                  for record in self.__watching_animes]
+
+        if self.__header is not None and self.__header.winfo_exists():
+            self.__header.set_subtitle(self.__subtitle(self.__watching_animes))
+        anime_row = self.__rows.get(anime_id)
+        if anime_row is not None and anime_row.winfo_exists():
+            anime_row.update_record(anime_record, action=self.__row_action(anime_record))
+        if (self.__side_panel is not None and self.__side_panel.winfo_exists()
+                and str(self.__side_panel.anime_record.anime_id) == anime_id):
+            self.__side_panel.update_record(anime_record)
 
     def __row_action(self, anime_record: AnimeRecord) -> Optional[RowAction]:
         """La píldora «Episodio N →» que sale al pasar el ratón por la fila.

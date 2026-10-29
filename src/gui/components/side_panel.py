@@ -1,7 +1,7 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "gui.components"
 __module__ = "side_panel.py"
-__version__ = "0.1"
+__version__ = "0.3"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 """Panel lateral de «Viendo»: la tarjeta grande de lo último que estabas viendo.
@@ -55,6 +55,7 @@ class SidePanel(ctk.CTkFrame):
                          corner_radius=0, fg_color=Theme.TRANSPARENT, **kwargs)
 
         self.anime_record = anime_record
+        self.__provider_name = provider_name
         self.__on_action = on_action
         self.__on_click = on_click or on_action
 
@@ -80,7 +81,7 @@ class SidePanel(ctk.CTkFrame):
         poster_path = find_cached_poster_path(anime_record.anime_id) or ""
         #: Referencia viva a la imagen: Tk no la mantiene y el panel saldría en blanco.
         self.__image = load_rounded_image(poster_path, Metrics.SHEET_POSTER, Metrics.RADIUS_POSTER)
-        poster_label = ctk.CTkLabel(card, text="", image=self.__image)
+        poster_label = ctk.CTkLabel(card, text="", font=Theme.font(*Theme.T_UI), image=self.__image)
         poster_label.grid(row=0, column=0, padx=self.CARD_PAD, pady=(self.CARD_PAD, 0))
 
         text_width = Metrics.SHEET_POSTER[0]
@@ -96,23 +97,21 @@ class SidePanel(ctk.CTkFrame):
         )
         title_label.grid(row=1, column=0, sticky="ew", padx=self.CARD_PAD, pady=(15, 0))
 
-        next_episode, total, fraction = resume_progress(anime_record)
-        caption_font = Theme.font(*Theme.T_SUB)
-        caption_label = ctk.CTkLabel(
+        self.__caption_label = ctk.CTkLabel(
             card,
-            text=self.__fitted_caption(provider_name, caption_font, text_width),
+            text="",
             width=text_width,
-            font=caption_font,
+            font=Theme.font(*Theme.T_SUB),
             text_color=Theme.TXT_3,
             anchor="w"
         )
-        caption_label.grid(row=2, column=0, sticky="ew", padx=self.CARD_PAD, pady=(9, 0))
+        self.__caption_label.grid(row=2, column=0, sticky="ew", padx=self.CARD_PAD, pady=(9, 0))
 
         progress_frame = ctk.CTkFrame(card, height=1, fg_color=Theme.TRANSPARENT)
         progress_frame.grid(row=3, column=0, sticky="ew", padx=self.CARD_PAD, pady=(12, 0))
         progress_frame.grid_columnconfigure(0, weight=1)
 
-        progress_bar = ctk.CTkProgressBar(
+        self.__progress_bar = ctk.CTkProgressBar(
             progress_frame,
             # El ancho lo pone el `sticky="ew"` de la columna, no este número. Va
             # pequeño a propósito: una CTkProgressBar pide 200 px por defecto y,
@@ -124,24 +123,22 @@ class SidePanel(ctk.CTkFrame):
             fg_color=Theme.LINE,
             progress_color=Theme.ACCENT
         )
-        progress_bar.set(1.0 if next_episode is None else fraction)
-        progress_bar.grid(row=0, column=0, sticky="ew")
+        self.__progress_bar.grid(row=0, column=0, sticky="ew")
 
-        watched = len(set(anime_record.watched_episodes) & set(anime_record.episodes))
-        counter_label = ctk.CTkLabel(
+        self.__counter_label = ctk.CTkLabel(
             progress_frame,
             # Monoespaciada: es el único número de la vista que se lee como cifra
             # («12 / 24»), y con Segoe UI los dígitos bailan de ancho.
-            text=f"{watched} / {total}" if total else "—",
+            text="",
             font=Theme.font(*Theme.T_NUM),
             text_color=Theme.TXT_3,
             anchor="e"
         )
-        counter_label.grid(row=0, column=1, padx=(11, 0))
+        self.__counter_label.grid(row=0, column=1, padx=(11, 0))
 
-        action_button = ctk.CTkButton(
+        self.__action_button = ctk.CTkButton(
             card,
-            text=self.__action_text(next_episode),
+            text="",
             height=self.ACTION_H,
             corner_radius=Metrics.RADIUS_POSTER,
             font=Theme.font(13, True, False),
@@ -150,16 +147,36 @@ class SidePanel(ctk.CTkFrame):
             text_color=Theme.ACCENT_INK,
             command=self.__handle_action
         )
-        action_button.grid(row=4, column=0, sticky="ew",
-                           padx=self.CARD_PAD, pady=(16, self.CARD_PAD))
+        self.__action_button.grid(row=4, column=0, sticky="ew",
+                                  padx=self.CARD_PAD, pady=(16, self.CARD_PAD))
+        self.__apply_progress()
 
         if self.__on_click is None:
             return
         # Los eventos de Tk no burbujean: el clic va atado pieza a pieza. El botón
         # se queda fuera, que ya tiene su propio comando.
-        for widget in (poster_label, title_label, caption_label):
+        for widget in (poster_label, title_label, self.__caption_label):
             widget.bind("<Button-1>", self.__handle_click)
             widget.configure(cursor="hand2")
+
+    # ------------------------------------------------------------------
+    # Actualización
+    # ------------------------------------------------------------------
+    def update_record(self, anime_record: AnimeRecord) -> None:
+        """Repinta pie, barra, contador y botón con una fila recién leída, sin recrear la tarjeta."""
+        self.anime_record = anime_record
+        self.__apply_progress()
+
+    def __apply_progress(self) -> None:
+        """Vuelca en la tarjeta lo que dice ``resume_progress()`` de la fila actual."""
+        next_episode, total, fraction = resume_progress(self.anime_record)
+        text_width = Metrics.SHEET_POSTER[0]
+        self.__caption_label.configure(
+            text=self.__fitted_caption(self.__provider_name, Theme.font(*Theme.T_SUB), text_width))
+        self.__progress_bar.set(1.0 if next_episode is None else fraction)
+        watched = len(set(self.anime_record.watched_episodes) & set(self.anime_record.episodes))
+        self.__counter_label.configure(text=f"{watched} / {total}" if total else "—")
+        self.__action_button.configure(text=self.__action_text(next_episode))
 
     # ------------------------------------------------------------------
     # Textos

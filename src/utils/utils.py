@@ -1,19 +1,20 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "utils"
 __module__ = "utils.py"
-__version__ = "0.3"
+__version__ = "0.7"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 import os
+import shutil
 import sys
 import threading
-import tkinter as tk
 import customtkinter as ctk
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Callable
 from PIL import Image, ImageDraw
 from io import BytesIO
-import requests
+
+from utils.http_session import thread_session
 
 # 8 es el equilibrio entre velocidad de descarga y no saturar el servidor.
 _MAX_DOWNLOAD_WORKERS = 8
@@ -26,20 +27,6 @@ _REQUEST_TIMEOUT = 10
 # prohibido importar de gui/; si cambia uno, cambia el otro.
 POSTER_CACHE_SIZE = (248, 372)
 
-def removeprefix(text: str, prefix_text: str) -> str:
-    """Quita el prefijo de una cadena si lo tiene, para compatibilidad con Python <3.9.
-
-    :param text: Cadena de la que quitar el prefijo.
-    :param prefix_text: Prefijo a quitar.
-    :return: Cadena sin el prefijo, o igual si no lo tenía.
-    """
-    if type(text) is type(prefix_text):
-        if text.startswith(prefix_text):
-            return text[len(prefix_text):]
-        else:
-            return text[:]
-
-
 def refactor_genre_text(genre_text):
     """Genera el nombre legible de un género a partir de su slug.
 
@@ -48,18 +35,6 @@ def refactor_genre_text(genre_text):
     """
     return genre_text.capitalize().replace("-", " ").replace("_", " ")
 
-
-def update_gif(label: tk.Label, gif_frames: list, root: tk.Tk, frame = 0):
-    """Pinta el siguiente frame de un GIF en un Label y se reprograma a los 100 ms.
-
-    :param label: Label donde se pinta el frame actual.
-    :param gif_frames: Frames precargados del GIF.
-    :param root: Ventana raíz, usada para reprogramar el siguiente frame.
-    :param frame: Índice del frame a mostrar.
-    """
-    label.config(image=gif_frames[frame])
-    frame = (frame + 1) % len(gif_frames)
-    root.after(100, update_gif, frame)
 
 def download_anime_poster_by_status(status, anime):
     """Descarga el póster de un anime y lo guarda en la carpeta de su estado.
@@ -71,7 +46,7 @@ def download_anime_poster_by_status(status, anime):
     if not os.path.exists(anime_status_dir):
         os.makedirs(anime_status_dir)
     image_name = f"{anime.id}.jpg"
-    response = requests.get(anime.poster, timeout=_REQUEST_TIMEOUT)
+    response = thread_session().get(anime.poster, timeout=_REQUEST_TIMEOUT)
     img_data = Image.open(BytesIO(response.content)).resize(POSTER_CACHE_SIZE)
     img_data.save(os.path.join(anime_status_dir, image_name))
 
@@ -94,19 +69,40 @@ def move_anime_poster_by_status(status, old_anime_id, new_anime_id) -> bool:
     os.replace(old_poster_path, os.path.join(anime_status_dir, f"{new_anime_id}.jpg"))
     return True
 
-def remove_anime_poster_by_status(status, anime):
-    """Borra del disco el póster cacheado de un anime para un estado dado.
+def sync_status_posters(anime, statuses) -> None:
+    """Deja el póster de un anime en las carpetas de sus estados activos y solo en ésas.
 
-    :param status: Estado del anime; determina la carpeta donde buscar el póster.
-    :param anime: Anime cuyo póster se borra.
+    Completa primero y borra después, para que siempre quede una copia que encontrar.
+    Copia de otra carpeta antes que descargar; aun así puede salir a la red, así
+    que no debe llamarse desde el hilo de Tkinter.
+
+    :param anime: Anime con la identidad de la fila guardada; se leen ``.id`` y ``.poster``.
+    :param statuses: Estado → si está activo; la carpeta de cada uno es ``status.name.lower()``.
     """
-    anime_status_dir = get_resource_path(f"resources/images/{status.name.lower()}")
     image_name = f"{anime.id}.jpg"
-    anime_poster_path = os.path.join(anime_status_dir, image_name)
-    if not os.path.exists(anime_poster_path):
-        print(f"No existe el poster para el anime {anime.title} con estado {status.name}")
-        return
-    os.remove(anime_poster_path)
+    for status, is_active in statuses.items():
+        status_dir = get_resource_path(f"resources/images/{status.name.lower()}")
+        poster_path = os.path.join(status_dir, image_name)
+        if not is_active or os.path.exists(poster_path):
+            continue
+        try:
+            cached_path = find_cached_poster_path(anime.id)
+            if cached_path is None:
+                download_anime_poster_by_status(status, anime)
+            else:
+                os.makedirs(status_dir, exist_ok=True)
+                shutil.copyfile(cached_path, poster_path)
+        except Exception as e:
+            print(f"No se pudo guardar el póster de {anime.id} en {status.name.lower()}: {e}")
+
+    for status, is_active in statuses.items():
+        poster_path = get_resource_path(f"resources/images/{status.name.lower()}/{image_name}")
+        if is_active or not os.path.exists(poster_path):
+            continue
+        try:
+            os.remove(poster_path)
+        except Exception as e:
+            print(f"No se pudo borrar el póster de {anime.id} de {status.name.lower()}: {e}")
 
 def download_animes_poster(images_path, animes):
     """Descarga a images_path los pósters que falten y borra los que sobren.
@@ -127,7 +123,7 @@ def download_animes_poster(images_path, animes):
     def _download_single(anime):
         image_name = f"{anime.id}.jpg"
         try:
-            response = requests.get(anime.poster, timeout=_REQUEST_TIMEOUT)
+            response = thread_session().get(anime.poster, timeout=_REQUEST_TIMEOUT)
             img_data = Image.open(BytesIO(response.content)).resize(POSTER_CACHE_SIZE)
             img_data.save(os.path.join(images_path, image_name))
         except Exception as e:
@@ -180,7 +176,7 @@ def download_images_progress(images_path, recent_animes, on_progress: Callable[[
     def _download_single(anime):
         image_name = f"{anime.id}.jpg"
         try:
-            response = requests.get(anime.poster, timeout=_REQUEST_TIMEOUT)
+            response = thread_session().get(anime.poster, timeout=_REQUEST_TIMEOUT)
             img_data = Image.open(BytesIO(response.content)).resize(POSTER_CACHE_SIZE)
             img_data.save(os.path.join(images_path, image_name))
         except Exception as e:
@@ -229,6 +225,31 @@ def find_cached_poster_path(anime_id) -> str | None:
     return None
 
 
+def find_cached_poster_paths(anime_ids: list) -> list:
+    """Como ``find_cached_poster_path()`` para varios animes, con un listado por carpeta.
+
+    Es lo que usa una vista al entrar para saber si sus pósters siguen igual: un
+    ``stat`` por anime y carpeta cuesta más que listar las seis carpetas.
+
+    :param anime_ids: Ids de los animes, en cualquier orden.
+    :return: Ruta del póster de cada uno, o None si no hay, en el mismo orden.
+    """
+    base_dir = get_resource_path("resources/images")
+    folders = []
+    for subfolder in POSTER_FOLDERS:
+        folder_path = os.path.join(base_dir, subfolder)
+        try:
+            folders.append((folder_path, set(os.listdir(folder_path))))
+        except OSError:
+            continue
+    paths = []
+    for anime_id in anime_ids:
+        file_name = f"{anime_id}.jpg"
+        paths.append(next((os.path.join(folder_path, file_name)
+                           for folder_path, file_names in folders if file_name in file_names), None))
+    return paths
+
+
 def download_poster(poster_url: str) -> Image.Image | None:
     """Descarga un póster sin tocar Tk, para poder hacerlo fuera del hilo de la interfaz.
 
@@ -236,7 +257,7 @@ def download_poster(poster_url: str) -> Image.Image | None:
     :return: La imagen descargada, o None si no se pudo bajar.
     """
     try:
-        response = requests.get(poster_url, timeout=_REQUEST_TIMEOUT)
+        response = thread_session().get(poster_url, timeout=_REQUEST_TIMEOUT)
         response.raise_for_status()
         return Image.open(BytesIO(response.content))
     except Exception as e:

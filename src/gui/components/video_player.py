@@ -1,7 +1,7 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "gui.components"
 __module__ = "video_player.py"
-__version__ = "0.1"
+__version__ = "0.2"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 """Reproductor de vídeo incrustado: la superficie de mpv, sus tarjetas de estado y la barra de controles.
@@ -435,7 +435,7 @@ class PlayerControls(ctk.CTkFrame):
         self.previous_button = self.__button("previous", player.go_previous)
         self.back_button = self.__button("back10", lambda: player.seek_relative(-SEEK_STEP))
         self.play_button = ctk.CTkButton(
-            self, text="", width=Metrics.PLAYER_BUTTON, height=Metrics.PLAYER_BUTTON, corner_radius=8,
+            self, text="", font=Theme.font(*Theme.T_UI), width=Metrics.PLAYER_BUTTON, height=Metrics.PLAYER_BUTTON, corner_radius=8,
             fg_color=Theme.ACCENT, hover_color=Theme.ACCENT,
             image=player_icon("pause", color=Theme.ACCENT_INK), command=player.toggle_pause
         )
@@ -482,7 +482,7 @@ class PlayerControls(ctk.CTkFrame):
     def __button(self, icon: str, command: Optional[Callable[[], None]]) -> ctk.CTkButton:
         """Un control de 38 × 38 con su glifo, sin texto."""
         return ctk.CTkButton(
-            self, text="", width=Metrics.PLAYER_BUTTON, height=Metrics.PLAYER_BUTTON, corner_radius=8,
+            self, text="", font=Theme.font(*Theme.T_UI), width=Metrics.PLAYER_BUTTON, height=Metrics.PLAYER_BUTTON, corner_radius=8,
             fg_color=Theme.TRANSPARENT, hover_color=Theme.CARD_HOVER,
             image=player_icon(icon), command=command
         )
@@ -1018,7 +1018,7 @@ class VideoPlayer(ctk.CTkFrame):
         """Tarjeta de «Cargando» con el aro girando."""
         content = self.__new_card(boxed=False)
         frames = _ring_frames()
-        ring = ctk.CTkLabel(content, text="", image=frames[0])
+        ring = ctk.CTkLabel(content, text="", font=Theme.font(*Theme.T_UI), image=frames[0])
         ring.pack(pady=(0, 14))
         ctk.CTkLabel(content, text=title, font=Theme.font(15, True), text_color=Theme.BADGE_INK).pack()
         ctk.CTkLabel(content, text=subtitle, font=Theme.font(*Theme.T_SUB), text_color=Theme.TXT_3).pack(pady=(4, 0))
@@ -1042,14 +1042,14 @@ class VideoPlayer(ctk.CTkFrame):
         wrap = Metrics.PLAYER_CARD_W - 56
         if closable:
             ctk.CTkButton(
-                content.master, text="", width=30, height=30, corner_radius=7,
+                content.master, text="", font=Theme.font(*Theme.T_UI), width=30, height=30, corner_radius=7,
                 fg_color=Theme.TRANSPARENT, hover_color=Theme.CARD_HOVER,
                 image=player_icon("close", 16, Theme.TXT_3), command=self.hide_card
             ).place(relx=1.0, x=-14, y=14, anchor="ne")
             # El título no puede meterse debajo de la ✕.
             wrap -= 34
         if icon is not None:
-            ctk.CTkLabel(content, text="", width=38, height=38, corner_radius=10, fg_color=Theme.ACCENT_SOFT,
+            ctk.CTkLabel(content, text="", font=Theme.font(*Theme.T_UI), width=38, height=38, corner_radius=10, fg_color=Theme.ACCENT_SOFT,
                          image=player_icon(icon, color=Theme.ACCENT)).pack(anchor="w", pady=(0, 14))
         ctk.CTkLabel(content, text=title, font=Theme.font(20, True), text_color=Theme.TXT,
                      anchor="w", justify="left", wraplength=wrap).pack(anchor="w", fill="x")

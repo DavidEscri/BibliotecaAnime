@@ -1,9 +1,10 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "gui"
 __module__ = "main_window.py"
-__version__ = "0.6"
+__version__ = "0.10"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
+import copy
 import ctypes
 import threading
 import tkinter
@@ -11,7 +12,8 @@ import customtkinter as ctk
 
 from tkinter import messagebox
 from ctypes import wintypes
-from typing import Any, Callable, List, Optional, Tuple
+from dataclasses import dataclass
+from typing import Any, Callable, Dict, List, Optional, Tuple
 from PIL import Image, ImageSequence
 
 from APIs.animeav1.animeav1 import AnimeAV1Singleton
@@ -28,9 +30,19 @@ from gui.sidebarButtons.recentAnimes.recentAnimes import RecentAnimeButton
 from gui.sidebarButtons.searchAnimes.searchAnimes import SearchButton, AnimeSearch
 from gui.sidebarButtons.watchingAnimes.watchingAnimes import WatchingAnimeButton
 from gui.components.sidebar import Sidebar
+from gui.episode_refresher import EpisodeRefresher
+from gui.franchise_service import FranchiseService
 from gui.theme import Metrics, Theme
 
 from utils.utils import get_resource_path, download_images_progress, download_animes_poster
+
+
+@dataclass
+class ViewPage:
+    """Página conservada de una vista: su marco y la firma de lo que tiene pintado."""
+
+    frame: ctk.CTkFrame
+    signature: Any
 
 
 class MainWindow(ctk.CTk):
@@ -92,10 +104,14 @@ class MainWindow(ctk.CTk):
         self.pending_animes: List[AnimeRecord] = []
         self.last_search_instance: AnimeSearch | None = None
         self.images_path = get_resource_path("resources/images/recent_animes")
+        # Antes que las vistas: se suscriben a él al construirse.
+        self.episode_refresher: EpisodeRefresher = EpisodeRefresher(self, self.anime_provider_mgr,
+                                                                    self.animes_persistence)
+        self.franchise_service: FranchiseService = FranchiseService(self, self.anime_provider_mgr)
 
         self.load_sidebar_buttons()
         self.protocol("WM_DELETE_WINDOW", self.__on_close)
-        self.bind("<Configure>", self.__on_window_configure, add="+")
+        self.__bind_window_configure()
         self.show_loading_screen()
 
     def __config_main_window(self):
@@ -135,16 +151,60 @@ class MainWindow(ctk.CTk):
         #: Geometría, maximizado y ancho mínimo de la barra lateral de antes de
         #: la pantalla completa; None fuera de ella.
         self.__fullscreen_restore: Optional[Tuple[str, bool, int]] = None
+        #: Página de cada vista de la barra lateral, por vista. Viven toda la sesión.
+        self.__view_pages: Dict[Any, ViewPage] = {}
 
     def clear_frame(self):
-        """Destruye todos los widgets hijos del content_frame.
+        """Vacía el content_frame: esconde las páginas de las vistas y destruye lo demás.
 
-        Cambiar de vista pasa siempre por aquí, así que también cierra el
-        reproductor si estaba abierto: si no, mpv seguiría sonando debajo.
+        Lo demás es la ficha, que se rehace cada vez. Cambiar de vista pasa
+        siempre por aquí, así que también cierra el reproductor si estaba
+        abierto: si no, mpv seguiría sonando debajo.
         """
         self.close_player()
+        page_frames = [page.frame for page in self.__view_pages.values()]
         for widget in self.content_frame.winfo_children():
-            widget.destroy()
+            if any(widget is frame for frame in page_frames):
+                widget.grid_remove()
+            else:
+                widget.destroy()
+
+    def show_view(self, view: Any, signature: Any) -> Optional[ctk.CTkFrame]:
+        """Enseña la página de una vista: la que ya tenía si sus datos no han cambiado.
+
+        Reconstruir una vista cuesta cientos de milisegundos de widgets nuevos.
+        La firma es lo que la vista pinta, sacado de lo que ya lee al entrar:
+        si coincide con la de la última vez, la página se vuelve a colocar tal
+        cual; si no, se vacía para que la vista construya encima.
+
+        :param view: Vista de la barra lateral que se quiere enseñar.
+        :param signature: Datos de los que depende lo pintado, comparables con ``==``.
+            Se guarda una copia: la vista puede modificar sus filas en memoria.
+        :return: ``None`` si se ha reutilizado la página, o la página vacía donde construir.
+        """
+        self.clear_frame()
+        page = self.__view_pages.get(view)
+        reused = page is not None and page.signature == signature
+        if page is None:
+            frame = ctk.CTkFrame(self.content_frame, width=1, height=1, corner_radius=0,
+                                 fg_color=Theme.TRANSPARENT)
+            frame.grid_columnconfigure(0, weight=1)
+            page = ViewPage(frame, copy.deepcopy(signature))
+            self.__view_pages[view] = page
+        elif not reused:
+            for widget in page.frame.winfo_children():
+                widget.destroy()
+            page.signature = copy.deepcopy(signature)
+        page.frame.grid(row=0, column=0, sticky=ctk.NSEW)
+        # Toda vista entra arriba, venga de donde venga el desplazamiento.
+        self.content_frame._parent_canvas.yview_moveto(0)
+        if reused:
+            return None
+        if page.frame.winfo_width() <= 1:
+            # Recién creada no mide nada todavía, y las rejillas sacan sus columnas
+            # del ancho de la página: sin esto pintarían las del diseño y repintarían.
+            page.frame.update_idletasks()
+        return page.frame
 
     def create_content_frame(self) -> ctk.CTkScrollableFrame:
         """:return: CTkScrollableFrame compartido por todas las vistas, ya en el grid."""
@@ -290,9 +350,21 @@ class MainWindow(ctk.CTk):
             print(f"No se pudo leer el monitor de la ventana: {exc}")
         return 0, 0, self.winfo_screenwidth(), self.winfo_screenheight()
 
-    def __on_window_configure(self, event) -> None:
+    def __bind_window_configure(self) -> None:
+        """Ata el <Configure> de la raíz descartando en Tcl el de los demás widgets.
+
+        Por los bindtags, el <Configure> de cualquier widget llega también a la raíz,
+        cientos de veces por cambio de vista. Sustituye al de CTk, que tiene el mismo
+        coste, y lo conserva dentro del filtro.
+        """
+        ctk_command = self.register(self._update_dimensions_event)
+        own_command = self.register(self.__on_window_configure)
+        self.tk.call("bind", self._w, "<Configure>",
+                     f'if {{"%W" eq "{self._w}"}} {{{ctk_command}; {own_command}}}')
+
+    def __on_window_configure(self) -> None:
         """Reajusta el reproductor al cambiar el tamaño de la ventana, también solo en alto."""
-        if event.widget is self and self.__player_owner is not None:
+        if self.__player_owner is not None:
             self.__player_owner.relayout_player()
 
     def __on_close(self) -> None:
@@ -574,7 +646,7 @@ class MainWindow(ctk.CTk):
         loading_image_path = get_resource_path("resources/images/utils/loading-image.gif")
         gif_image = Image.open(loading_image_path)
         gif_frames = [ctk.CTkImage(frame.copy(), size=(400, 400)) for frame in ImageSequence.Iterator(gif_image)]
-        loading_image_label = ctk.CTkLabel(loading_content, text="")
+        loading_image_label = ctk.CTkLabel(loading_content, text="", font=Theme.font(*Theme.T_UI))
         loading_image_label.pack(pady=20)
 
         progress_bar = ctk.CTkProgressBar(
@@ -661,6 +733,9 @@ class MainWindow(ctk.CTk):
             args=(self.__recent_animes_generation,),
             daemon=True
         ).start()
+        # Con la portada ya pintada no retrasa el arranque, y así «Viendo» y
+        # «Pendientes» encuentran el recuento al día cuando el usuario entra.
+        self.episode_refresher.refresh(self.watching_animes + self.pending_animes)
 
     def __preload_recent_animes_info(self, generation: int):
         """Rellena synopsis, géneros y episodios de los animes recientes, en segundo plano.

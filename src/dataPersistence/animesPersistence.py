@@ -1,7 +1,7 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "DataPersistence"
-__module__ = "animesPersistence"
-__version__ = "2.4"
+__module__ = "animesPersistence.py"
+__version__ = "2.5"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 import json

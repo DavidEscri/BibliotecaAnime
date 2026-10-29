@@ -2,9 +2,9 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-10-20 · rama `feature/reproductor-embebido` · último commit de código **`f3fc229`** (fase 5 del reproductor) |
-| **Última revisión** | 2026-10-20 (**reproductor in-app**): **flujo 13 nuevo** —reproducir un episodio dentro de la aplicación, con **13b** (anterior/siguiente) y **13c** (pantalla completa y cierre)— y el antiguo §13 pasa a **§14**; **§8 reescrito**: la petición de servidores ya va en un hilo daemon (cerró la deuda nº 1) y lleva número de despliegue; la convención de hilos gana 🎞️ (el hilo de eventos de mpv); §12 reanclado. Antes, 2026-09-01 (**abrir la ficha por un episodio**): **flujo 12 nuevo** —las tres acciones que prometen un episodio lo cumplen: la ficha sale con esa fila desplegada—, y el antiguo §12 pasa a **§13**; §3 gana el parámetro `focus_episode` y §8 deja de ser siempre cosa del usuario. Antes, 2026-09-01 (**refresco de la banda «Retomar»**): **flujo 11 nuevo** —la portada relee los episodios de lo que estás viendo al entrar—, y el antiguo §11 pasa a **§12**. Antes, 2026-08-31 (**fondo de la pantalla de carga**): §1 reanclado entero contra el código real y corregido —seguía diciendo `place_forget()`, que la fase 9 cambió a `destroy()`— y con la nota del fondo `Theme.BG`. Antes, 2026-08-16 (**columna `provider_id`**): §3 pasa de 2 caminos a **3, todos asíncronos**; **flujo 10 nuevo** (migrar una fila a otro proveedor); anclas de `anime_window.py` reubicadas tras crecer a 1 155 líneas |
-| **Cubre** | `main_window.py`, `anime_window.py`, `recentAnimes.py`, `resume_card.py`, `searchAnimes.py`, las 4 vistas de estado, `animeProviderMgr.py`, `animesPersistence.py`, `utils.py`, `video_player.py`, `APIs/resolvers/` |
+| **Fecha** | 2026-10-28 · rama `release/0.5.0` · último commit de código **`7bbbb3c`** |
+| **Última revisión** | 2026-10-28 (**versión 0.5.0**): **cuatro flujos nuevos**, al final para no renumerar: **§15** recorrer la franquicia y completar formatos (`FranchiseService`, hilo por llamada, lock y espaciado por proveedor, caché de sesión), **§16** la pestaña «Temporadas y relacionados», abrir un relacionado y volver, **§17** «Te puede interesar» y **§18** cambiar de vista con la página conservada (B13). §3d gana la nota de las pestañas: **abrir la ficha no sale a la red**. Antes, 2026-10-27 (**refresco de episodios**): **§11 reescrito**: el refresco de episodios deja de ser cosa de la banda «Retomar» y pasa a `EpisodeRefresher`, que refresca también «Viendo» y «Pendientes» —tras la portada y al entrar—, con un hilo por proveedor, repintado en el sitio y la ficha cacheada para `open_saved_anime()`. Antes, 2026-10-20 (**reproductor in-app**): **flujo 13 nuevo** —reproducir un episodio dentro de la aplicación, con **13b** (anterior/siguiente) y **13c** (pantalla completa y cierre)— y el antiguo §13 pasa a **§14**; **§8 reescrito**: la petición de servidores ya va en un hilo daemon (cerró la deuda nº 1) y lleva número de despliegue; la convención de hilos gana 🎞️ (el hilo de eventos de mpv); §12 reanclado. Antes, 2026-09-01 (**abrir la ficha por un episodio**): **flujo 12 nuevo** —las tres acciones que prometen un episodio lo cumplen: la ficha sale con esa fila desplegada—, y el antiguo §12 pasa a **§13**; §3 gana el parámetro `focus_episode` y §8 deja de ser siempre cosa del usuario. Antes, 2026-09-01 (**refresco de la banda «Retomar»**): **flujo 11 nuevo** —la portada relee los episodios de lo que estás viendo al entrar—, y el antiguo §11 pasa a **§12**. Antes, 2026-08-31 (**fondo de la pantalla de carga**): §1 reanclado entero contra el código real y corregido —seguía diciendo `place_forget()`, que la fase 9 cambió a `destroy()`— y con la nota del fondo `Theme.BG`. Antes, 2026-08-16 (**columna `provider_id`**): §3 pasa de 2 caminos a **3, todos asíncronos**; **flujo 10 nuevo** (migrar una fila a otro proveedor); anclas de `anime_window.py` reubicadas tras crecer a 1 155 líneas |
+| **Cubre** | `main_window.py`, `anime_window.py`, `franchise_service.py`, `tab_bar.py`, `franchise_cards.py`, `recentAnimes.py`, `resume_card.py`, `searchAnimes.py`, las 4 vistas de estado, `animeProviderMgr.py`, `animesPersistence.py`, `utils.py`, `video_player.py`, `APIs/resolvers/` |
 
 Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ sin verificar.
 **Convención de hilos**: 🖥️ = hilo de Tkinter (UI) · 🧵 = hilo daemon · ⚙️ = worker del `ThreadPoolExecutor` · 🎞️ = hilo de eventos de mpv (`MPVEventHandlerThread`).
@@ -280,6 +280,13 @@ algo que deba pasar por el hecho de abrir la ficha. Ver [04 §8](04-modelo-de-da
 ⚠️ El póster se pide con `__persistence_anime_info()`, no con `anime_info`: así sigue encontrando el
 `{anime_id}.jpg` ya cacheado aunque se esté mostrando la ficha de otro proveedor.
 
+🆕 **Desde el 2026-10-28 la lista de episodios vive en una pestaña** (`__build_tabs`), y lo que pinta
+la ficha al mostrarse no sale a la red: la línea de temporadas de la cabecera y las pestañas
+«Temporadas y relacionados» y «Te puede interesar» se montan con lo que ya trae `anime_info`. Lo que
+piden a la red lo piden **al abrirse** ([§16](#16-la-pestaña-temporadas-y-relacionados-y-abrir-un-relacionado--2026-10-28)
+y [§17](#17-te-puede-interesar--2026-10-28)). Las anclas del diagrama son anteriores a la 0.5.0; los
+métodos siguen existiendo con el mismo nombre.
+
 ---
 
 ## 4. Marcar / desmarcar un episodio
@@ -354,9 +361,9 @@ sequenceDiagram
         Note over P,DB: 🆕 si provider_id estaba a NULL, se anota de paso (:643-644)
         Note over DB: is_watching=?, is_finished=0, is_pending=0
     end
-    AW->>FS: download_anime_poster_by_status(WATCHING, info) :872
-    Note over FS: GET anime.poster → resize (130,185)<br/>→ resources/images/watching/{id}.jpg
-    AW->>AW: flags locales + __display_anime_status() :874-877
+    AW->>AW: flags locales + __after_status_change()
+    AW-)FS: sync_saved_posters_async(persistence, info) — hilo daemon 🆕
+    Note over FS: relee la fila; copia o descarga a las carpetas<br/>de sus estados activos y borra de las demás
 ```
 
 **Tabla de transiciones** ✅ verificada (líneas de `animesPersistence.py`):
@@ -376,10 +383,12 @@ sequenceDiagram
 anime no está en BD, ✅ `update_sql` devuelve `True` sin haber tocado nada. `add_to_*` sí lo insertan
 (`_set_status:628-636`).
 
-⚠️ **El póster no se mueve de categoría.** Al hacer `remove_from_finished` el anime pasa a
-*pendiente* en BD (`:566-581`) pero su póster se borra de `finished/` y **no** se crea en `pending/`
-(`anime_window.py:908-914`) → la vista «pendientes» lo muestra en gris. Deuda B7 en
-[12 §4](12-deuda-tecnica-y-roadmap.md).
+✅ **El póster sigue a la fila, no al botón** (desde el 2026-10-27, cierra B7). Tras cualquier
+`add_to_*` / `remove_from_*`, `sync_saved_posters_async()` relee la fila en un hilo daemon y deja
+el póster en las carpetas de los estados que **la BD** dejó activos, que no siempre son el del botón:
+`remove_from_finished` lo pasa a *pendiente*, y la tabla de arriba tiene más casos así. Completa
+antes de borrar, así que la imagen nunca desaparece. «Empezar» de «Pendientes» usa el mismo camino.
+Ver [12 §4](12-deuda-tecnica-y-roadmap.md).
 
 ---
 
@@ -631,95 +640,103 @@ sequenceDiagram
 
 ---
 
-## 11. Refrescar la banda «Retomar» al entrar en la portada 🆕 *(2026-09-01)*
+## 11. Refrescar los episodios guardados 🆕 *(2026-09-01, ampliado el 2026-10-27)*
 
-📖 `recentAnimes.py:90-94` y `:131-180`. Es el **único flujo que escribe en la biblioteca sin que el
-usuario haya pedido nada**, y por eso es el más conservador de todos: solo toca una columna, solo si
-el recuento cambia, y sin *fallback*.
+📖 `gui/episode_refresher.py` (`EpisodeRefresher`). Es el **único flujo que escribe en la biblioteca
+sin que el usuario haya pedido nada**, y por eso es el más conservador de todos: solo toca una
+columna, solo si el recuento cambia, y sin *fallback*.
 
 **El problema que resuelve**: la columna `episodes` de una fila solo se reescribía al abrir su ficha
-(`anime_window.py:648`). Un anime **en emisión** mentía en la portada hasta que entrabas en él: el
-capítulo que salió el domingo no existía todavía para la biblioteca, así que la tarjeta decía «Lo has
-visto entero» estando a uno de distancia. ✅ Reproducido sobre copia con Mushoku Tensei III: fila con
-9 episodios y 9 vistos, proveedor sirviendo 10.
+(`anime_window.py:657-658`). Un anime **en emisión** mentía hasta que entrabas en él: el capítulo que
+salió el domingo no existía todavía para la biblioteca, así que la tarjeta decía «Lo has visto entero»
+estando a uno de distancia ([trampa 38](10-invariantes-y-trampas.md)). Hasta el 2026-10-27 solo lo
+arreglaba la banda «Retomar», con su propio hilo (`__refresh_resume_episodes`, ya retirado).
+
+**Quién lo pide**:
+
+| Quién | Cuándo | Qué filas | Prioridad |
+|---|---|---|---|
+| `MainWindow.__on_startup_loaded()` | con la portada **ya pintada**, junto a la precarga de estrenos | «Viendo» + «Pendientes» | normal |
+| `RecentAnimeButton` | al entrar | las ≤3 de la banda | `urgent=True` |
+| `WatchingAnimeButton` | al entrar | todo «Viendo» | `urgent=True` |
+| `PendingAnimeButton` | al entrar | todo «Pendientes», en el orden de pantalla | `urgent=True` |
 
 ```mermaid
 sequenceDiagram
-    participant U as Usuario
-    participant RA as 🖥️ RecentAnimeButton
-    participant B as 🖥️ ResumeBand
-    participant T as 🧵 daemon
+    participant V as 🖥️ Vista
+    participant R as EpisodeRefresher
+    participant T as 🧵 hilo del proveedor X
     participant MGR as AnimeProviderManager
     participant P as AnimesPersistence
 
-    U->>RA: entra en «Nuevos lanzamientos»
-    RA->>RA: __resume_records() :114-126
-    Note over RA,P: los ≤3 ids de last_watched_anime_ids → get_anime_by_anime_id()<br/>lo que ya no esté en la biblioteca se descarta en silencio
-    RA->>B: ResumeBand(records) :88
-    B->>U: tarjetas pintadas YA, con el dato guardado
-    opt has_content()
-        RA->>T: Thread(_fetch).start() :180
+    V->>V: pinta YA con lo guardado
+    V->>R: refresh(filas, urgent=True)
+    Note over R: con el Lock: se salta lo comprobado hace < 30 min,<br/>lo que está en curso, lo que no tiene provider_id<br/>y lo de un proveedor dado por caído.<br/>Lo urgente va delante de la cola de su proveedor
+    opt el proveedor X no tenía hilo
+        R->>T: Thread(__work, X).start()
     end
+    R-->>V: vuelve en ~1 ms
 
-    loop por cada fila de la banda (≤3)
-        T->>MGR: get_anime_info_with_provider(anime_id,<br/>provider_id=«el de la fila», strict=True) :171-172
-        MGR-->>T: (AnimeInfo | None, provider_id)
-        alt sin respuesta, o episodes vacío
-            Note over T: se descarta :173-176<br/>un corte de red NO puede vaciar la fila
+    loop mientras quede cola de X
+        T->>MGR: get_anime_info_with_provider(id, provider_id=X, strict=True)
+        MGR-->>T: (AnimeInfo | None, X)
+        alt sin respuesta o sin episodios
+            Note over T: no se escribe nada.<br/>2 fallos seguidos → X caído 30 min, se vacía su cola
         else con episodios
-            T->>T: fresh_episodes.append((anime_id, episodes))
+            T->>T: guarda la ficha para cached_info()
+            T->>R: after(0, __apply, id, X, episodes)
         end
     end
-    opt hay algo que aplicar
-        T->>RA: after(0, _apply, fresh_episodes) :178
-    end
+    Note over T: cola vacía → el hilo termina
 
-    RA->>RA: _apply() :147 — ya en 🖥️
-    alt la ventana se cerró
-        Note over RA: winfo_exists() → return :149-150
-    end
-    loop por cada (anime_id, episodes)
-        RA->>P: get_anime_by_anime_id(anime_id) :152
-        alt la fila ya no está, o mismo recuento
-            Note over RA: continue :153-154 — no se escribe nada
-        else difiere
-            RA->>P: update_anime_episodes(anime_id, episodes) :155
-            Note over P: SOLO la columna episodes.<br/>watched_episodes, estados y rating intactos
-            RA->>RA: print «X pasa de N a M episodios» :157-158
-            opt la banda sigue en pantalla
-                RA->>P: get_anime_by_anime_id(anime_id) :164
-                RA->>B: update_record(fila releída) :166
-                B->>B: busca la tarjeta por anime_id — resume_card.py:224-227
-                B->>U: pie y barra repintados — resume_card.py:143-157
-            end
-        end
+    R->>P: get_anime_by_anime_id(id) — ya en 🖥️
+    alt la fila ya no está, es de otro proveedor o tiene el mismo recuento
+        Note over R: no se escribe nada
+    else difiere
+        R->>P: update_anime_episodes(id, episodes)
+        Note over P: SOLO la columna episodes.<br/>watched_episodes, estados y rating intactos
+        R->>P: get_anime_by_anime_id(id)
+        R->>V: cada suscriptor(fila releída)
+        V->>V: si sigue en pantalla: update_record() en el sitio
     end
 ```
 
-**Cinco decisiones que se ven en el diagrama y conviene no revertir**:
+**Decisiones que conviene no revertir**:
 
-1. **Al entrar en la vista, no al arrancar.** Es donde se ve el dato; cuesta como mucho tres
-   peticiones y no retrasa el arranque. Cambiarlo a `MainWindow.__init__` volvería a pagar la espera
-   quien ni siquiera va a mirar la banda.
-2. **Las tarjetas se pintan antes de preguntar.** Se ven al instante con el dato guardado y se
-   corrigen solas un segundo después; esperar a la red dejaría la portada a medias.
-3. 🔴 **`strict=True`, al revés que `open_saved_anime()`** (§3b).
-   Aquí se escribe en la biblioteca sin que el usuario lo pida, y con *fallback* el mismo *slug*
-   puede existir en otro sitio con otra cuenta de episodios ([trampa 27](10-invariantes-y-trampas.md)):
-   quedarse con el dato viejo es recuperable, guardar el de otro anime no.
-4. **Se compara el recuento, no las listas.** Basta para «ha salido un capítulo», que es lo único que
-   se quiere detectar, y evita reescribir la fila en cada visita a la portada.
-5. **La tarjeta se repinta, no se recrea.** `ResumeCard.update_record()` toca el pie y la barra;
-   recrearla solo serviría para releer el póster del disco y hacer parpadear la banda entera. Y se
-   busca por `anime_id`, no por posición: entre que se piden los datos y llegan, la banda pudo
-   repintarse con otro reparto.
+1. **Ninguna vista espera a la red.** Pintan con lo guardado y se corrigen solas; `refresh()` solo
+   encola. ✅ Entrar en «Viendo» cuesta lo mismo que en `develop` (414-511 ms frente a 414-471).
+2. **El primer refresco va tras la portada, no en el arranque.** Así no retrasa nada, y cuando el
+   usuario entra en «Viendo» lo normal es que el dato ya esté al día y no haya nada que corregir
+   delante de él. Lo que sí hay que evitar es meterlo en `MainWindow.__init__` o en el hilo de carga.
+3. **Un hilo por proveedor, no un hilo por lote.** Dentro de un sitio, de una en una; entre sitios,
+   en paralelo. ✅ Medido el 2026-10-26: una fila de AnimeAV1 o JKAnime tarda 0,2-0,35 s, y una de
+   AnimeFLV, **9,2 s en fallar**. En lote, una fila de AnimeFLV retrasaba todas las demás.
+4. **Cada resultado se aplica en cuanto llega**, no al terminar la cola.
+5. 🔴 **`strict=True`, al revés que `open_saved_anime()`** (§3b). Aquí se escribe en la biblioteca sin
+   que el usuario lo pida, y con *fallback* el mismo *slug* puede existir en otro sitio con otra cuenta
+   de episodios ([trampa 27](10-invariantes-y-trampas.md)): quedarse con el dato viejo es recuperable,
+   guardar el de otro anime no.
+6. **Se relee la fila antes de escribir.** Entre la petición y la respuesta, la fila pudo borrarse o
+   reapuntarse con «Actualizar a X»; el dato solo vale para el proveedor al que se le pidió.
+7. **Se compara el recuento, no las listas.** Basta para «ha salido un capítulo».
+8. **Se repinta, no se recrea**, y se busca por `anime_id`, no por posición. `ResumeCard`, `AnimeRow`
+   y `SidePanel` tienen `update_record()`; `AnimeRow` crea la barra o la píldora si la fila no las
+   tenía. Recrear releería el póster del disco y haría parpadear la lista (y costaría lo de B13).
+9. **«Pendientes» no se reordena mientras la miras.** La fila se moverá en la siguiente visita.
 
-⚠️ **La escritura sobrevive a que la banda se vaya.** Si el usuario cambia de vista mientras se piden
-los datos, `_apply()` **igualmente persiste** y solo se salta el repintado (`:162-163`): la próxima
-visita leerá el dato bueno.
+**La ficha cacheada.** El refresco hace exactamente la petición que hará `open_saved_anime()` al
+pulsar la fila, así que guarda la ficha y la ofrece con `cached_info(anime_id, provider_id)` mientras
+siga fresca y sea del mismo proveedor. Devuelve una **copia** (5 ms con 1 180 episodios), porque
+`AnimeWindowViewer` reordena `anime_info.episodes` en el sitio. No se usa con el desplegable
+desviado: ahí hay que re-localizar por título. ✅ One Piece abre en 772 ms en vez de ~1 060; el resto
+es construir la ficha.
 
-⚠️ **Solo se refrescan las ≤3 filas de la banda.** El resto de la biblioteca sigue con el dato del día
-que abriste su ficha ([trampa 38](10-invariantes-y-trampas.md)).
+⚠️ **La escritura sobrevive a que la vista se vaya.** Si el usuario cambia de vista mientras se piden
+los datos, `__apply()` **igualmente persiste**, y cada suscriptor comprueba `winfo_exists()` antes de
+repintar: la próxima visita leerá el dato bueno.
+
+⚠️ **No se refresca «Finalizados»**, a propósito: lo terminado casi nunca crece, y serían 24
+peticiones más por arranque.
 
 ---
 
@@ -940,3 +957,227 @@ terminado.
 - **Semántica interna del fallback entre proveedores** → [05 §5](05-proveedores-y-scraping.md).
 - **Serialización de `episodes` y `watched_episodes`** → [04 §4](04-modelo-de-datos.md).
 - 🆕 **Buscar dentro de la biblioteca** (`SavedAnimeSearch`) → [06 §7](06-gui-y-vistas.md).
+- 🆕 Los flujos de la 0.5.0 van **después** de esta sección (§15-§18), para no renumerar.
+
+---
+
+## 15. Recorrer la franquicia y completar formatos 🆕 *(2026-10-28, versión 0.5.0)*
+
+📖 `gui/franchise_service.py` (`FranchiseService`, en `MainWindow.franchise_service`). Sin interfaz:
+lo usa la pestaña «Temporadas y relacionados» (§16). Los sitios solo dan relaciones **de un salto**
+(la S1 de Kusuriya ve la S2, no la S3), así que la línea principal entera cuesta una petición por
+temporada.
+
+```mermaid
+sequenceDiagram
+    participant AW as 🖥️ Ficha (pestaña)
+    participant FS as FranchiseService
+    participant T as 🧵 hilo de la llamada
+    participant L as lock del proveedor X
+    participant MGR as AnimeProviderManager
+
+    AW->>FS: request_franchise(anime_info, X, callback)
+    FS->>T: Thread(__walk_and_deliver).start()
+    FS-->>AW: vuelve en el acto
+    T->>T: walk_franchise(): mete la ficha de partida en la caché
+    loop hacia atrás por PREQUEL, luego hacia delante por SEQUEL
+        T->>T: closest_related(): con varias, la de año más cercano
+        alt página en caché (proveedor, slug)
+            Note over T: 0 peticiones
+        else falló hace < 2 min
+            Note over T: no se repite: la línea se corta, interrupted=True
+        else
+            T->>L: adquiere; espera hasta 0,5 s desde la anterior a X
+            T->>MGR: get_anime_relations(slug, X) — strict=True
+            MGR-->>T: ficha ligera | None
+            T->>L: suelta
+        end
+        Note over T: ciclo → corta (visitados) · 25 entradas → truncated=True
+    end
+    T->>AW: after(0, callback, FranchiseLine) si la ventana existe
+    AW->>AW: descarta si ya no está en pantalla
+```
+
+**`request_formats(anime_info, X, callback)`** hace lo mismo para los relacionados que no son la
+línea, en su propio hilo y **en paralelo** al recorrido. Por cada uno, en este orden: el formato que
+trae la relación → el de su página si está en la caché → **deducido del título**
+(`deduce_format_from_title`: Película > OVA > ONA > Especial > Serie, por palabras; sale con
+`deduced=True` y se pinta con borde discontinuo) → y, para lo que siga sin formato, **una sola**
+petición a un proveedor con `RELATIONS_CARRY_FORMAT` (hoy JKAnime) con **el mismo slug**. Esa página
+se descarta si allí es otro anime (`title_similarity` < 0,75, [trampa 64](10-invariantes-y-trampas.md)),
+y sus relacionados se emparejan por slug o por título. Lo que aporte lleva las siglas de ese proveedor.
+
+| Qué | Dónde | Valor |
+|---|---|---|
+| Tope de la línea, contando el anime pedido | `MAX_LINE_LENGTH` | 25 |
+| Separación entre peticiones al mismo proveedor | `REQUEST_SPACING_S` | 0,5 s |
+| Una página que falló no se repite durante | `RETRY_FAILED_AFTER_S` | 2 min |
+| Caché de páginas | `(proveedor, slug)`, toda la sesión | sin tope |
+
+✅ Medido el 2026-10-28 (scratchpad `live_franchise.py`): Kusuriya desde S1, **2 GET** (0,95 s); desde
+S2 y S3 después, **0**; SnK (7 temporadas) **6 GET**, 3,6 s; los formatos de SnK, **1 GET** a JKAnime;
+sin red, 3,03 s (los reintentos de AnimeAV1, [trampa 63](10-invariantes-y-trampas.md)) y una línea
+`interrupted`. Ningún 403.
+
+⚠️ **El servicio no numera peticiones**: la ficha descarta lo que llegue tarde con
+`__is_on_screen()`. Y las versiones **síncronas** (`walk_franchise`, `find_formats`) son para scripts:
+la GUI no debe llamarlas desde el hilo de Tk.
+
+`known_franchise_ids(anime_info, X)` es la tercera pieza, **sin red**: los slugs de la franquicia que
+ya se conocen —los relacionados directos y, de cada uno cuya página esté en la caché, los suyos—. La
+usa «Te puede interesar» (§17) para quitar la franquicia.
+
+---
+
+## 16. La pestaña «Temporadas y relacionados», y abrir un relacionado 🆕 *(2026-10-28)*
+
+📖 `anime_window.py`: `__build_tabs` (`:2186`), `__build_season_links` (`:1704`),
+`__build_relations_tab` (`:1723`), `__open_related` (`:1621`), `__go_back` (`:1607`).
+
+**Al abrir la ficha no sale nada a la red** (✅ medido: 0 peticiones en las cuatro fichas de
+referencia). Con lo que ya trae `anime_info.related`, la ficha pinta:
+
+- la **línea de temporadas** en la cabecera («◀ Temporada anterior» / «Temporada siguiente ▶», con la
+  píldora del estado de tu fila), solo si hay precuela o secuela;
+- la **barra de pestañas** con «Episodios» construida, y «Temporadas y relacionados» **solo añadida**
+  si `related` no está vacío. `TabBar` construye el cuerpo de una pestaña **la primera vez que se
+  abre** (`builder(body, tools)`).
+
+```mermaid
+sequenceDiagram
+    participant U as Usuario
+    participant AW as 🖥️ Ficha
+    participant FS as FranchiseService (§15)
+    participant T as 🧵 hilo de pósters
+
+    U->>AW: abre «Temporadas y relacionados»
+    AW->>AW: __build_relations_tab(): carrusel con lo conocido (anterior · actual · siguiente)<br/>+ grupos de «otros» con el formato instantáneo
+    AW->>FS: request_formats(...) — si hay «otros»
+    AW->>FS: request_franchise(...) — si hay precuela o secuela
+    AW->>T: __load_posters(): disco → memoria de sesión (120 PIL) → red
+    FS-->>AW: after(0) → __on_franchise_line(): el carrusel entero
+    FS-->>AW: after(0) → formatos y siglas
+    T-->>AW: after(0) → set_poster() de cada tarjeta viva
+```
+
+**Abrir un relacionado** (tarjeta, carrusel o enlace de la cabecera) — `__open_related(slug, título)`:
+
+1. Construye el historial: `history + [SheetVisit(anime_info, provider_id, anime_record)]`.
+2. Busca la fila: por `anime_id` y, si no, `find_saved_duplicate(get_all_animes(), título)` (trampa 58).
+3. **Guardado** → `after(0, open_saved_anime(..., history=history))`: se abre **su fila**, como desde
+   «Viendo» (trampa 21).
+4. **No guardado** → hilo daemon con `get_anime_info_with_provider(slug, provider_id, strict=True)`
+   —el slug es de este proveedor— y número de petición; la respuesta se descarta si ya no es la última
+   o la ficha ya no está en pantalla.
+
+La ficha nueva abre **siempre en «Episodios»** (P2) con «← Volver a <título>» arriba. **Volver**
+(`__go_back`) reconstruye la anterior con su `AnimeInfo` y su `anime_record` guardados en el
+`SheetVisit`: **0 peticiones**, también en «Episodios». Cambiar de vista por la barra lateral crea
+una ficha sin historial: la cadena desaparece sola, sin estado en el hub.
+
+**Tarjeta de fin** (§13): al terminar el **último** episodio de una temporada con secuela, ofrece
+«Empezar <secuela>», que cierra el reproductor y la abre con `__open_related(..., focus_episode=1,
+force_ascending=True)`.
+
+---
+
+## 17. «Te puede interesar» 🆕 *(2026-10-28)*
+
+📖 `anime_window.py`: `__build_recommendations_tab` (`:1982`), `__request_recommendations` (`:2016`),
+`__on_recommendations` (`:2041`), `__add_recommendation_candidates` (`:2063`).
+
+**Al construir la ficha, sin red**: `genre_filters(anime_info.genres, provider_id)[:2]` traduce los
+géneros al catálogo común; si no queda ninguno, **no hay pestaña**.
+
+```mermaid
+sequenceDiagram
+    participant U as Usuario
+    participant AW as 🖥️ Ficha
+    participant T as 🧵 hilo de la búsqueda
+    participant MGR as AnimeProviderManager
+
+    U->>AW: abre «Te puede interesar»
+    AW->>AW: 4 celdas grises + «Buscando animes de A y B…»
+    AW->>T: Thread(_search) con número de petición
+    T->>MGR: search_animes_by_genres_and_order([A, B], CALIFICACIÓN, página, X, strict=True)
+    MGR-->>T: (animes, última página)
+    T->>AW: after(0, __on_recommendations)
+    AW->>AW: descarta si no es la última petición o la rejilla ya no existe
+    alt vacío (fallo o 429: el manager no los distingue)
+        AW->>AW: «No se han podido buscar…» + «Reintentar» (solo a mano)
+    else
+        AW->>AW: quita el propio anime, la franquicia (known_franchise_ids) y lo finalizado
+        opt quedan < 4 y hay página siguiente (como mucho una vez)
+            AW->>T: la página siguiente
+        end
+        AW->>AW: PosterGrid de 4 con sello (library_status) + pósters en hilo
+    end
+```
+
+- **Una petición al abrir la pestaña**, dos como mucho. AnimeAV1 combina los dos géneros con **O**
+  (trampa 66); JKAnime solo admite uno y usa el primero. Por eso la segunda petición es **la página
+  siguiente** y no «el primer género solo».
+- **«Ver otros 4»** enseña los candidatos 5-8 de lo **ya bajado** (20 por página en AnimeAV1, 30 en
+  JKAnime) y solo pide otra página si no llegan a 8; «← Ver los primeros» vuelve sin red.
+- **Lo que se quita**: solo lo **finalizado** (P4), el propio anime y su franquicia conocida. Lo
+  guardado se busca por slug y luego por título (`find_saved_duplicate`), y lo que quede en otro
+  estado lleva su sello, con la misma regla que «Buscar» (`library_status()`).
+- **Abrir una recomendación** es el mismo `__open_related()` de §16: fila guardada si la hay.
+
+✅ 2026-10-28: Dandadan (AnimeAV1) → 1 GET, 20 candidatos, «Ver otros 4» con 0 peticiones; Tokyo
+Revengers (JKAnime) → 1 GET, 30 → 27 tras quitar 3 finalizados. ⚠️ La segunda petición automática y el
+reintento tras un fallo real solo se han probado sin red, con una búsqueda falsa.
+
+---
+
+## 18. Cambiar de vista con la página conservada 🆕 *(2026-10-28, cierra B13)*
+
+📖 `main_window.py`: `ViewPage`, `show_view()`, `clear_frame()`. Hasta el 2026-10-28 cada cambio de
+vista destruía y rehacía todos sus widgets (226-466 ms).
+
+```mermaid
+sequenceDiagram
+    participant U as Usuario
+    participant V as 🖥️ Vista
+    participant MW as MainWindow
+    participant P as AnimesPersistence
+
+    U->>V: pulsa su destino en la barra
+    V->>P: lee lo de siempre (filas, estrenos…)
+    V->>V: calcula su firma con lo leído
+    V->>MW: show_view(self, firma)
+    MW->>MW: clear_frame(): cierra el reproductor, esconde las páginas (grid_remove), destruye la ficha
+    alt la página existe y la firma coincide
+        MW->>MW: la vuelve a colocar, yview_moveto(0)
+        MW-->>V: None
+        V->>V: solo refresh(urgent=True) de EpisodeRefresher si le toca
+    else
+        MW->>MW: vacía la página (o la crea, width=1, height=1) y guarda deepcopy(firma)
+        MW->>MW: update_idletasks() si aún mide 1 px (trampa 75)
+        MW-->>V: la página
+        V->>V: construye en ella, como antes en content_frame
+    end
+```
+
+**La invalidación es la firma, no un aviso.** Ningún camino de escritura tiene que acordarse de
+invalidar: si cambió algo, la BD ya no coincide con lo pintado y la vista se reconstruye.
+
+| Lo que cambia | Qué se reconstruye al volver |
+|---|---|
+| Un estado desde la ficha | las vistas cuyo contenido cambia (✅ a Pendiente: Favoritos, Pendientes, Finalizados y Buscar; Viendo se reutiliza) |
+| «Empezar» en Pendientes | Viendo y Pendientes |
+| Fin de episodio en el reproductor | Viendo y la banda de Nuevos lanzamientos |
+| Refresco de episodios (`EpisodeRefresher`) | la fila se repinta **en el sitio**, también con la vista oculta; la entrada siguiente reconstruye |
+| «Actualizar a X» (`migrate_anime_identity`) | las vistas donde está la fila |
+| Calificar en Favoritos, cambiar el orden, buscar | nada: lo hace la propia vista, y no entra en la firma |
+
+| Vista | Firma |
+|---|---|
+| Nuevos lanzamientos | `(id, título)` de cada estreno + subtítulo (lleva el proveedor) + filas de «Retomar» |
+| Favoritos · Finalizados · Pendientes | filas (`saved_rows_signature()`) + pósters en disco |
+| Viendo | lo anterior + últimos vistos (deciden el panel lateral) |
+| Buscar | `(anime_id, título, 4 estados)` de toda la biblioteca (deciden los sellos) |
+
+**Se conserva** al volver el texto del buscador local y su filtro, y la página del paginador; el
+desplazamiento **no** (siempre arriba, como antes). ✅ Medido: 37-136 ms al volver, frente a 226-466
+([12 §4](12-deuda-tecnica-y-roadmap.md), B13).

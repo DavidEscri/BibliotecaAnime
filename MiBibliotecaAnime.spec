@@ -1,6 +1,6 @@
 # -*- mode: python ; coding: utf-8 -*-
 
-APP_VERSION = "0.4.2"
+APP_VERSION = "0.5.0"
 
 block_cipher = None
 
@@ -65,6 +65,7 @@ a = Analysis(
         'gui.theme',
         'gui.components.anime_row',
         'gui.components.empty_state',
+        'gui.components.franchise_cards',
         'gui.components.genre_chips',
         'gui.components.order_menu',
         'gui.components.pager',
@@ -74,12 +75,16 @@ a = Analysis(
         'gui.components.side_panel',
         'gui.components.sidebar',
         'gui.components.status_pill',
+        'gui.components.tab_bar',
         'gui.components.video_player',
         'gui.components.view_header',
         'gui.anime_window',
+        'gui.episode_refresher',
+        'gui.franchise_service',
         'gui.main_window',
         'utils.buttons.utilsButtons',
         'utils.db.sqlite',
+        'utils.http_session',
         'utils.utils',
         # El binding de libmpv: video_player lo importa dentro de load_mpv(), después de poner la DLL en la ruta, y el análisis estático no lo ve.
         'mpv'

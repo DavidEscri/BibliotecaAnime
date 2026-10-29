@@ -2,8 +2,8 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-10-20 · rama `feature/reproductor-embebido` · último commit de código **`f3fc229`** (fase 5 del reproductor) |
-| **Última revisión** | 2026-10-20 (**reproductor in-app**): **§9 nuevo**, los **hosters**: qué entrega cada uno, con qué cabeceras y con qué caducidad, por qué la resolución **no** es un método de `AnimeProvider` y cómo se diagnostica uno que dejó de resolver. §6 gana la fila que remite allí. JKAnime convierte en absolutas las URLs de servidor relativas (Okru, `urljoin`). Antes, 2026-08-16: `PROVIDER_ID` deja de ser una cadena y pasa a ser **`AnimeProviderId`** (§1); `provider_info()` nuevo; el fallback ahora **estampa** quién respondió (§5) |
+| **Fecha** | 2026-10-28 · rama `release/0.5.0` · último commit de código **`7bbbb3c`** |
+| **Última revisión** | 2026-10-28 (**versión 0.5.0**): §1 gana el **cuarto atributo obligatorio** (`PROVIDER_SHORT_NAME`), el atributo opcional `RELATIONS_CARRY_FORMAT` y **dos métodos no abstractos** (`get_anime_relations` y `genre_filters`, con su gancho `_genre_from_slug`); §3 gana **«Relaciones, formato y géneros»** (los códigos de `relations`, `category.malId`, el recorte del array y el *fallback* al DOM; el catálogo y sus géneros con **O**); §3b gana **«Temporadas y relacionados»** (la sección con `id` repetidos, el paréntesis que no siempre es formato, la ficha ligera de **una** petición y el 429 del directorio). Antes, 2026-10-20 (**reproductor in-app**): **§9 nuevo**, los **hosters**: qué entrega cada uno, con qué cabeceras y con qué caducidad, por qué la resolución **no** es un método de `AnimeProvider` y cómo se diagnostica uno que dejó de resolver. §6 gana la fila que remite allí. JKAnime convierte en absolutas las URLs de servidor relativas (Okru, `urljoin`). Antes, 2026-08-16: `PROVIDER_ID` deja de ser una cadena y pasa a ser **`AnimeProviderId`** (§1); `provider_info()` nuevo; el fallback ahora **estampa** quién respondió (§5) |
 | **Cubre** | `src/APIs/common/animeProviderMgr.py`, `src/APIs/common/models.py`, `src/APIs/animeav1/animeav1.py`, `src/APIs/animeflv/animeflv.py`, `src/APIs/jkanime/jkanime.py`, `src/APIs/resolvers/` |
 
 Procedencia: ✅ verificado en ejecución contra los sitios reales el 2026-07-28 · 📖 leído en código ·
@@ -13,13 +13,15 @@ Procedencia: ✅ verificado en ejecución contra los sitios reales el 2026-07-28
 
 ## 1. El contrato `AnimeProvider`
 
-📖 `animeProviderMgr.py:24-128`.
+📖 `animeProviderMgr.py:26-176`.
 
 ```python
 class MiProveedor(AnimeProvider):
-    PROVIDER_ID   = AnimeProviderId.MISITIO   # ← ENUM, no una cadena (2026-08-16)
-    PROVIDER_NAME = "MiSitio"                 # nombre legible para la UI
-    BASE_URL      = "https://misitio.com"
+    PROVIDER_ID         = AnimeProviderId.MISITIO   # ← ENUM, no una cadena (2026-08-16)
+    PROVIDER_NAME       = "MiSitio"                 # nombre legible para la UI
+    PROVIDER_SHORT_NAME = "MS"                      # siglas (2026-10-28): marcan lo que aporta este sitio
+    BASE_URL            = "https://misitio.com"
+    RELATIONS_CARRY_FORMAT = False                  # opcional: sus relacionados traen formato
 
     def search_animes_by_genres_and_order(self, genres: List[AnimeGenreFilter],
                                           order: str = None,
@@ -31,11 +33,30 @@ class MiProveedor(AnimeProvider):
     def get_anime_info(self, anime_id) -> AnimeInfo | None: ...
 ```
 
-**Cinco métodos abstractos**, ni uno más. `is_available(timeout=5.0)` (`:110-126`) tiene
+**Cinco métodos abstractos**, ni uno más. `is_available(timeout=5.0)` (`:165-175`) tiene
 implementación por defecto (un `GET BASE_URL`) y es opcional sobrescribirla.
 
-🆕 `provider_info()` (`:77-85`) es un `classmethod` **ya implementado**: devuelve un `ProviderInfo`
-construido desde los 3 atributos de clase. No hay que escribirlo, y es lo que consume la GUI para
+🆕 **Y desde el 2026-10-28, dos métodos no abstractos más**, que un proveedor sobrescribe solo si le
+compensa:
+
+| Método | Por defecto | Quién lo sobrescribe |
+|---|---|---|
+| `get_anime_relations(anime_id)` (`:122-132`) | `get_anime_info(anime_id)` | **JKAnime**: su ficha completa cuesta dos peticiones (la página y el POST de episodios) y para leer relaciones basta la primera ([§3b](#3b-jkanime--las-dos-técnicas-a-la-vez-2026-08-06)) |
+| `genre_filters(genres)` (`:134-152`), **sin red** | traduce cada slug con `_genre_from_slug()` (`:154-163`), que es `AnimeGenreFilter(slug)`; lo que no tenga equivalente se descarta con **un** aviso por (proveedor, slug) y sesión | **JKAnime** sobrescribe solo el gancho `_genre_from_slug` con `_GENRES_FROM_SLUG`, la inversa de su tabla de traducción |
+
+`get_anime_relations` devuelve una ficha **sin garantía de episodios**: sirve para título, formato,
+póster y relacionados. Lo usa el recorrido de la franquicia (`gui/franchise_service.py`,
+[03 §15](03-flujos-de-ejecucion.md)). `RELATIONS_CARRY_FORMAT = True` declara que los relacionados de
+la ficha **traen su propio formato** (hoy solo JKAnime): es lo que permite al servicio pedir **una**
+ficha a ese sitio para completar los formatos que no sabe otro.
+
+En el manager, sus dos wrappers **validan el proveedor** antes de nada (trampa 13): 
+`get_anime_relations(anime_id, provider_id)` (`:396-411`) va **siempre** con `strict=True` y sin
+parámetro `strict` —un slug solo significa algo en el sitio que lo dio— y `genre_filters(genres,
+provider_id)` (`:427-438`) devuelve `[]` si el proveedor no está registrado.
+
+🆕 `provider_info()` (`:65-72`) es un `classmethod` **ya implementado**: devuelve un `ProviderInfo`
+construido desde los 4 atributos de clase. No hay que escribirlo, y es lo que consume la GUI para
 poblar el desplegable — así no existe en ningún sitio una lista paralela de nombres que mantener.
 
 ### 🆕 `PROVIDER_ID` es un `AnimeProviderId`, no una cadena *(2026-08-16)*
@@ -47,9 +68,9 @@ que **elegirlo bien es una decisión permanente**.
 
 ### Validación en `__init_subclass__`
 
-✅ Verificado. `:54-75`. Dos comprobaciones, las dos **en el momento del import**, no al usar la clase:
+✅ Verificado. `:50-63`. Dos comprobaciones, las dos **en el momento del import**, no al usar la clase:
 
-1. Falta cualquiera de los 3 atributos de clase →
+1. Falta cualquiera de los **4** atributos de clase (`PROVIDER_SHORT_NAME` desde el 2026-10-28) →
    `NotImplementedError: Incompleto debe definir el atributo de clase 'PROVIDER_ID'`
 2. 🆕 `PROVIDER_ID` no es un miembro de `AnimeProviderId` (`:71-75`) →
    `NotImplementedError: MiProveedor.PROVIDER_ID debe ser un miembro de AnimeProviderId, no str`
@@ -58,9 +79,9 @@ La segunda existe porque el registro **indexa por enum**: dejar ahí la cadena `
 el proveedor bajo una clave que nadie busca, y el fallo no aparecería hasta el primer `get()` fallido
 —probablemente en otra sesión, y sin relación aparente con la causa—.
 
-> ✅ **Trampa poco intuitiva**: la condición es `if ABC not in cls.__bases__` (`:59`). Solo
+> ✅ **Trampa poco intuitiva**: la condición es `if ABC not in cls.__bases__` (`:52`). Solo
 > `AnimeProvider` lista `ABC` entre sus bases directas. Por tanto **cualquier** subclase —incluida una
-> clase base intermedia que quieras dejar abstracta— está obligada a definir los 3 atributos.
+> clase base intermedia que quieras dejar abstracta— está obligada a definir los 4 atributos.
 > No puedes hacer `class ProveedorHTMLBase(AnimeProvider): ...` sin darle valores de relleno.
 
 ### Reglas que toda implementación debe cumplir
@@ -72,7 +93,13 @@ el proveedor bajo una clave que nadie busca, y el fallo no aparecería hasta el 
 4. ⚠️ *No escrito en el contrato, pero asumido por la GUI*: en los **listados**, `synopsis`, `genres`
    y `episodes` valen `None`; solo `get_anime_info` los rellena. La precarga de recientes
    (`main_window.py:296`) y `recentAnimes.py:87` dependen de ello.
-5. 🆕 **No rellenes `AnimeInfo.provider_id`.** Lo estampa el manager al responder (§5), que es el único
+5. 🆕 *(2026-10-28)* En la **ficha** (`get_anime_info` / `get_anime_relations`), `related` es una
+   lista —`[]` si el anime no tiene relacionados— y `format` el formato, o `None` si no se reconoce.
+   **`related = None` significa «este proveedor no sabe dar relaciones»** (AnimeFLV, y todos los
+   listados): la ficha distingue «no tiene» de «no lo sé» y en el segundo caso **no pinta la pestaña**.
+   Lo que no sea precuela, secuela o versión alternativa se traduce a `OTHER` **dentro del proveedor**
+   ([trampa 59](10-invariantes-y-trampas.md)).
+6. 🆕 **No rellenes `AnimeInfo.provider_id`.** Lo estampa el manager al responder (§5), que es el único
    que sabe cuál de los proveedores acabó contestando cuando entra el fallback. Un proveedor que lo
    rellenara a mano mentiría en cuanto alguien llamara a su método directamente.
 
@@ -88,6 +115,7 @@ el proveedor bajo una clave que nadie busca, y el fallo no aparecería hasta el 
 | `PROVIDER_ID` | `AnimeProviderId.ANIMEAV1` | `AnimeProviderId.JKANIME` | `AnimeProviderId.ANIMEFLV` |
 | `PROVIDER_ID.value` (lo que se persiste) | `animeav1` | `jkanime` | `animeflv` |
 | `BASE_URL` | `https://animeav1.com` | `https://jkanime.net` | `https://www3.animeflv.net` |
+| 🆕 `PROVIDER_SHORT_NAME` | `AV1` | `JK` | `FLV` |
 | Tecnología del sitio | **SvelteKit** | **Laravel** | HTML clásico |
 | Técnica de parseo | regex sobre payload JS + DOM | **las dos**: CSS en portada/búsqueda/ficha, payload JS en directorio y episodios | selectores CSS |
 | Formato de `anime_id` | slug: `one-piece` | slug: `one-piece` | slug: `one-piece-tv` |
@@ -102,7 +130,10 @@ el proveedor bajo una clave que nadie busca, y el fallo no aparecería hasta el 
 | Orden `CALIFICACIÓN` | ⚠️ **no soportado**, avisa y devuelve el orden del sitio (`:352-357`) | ⚠️ se sirve con **popularidad**, que no es lo mismo | servidor, `&order=rating` |
 | Filtrar por varios géneros | ✅ sí, repite `genre=` | ❌ **solo el primero** (el `<select>` del sitio es de selección única) | ✅ sí |
 | Traducción de géneros | ❌ no la necesita | ✅ **10 de 40** | ❌ no la necesita |
-| Reintentos en `get_anime_info` | 3, timeout 5 s, `sleep(1)` (`:184-241`) | ninguno (1 intento) | 3, timeout 2 s, `sleep(1)` (`:186-233`) |
+| Reintentos en `get_anime_info` | 3, timeout 5 s, `sleep(1)` (`:201-276`) | ninguno (1 intento) | 3, timeout 2 s, `sleep(1)` (`:186-233`) |
+| 🆕 `related` / `format` de la ficha | payload `relations` + `category.malId`; **sin formato** en la relación, **con** año y póster | sección «Temporadas y relacionados» + `li[rel='tipo']`; **con** formato en la relación, sin año ni póster | ❌ `None` (no sabe darlas) |
+| 🆕 `get_anime_relations` | = `get_anime_info` (1 GET, **3 reintentos**) | **1 GET**, sin el POST | = `get_anime_info` |
+| 🆕 Varios géneros en el catálogo | se combinan con **O** | solo el primero | ⚠️ sin comprobar |
 | Estado general | **operativo** | **operativo** | **caído / en desuso** (confirmado por el usuario) |
 
 > ✅ **JKAnime es el primer proveedor que sí traduce géneros.** AnimeAV1 y AnimeFLV usan literalmente
@@ -201,6 +232,67 @@ resto contiene `/`, se salta (`:259`). Deduplica con `seen_ids`.
 📖 `__get_last_page` (`:278-290`): `max` de todos los `?page=N` de la página, sin depender del
 paginador. ✅ Devolvió 50 para acción+aventura.
 
+### Relaciones, formato y géneros 🆕 *(2026-10-28, versión 0.5.0)*
+
+✅ Inventariado el 2026-10-28 contra 9 fichas reales y cotejado con la etiqueta del DOM de cada
+tarjeta. 📖 `animeav1.py:39-63` (tablas) y `:371-497` (extracción).
+
+**Relacionados** — el payload que `get_anime_info` **ya descarga** trae al final un array:
+
+```js
+relations:[{type:2,destination:{id:317,slug:"kusuriya-no-hitorigoto-2nd-season",
+            title:"Kusuriya no Hitorigoto 2nd Season",startDate:"2025-01-10"}}]
+```
+
+| `type` | Etiqueta del DOM | `AnimeRelationType` |
+|---|---|---|
+| `1` | Precuela | `PREQUEL` |
+| `2` | Secuela | `SEQUEL` |
+| `4` | Versión Alternativa | `ALTERNATIVE` |
+| `6`, `7`, `8`, `10` | Resumen, Historia completa, **Historia principal**, Otro | `OTHER`, sin aviso |
+| cualquier otro | — | `OTHER` **con un `print`** (⚠️ el 3, el 5 y el 9 no han salido en ninguna muestra) |
+
+⚠️ «Historia principal» (`8`) apunta de una película u OVA **a la serie madre**: no es una precuela
+([trampa 59](10-invariantes-y-trampas.md)).
+
+- **El array se recorta contando corchetes y respetando las cadenas** (`__extract_js_array`,
+  `:464-497`), porque hay títulos con `]` («[Oshi no Ko]», [trampa 60](10-invariantes-y-trampas.md)).
+  Cada entrada se parte por `{type:` y sus campos salen con **regex independientes del orden**; las
+  cadenas se des-escapan con `json.loads` (`_unescape_js`).
+- **Año**: los cuatro primeros dígitos de `startDate`. **Póster**: `cdn.animeav1.com/covers/{id}.jpg`
+  con el `id` de `destination` (`COVER_URL`, `:30`), gratis y sin petición extra.
+- **La relación no trae formato**: el de cada relacionado solo se sabe abriendo su ficha, o
+  preguntando a otro sitio (`RELATIONS_CARRY_FORMAT` queda en `False`).
+- **Fallback**: si el payload no trae `relations`, `__extract_relations_from_dom` (`:430-462`) lee la
+  sección «Relacionados» del DOM (`main h2` → `section` → `article`, con `header h3`, `header span`,
+  `a[href^='/media/']` e `img`). ✅ Probado offline: da **exactamente** lo mismo que el payload en 3
+  fichas (29 relacionados en One Piece). ⚠️ No se ha visto actuar en vivo.
+- Sin sección, `related = []` (no `None`): AnimeAV1 **sí sabe** dar relaciones.
+
+**Formato del propio anime** — `category:{id:…,name:"TV Anime",slug:"tv-anime",malId:"TV"}`, leído
+de **`malId`**, que es un código estable (`__extract_format`, `:371-384`):
+
+| `malId` | `AnimeFormat` |
+|---|---|
+| `TV` | `SERIES` |
+| `Movie` | `MOVIE` |
+| `OVA` | `OVA` |
+| `TV Special` | `SPECIAL` (✅ es lo que da el sitio; no `Special`) |
+| `Special`, `ONA` | `SPECIAL`, `ONA` — ⚠️ por si acaso, no han salido |
+
+**Géneros del catálogo** — ✅ 2026-10-28: `catalogo?genre=…` trae en su payload los **46 géneros**
+del sitio, y **33 son idénticos** a los `value` de `AnimeGenreFilter`, así que AnimeAV1 usa el
+`_genre_from_slug` por defecto. Los 13 que solo existen allí (`antropomorfico`, `detectives`,
+`elenco-adulto`, `gore`, `gourmet`, `idols-hombre`, `idols-mujer`, `isekai`, `juegos-estrategia`,
+`mahou-shoujo`, `mitologia`, `shoujo-ai`, `shounen-ai`) se descartan con un aviso por sesión. Del enum
+faltan en el sitio `demencia`, `demonios`, `juegos`, `magia`, `policia`, `yaoi` y `yuri`.
+
+🔴 **Dos géneros en el catálogo se combinan con O, no con Y** ([trampa 66](10-invariantes-y-trampas.md)):
+«acción + romance» trae animes de solo romance. 20 resultados por página. El catálogo **no ordena por
+calificación** (`__apply_client_side_order` ordena en el cliente lo que sabe); admite `order` en la
+URL, pero ⚠️ sus valores no salen en el HTML y no se investigaron. Ningún resultado de búsqueda trae
+sus géneros (la tarjeta y su payload: `id`, `title`, `synopsis`, `categoryId`, `slug`).
+
 ---
 
 ## 3b. JKAnime — las dos técnicas a la vez *(2026-08-06)*
@@ -251,6 +343,9 @@ salen del HTML de la ficha:
 2. el token de `<meta name="csrf-token">`;
 3. las cookies de sesión — por eso `get_anime_info` abre una `requests.Session()` propia y encadena
    ficha y AJAX en ella.
+   ⚠️ **Esa sesión no puede ser la de `thread_session()`** (2026-10-27): la del hilo **no guarda
+   cookies a propósito**, y con ella el AJAX daría 419. JKAnime se quedó fuera de B16 por eso y
+   porque el resto de sus peticiones son de una en una por hilo, donde reutilizar no gana nada.
 
 > ⚠️ **Dos identidades**, igual de traicioneras que las de la ficha de detalle: el **slug**
 > (`hunter-x-hunter-2011`) es lo que viaja en `AnimeInfo.id` y en las URL; el **id numérico** (`429`)
@@ -307,9 +402,49 @@ devuelve de la Z a la A:
 > negativo: `.hack//G.U. Trilogy` va primero allí y tercero aquí. Verificar que es **ascendente**,
 > no que coincide carácter a carácter.
 
+### Temporadas y relacionados 🆕 *(2026-10-28, versión 0.5.0)*
+
+✅ Inventariado el 2026-10-28. 📖 `jkanime.py:69-87` (tablas) y `:482-553` (extracción).
+
+La ficha trae una sección `<h3>Temporadas y relacionados</h3>` con bloques
+`<h5 id="aditional">Secuela</h5>` seguidos de `<a href="https://jkanime.net/<slug>/">Título (Serie)</a><br>`.
+
+- **Todos los `<h5>` llevan el mismo `id="aditional"`** ([trampa 61](10-invariantes-y-trampas.md)):
+  `__extract_relations` recorre **en orden** los hermanos `h5`/`a` del `<h3>`, y el tipo de cada
+  enlace es el del último `<h5>`.
+- Tipos vistos y su traducción (etiqueta normalizada con `normalize_title()`, sin tildes, como las
+  escribe el sitio): **Precuela** → `PREQUEL`, **Secuela** → `SEQUEL`, **Version alternativa** →
+  `ALTERNATIVE`; Adicional, Derivado, Resumen, Personaje incluido, Otro, **Predecesor** y **Version
+  completa** → `OTHER` sin aviso; cualquier otro, `OTHER` con un `print`. «Predecesor» es la historia
+  madre, no una precuela ([trampa 59](10-invariantes-y-trampas.md)).
+- **Formato en el paréntesis final** (Serie, OVA, Pelicula, Especial, ONA), que `__split_format` solo
+  separa **si es un formato conocido**: «Hunter x Hunter (2011)» se queda entero
+  ([trampa 62](10-invariantes-y-trampas.md)). Por eso `RELATIONS_CARRY_FORMAT = True`.
+- **Sin año ni póster** en la relación. Los de la línea principal salen de las páginas que el
+  recorrido ya descarga (`og:image`); los «otros» van sin póster.
+- **Formato del propio anime**: `<li rel="tipo"><span>Tipo:</span> Serie</li>`, que aparece **dos
+  veces** en la página; vale la primera (`__extract_format`).
+
+**La ficha ligera es una petición.** `get_anime_info` = `__get_anime_page()` (`:317-359`, la página)
+**+** el POST de episodios con CSRF; `get_anime_relations` (`:303-310`) se queda en la primera. ✅
+Medido: el recorrido de SnK (7 temporadas) son **6 GET y ningún POST**.
+
+**Géneros al enum común**: `_genre_from_slug` (`:365-372`) usa `_GENRES_FROM_SLUG` (`:56`), la inversa
+de `_GENRE_TRANSLATIONS`: `colegial` → `ESCOLARES`, `sci-fi` → `CIENCIA_FICCIÓN`, `autos` → `CARRERAS`,
+`nios` → `INFANTIL`. El directorio admite **un solo** género, así que «Te puede interesar» busca por el
+primero.
+
+🔴 **El directorio responde 429 con su propio texto** si se le pide de seguido («Estas realizando
+demasiadas peticiones… el bloqueo dura 60 segundos»), también tras las peticiones de una sesión
+anterior del mismo día. La búsqueda devuelve `([], 1)` y parece vacía
+([trampa 65](10-invariantes-y-trampas.md)).
+
 ---
 
 ## 4. AnimeFLV — selectores CSS (el punto de rotura)
+
+🆕 *(2026-10-28)* En desuso: **no se le añadieron relaciones**. Su `related` queda en `None` («no lo
+sé») y la ficha no enseña la pestaña de temporadas; solo ganó `PROVIDER_SHORT_NAME = "FLV"`.
 
 📖 Los selectores concretos, que son exactamente lo que se rompe cuando el sitio cambia:
 
@@ -476,7 +611,9 @@ en un anime guardado dejaría de resolver. Con fallback degrada a una petición 
 `resolve_anime_in_provider(anime_info, provider_id)` hace la traducción:
 
 1. `search_animes_by_query(título, provider_id=…, strict=True)`.
-2. Compara con `normalize_title()` (minúsculas, sin tildes, resto a espacios).
+2. Compara con `title_similarity()`: `normalize_title()` (minúsculas, sin tildes, resto a espacios)
+   y, si los **números** del título no coinciden (`title_numbers()`: «2nd», «Season 2» y «II» son
+   todos 2), similitud **0**.
 3. Coincidencia exacta normalizada → gana; si no, mejor `difflib.SequenceMatcher.ratio()` ≥
    `TITLE_MATCH_THRESHOLD` (**0.75**).
 4. `get_anime_info(match.id, provider_id=…, strict=True)`.
@@ -500,6 +637,13 @@ sitios en marcha:
 a menudo de lo que se suponía —los tres normalizan igual el título de MyAnimeList—, así que el margen
 sobra. Lo que el umbral protege no es la variación ortográfica sino los **falsos positivos de saga**
 («One Piece» vs. «One Piece Film: Red»), y para eso 0.75 ya es holgado.
+
+🔴 **Corrección del 2026-10-26: para las temporadas no era holgado.** Cada temporada es un anime aparte
+en los dos sitios, y como texto se parecen más que el umbral: «Kusuriya no Hitorigoto» frente a «… 2nd
+Season» da 0.80, y la 2.ª frente a la 3.ª, 0.939. Ningún umbral las separa sin rechazar variantes
+legítimas, así que ahora las separan los **números** del título ([trampa 58](10-invariantes-y-trampas.md)).
+✅ Relocalizando las 46 filas de la biblioteca en el otro proveedor, **0** cambian de elección
+respecto al criterio anterior.
 
 ⚠️ **Lo que sigue sin verificarse**: un título que difiera **de verdad** entre sitios (un nombre
 localizado frente al romaji). No ha aparecido ninguno en la biblioteca del usuario. Si algún día
@@ -557,11 +701,19 @@ AnimeAV1Singleton().get_anime_info("one-piece").synopsis
 
 ```python
 def _fetch(url: str, **kwargs) -> requests.Response:
-    response = requests.get(url, **kwargs)
+    kwargs.setdefault("timeout", 10)
+    response = thread_session().get(url, **kwargs)
     if "charset" not in response.headers.get("Content-Type", "").lower():
         response.encoding = "utf-8"
     return response
 ```
+
+🆕 *(2026-10-27, B16)* Pide con **`thread_session()`** (`utils/http_session.py`) en vez de
+`requests.get`: una `requests.Session` **por hilo**, que reutiliza la conexión TCP + TLS entre las
+peticiones de un mismo hilo —la precarga de la portada y el refresco de episodios piden ~20 fichas
+seguidas— y **no guarda cookies**, así que cada petición se comporta como el `requests.get` suelto de
+antes. El arreglo del charset no cambia: es sobre la respuesta, no sobre cómo se pide
+([07 §1c](07-concurrencia-e-hilos.md)).
 
 Se fija UTF-8 **solo si el servidor no declara charset**, para respetar el suyo si algún día empieza a
 declararlo. No se usa `apparent_encoding` (detección estadística): es más lento en páginas grandes y
@@ -579,8 +731,9 @@ puede acertar mal, mientras que aquí el encoding real del sitio es un hecho ver
 ⚠️ Sigue sin comprobarse si AnimeFLV tiene el mismo problema — está en desuso y no sirve servidores
 ([§2](#2-tabla-comparativa)), así que no se ha diagnosticado.
 
-> **Invariante**: debe haber **exactamente una** aparición de `requests.get` en `animeav1.py`, la de
-> dentro de `_fetch`. Comprobable con `grep -c "requests.get" src/APIs/animeav1/animeav1.py` → `1`.
+> **Invariante**: debe haber **exactamente una** petición en `animeav1.py`, la de dentro de `_fetch`.
+> Comprobable con `git grep -nE "requests\.(get|post)|\.get\(url" -- src/APIs/animeav1/` → solo
+> la línea de `thread_session().get(url, **kwargs)`. *(Hasta el 2026-10-27 era `requests.get`.)*
 >
 > **Y el código no repara lo ya guardado**: al arreglarlo había 3 filas con la sinopsis rota en la BD
 > real, que hubo que re-descargar aparte ([12 §1](12-deuda-tecnica-y-roadmap.md)).

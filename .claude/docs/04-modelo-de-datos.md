@@ -2,8 +2,8 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-08-21 · rama `feature/ui-redisign` · la fase 9 que entonces estaba sin commitear entró en **`bd2cd14`**; el documento no se ha revisado desde entonces |
-| **Última revisión** | 2026-08-16 — **`provider_id` implementada**: columna nueva en `ANIMES` (§2, §3), `AnimeProviderId` y `ProviderInfo` en `models.py` (§1b), `migrate_anime_identity()` y `get_all_animes()` (§8). La migración automática se ha ejecutado **sobre la BD real** por primera vez (§3) |
+| **Fecha** | 2026-10-28 · rama `release/0.5.0` · sobre **`7bbbb3c`** |
+| **Última revisión** | 2026-10-28 — **versión 0.5.0**: §1c nuevo (`RelatedAnime`, `AnimeRelationType`, `AnimeFormat`, y los campos `format` y `related` de `AnimeInfo`, que **no se persisten**); `ProviderInfo.short_name` en §1b; anclas de `models.py` reubicadas. **El esquema de `ANIMES` no cambia.** Antes, 2026-08-16 — **`provider_id` implementada**: columna nueva en `ANIMES` (§2, §3), `AnimeProviderId` y `ProviderInfo` en `models.py` (§1b), `migrate_anime_identity()` y `get_all_animes()` (§8). La migración automática se ha ejecutado **sobre la BD real** por primera vez (§3) |
 | **Cubre** | `src/APIs/common/models.py`, `src/dataPersistence/animesPersistence.py`, `src/dataPersistence/userPersistence.py`, `src/utils/db/sqlite.py` |
 
 Procedencia: ✅ verificado en ejecución (sobre una **copia** de la BD real, 24-28 filas) · 📖 leído en
@@ -38,6 +38,10 @@ Claves declaradas en `UserSettingKey`:
 | Clave | Valor | Estado |
 |---|---|---|
 | `default_anime_provider` | **`AnimeProviderId.value`** (`"animeav1"`, `"jkanime"`, `"animeflv"`) | ✅ en uso |
+| `sidebar_collapsed` | `"0"` desplegada · `"1"` plegada | ✅ en uso |
+| `last_watched_anime_ids` | hasta 3 `anime_id` separados por comas, el más reciente primero | ✅ en uso |
+| `favourites_order` | `"rating"` o `"title"` | ✅ en uso |
+| `pending_order` | `"shortest"`, `"longest"` o `"title"` | ✅ en uso (2026-10-26) |
 | `default_manga_provider` | `value` del proveedor de manga | 🔮 reservada (comentada en el enum) |
 
 > ⚠️ **Frontera enum ↔ texto.** Desde el 2026-08-16 el proveedor es un enum (`AnimeProviderId`, §1b) en
@@ -71,7 +75,7 @@ Razonamiento de por qué es una BD aparte y no una tabla de `DB_Animes.db`:
 **No son intercambiables.** `AnimeInfo` es lo que devuelve un proveedor; `AnimeRecord` es una fila de
 `ANIMES`. Confundirlos es el error más frecuente en este repo.
 
-| `AnimeInfo` (`models.py:118-131`) | `AnimeRecord` (`animesPersistence.py:63-83`) | Trampa |
+| `AnimeInfo` (`models.py:149-163`) | `AnimeRecord` (`animesPersistence.py:63-83`) | Trampa |
 |---|---|---|
 | `id: Union[str,int]` | **`anime_id: str`** | ⚠️ **nombres distintos** |
 | — | `id: Optional[int]` = **PK autoincremental** | ⚠️ `AnimeInfo.id` ≠ `AnimeRecord.id` |
@@ -123,30 +127,31 @@ que acordarse de nada.
 
 ## 1b. `AnimeProviderId` y `ProviderInfo` — el proveedor como tipo
 
-📖 `models.py:18-47`. Antes de 2026-08-16 el proveedor era una **cadena suelta** (`"animeav1"`) que
+📖 `models.py:16-42`. Antes de 2026-08-16 el proveedor era una **cadena suelta** (`"animeav1"`) que
 viajaba por las firmas del manager. Al persistirlo hacía falta algo con nombre:
 
 ```python
-class AnimeProviderId(Enum):     # models.py:18-31
+class AnimeProviderId(Enum):     # models.py:16-24
     ANIMEAV1 = "animeav1"        # el value es lo que se guarda en BD
     JKANIME  = "jkanime"
     ANIMEFLV = "animeflv"
 
 @dataclass(frozen=True)
-class ProviderInfo:              # models.py:34-47
+class ProviderInfo:              # models.py:32-42
     id: AnimeProviderId
     name: str                    # "AnimeFLV" — lo que ve el usuario
     base_url: str
+    short_name: str              # "FLV" — siglas (2026-10-28, §1c)
 ```
 
 | Pieza | Dónde vive | Para qué |
 |---|---|---|
-| `AnimeProviderId` | `models.py:18` | Tipo del proveedor en **todas** las firmas, en `AnimeInfo.provider_id` y en la columna `ANIMES.provider_id` |
-| `ProviderInfo` | `models.py:35` | Ficha de identidad que consume la GUI (el desplegable). `frozen` porque describe una constante del código |
-| `AnimeProvider.provider_info()` | `animeProviderMgr.py:78-85` | La construye desde los atributos de clase del proveedor, para que **no exista una lista paralela de nombres** que mantener |
+| `AnimeProviderId` | `models.py:16` | Tipo del proveedor en **todas** las firmas, en `AnimeInfo.provider_id` y en la columna `ANIMES.provider_id` |
+| `ProviderInfo` | `models.py:33` | Ficha de identidad que consume la GUI (el desplegable). `frozen` porque describe una constante del código |
+| `AnimeProvider.provider_info()` | `animeProviderMgr.py:65-72` | La construye desde los atributos de clase del proveedor, para que **no exista una lista paralela de nombres** que mantener |
 
 **Añadir un proveedor implica añadir un miembro aquí**, además de la clase y el registro. Sin él,
-`__init_subclass__` (`animeProviderMgr.py:71-75`) revienta al importar con `NotImplementedError`: el
+`__init_subclass__` (`animeProviderMgr.py:50-63`) revienta al importar con `NotImplementedError`: el
 registro indexa por enum, así que una cadena suelta registraría el proveedor bajo una clave que nadie
 busca y el fallo no aparecería hasta el primer `get()` fallido. ✅ Verificado.
 
@@ -165,6 +170,53 @@ resultado (`ServerInfo`) se ignora en silencio.
 
 > `provider_id = None` en un `AnimeInfo` significa **«no pasó por el manager»** (lo construyó alguien a
 > mano, como la referencia que se le pasa a `resolve_anime_in_provider`). No significa «no se sabe».
+
+---
+
+## 1c. Relaciones y formato — `RelatedAnime`, `AnimeRelationType`, `AnimeFormat` 🆕 *(2026-10-28, versión 0.5.0)*
+
+📖 `models.py:99-135` y `:149-163`. Lo que un proveedor sabe de la **franquicia** de un anime.
+🔴 **No se persiste**: ni `ANIMES` ni `AnimeRecord` ganan columnas. Vive en memoria toda la sesión,
+en la caché de `FranchiseService` ([03 §15](03-flujos-de-ejecucion.md)), y se vuelve a pedir en la
+siguiente.
+
+```python
+class AnimeFormat(Enum):          # models.py:99-108 — los textos («Serie»…) son cosa de la GUI
+    SERIES = "series"; MOVIE = "movie"; OVA = "ova"; SPECIAL = "special"; ONA = "ona"
+
+class AnimeRelationType(Enum):    # models.py:111-120 — solo cuatro, a propósito (P3/P8)
+    PREQUEL = "prequel"; SEQUEL = "sequel"; ALTERNATIVE = "alternative"; OTHER = "other"
+
+@dataclass
+class RelatedAnime:               # models.py:123-134 — un relacionado, tal como lo anuncia la ficha
+    id: Union[str, int]           # slug en el MISMO proveedor que sirvió la ficha
+    title: str
+    relation: AnimeRelationType
+    format: Optional[AnimeFormat] = None   # None: la relación no lo trae (AnimeAV1)
+    year: Optional[int] = None             # solo AnimeAV1 (startDate)
+    poster: Optional[str] = None           # solo AnimeAV1 (covers/{id}.jpg)
+```
+
+`AnimeInfo` gana **dos campos al final y con default**, para que ninguna construcción existente
+cambie:
+
+| Campo | Valores | Quién lo rellena |
+|---|---|---|
+| `format: Optional[AnimeFormat]` | el formato, o `None` si no se reconoce | la ficha de AnimeAV1 (`category.malId`) y de JKAnime (`li[rel='tipo']`) |
+| `related: Optional[List[RelatedAnime]]` | 🔴 **`[]` = no tiene relacionados · `None` = el proveedor no sabe** | AnimeAV1 y JKAnime dan **siempre** lista en la ficha; AnimeFLV y **todos los listados**, `None` |
+
+La interfaz distingue los dos vacíos: sin relacionados, la pestaña no aparece; con `None` tampoco,
+pero además el servicio de franquicia ni lo intenta.
+
+- **Copias**: `replace()` (`__with_episodes()` de la ficha) y el `deepcopy` de
+  `EpisodeRefresher.cached_info()` conservan los campos nuevos. Las construcciones a mano de la GUI
+  parten de filas guardadas y dejan `related=None`, que es correcto: de una fila no se sabe.
+- **Tipos traducidos en el proveedor**: lo que no sea precuela, secuela o versión alternativa es
+  `OTHER` ([05 §3 y §3b](05-proveedores-y-scraping.md), [trampa 59](10-invariantes-y-trampas.md)).
+
+**`ProviderInfo.short_name`** (`models.py:33-42`): las siglas del proveedor (`AV1`, `JK`, `FLV`), campo
+**sin default** —solo lo construye `provider_info()` desde `PROVIDER_SHORT_NAME`—. La GUI marca con
+ellas lo que aporta un proveedor **distinto** del que sirve la ficha (P8), sin literales que mantener.
 
 ---
 
@@ -564,6 +616,6 @@ estados; el destino ocupado devuelve `False` sin tocar nada. ✅ Y **en producci
 ### `get_all_animes()`
 
 📖 `:319-331`. `SELECT *` sin filtro. Existe para la detección de duplicados por título
-(`find_saved_duplicate`, `anime_window.py:70-106`), que necesita ver **también** las filas sin ningún
+(`find_saved_duplicate`, `anime_window.py:207-236`), que necesita ver **también** las filas sin ningún
 estado activo: siguen ocupando una fila, y si no se miran se acaba creando un duplicado de algo que ya
 está. Es la única consulta de la clase que no filtra por estado ni por id.

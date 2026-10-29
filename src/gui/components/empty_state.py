@@ -1,7 +1,7 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "gui.components"
 __module__ = "empty_state.py"
-__version__ = "0.1"
+__version__ = "0.2"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 """Estado vacío de una vista: icono, una frase y una acción.
@@ -128,7 +128,7 @@ def _draw(draw_glyph: Callable[[ImageDraw.ImageDraw, float, str], None],
 class EmptyState(ctk.CTkFrame):
     """El hueco de una vista, explicado y con una salida.
 
-    Se coloca centrado porque la columna 0 del ``content_frame`` lleva peso.
+    Se coloca centrado porque la columna 0 de la página de cada vista lleva peso.
     """
 
     #: Alto del botón de acción. Es el de un control de una línea, no el de los
@@ -154,7 +154,7 @@ class EmptyState(ctk.CTkFrame):
 
         row = 0
         if icon is not None:
-            icon_label = ctk.CTkLabel(self, text="", image=icon)
+            icon_label = ctk.CTkLabel(self, text="", font=Theme.font(*Theme.T_UI), image=icon)
             icon_label.grid(row=row, column=0, pady=(0, 16))
             row += 1
 

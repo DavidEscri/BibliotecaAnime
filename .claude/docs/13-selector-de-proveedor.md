@@ -211,6 +211,13 @@ el episodio 5 en los dos sitios), así que los `watched_episodes` guardados sigu
 cambiar de proveedor. Es cierto para series normales; **no** necesariamente para animes partidos en
 temporadas con numeración distinta por sitio. Sin verificar.
 
+✅ **Lo que sí se verificó el 2026-10-26** es la otra mitad del problema de las temporadas: en
+AnimeAV1 y JKAnime **cada temporada es un anime aparte**, con su slug y su título («Kusuriya no
+Hitorigoto», «… 2nd Season», «… 3rd Season»), y los dos sitios las titulan igual. Lo que fallaba era
+**confundirlas entre sí** al decidir identidad por título: la 3.ª escribía en la fila de la 2.ª
+([trampa 58](10-invariantes-y-trampas.md)). Desde entonces dos títulos con números distintos nunca son
+el mismo anime.
+
 ### D6 — Resolución *cross-provider* por búsqueda de título + similitud
 
 **Decidido**: método nuevo `AnimeProviderManager.resolve_anime_in_provider(anime_info, provider_id)`.
@@ -220,6 +227,9 @@ Algoritmo:
 2. Normalizar títulos: minúsculas, sin tildes, sin caracteres no alfanuméricos.
 3. Coincidencia normalizada **exacta** → gana. Si no, mejor `difflib.SequenceMatcher.ratio()` con
    **umbral 0.75**; por debajo se considera «no encontrado».
+   🆕 **Desde el 2026-10-26** los pasos 2 y 3 son `title_similarity()`, que además da 0 si los
+   números del título no coinciden: con 0.75, «X» y «X 2nd Season» (0.80) pasaban por el mismo anime
+   ([trampa 58](10-invariantes-y-trampas.md)).
 4. `get_anime_info(match.id, provider_id=..., strict=True)` para traer la ficha completa.
 5. Devuelve `AnimeInfo` o `None`. Nunca lanza.
 
@@ -305,12 +315,14 @@ falta es tocar el esquema ni migrar: la tabla es clave/valor.
 | `SIDEBAR_COLLAPSED` 🆕 | `sidebar_collapsed` | `"0"` desplegada · `"1"` plegada | rediseño, fase 1 |
 | `LAST_WATCHED_ANIME_IDS` 🆕 | `last_watched_anime_ids` | hasta **3** `anime_id` separados por comas, el más reciente primero | rediseño, fase 2 |
 | `FAVOURITES_ORDER` 🆕 | `favourites_order` | `"rating"` o `"title"` | rediseño, fase 5 |
+| `PENDING_ORDER` 🆕 | `pending_order` | `"shortest"`, `"longest"` o `"title"` | 2026-10-26 |
 | *(reservada)* | `default_manga_provider` | `PROVIDER_ID` del proveedor de manga | 🔮 ver [§10](#10-preparación-para-la-convivencia-animemanga) |
 
 Cada una tiene su **par tipado** en `UserPersistence`, para que la GUI no maneje cadenas sueltas:
 `get_sidebar_collapsed()` / `set_sidebar_collapsed(bool)`,
 `get_last_watched_ids()` / `push_last_watched_id(anime_id)`,
-`get_favourites_order()` / `set_favourites_order(str)`.
+`get_favourites_order()` / `set_favourites_order(str)`,
+`get_pending_order()` / `set_pending_order(str)`.
 
 Tres detalles que no son obvios:
 
@@ -319,8 +331,11 @@ Tres detalles que no son obvios:
   silencio**. Lo hacen la banda «Retomar» de la portada y el panel lateral de «Viendo».
 - **El panel de «Viendo» recorre los tres**, no solo el primero: si el más reciente ya no está en esa
   pestaña —porque lo marcaste como finalizado—, el siguiente también es algo que estabas viendo.
-- **El orden de «Pendientes» NO se persiste**, aunque el de «Favoritos» sí. Vive en memoria; si se
-  quiere recordar, es un miembro más de `UserSettingKey`.
+- **Los dos órdenes guardan un código, no el texto del desplegable.** `favourites_order` y
+  `pending_order` persisten `"rating"`, `"shortest"`… y cada vista lleva su `ORDER_LABELS` para
+  traducirlo; así renombrar una opción no invalida lo guardado. Un valor que no se reconozca se lee
+  como «sin preferencia». El de «Pendientes» vivía solo en memoria hasta el 2026-10-26 y volvía a
+  «Más cortos primero» al reiniciar.
 
 ### API pública de `UserPersistence`
 
@@ -338,6 +353,8 @@ get_last_watched_ids() -> List[str]       # 🆕 rediseño, fase 2 (como mucho 3
 push_last_watched_id(anime_id) -> bool    #    lo pone el primero y recorta a 3
 get_favourites_order() -> str             # 🆕 rediseño, fase 5 ("rating" | "title")
 set_favourites_order(order) -> bool
+get_pending_order() -> str                # 🆕 2026-10-26 ("shortest" | "longest" | "title")
+set_pending_order(order) -> bool
 ```
 
 Más `UserPersistenceSingleton`, con el mismo patrón que el resto: `__new__` devuelve la **instancia
@@ -430,7 +447,7 @@ Cada fase deja la app **arrancable**. Si retomas la tarea, mira aquí dónde est
 | Fase | Qué entra | Estado |
 |---|---|---|
 | **1** | `userPersistence.py` + `DB_user.db` | ✅ 23/23 comprobaciones |
-| **2** | Métodos nuevos del manager (`get_provider_names`, `get_provider_id_by_name`, `get_anime_info_with_provider`, `normalize_title`, `resolve_anime_in_provider`). ⚠️ Los dos primeros **ya no existen**: los sustituyeron `list_provider_infos()` y `get_provider_info_by_name()` el 2026-08-16 | ✅ 26/26 |
+| **2** | Métodos nuevos del manager (`get_provider_names`, `get_provider_id_by_name`, `get_anime_info_with_provider`, `normalize_title`, `resolve_anime_in_provider`). ⚠️ Los dos primeros **ya no existen**: los sustituyeron `list_providers_info()` y `get_provider_info_by_name()` el 2026-08-16 | ✅ 26/26 |
 | **3** | Desplegable de la sidebar + persistencia + recarga de recientes ([D7](#d7--la-preferencia-se-lee-de-forma-síncrona-en-mainwindow__init__), [D8](#d8--al-cambiar-el-predeterminado-se-recarga-la-lista-de-recientes)) | ✅ verificado con la app real |
 | **4** | Desplegable de la ficha + identidad doble ([D5](#d5--identidad-de-visualización-vs-identidad-de-persistencia)) + `strict` en servidores | ✅ 25/25 sobre copia de la BD real |
 | **5** | Propagar `provider_id` en los 6 puntos de clic | ✅ escrito; ⚠️ no probado clic a clic |
@@ -590,7 +607,7 @@ Lo que esta tarea deja listo (y lo que no) para el punto grande del roadmap:
 |---|---|
 | Preferencia por tipo de medio | La clave es `default_anime_provider`, no `default_provider`. `default_manga_provider` es una fila más, **sin migración** |
 | Cualquier preferencia futura | Clave/valor genérico ([D2](#d2--tabla-clavevalor-genérica-no-una-columna-por-preferencia)): el desplegable global anime/manga/ambos de la esquina inferior izquierda ya tiene dónde guardarse |
-| Poblar el desplegable | **`list_provider_infos()`** es la única fuente del contenido del widget; cuando existan proveedores de manga se filtra por tipo de medio ahí, no en la GUI |
+| Poblar el desplegable | **`list_providers_info()`** es la única fuente del contenido del widget; cuando existan proveedores de manga se filtra por tipo de medio ahí, no en la GUI |
 | Identificar un proveedor | 🆕 `AnimeProviderId` + `ProviderInfo` ([04 §1b](04-modelo-de-datos.md)). `ProviderInfo` es donde irá el **tipo de medio** como un campo más; hoy tiene `id`, `name` y `base_url` |
 
 **Lo que NO resuelve**: `AnimeProviderManager` registra proveedores en un único diccionario plano, sin
@@ -734,6 +751,10 @@ una segunda fila del mismo anime, en silencio. Ahora `__confirm_save()` compara 
 normalizado contra **toda** la biblioteca (umbral **0.9**, muy por encima del 0.75 de búsqueda: aquí
 un falso positivo interrumpe con un diálogo por dos animes de la misma saga) y ofrece la salida
 correcta, que es la migración.
+⚠️ **El 0.9 no bastaba para las temporadas**: «… 3rd Season» y «… 2nd Season» se parecen 0.939. Y
+la misma función pone el sello de «Buscar», que abre la ficha **con esa fila**, así que el error no
+era un diálogo de más sino escribir en la fila de otra temporada. Desde el 2026-10-26 compara con
+`title_similarity()`, que exige los mismos números ([trampa 58](10-invariantes-y-trampas.md)).
 
 ### Los dos ajustes que salieron del uso real
 

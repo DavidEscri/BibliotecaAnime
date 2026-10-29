@@ -10,7 +10,7 @@ y el id numérico interno que exige ese endpoint no son intercambiables.
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "APIs.jkanime"
 __module__ = "jkanime.py"
-__version__ = "0.2"
+__version__ = "0.5"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 import json
@@ -22,8 +22,9 @@ from typing import Dict, List, Optional, Tuple, Union
 from bs4 import BeautifulSoup
 from urllib.parse import urlencode, urljoin, urlparse, quote
 
-from APIs.common.animeProviderMgr import AnimeProvider
-from APIs.common.models import AnimeGenreFilter, AnimeOrderFilter, AnimeProviderId, ServerInfo, EpisodeInfo, AnimeInfo
+from APIs.common.animeProviderMgr import AnimeProvider, AnimeProviderManager
+from APIs.common.models import (AnimeFormat, AnimeGenreFilter, AnimeInfo, AnimeOrderFilter, AnimeProviderId,
+                                AnimeRelationType, EpisodeInfo, RelatedAnime, ServerInfo)
 
 BASE_URL = "https://jkanime.net"
 SEARCH_URL = f"{BASE_URL}/buscar"
@@ -51,6 +52,8 @@ _GENRE_TRANSLATIONS: Dict[AnimeGenreFilter, str] = {
     AnimeGenreFilter.SUPERPODERES: "super-poderes",
     AnimeGenreFilter.SUSPENSO: "thriller",
 }
+# La inversa, para leer los géneros de una ficha: el resto de slugs son ya el value del enum.
+_GENRES_FROM_SLUG: Dict[str, AnimeGenreFilter] = {slug: genre for genre, slug in _GENRE_TRANSLATIONS.items()}
 
 # 'popularidad' se deja adrede sin 'orden': orden=asc invertiría el criterio.
 _ORDER_TRANSLATIONS: Dict[str, Dict[str, str]] = {
@@ -61,6 +64,26 @@ _ORDER_TRANSLATIONS: Dict[str, Dict[str, str]] = {
 # Rutas de primer nivel que NO son fichas de anime, para no colarlas como tales.
 _RESERVED_PATHS = {"directorio", "buscar", "estrenos", "top", "horario", "aleatorio",
                    "perfil", "registro", "login", "logout", "ajax", "jkplayer", "studio"}
+
+# Encabezados <h5> de «Temporadas y relacionados», ya normalizados; el resto se agrupa en OTHER.
+_RELATION_LABELS: Dict[str, AnimeRelationType] = {
+    "precuela": AnimeRelationType.PREQUEL,
+    "secuela": AnimeRelationType.SEQUEL,
+    "version alternativa": AnimeRelationType.ALTERNATIVE,
+}
+
+# Encabezados conocidos que el modelo común agrupa en OTHER sin aviso.
+_OTHER_RELATION_LABELS = {"adicional", "derivado", "resumen", "personaje incluido", "otro",
+                          "predecesor", "version completa"}
+
+# Formato del «Tipo:» de la ficha y del paréntesis de cada relación, ya normalizado.
+_FORMAT_LABELS: Dict[str, AnimeFormat] = {
+    "serie": AnimeFormat.SERIES,
+    "pelicula": AnimeFormat.MOVIE,
+    "ova": AnimeFormat.OVA,
+    "especial": AnimeFormat.SPECIAL,
+    "ona": AnimeFormat.ONA,
+}
 
 
 def _fetch(url: str, session: requests.Session = None, **kwargs) -> requests.Response:
@@ -85,7 +108,9 @@ class JKAnime(AnimeProvider):
 
     PROVIDER_ID = AnimeProviderId.JKANIME
     PROVIDER_NAME = "JKAnime"
+    PROVIDER_SHORT_NAME = "JK"
     BASE_URL = BASE_URL
+    RELATIONS_CARRY_FORMAT = True
 
     def search_animes_by_genres_and_order(self, genres: List[AnimeGenreFilter], order: str = None,
                                           page: int = None) -> Tuple[List[AnimeInfo], int]:
@@ -268,6 +293,35 @@ class JKAnime(AnimeProvider):
         :return: Ficha del anime, o None si falla la primera petición.
         """
         session = requests.Session()
+        page = self.__get_anime_page(anime_id, session)
+        if page is None:
+            return None
+        html, anime_info = page
+        anime_info.episodes = self.__get_episodes(html, anime_id, session)
+        return anime_info
+
+    def get_anime_relations(self, anime_id: Union[str, int]) -> Optional[AnimeInfo]:
+        """Obtiene la ficha de un anime sin el POST de episodios: una sola petición.
+
+        :param anime_id: Identificador (slug) del anime.
+        :return: Ficha del anime con episodes a None, o None si falla la petición.
+        """
+        page = self.__get_anime_page(anime_id)
+        return page[1] if page is not None else None
+
+    # ------------------------------------------------------------------
+    # Helpers privados de parseo
+    # ------------------------------------------------------------------
+
+    @classmethod
+    def __get_anime_page(cls, anime_id: Union[str, int],
+                         session: requests.Session = None) -> Optional[Tuple[str, AnimeInfo]]:
+        """Descarga y parsea la ficha de un anime, sin pedir sus episodios.
+
+        :param anime_id: Identificador (slug) del anime.
+        :param session: Sesión a reutilizar; la necesita el POST de episodios posterior.
+        :return: Tupla (HTML de la ficha, ficha con episodes a None), o None si falla.
+        """
         try:
             response = _fetch(f"{BASE_URL}/{anime_id}", session=session)
             response.raise_for_status()
@@ -293,27 +347,28 @@ class JKAnime(AnimeProvider):
         og_image = soup.select_one("meta[property='og:image']")
         poster = og_image.get("content", "") if og_image else ""
 
-        genres = self.__extract_genres(soup)
-
-        episodes = self.__get_episodes(html, anime_id, session)
-
-        return AnimeInfo(
+        return html, AnimeInfo(
             id=anime_id,
             title=title,
             poster=poster,
             synopsis=synopsis,
-            genres=genres,
-            episodes=episodes,
+            genres=cls.__extract_genres(soup),
+            format=cls.__extract_format(soup),
+            related=cls.__extract_relations(soup),
         )
-
-    # ------------------------------------------------------------------
-    # Helpers privados de parseo
-    # ------------------------------------------------------------------
 
     @staticmethod
     def __translate_genre(genre: AnimeGenreFilter) -> str:
         """Traduce un género del catálogo común al slug propio de JKAnime."""
         return _GENRE_TRANSLATIONS.get(genre, genre.value)
+
+    def _genre_from_slug(self, slug: str) -> Optional[AnimeGenreFilter]:
+        """Traduce un slug de género de JKAnime al catálogo común.
+
+        :param slug: Slug de género de la ficha (``/genero/<slug>/``).
+        :return: Género común, o None si no tiene equivalente.
+        """
+        return _GENRES_FROM_SLUG.get(slug) or super()._genre_from_slug(slug)
 
     @staticmethod
     def __slug_from_url(url: str) -> Optional[str]:
@@ -422,6 +477,79 @@ class JKAnime(AnimeProvider):
             poster=entry.get("image") or "",
             synopsis=entry.get("synopsis"),
         )
+
+    @staticmethod
+    def __extract_format(soup: BeautifulSoup) -> Optional[AnimeFormat]:
+        """Lee el formato del anime del «Tipo:» del bloque de información de la ficha.
+
+        :param soup: Ficha del anime ya parseada.
+        :return: Formato del anime, o None si no viene o no se reconoce.
+        """
+        type_el = soup.select_one("li[rel='tipo']")
+        if type_el is None:
+            return None
+        label = AnimeProviderManager.normalize_title(type_el.get_text(" ", strip=True).replace("Tipo:", ""))
+        anime_format = _FORMAT_LABELS.get(label)
+        if anime_format is None:
+            print(f"Aviso: formato de JKAnime desconocido {label!r}; se deja sin formato")
+        return anime_format
+
+    @classmethod
+    def __extract_relations(cls, soup: BeautifulSoup) -> List[RelatedAnime]:
+        """Lee los relacionados directos de la sección «Temporadas y relacionados».
+
+        Cada <h5> da el tipo de los enlaces que lo siguen; el formato va entre
+        paréntesis al final del texto del enlace. No trae año ni póster.
+
+        :param soup: Ficha del anime ya parseada.
+        :return: Relacionados, o [] si la ficha no tiene esa sección.
+        """
+        heading = next((h3 for h3 in soup.find_all("h3") if "Temporadas y relacionados" in h3.get_text()), None)
+        if heading is None:
+            return []
+
+        related: List[RelatedAnime] = []
+        relation = AnimeRelationType.OTHER
+        for element in heading.find_next_siblings(["h5", "a"]):
+            if element.name == "h5":
+                relation = cls.__relation_from_label(element.get_text(strip=True))
+                continue
+            slug = cls.__slug_from_url(element.get("href", ""))
+            if slug is None:
+                continue
+            title, anime_format = cls.__split_format(element.get_text(" ", strip=True))
+            related.append(RelatedAnime(id=slug, title=title, relation=relation, format=anime_format))
+        return related
+
+    @staticmethod
+    def __relation_from_label(label: str) -> AnimeRelationType:
+        """Traduce un encabezado <h5> de la sección al tipo de relación común.
+
+        :param label: Texto del encabezado, tal como lo escribe el sitio (sin tildes).
+        :return: Tipo de relación; OTHER para cualquier encabezado sin traducción.
+        """
+        normalized = AnimeProviderManager.normalize_title(label)
+        if normalized in _RELATION_LABELS:
+            return _RELATION_LABELS[normalized]
+        if normalized not in _OTHER_RELATION_LABELS:
+            print(f"Aviso: tipo de relación de JKAnime desconocido {label!r}; se trata como «Otro»")
+        return AnimeRelationType.OTHER
+
+    @staticmethod
+    def __split_format(text: str) -> Tuple[str, Optional[AnimeFormat]]:
+        """Separa el «(Formato)» final del título de un relacionado.
+
+        Si el último paréntesis no es un formato conocido, es parte del título («(2011)»).
+
+        :param text: Texto del enlace, p. ej. «Shingeki no Kyojin OVA (OVA)».
+        :return: Tupla (título, formato o None).
+        """
+        match = re.match(r"^(.*\S)\s*\(([^()]*)\)\s*$", text)
+        if match is not None:
+            anime_format = _FORMAT_LABELS.get(AnimeProviderManager.normalize_title(match.group(2)))
+            if anime_format is not None:
+                return match.group(1), anime_format
+        return text, None
 
     @staticmethod
     def __extract_genres(soup: BeautifulSoup) -> List[str]:

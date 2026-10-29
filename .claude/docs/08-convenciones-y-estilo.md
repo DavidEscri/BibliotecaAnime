@@ -319,7 +319,6 @@ import requests
 from bs4 import BeautifulSoup
 from urllib.parse import urlencode, urlparse, parse_qs
 
-from utils.utils import removeprefix
 from APIs.common.animeProviderMgr import AnimeProvider
 from APIs.common.models import (AnimeGenreFilter, AnimeOrderFilter, AnimeProviderId, ServerInfo,
                                 EpisodeInfo, AnimeInfo)
@@ -334,6 +333,7 @@ class MiSitio(AnimeProvider):
     # Antes, en models.py:  MISITIO = "misitio"
     PROVIDER_ID = AnimeProviderId.MISITIO
     PROVIDER_NAME = "MiSitio"
+    PROVIDER_SHORT_NAME = "MS"   # siglas; obligatorio desde la 0.5.0 (trampa 11)
     BASE_URL = BASE_URL
 
     def search_animes_by_genres_and_order(self, genres: List[AnimeGenreFilter], order: str = None,

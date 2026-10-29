@@ -1,26 +1,27 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "utils.buttons"
 __module__ = "utilsButtons.py"
-__version__ = "0.3"
+__version__ = "0.5"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 """Lo que las vistas comparten y no es un componente de gui/components/.
 
-Quedan tres piezas, ninguna un botón pese al nombre del módulo:
+Quedan cuatro piezas, ninguna un botón pese al nombre del módulo:
 filter_animes_by_title() y match_animes_from_search(), el cruce por título con
 el que las vistas de estado buscan en local; SavedAnimeSearch, que lo orquesta
-y suma encima lo que encuentre el proveedor; y SidebarButton, que solo
+y suma encima lo que encuentre el proveedor; saved_rows_signature(), la firma
+con la que una vista decide si reutiliza su página; y SidebarButton, que solo
 describe un destino de la barra lateral (etiqueta, iconos y comando).
 """
 
 import difflib
 import threading
-from typing import List, Callable, Optional
+from typing import Any, List, Callable, Optional, Tuple
 
 from APIs.common.animeProviderMgr import AnimeProviderManager
 from APIs.common.models import AnimeInfo
 from dataPersistence.animesPersistence import AnimeRecord
-from utils.utils import load_dual_image
+from utils.utils import find_cached_poster_paths, load_dual_image
 import customtkinter as ctk
 
 #: Parecido mínimo para dar por buena una coincidencia que no es subcadena
@@ -76,11 +77,8 @@ def match_animes_from_search(anime_records: List[AnimeRecord],
     for result in search_results:
         record: Optional[AnimeRecord] = records_by_slug.get(str(result.id))
         if record is None:
-            normalized_result = AnimeProviderManager.normalize_title(result.title)
             for candidate in anime_records:
-                normalized_candidate = AnimeProviderManager.normalize_title(candidate.title)
-                if (normalized_candidate == normalized_result
-                        or difflib.SequenceMatcher(None, normalized_result, normalized_candidate).ratio() >= AnimeProviderManager.TITLE_MATCH_THRESHOLD):
+                if AnimeProviderManager.title_similarity(result.title, candidate.title) >= AnimeProviderManager.TITLE_MATCH_THRESHOLD:
                     record = candidate
                     break
         if record is not None and record.anime_id not in already_matched:
@@ -149,6 +147,20 @@ class SavedAnimeSearch:
             self.__main_window.after(0, _merge, match_animes_from_search(saved_animes, search_results))
 
         threading.Thread(target=_search_online, daemon=True).start()
+
+
+def saved_rows_signature(anime_records: List[AnimeRecord]) -> Tuple[Any, ...]:
+    """Firma de unas filas guardadas tal y como las pinta una vista.
+
+    Son las filas enteras más el póster que hay en disco de cada una, que puede
+    llegar sin que cambie la fila. No se copian: ``MainWindow.show_view()`` copia
+    la firma al guardarla, y solo cuando reconstruye.
+
+    :param anime_records: Filas en el orden en que la vista las lee.
+    :return: Tupla comparable con ``==`` con la de otra lectura.
+    """
+    poster_paths = find_cached_poster_paths([anime_record.anime_id for anime_record in anime_records])
+    return tuple(zip(anime_records, poster_paths))
 
 
 class SidebarButton:
