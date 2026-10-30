@@ -4,7 +4,7 @@
 
 **Tu biblioteca de anime: tu colección vive solo en tu equipo; el catálogo llega de proveedores web públicos.**
 
-[![Versión](https://img.shields.io/badge/Versi%C3%B3n-0.5.0-informational.svg?style=flat-square)](#)
+[![Versión](https://img.shields.io/badge/Versi%C3%B3n-0.5.1-informational.svg?style=flat-square)](#)
 [![Python Version](https://img.shields.io/badge/Python-3.10+-blue.svg?style=flat-square&logo=python)](https://www.python.org/)
 [![License: GPL-3.0](https://img.shields.io/badge/License-GPL--3.0-yellow.svg?style=flat-square)](LICENSE)
 [![OS: Windows](https://img.shields.io/badge/OS-Windows-lightgrey.svg?style=flat-square)](#)

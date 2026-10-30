@@ -18,7 +18,7 @@ internamente lo pedido usando [`.claude/COMO-PEDIR-TAREAS.md`](COMO-PEDIR-TAREAS
    primero que hay que aclarar, y lo que más cambia el tamaño del trabajo.
 3. **Ficheros exactos y frontera de alcance.** Las 4 vistas de estado son casi idénticas línea por
    línea: decide si la tarea afecta a una o a las cuatro.
-4. **¿Es una trampa conocida?** Coteja con `docs/10-invariantes-y-trampas.md` (**83** trampas con su
+4. **¿Es una trampa conocida?** Coteja con `docs/10-invariantes-y-trampas.md` (**84** trampas con su
    síntoma) **antes** de investigar desde cero.
 5. **Nivel de verificación** — ejecutar la GUI · script en el scratchpad · solo lectura. No hay
    tests: si no se ejecuta, se entrega marcado como no verificado.
@@ -492,7 +492,7 @@ arrancar.** Quien cambie un estado tiene que **releerlas** antes de llamar a
 secundario revienta con `invalid command name ...!ctkcanvas` al destruir una vista que tenía un
 `<Configure>` encolado.
 
-**`AnimeWindowViewer`** (`gui/anime_window.py`, 3 244 líneas) no es una ventana: reemplaza el contenido
+**`AnimeWindowViewer`** (`gui/anime_window.py`, 3 287 líneas) no es una ventana: reemplaza el contenido
 de `content_frame`. Muestra el bloque de proveedor + póster de 248 × 372 + sinopsis + géneros, la línea de
 temporadas, los 4 botones de estado y las **pestañas**, la primera de las cuales es la lista de episodios
 (**los 25 primeros**, `[:25]`).
@@ -596,6 +596,14 @@ carpetas de sus estados activos y solo en ésas, porque la BD mueve estados por 
   **lento** tampoco hay error de mpv, así que `VideoPlayer` lleva un **tope propio de 30 s**
   (`LOAD_TIMEOUT_S`, desde `play()` hasta que empieza a verse) que para mpv y cae al navegador
   (zilla tardó ~70 s el 2026-10-20; [trampa 54](docs/10-invariantes-y-trampas.md), B15 cerrada el 2026-10-21).
+- 🔴 **`load_mpv()` no se llama en el hilo de Tk** (2026-10-30). Cada compilación copia la DLL a
+  `_internal/vendor`, y el antivirus revisa esa copia nueva al cargarla: **4,5-13 s**, durante los
+  que además bloquea cualquier otra carga de DLL del proceso. En el hilo de Tk congelaba la ventana
+  8,1 s al pulsar el primer servidor del `.exe`; como script no pasaba, porque `vendor/` ya estaba
+  revisada. Ahora la cargan los hilos de `__play_video()` y `__play_episode()` antes de resolver, con
+  la tarjeta **«Cargando las librerías del reproductor»** y después la del episodio. **No se precarga
+  a propósito**: dentro del proceso solo cambia de sitio el congelado
+  ([trampa 84](docs/10-invariantes-y-trampas.md), [`docs/07 §1f`](docs/07-concurrencia-e-hilos.md)).
 - **Va encima de la ficha, no en su lugar**: `MainWindow.show_player_frame()` pone `player_frame` en la
   fila 0 y baja `content_frame` a la fila 1, que **se queda** debajo, encogido y desplazado hasta el
   episodio. «← Volver a la ficha», cambiar de vista (`clear_frame()`) y cerrar la ventana
@@ -865,7 +873,7 @@ Guía de colaboración (cómo plantear una tarea en este repo, qué asumo por de
 cambian mi comportamiento): [`.claude/COMO-PEDIR-TAREAS.md`](COMO-PEDIR-TAREAS.md).
 
 **Antes de tocar cualquier cosa, lee [`docs/10-invariantes-y-trampas.md`](docs/10-invariantes-y-trampas.md)**
-— **83** trampas con su síntoma observable.
+— **84** trampas con su síntoma observable.
 
 | Documento | Qué responde |
 |---|---|
@@ -879,7 +887,7 @@ cambian mi comportamiento): [`.claude/COMO-PEDIR-TAREAS.md`](COMO-PEDIR-TAREAS.m
 | [docs/07-concurrencia-e-hilos.md](docs/07-concurrencia-e-hilos.md) | Qué corre en qué hilo, reglas y carreras conocidas |
 | [docs/08-convenciones-y-estilo.md](docs/08-convenciones-y-estilo.md) | Cabecera obligatoria, singletons, **plantillas copiables** |
 | [docs/09-verificacion-y-pruebas.md](docs/09-verificacion-y-pruebas.md) | Cómo probar cada capa sin GUI; scripts listos; checklist manual |
-| [docs/10-invariantes-y-trampas.md](docs/10-invariantes-y-trampas.md) | **Empieza por aquí.** **83** trampas con síntoma observable |
+| [docs/10-invariantes-y-trampas.md](docs/10-invariantes-y-trampas.md) | **Empieza por aquí.** **84** trampas con síntoma observable |
 | [docs/11-playbooks.md](docs/11-playbooks.md) | Recetas: añadir vista, columna, proveedor, campo, **resolutor**; empaquetar |
 | [docs/12-deuda-tecnica-y-roadmap.md](docs/12-deuda-tecnica-y-roadmap.md) | TODOs con `fichero:línea`, discrepancias, riesgos, roadmap técnico **y licencia/cumplimiento de la distribución (§7)** |
 | [docs/13-selector-de-proveedor.md](docs/13-selector-de-proveedor.md) | Selector de proveedor, `DB_user.db` **y la columna `provider_id`** (§14). **Léelo antes de tocar `animeProviderMgr.py`, `main_window.py` o `anime_window.py`** |

@@ -1,7 +1,7 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "gui.components"
 __module__ = "video_player.py"
-__version__ = "0.2"
+__version__ = "0.3"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 """Reproductor de vídeo incrustado: la superficie de mpv, sus tarjetas de estado y la barra de controles.
@@ -20,6 +20,7 @@ reproductor desde la interfaz espera a ese hilo: juntas se bloquean.
 import ctypes
 import os
 import queue
+import threading
 import tkinter
 from dataclasses import dataclass
 from typing import Callable, Dict, List, Optional, Tuple
@@ -66,31 +67,40 @@ END_TOLERANCE_S = 15
 
 _mpv_module = None
 _mpv_load_error: Optional[str] = None
+_mpv_load_lock = threading.Lock()
+
+
+def mpv_load_finished() -> bool:
+    """:return: Si ya se intentó cargar libmpv, con o sin éxito: ``load_mpv()`` volverá al instante."""
+    return _mpv_module is not None or _mpv_load_error is not None
 
 
 def load_mpv():
     """Importa ``python-mpv`` con la ``libmpv-2.dll`` de ``vendor/`` en la ruta de búsqueda.
 
     ``python-mpv`` busca la DLL en ``%PATH%``, no junto al script. Nunca lanza.
+    La primera carga de una copia nueva de la DLL tarda segundos, porque el antivirus
+    la revisa entera: hay que llamarla fuera del hilo de Tk.
     :return: El módulo ``mpv``, o None si falta la DLL o el binding.
     """
     global _mpv_module, _mpv_load_error
-    if _mpv_module is not None or _mpv_load_error is not None:
-        return _mpv_module
-    dll_dir = get_resource_path("vendor")
-    if os.path.isdir(dll_dir):
+    with _mpv_load_lock:
+        if mpv_load_finished():
+            return _mpv_module
+        dll_dir = get_resource_path("vendor")
+        if os.path.isdir(dll_dir):
+            try:
+                os.add_dll_directory(dll_dir)
+            except (OSError, AttributeError):
+                pass
+            os.environ["PATH"] = dll_dir + os.pathsep + os.environ.get("PATH", "")
         try:
-            os.add_dll_directory(dll_dir)
-        except (OSError, AttributeError):
-            pass
-        os.environ["PATH"] = dll_dir + os.pathsep + os.environ.get("PATH", "")
-    try:
-        import mpv
-        _mpv_module = mpv
-    except (OSError, ImportError) as exc:
-        _mpv_load_error = str(exc)
-        print(f"No se pudo cargar libmpv; los servidores se abrirán en el navegador: {exc}")
-    return _mpv_module
+            import mpv
+            _mpv_module = mpv
+        except (OSError, ImportError) as exc:
+            _mpv_load_error = str(exc)
+            print(f"No se pudo cargar libmpv; los servidores se abrirán en el navegador: {exc}")
+        return _mpv_module
 
 
 def format_time(seconds: Optional[float]) -> str:
