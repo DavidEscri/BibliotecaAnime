@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Fecha** | 2026-10-28 · rama `release/0.5.0` · último commit de código **`7bbbb3c`**. **§1 reanclada entera** contra ese árbol; §6 y §7 lo están contra `f3fc229` |
-| **Última revisión** | 2026-10-28 (**versión 0.5.0**): **22 hilos** (eran 17): dos de `FranchiseService` (#18 y #19) y tres de la ficha (#20 pósters de las pestañas, #21 abrir un relacionado no guardado, #22 «Te puede interesar»); **§1d nuevo**, el estado compartido de `FranchiseService` (un `Lock` + uno **por proveedor** que turna y espacia las peticiones); **§1e nuevo**, la congelación por `Font.__del__` en otro hilo ([trampa 77](10-invariantes-y-trampas.md)); §2 gana las vistas **ocultas** que siguen recibiendo repintados. Antes, 2026-10-27 (**conexiones por hilo**, B16): **§1c nuevo** — AnimeAV1 y los pósters piden con `thread_session()`, una `requests.Session` **por hilo** y sin cookies, que reutiliza la conexión dentro de cada hilo y **no comparte nada entre hilos**; reglas nuevas en §3. Ningún hilo nuevo. Antes, 2026-10-27 (**refresco de episodios**): los hilos del refresco de episodios pasan a `EpisodeRefresher`: **como mucho uno por proveedor**, que muere al vaciar su cola, con el estado bajo un `Lock` y la escritura de vuelta en Tk. Antes, 2026-10-21 (**auditoría de rendimiento**): **C1 resuelta en el arranque** —la portada, el aviso sin estrenos y la barra de progreso se pintan ya en el hilo de Tk; antes la portada se construía desde el hilo daemon y tardaba **860-1 000 ms** en vez de ~200—, y **sale del hilo de Tk el último acceso a la red**, que no estaba contado: el póster de la ficha cuando no está en disco (hilo **#17**). Antes, 2026-10-20 (**reproductor in-app**): **C5 resuelta** —la petición de servidores salió del hilo de Tk el 2026-09-24 y ya **ningún** sitio de la GUI sale a la red desde él—; **16 hilos** (eran 13: tres nuevos de la ficha, para servidores, resolución y cambio de episodio) **más el de eventos de mpv**, que no es nuestro y tiene su propia regla (§1b, [trampa 46](10-invariantes-y-trampas.md)); `after()` pasa de 11 a **28**; §7 gana `WM_DELETE_WINDOW`, que no existía. ⚠️ El commit `cbd2721` (comentarios, −400 líneas) había desplazado todas las anclas de §1 y §6. Antes, 2026-09-01 (**abrir la ficha por un episodio**): **C5 sube de gravedad** — la petición de servidores ya no la dispara solo el usuario, la dispara también abrir la ficha desde «Viendo» o «Pendientes»; el `after(50 ms)` que lo envuelve es una tirita, no el arreglo. Antes, 2026-09-01 (**refresco de la banda «Retomar»**): hilo nuevo en la portada, y **§1, §2 y §6 reancladas enteras contra el código real** — la mitad de las líneas que citaban se habían movido con el rediseño y tres hilos del inventario **ya no existían**. Antes, 2026-08-31 (**fondo de la pantalla de carga**): anclas de `main_window.py` reverificadas en §1, §2 y §4 (iban ~29 líneas desplazadas) y `place_forget()` corregido a `destroy()` en C1; las de #5 a #13 **siguen sin verificar**. Antes, 2026-08-16 (**columna `provider_id`**): hilos a **13** (eran 8) y `after()` a **10** (eran 4); **C2 resuelta** — los 4 puntos que abren una ficha pintan ya en el hilo de Tk. C5 sigue viva |
+| **Última revisión** | 2026-10-30 (**el reproductor no congela la ventana**): **§1f nuevo** —`load_mpv()` sale del hilo de Tk a los hilos #13 y #14, bajo un cerrojo, y por qué no se precarga ([trampa 84](10-invariantes-y-trampas.md))—, y una regla más en §3. Ningún hilo nuevo. Antes, 2026-10-28 (**versión 0.5.0**): **22 hilos** (eran 17): dos de `FranchiseService` (#18 y #19) y tres de la ficha (#20 pósters de las pestañas, #21 abrir un relacionado no guardado, #22 «Te puede interesar»); **§1d nuevo**, el estado compartido de `FranchiseService` (un `Lock` + uno **por proveedor** que turna y espacia las peticiones); **§1e nuevo**, la congelación por `Font.__del__` en otro hilo ([trampa 77](10-invariantes-y-trampas.md)); §2 gana las vistas **ocultas** que siguen recibiendo repintados. Antes, 2026-10-27 (**conexiones por hilo**, B16): **§1c nuevo** — AnimeAV1 y los pósters piden con `thread_session()`, una `requests.Session` **por hilo** y sin cookies, que reutiliza la conexión dentro de cada hilo y **no comparte nada entre hilos**; reglas nuevas en §3. Ningún hilo nuevo. Antes, 2026-10-27 (**refresco de episodios**): los hilos del refresco de episodios pasan a `EpisodeRefresher`: **como mucho uno por proveedor**, que muere al vaciar su cola, con el estado bajo un `Lock` y la escritura de vuelta en Tk. Antes, 2026-10-21 (**auditoría de rendimiento**): **C1 resuelta en el arranque** —la portada, el aviso sin estrenos y la barra de progreso se pintan ya en el hilo de Tk; antes la portada se construía desde el hilo daemon y tardaba **860-1 000 ms** en vez de ~200—, y **sale del hilo de Tk el último acceso a la red**, que no estaba contado: el póster de la ficha cuando no está en disco (hilo **#17**). Antes, 2026-10-20 (**reproductor in-app**): **C5 resuelta** —la petición de servidores salió del hilo de Tk el 2026-09-24 y ya **ningún** sitio de la GUI sale a la red desde él—; **16 hilos** (eran 13: tres nuevos de la ficha, para servidores, resolución y cambio de episodio) **más el de eventos de mpv**, que no es nuestro y tiene su propia regla (§1b, [trampa 46](10-invariantes-y-trampas.md)); `after()` pasa de 11 a **28**; §7 gana `WM_DELETE_WINDOW`, que no existía. ⚠️ El commit `cbd2721` (comentarios, −400 líneas) había desplazado todas las anclas de §1 y §6. Antes, 2026-09-01 (**abrir la ficha por un episodio**): **C5 sube de gravedad** — la petición de servidores ya no la dispara solo el usuario, la dispara también abrir la ficha desde «Viendo» o «Pendientes»; el `after(50 ms)` que lo envuelve es una tirita, no el arreglo. Antes, 2026-09-01 (**refresco de la banda «Retomar»**): hilo nuevo en la portada, y **§1, §2 y §6 reancladas enteras contra el código real** — la mitad de las líneas que citaban se habían movido con el rediseño y tres hilos del inventario **ya no existían**. Antes, 2026-08-31 (**fondo de la pantalla de carga**): anclas de `main_window.py` reverificadas en §1, §2 y §4 (iban ~29 líneas desplazadas) y `place_forget()` corregido a `destroy()` en C1; las de #5 a #13 **siguen sin verificar**. Antes, 2026-08-16 (**columna `provider_id`**): hilos a **13** (eran 8) y `after()` a **10** (eran 4); **C2 resuelta** — los 4 puntos que abren una ficha pintan ya en el hilo de Tk. C5 sigue viva |
 | **Cubre** | `src/gui/main_window.py`, `src/gui/anime_window.py`, `src/gui/franchise_service.py`, `src/gui/episode_refresher.py`, `src/gui/components/video_player.py`, `src/gui/sidebarButtons/**`, `src/utils/utils.py`, `src/utils/http_session.py` |
 
 Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ sin verificar.
@@ -42,8 +42,8 @@ hilo de Tk hasta el 2026-10-27, cuando pasó a hacerlo el **#16** (B7).
 | 10 | `anime_window.__repair_to_target_provider` | `:1293` | localizar el anime en el proveedor destino | ✅ |
 | 11 | `anime_window.__confirm_and_migrate` | `:1376` | migrar la fila + mover/bajar pósters | ✅ |
 | 12 | `anime_window.__toggle_servers_frame` | `:2574` | 🆕 `_fetch` — **servidores de un episodio** (cierra C5) | ✅ |
-| 13 | `anime_window.__play_video` | `:2776` | 🆕 `_resolve` — `registry.resolve()` del servidor pulsado | ✅ |
-| 14 | `anime_window.__play_episode` | `:2854` | 🆕 `_load` — servidores del episodio de al lado **y** su resolución, en serie | ✅ (dos `after`) |
+| 13 | `anime_window.__play_video` | `:2776` | 🆕 `_resolve` — `registry.resolve()` del servidor pulsado. 🆕 2026-10-30: antes, **`load_mpv()`** si libmpv no se ha cargado (§1f) | ✅ (dos `after` si carga libmpv) |
+| 14 | `anime_window.__play_episode` | `:2854` | 🆕 `_load` — servidores del episodio de al lado **y** su resolución, en serie; antes, `load_mpv()` si hace falta (§1f) | ✅ (dos `after`; tres si carga libmpv) |
 | 15 | `utilsButtons.SavedAnimeSearch.search` | `:149` | búsqueda web que completa a la local | ✅ |
 | 16 | `anime_window.sync_saved_posters_async` 🆕 | `:327` | `_sync` — releer la fila y poner sus pósters en las carpetas de sus estados, **bajo `_POSTER_SYNC_LOCK`**. La llaman los ocho botones de estado de la ficha y «Empezar» de «Pendientes»; sustituye a `pendingAnimes.__cache_poster_async` (2026-10-27, B7) | — |
 | 17 🆕 | `anime_window.__build_poster` | `:952` | `_download` — el póster de la ficha, **solo si no estaba en disco** | ✅ |
@@ -171,6 +171,24 @@ bloquean los dos**, sin error y con la CPU a 0.
 **Regla**: `font=Theme.font(...)` en todo widget de CustomTkinter, aunque no tenga texto. ✅ Desde el
 2026-10-29 (B18) no queda ninguno sin ella; uno nuevo sin `font=` reabre el riesgo.
 
+### 1f. Cargar libmpv: fuera del hilo de Tk, y aun así no del todo aislado 🔴 🆕 *(2026-10-30)*
+
+La primera carga de una copia nueva de `libmpv-2.dll` la revisa el antivirus: ✅ **4,5-13 s**. En el
+hilo de Tk dejaba la ventana congelada 8,1 s al pulsar el primer servidor en un `.exe` recién
+compilado ([trampa 84](10-invariantes-y-trampas.md)). Ahora la hacen los hilos **#13** y **#14** antes
+de resolver, y la ficha enseña «Cargando las librerías del reproductor» hasta que acaban.
+
+- `load_mpv()` va bajo **`_mpv_load_lock`**: si dos peticiones llegan a la vez, la segunda espera a la
+  primera **en su hilo**. `mpv_load_finished()` lee los dos globales **sin el cerrojo**, para que la
+  ficha pueda preguntar desde el hilo de Tk sin esperar.
+- `VideoPlayer.__ensure_mpv()` sigue llamando a `load_mpv()` desde el hilo de Tk, pero solo llega ahí
+  después de que el hilo la haya hecho: vuelve al instante.
+- ⚠️ **Mientras dura, el cargador de Windows bloquea cualquier otra carga de DLL del proceso.** Si el
+  hilo de Tk cargara una DLL nueva en ese intervalo, se congelaría igual. ✅ Con la ficha real no pasa:
+  el mayor hueco del bucle de Tk fue 0,26 s (0,39 en el `.exe`), lo que ya costaba montar el panel.
+  **No precargues libmpv dentro del proceso**: solo cambias de sitio el riesgo. Si alguna vez hace
+  falta, que sea un **proceso hijo**.
+
 ## 2. Qué corre en qué hilo
 
 ✅ Anclajes reverificados el 2026-09-01 contra `704e894`.
@@ -278,6 +296,9 @@ bloquean los dos**, sin error y con la CPU a 0.
 5. 🆕 **No compartas una `requests.Session` entre hilos**, y no uses `thread_session()` donde hagan
    falta cookies: no las guarda. Si un sitio las exige, una `Session` propia que viva lo que dura la
    operación, como la ficha de JKAnime (§1c).
+6. 🆕 *(2026-10-30)* **No cargues una DLL pesada en el hilo de Tk**, ni la primera vez: el antivirus
+   puede tardar segundos en revisarla. Tampoco la precargues en otro hilo del proceso esperando que no
+   moleste (§1f).
 
 ---
 

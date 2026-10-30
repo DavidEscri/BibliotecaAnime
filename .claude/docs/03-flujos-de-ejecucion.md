@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Fecha** | 2026-10-28 · rama `release/0.5.0` · último commit de código **`7bbbb3c`** |
-| **Última revisión** | 2026-10-28 (**versión 0.5.0**): **cuatro flujos nuevos**, al final para no renumerar: **§15** recorrer la franquicia y completar formatos (`FranchiseService`, hilo por llamada, lock y espaciado por proveedor, caché de sesión), **§16** la pestaña «Temporadas y relacionados», abrir un relacionado y volver, **§17** «Te puede interesar» y **§18** cambiar de vista con la página conservada (B13). §3d gana la nota de las pestañas: **abrir la ficha no sale a la red**. Antes, 2026-10-27 (**refresco de episodios**): **§11 reescrito**: el refresco de episodios deja de ser cosa de la banda «Retomar» y pasa a `EpisodeRefresher`, que refresca también «Viendo» y «Pendientes» —tras la portada y al entrar—, con un hilo por proveedor, repintado en el sitio y la ficha cacheada para `open_saved_anime()`. Antes, 2026-10-20 (**reproductor in-app**): **flujo 13 nuevo** —reproducir un episodio dentro de la aplicación, con **13b** (anterior/siguiente) y **13c** (pantalla completa y cierre)— y el antiguo §13 pasa a **§14**; **§8 reescrito**: la petición de servidores ya va en un hilo daemon (cerró la deuda nº 1) y lleva número de despliegue; la convención de hilos gana 🎞️ (el hilo de eventos de mpv); §12 reanclado. Antes, 2026-09-01 (**abrir la ficha por un episodio**): **flujo 12 nuevo** —las tres acciones que prometen un episodio lo cumplen: la ficha sale con esa fila desplegada—, y el antiguo §12 pasa a **§13**; §3 gana el parámetro `focus_episode` y §8 deja de ser siempre cosa del usuario. Antes, 2026-09-01 (**refresco de la banda «Retomar»**): **flujo 11 nuevo** —la portada relee los episodios de lo que estás viendo al entrar—, y el antiguo §11 pasa a **§12**. Antes, 2026-08-31 (**fondo de la pantalla de carga**): §1 reanclado entero contra el código real y corregido —seguía diciendo `place_forget()`, que la fase 9 cambió a `destroy()`— y con la nota del fondo `Theme.BG`. Antes, 2026-08-16 (**columna `provider_id`**): §3 pasa de 2 caminos a **3, todos asíncronos**; **flujo 10 nuevo** (migrar una fila a otro proveedor); anclas de `anime_window.py` reubicadas tras crecer a 1 155 líneas |
+| **Última revisión** | 2026-10-30 (**el reproductor no congela la ventana**): §13 y §13b —el hilo que resuelve carga antes libmpv, con la tarjeta «Cargando las librerías del reproductor», y `play()` ya no lo hace en el hilo de Tk ([trampa 84](10-invariantes-y-trampas.md))—. Antes, 2026-10-28 (**versión 0.5.0**): **cuatro flujos nuevos**, al final para no renumerar: **§15** recorrer la franquicia y completar formatos (`FranchiseService`, hilo por llamada, lock y espaciado por proveedor, caché de sesión), **§16** la pestaña «Temporadas y relacionados», abrir un relacionado y volver, **§17** «Te puede interesar» y **§18** cambiar de vista con la página conservada (B13). §3d gana la nota de las pestañas: **abrir la ficha no sale a la red**. Antes, 2026-10-27 (**refresco de episodios**): **§11 reescrito**: el refresco de episodios deja de ser cosa de la banda «Retomar» y pasa a `EpisodeRefresher`, que refresca también «Viendo» y «Pendientes» —tras la portada y al entrar—, con un hilo por proveedor, repintado en el sitio y la ficha cacheada para `open_saved_anime()`. Antes, 2026-10-20 (**reproductor in-app**): **flujo 13 nuevo** —reproducir un episodio dentro de la aplicación, con **13b** (anterior/siguiente) y **13c** (pantalla completa y cierre)— y el antiguo §13 pasa a **§14**; **§8 reescrito**: la petición de servidores ya va en un hilo daemon (cerró la deuda nº 1) y lleva número de despliegue; la convención de hilos gana 🎞️ (el hilo de eventos de mpv); §12 reanclado. Antes, 2026-09-01 (**abrir la ficha por un episodio**): **flujo 12 nuevo** —las tres acciones que prometen un episodio lo cumplen: la ficha sale con esa fila desplegada—, y el antiguo §12 pasa a **§13**; §3 gana el parámetro `focus_episode` y §8 deja de ser siempre cosa del usuario. Antes, 2026-09-01 (**refresco de la banda «Retomar»**): **flujo 11 nuevo** —la portada relee los episodios de lo que estás viendo al entrar—, y el antiguo §11 pasa a **§12**. Antes, 2026-08-31 (**fondo de la pantalla de carga**): §1 reanclado entero contra el código real y corregido —seguía diciendo `place_forget()`, que la fase 9 cambió a `destroy()`— y con la nota del fondo `Theme.BG`. Antes, 2026-08-16 (**columna `provider_id`**): §3 pasa de 2 caminos a **3, todos asíncronos**; **flujo 10 nuevo** (migrar una fila a otro proveedor); anclas de `anime_window.py` reubicadas tras crecer a 1 155 líneas |
 | **Cubre** | `main_window.py`, `anime_window.py`, `franchise_service.py`, `tab_bar.py`, `franchise_cards.py`, `recentAnimes.py`, `resume_card.py`, `searchAnimes.py`, las 4 vistas de estado, `animeProviderMgr.py`, `animesPersistence.py`, `utils.py`, `video_player.py`, `APIs/resolvers/` |
 
 Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ sin verificar.
@@ -859,8 +859,12 @@ sequenceDiagram
         AW->>VP: VideoPlayer(on_error, on_started, on_end, …) — sin mpv todavía
         Note over AW: si no se puede montar → webbrowser.open(url) y fin
     end
-    AW->>VP: stop_media() + show_loading("Cargando el episodio N")
+    AW->>VP: stop_media() + show_loading(«Cargando las librerías del reproductor» si libmpv no se ha cargado, si no «Cargando el episodio N»)
     AW->>T: Thread(_resolve, daemon=True) con número de petición
+    opt libmpv sin cargar (mpv_load_finished() es False)
+        T->>T: load_mpv() — segundos con una copia nueva de la DLL (trampa 84), con el cerrojo de la carga
+        T->>AW: after(0, __show_episode_loading) → «Cargando el episodio N», si la petición sigue siendo la última
+    end
     T->>R: registry.resolve(url_del_embed)
     R-->>T: MediaSource(url, headers, kind, expires_at) o None
     T->>AW: after(0, __on_media_resolved, número, source) :1973
@@ -870,7 +874,7 @@ sequenceDiagram
         AW->>BR: __fall_back_to_browser() :2151 → webbrowser.open + tarjeta
     else
         AW->>VP: play(source) :680
-        VP->>VP: __ensure_mpv(): load_mpv() + MPV(wid=superficie) la primera vez
+        VP->>VP: __ensure_mpv(): MPV(wid=superficie) la primera vez (load_mpv() ya está hecho y vuelve al instante)
         VP->>M: user_agent, http_header_fields, play(url)
         M-->>VP: start-file · playback-restart · time-pos (a una cola o a atributos)
         loop cada POLL_MS = 100 ms
@@ -888,8 +892,15 @@ sequenceDiagram
     end
 ```
 
-**Tres cosas que el diagrama no dice**:
+**Cuatro cosas que el diagrama no dice**:
 
+- 🔴 **`load_mpv()` no se llama nunca en el hilo de Tk** (desde el 2026-10-30). La primera carga de
+  una copia nueva de `libmpv-2.dll` —un `.exe` recién compilado o descomprimido— la revisa el
+  antivirus entera: ✅ **5-13 s** medidos, y en el hilo de Tk dejaban la ventana **congelada 8,1 s**
+  con la tarjeta de «Cargando» sin girar. Ahora la hace el hilo del resolutor antes de resolver, y el
+  mayor hueco del bucle de Tk es **0,26 s** (0,39 en el `.exe`), lo que ya costaba montar el panel.
+  Con la DLL ya revisada, «Cargando las librerías» se ve ~0,3 s la primera vez de cada sesión
+  ([trampa 84](10-invariantes-y-trampas.md)).
 - **Marcar como visto escribe en la biblioteca real**, y es una decisión del usuario (2026-10-20,
   punto 1 del plan). Solo si el anime **ya tiene fila** —nunca crea una—, con la **identidad de la
   fila guardada** (`persistence_anime_id`, [trampa 21](10-invariantes-y-trampas.md)) y la semántica
@@ -917,6 +928,9 @@ sequenceDiagram
     AW->>AW: __adjacent_episode(id, ±1) — por número real, entre TODOS los episodios
     AW->>AW: pliega la fila del que sonaba, despliega la del nuevo (se pinta sola si está fuera del corte de 25)
     AW->>T: Thread(_load) con número de petición
+    opt libmpv sin cargar (lo normal es que §13 ya lo hiciera)
+        T->>T: load_mpv() y después la tarjeta del episodio, como en §13
+    end
     T->>MGR: get_anime_episode_servers(..., strict=True)
     T->>AW: after(0, __show_servers, …) — la MISMA respuesta rellena el hueco de la fila
     loop el mismo nombre de servidor primero, luego los demás con resolutor
