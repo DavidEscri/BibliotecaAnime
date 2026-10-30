@@ -1,7 +1,7 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "gui"
 __module__ = "anime_window.py"
-__version__ = "0.16"
+__version__ = "0.17"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 """Ficha de detalle de un anime: la pantalla desde la que se ve un episodio.
@@ -42,7 +42,7 @@ from gui.components.franchise_cards import CAROUSEL_POSTER, CarouselItem, Relate
 from gui.components.poster_grid import PosterGrid, PosterItem
 from gui.components.status_pill import StatusPill
 from gui.components.tab_bar import TabBar
-from gui.components.video_player import VideoPlayer, player_icon
+from gui.components.video_player import VideoPlayer, load_mpv, mpv_load_finished, player_icon
 from gui.franchise_service import FormatHint, FranchiseLine, closest_related, deduce_format_from_title
 from gui.theme import Metrics, Theme
 from utils.utils import refactor_genre_text, download_poster, find_cached_poster_path, \
@@ -165,6 +165,8 @@ PLAYER_STATUS_LABELS = {
     "ended": "Terminado",
     "unavailable": "Sin servidores",
 }
+#: Lo que dice la tarjeta de «Cargando» mientras se carga libmpv, antes de la del episodio.
+PLAYER_LIBRARY_LOADING = "Cargando las librerías del reproductor"
 #: Ancho máximo del título de la temporada siguiente en el botón de la tarjeta de fin.
 END_CARD_TITLE_W = 150
 
@@ -2779,10 +2781,14 @@ class AnimeWindowViewer:
         self.__player.stop_media()
         self.__set_playing_status("loading")
         provider_name = self.anime_provider_mgr.get_provider_name(self.provider_id)
-        self.__player.show_loading(f"Cargando el episodio {episode_info.id}", f"{label} · {provider_name}")
+        title, subtitle = f"Cargando el episodio {episode_info.id}", f"{label} · {provider_name}"
+        needs_library = not mpv_load_finished()
+        self.__player.show_loading(PLAYER_LIBRARY_LOADING if needs_library else title, subtitle)
         self.main_window.after(FOCUS_DELAY_MS, self.__scroll_to_episode, episode_info.id)
 
         def _resolve():
+            if needs_library:
+                self.__load_player_library(request, title, subtitle)
             try:
                 source = registry.resolve(url)
             except Exception as exc:
@@ -2791,6 +2797,22 @@ class AnimeWindowViewer:
             self.main_window.after(0, self.__on_media_resolved, request, source)
 
         threading.Thread(target=_resolve, daemon=True).start()
+
+    def __load_player_library(self, request: int, title: str, subtitle: str) -> None:
+        """Carga libmpv desde un hilo daemon y, al acabar, pasa a la tarjeta del episodio.
+
+        La primera carga tarda segundos, y en el hilo de Tk congelaría la ventana.
+        :param request: Número de la petición; si ya no es la última, la tarjeta no se toca.
+        :param title: Título de la tarjeta del episodio.
+        :param subtitle: Su segunda línea.
+        """
+        load_mpv()
+        self.main_window.after(0, self.__show_episode_loading, request, title, subtitle)
+
+    def __show_episode_loading(self, request: int, title: str, subtitle: str) -> None:
+        if request != self.__play_request_seq or self.__player is None:
+            return
+        self.__player.show_loading(title, subtitle)
 
     def __on_media_resolved(self, request: int, source: Optional[MediaSource]) -> None:
         """Carga el medio resuelto, o cae al navegador si no hubo forma."""
@@ -2829,8 +2851,10 @@ class AnimeWindowViewer:
         self.__player.stop_media()
         self.__set_playing_status("loading")
         provider_name = self.anime_provider_mgr.get_provider_name(self.provider_id)
-        self.__player.show_loading(f"Cargando el episodio {episode_info.id}",
-                                   f"{preferred_label} · {provider_name}" if preferred_label else provider_name)
+        title = f"Cargando el episodio {episode_info.id}"
+        subtitle = f"{preferred_label} · {provider_name}" if preferred_label else provider_name
+        needs_library = not mpv_load_finished()
+        self.__player.show_loading(PLAYER_LIBRARY_LOADING if needs_library else title, subtitle)
 
         # La lista de debajo acompaña al reproductor: se pliega el episodio que
         # sonaba y se despliega el nuevo, que es el que se verá al volver.
@@ -2846,6 +2870,8 @@ class AnimeWindowViewer:
         provider_id = self.provider_id
 
         def _load():
+            if needs_library:
+                self.__load_player_library(request, title, subtitle)
             servers_info = self.__fetch_servers(episode_info, provider_id)
             if servers_request is not None:
                 self.main_window.after(0, self.__show_servers, episode_info, servers_request, servers_info, True)
