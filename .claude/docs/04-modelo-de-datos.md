@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Fecha** | 2026-10-28 · rama `release/0.5.0` · sobre **`7bbbb3c`** |
-| **Última revisión** | 2026-10-28 — **versión 0.5.0**: §1c nuevo (`RelatedAnime`, `AnimeRelationType`, `AnimeFormat`, y los campos `format` y `related` de `AnimeInfo`, que **no se persisten**); `ProviderInfo.short_name` en §1b; anclas de `models.py` reubicadas. **El esquema de `ANIMES` no cambia.** Antes, 2026-08-16 — **`provider_id` implementada**: columna nueva en `ANIMES` (§2, §3), `AnimeProviderId` y `ProviderInfo` en `models.py` (§1b), `migrate_anime_identity()` y `get_all_animes()` (§8). La migración automática se ha ejecutado **sobre la BD real** por primera vez (§3) |
+| **Última revisión** | 2026-11-08 (**citas a trampas**): las citas a [10](10-invariantes-y-trampas.md) siguen su renumeración (37 trampas), y las de las trampas que pasaron a [05](05-proveedores-y-scraping.md) o a [09 §6m](09-verificacion-y-pruebas.md) apuntan allí. Antes, 2026-10-28 — **versión 0.5.0**: §1c nuevo (`RelatedAnime`, `AnimeRelationType`, `AnimeFormat`, y los campos `format` y `related` de `AnimeInfo`, que **no se persisten**); `ProviderInfo.short_name` en §1b; anclas de `models.py` reubicadas. **El esquema de `ANIMES` no cambia.** Antes, 2026-08-16 — **`provider_id` implementada**: columna nueva en `ANIMES` (§2, §3), `AnimeProviderId` y `ProviderInfo` en `models.py` (§1b), `migrate_anime_identity()` y `get_all_animes()` (§8). La migración automática se ha ejecutado **sobre la BD real** por primera vez (§3) |
 | **Cubre** | `src/APIs/common/models.py`, `src/dataPersistence/animesPersistence.py`, `src/dataPersistence/userPersistence.py`, `src/utils/db/sqlite.py` |
 
 Procedencia: ✅ verificado en ejecución (sobre una **copia** de la BD real, 24-28 filas) · 📖 leído en
@@ -212,7 +212,7 @@ pero además el servicio de franquicia ni lo intenta.
   `EpisodeRefresher.cached_info()` conservan los campos nuevos. Las construcciones a mano de la GUI
   parten de filas guardadas y dejan `related=None`, que es correcto: de una fila no se sabe.
 - **Tipos traducidos en el proveedor**: lo que no sea precuela, secuela o versión alternativa es
-  `OTHER` ([05 §3 y §3b](05-proveedores-y-scraping.md), [trampa 35](10-invariantes-y-trampas.md)).
+  `OTHER` ([05 §3 y §3b](05-proveedores-y-scraping.md), [05 §3](05-proveedores-y-scraping.md)).
 
 **`ProviderInfo.short_name`** (`models.py:33-42`): las siglas del proveedor (`AV1`, `JK`, `FLV`), campo
 **sin default** —solo lo construye `provider_info()` desde `PROVIDER_SHORT_NAME`—. La GUI marca con
@@ -332,7 +332,7 @@ reconstrucción completa de la tabla, no `ALTER TABLE`).
 > primera vez que la abriste**. Cuando el slug existe en varios sitios —`dandadan` está igual en los
 > tres— el que queda anotado es simplemente el que tenías seleccionado ese día. La columna responde
 > «**quién sirve este slug**», no «quién lo trajo». Para el uso que se le da —a quién preguntar al
-> reabrir— es la respuesta correcta; para una estadística de origen, no. Trampa 17.
+> reabrir— es la respuesta correcta; para una estadística de origen, no. Trampa 14.
 >
 > Se escribió un barrido de detección previo (`barrido_provider_id.py`, en el scratchpad de la sesión,
 > **no en el repo**) que preguntaba a cada proveedor por el slug en el orden de la aplicación. Su

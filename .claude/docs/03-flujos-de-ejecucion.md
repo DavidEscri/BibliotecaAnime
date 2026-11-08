@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Fecha** | 2026-10-28 · rama `release/0.5.0` · último commit de código **`7bbbb3c`** |
-| **Última revisión** | 2026-10-30 (**el reproductor no congela la ventana**): §13 y §13b —el hilo que resuelve carga antes libmpv, con la tarjeta «Cargando las librerías del reproductor», y `play()` ya no lo hace en el hilo de Tk ([regla R24](10-invariantes-y-trampas.md))—. Antes, 2026-10-28 (**versión 0.5.0**): **cuatro flujos nuevos**, al final para no renumerar: **§15** recorrer la franquicia y completar formatos (`FranchiseService`, hilo por llamada, lock y espaciado por proveedor, caché de sesión), **§16** la pestaña «Temporadas y relacionados», abrir un relacionado y volver, **§17** «Te puede interesar» y **§18** cambiar de vista con la página conservada (B13). §3d gana la nota de las pestañas: **abrir la ficha no sale a la red**. Antes, 2026-10-27 (**refresco de episodios**): **§11 reescrito**: el refresco de episodios deja de ser cosa de la banda «Retomar» y pasa a `EpisodeRefresher`, que refresca también «Viendo» y «Pendientes» —tras la portada y al entrar—, con un hilo por proveedor, repintado en el sitio y la ficha cacheada para `open_saved_anime()`. Antes, 2026-10-20 (**reproductor in-app**): **flujo 13 nuevo** —reproducir un episodio dentro de la aplicación, con **13b** (anterior/siguiente) y **13c** (pantalla completa y cierre)— y el antiguo §13 pasa a **§14**; **§8 reescrito**: la petición de servidores ya va en un hilo daemon (cerró la deuda nº 1) y lleva número de despliegue; la convención de hilos gana 🎞️ (el hilo de eventos de mpv); §12 reanclado. Antes, 2026-09-01 (**abrir la ficha por un episodio**): **flujo 12 nuevo** —las tres acciones que prometen un episodio lo cumplen: la ficha sale con esa fila desplegada—, y el antiguo §12 pasa a **§13**; §3 gana el parámetro `focus_episode` y §8 deja de ser siempre cosa del usuario. Antes, 2026-09-01 (**refresco de la banda «Retomar»**): **flujo 11 nuevo** —la portada relee los episodios de lo que estás viendo al entrar—, y el antiguo §11 pasa a **§12**. Antes, 2026-08-31 (**fondo de la pantalla de carga**): §1 reanclado entero contra el código real y corregido —seguía diciendo `place_forget()`, que la fase 9 cambió a `destroy()`— y con la nota del fondo `Theme.BG`. Antes, 2026-08-16 (**columna `provider_id`**): §3 pasa de 2 caminos a **3, todos asíncronos**; **flujo 10 nuevo** (migrar una fila a otro proveedor); anclas de `anime_window.py` reubicadas tras crecer a 1 155 líneas |
+| **Última revisión** | 2026-11-08 (**citas a trampas**): las citas a [10](10-invariantes-y-trampas.md) siguen su renumeración (37 trampas), y las de las trampas que pasaron a [05](05-proveedores-y-scraping.md) o a [09 §6m](09-verificacion-y-pruebas.md) apuntan allí. Antes, 2026-10-30 (**el reproductor no congela la ventana**): §13 y §13b —el hilo que resuelve carga antes libmpv, con la tarjeta «Cargando las librerías del reproductor», y `play()` ya no lo hace en el hilo de Tk ([regla R24](10-invariantes-y-trampas.md))—. Antes, 2026-10-28 (**versión 0.5.0**): **cuatro flujos nuevos**, al final para no renumerar: **§15** recorrer la franquicia y completar formatos (`FranchiseService`, hilo por llamada, lock y espaciado por proveedor, caché de sesión), **§16** la pestaña «Temporadas y relacionados», abrir un relacionado y volver, **§17** «Te puede interesar» y **§18** cambiar de vista con la página conservada (B13). §3d gana la nota de las pestañas: **abrir la ficha no sale a la red**. Antes, 2026-10-27 (**refresco de episodios**): **§11 reescrito**: el refresco de episodios deja de ser cosa de la banda «Retomar» y pasa a `EpisodeRefresher`, que refresca también «Viendo» y «Pendientes» —tras la portada y al entrar—, con un hilo por proveedor, repintado en el sitio y la ficha cacheada para `open_saved_anime()`. Antes, 2026-10-20 (**reproductor in-app**): **flujo 13 nuevo** —reproducir un episodio dentro de la aplicación, con **13b** (anterior/siguiente) y **13c** (pantalla completa y cierre)— y el antiguo §13 pasa a **§14**; **§8 reescrito**: la petición de servidores ya va en un hilo daemon (cerró la deuda nº 1) y lleva número de despliegue; la convención de hilos gana 🎞️ (el hilo de eventos de mpv); §12 reanclado. Antes, 2026-09-01 (**abrir la ficha por un episodio**): **flujo 12 nuevo** —las tres acciones que prometen un episodio lo cumplen: la ficha sale con esa fila desplegada—, y el antiguo §12 pasa a **§13**; §3 gana el parámetro `focus_episode` y §8 deja de ser siempre cosa del usuario. Antes, 2026-09-01 (**refresco de la banda «Retomar»**): **flujo 11 nuevo** —la portada relee los episodios de lo que estás viendo al entrar—, y el antiguo §11 pasa a **§12**. Antes, 2026-08-31 (**fondo de la pantalla de carga**): §1 reanclado entero contra el código real y corregido —seguía diciendo `place_forget()`, que la fase 9 cambió a `destroy()`— y con la nota del fondo `Theme.BG`. Antes, 2026-08-16 (**columna `provider_id`**): §3 pasa de 2 caminos a **3, todos asíncronos**; **flujo 10 nuevo** (migrar una fila a otro proveedor); anclas de `anime_window.py` reubicadas tras crecer a 1 155 líneas |
 | **Cubre** | `main_window.py`, `anime_window.py`, `franchise_service.py`, `tab_bar.py`, `franchise_cards.py`, `recentAnimes.py`, `resume_card.py`, `searchAnimes.py`, las 4 vistas de estado, `animeProviderMgr.py`, `animesPersistence.py`, `utils.py`, `video_player.py`, `APIs/resolvers/` |
 
 Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ sin verificar.
@@ -613,7 +613,7 @@ sequenceDiagram
     end
     alt el anime_id destino ya lo ocupa otra fila
         AW->>U: showwarning «no se puede actualizar» :630-634 y return
-        Note over AW,P: sin UNIQUE, el UPDATE dejaría DOS filas del mismo anime<br/>(trampa 18)
+        Note over AW,P: sin UNIQUE, el UPDATE dejaría DOS filas del mismo anime<br/>(trampa 15)
     end
     AW->>U: askyesno con los cambios + «se conservan N episodios vistos» :644-650
     U-->>AW: sí
@@ -714,7 +714,7 @@ sequenceDiagram
 4. **Cada resultado se aplica en cuanto llega**, no al terminar la cola.
 5. 🔴 **`strict=True`, al revés que `open_saved_anime()`** (§3b). Aquí se escribe en la biblioteca sin
    que el usuario lo pida, y con *fallback* el mismo *slug* puede existir en otro sitio con otra cuenta
-   de episodios ([trampa 17](10-invariantes-y-trampas.md)): quedarse con el dato viejo es recuperable,
+   de episodios ([trampa 14](10-invariantes-y-trampas.md)): quedarse con el dato viejo es recuperable,
    guardar el de otro anime no.
 6. **Se relee la fila antes de escribir.** Entre la petición y la respuesta, la fila pudo borrarse o
    reapuntarse con «Actualizar a X»; el dato solo vale para el proveedor al que se le pidió.
@@ -834,7 +834,7 @@ plan del reproductor: AnimeAV1 por `HLS` (zilla) y MP4Upload, JKAnime
 por Desu y Magi, también desde el `.exe`.
 
 Aquí aparece un **cuarto hilo**: 🎞️ = **`MPVEventHandlerThread`**, el hilo propio de `python-mpv`
-donde llegan sus eventos ([trampa 28](10-invariantes-y-trampas.md)).
+donde llegan sus eventos ([trampa 23](10-invariantes-y-trampas.md)).
 
 **Lo que no se negocia**: si algo falla —no hay resolutor, el resolutor no puede, mpv no carga o el
 medio da error—, **el episodio se abre en el navegador**, que es lo que hacía la aplicación antes de
@@ -910,7 +910,7 @@ sequenceDiagram
   tienen resolutor y **no** se han intentado ya (`__failed_servers`). «Seguir en el navegador» cierra
   el panel.
 - **La ✕ de la tarjeta de fin** retira solo el aviso y deja a la vista el último fotograma, gracias a
-  `keep-open=yes` ([trampa 29](10-invariantes-y-trampas.md)). Play pasa a «repetir», que recarga el
+  `keep-open=yes` ([trampa 24](10-invariantes-y-trampas.md)). Play pasa a «repetir», que recarga el
   medio.
 
 ### 13b. Episodio anterior y siguiente
@@ -958,11 +958,11 @@ terminado.
 
 - **Entrar** (botón de la barra): la ficha llama a `MainWindow.enter_player_fullscreen()`, que
   **no** usa `-fullscreen` y conserva el botón de la barra de tareas
-  ([trampa 33](10-invariantes-y-trampas.md)), y a
+  ([trampa 28](10-invariantes-y-trampas.md)), y a
   `VideoPlayer.set_fullscreen(True)`, que cambia la barra fija por la **flotante**: un `Toplevel` sin
-  marco que se oculta a los 5 s junto con el cursor ([trampa 34](10-invariantes-y-trampas.md)).
+  marco que se oculta a los 5 s junto con el cursor ([trampa 29](10-invariantes-y-trampas.md)).
   `Esc`, Espacio, ← y → van con `bind_all` y solo mientras dura; el clic sobre el vídeo pausa o
-  reanuda ([trampa 32](10-invariantes-y-trampas.md)).
+  reanuda ([trampa 27](10-invariantes-y-trampas.md)).
 - **Cerrar el reproductor** pasa siempre por `MainWindow.close_player()` (`:199`), que llama al
   `close_player()` del dueño. Lo disparan «← Volver a la ficha», «Seguir en el navegador», **cambiar
   de vista** (`clear_frame()` lo llama primero) y **cerrar la ventana** (`WM_DELETE_WINDOW`). Así mpv
@@ -1023,7 +1023,7 @@ trae la relación → el de su página si está en la caché → **deducido del 
 (`deduce_format_from_title`: Película > OVA > ONA > Especial > Serie, por palabras; sale con
 `deduced=True` y se pinta con borde discontinuo) → y, para lo que siga sin formato, **una sola**
 petición a un proveedor con `RELATIONS_CARRY_FORMAT` (hoy JKAnime) con **el mismo slug**. Esa página
-se descarta si allí es otro anime (`title_similarity` < 0,75, [trampa 40](10-invariantes-y-trampas.md)),
+se descarta si allí es otro anime (`title_similarity` < 0,75, [05 §5b](05-proveedores-y-scraping.md)),
 y sus relacionados se emparejan por slug o por título. Lo que aporte lleva las siglas de ese proveedor.
 
 | Qué | Dónde | Valor |
@@ -1035,7 +1035,7 @@ y sus relacionados se emparejan por slug o por título. Lo que aporte lleva las 
 
 ✅ Medido el 2026-10-28 (scratchpad `live_franchise.py`): Kusuriya desde S1, **2 GET** (0,95 s); desde
 S2 y S3 después, **0**; SnK (7 temporadas) **6 GET**, 3,6 s; los formatos de SnK, **1 GET** a JKAnime;
-sin red, 3,03 s (los reintentos de AnimeAV1, [trampa 39](10-invariantes-y-trampas.md)) y una línea
+sin red, 3,03 s (los reintentos de AnimeAV1, [trampa 30](10-invariantes-y-trampas.md)) y una línea
 `interrupted`. Ningún 403.
 
 ⚠️ **El servicio no numera peticiones**: la ficha descarta lo que llegue tarde con
@@ -1134,7 +1134,7 @@ sequenceDiagram
 ```
 
 - **Una petición al abrir la pestaña**, dos como mucho. AnimeAV1 combina los dos géneros con **O**
-  (trampa 42); JKAnime solo admite uno y usa el primero. Por eso la segunda petición es **la página
+  ([05 §3](05-proveedores-y-scraping.md)); JKAnime solo admite uno y usa el primero. Por eso la segunda petición es **la página
   siguiente** y no «el primer género solo».
 - **«Ver otros 4»** enseña los candidatos 5-8 de lo **ya bajado** (20 por página en AnimeAV1, 30 en
   JKAnime) y solo pide otra página si no llegan a 8; «← Ver los primeros» vuelve sin red.
@@ -1172,7 +1172,7 @@ sequenceDiagram
         V->>V: solo refresh(urgent=True) de EpisodeRefresher si le toca
     else
         MW->>MW: vacía la página (o la crea, width=1, height=1) y guarda deepcopy(firma)
-        MW->>MW: update_idletasks() si aún mide 1 px (trampa 51)
+        MW->>MW: update_idletasks() si aún mide 1 px (trampa 35)
         MW-->>V: la página
         V->>V: construye en ella, como antes en content_frame
     end

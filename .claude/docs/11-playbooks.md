@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Fecha** | 2026-10-28 · rama `release/0.5.0` · último commit de código **`7bbbb3c`** |
-| **Última revisión** | 2026-10-28 (**versión 0.5.0**): §1 — una vista nueva calcula su **firma** y construye en la página de `show_view()`, nunca en `content_frame`; §3 — el proveedor define también **`PROVIDER_SHORT_NAME`** (cuatro atributos) y puede sobrescribir `get_anime_relations` y `_genre_from_slug`, y declarar `RELATIONS_CARRY_FORMAT`; §4 — los campos `format` y `related` como ejemplo de campo que **no** se persiste, y anclas al día; §6 — `hiddenimports` a **43**. Antes, 2026-10-27 (**conexiones por hilo**): `hiddenimports` pasa a **40** nombres con `utils.http_session`, y el `_fetch` de §3 pide con `thread_session()`. Antes, 2026-10-27 (**refresco de episodios**): `hiddenimports` pasa a **39** nombres con `gui.episode_refresher`. Antes, 2026-10-20 (**reproductor in-app**): **§9 nuevo, «Añadir un resolutor»**, con MP4Upload como caso real; **§6** gana la DLL de libmpv en `binaries`, `hiddenimports` a **37** y sus anclas al día. Antes, 2026-08-17: **§6 reescrito** — 8 pasos en vez de 6, con la verificación compilando, la regla de no volver a meter datos de usuario en `datas`, la copia de los ficheros legales tras `COLLECT` y la regeneración de `THIRD-PARTY-NOTICES.txt`. Antes, 2026-08-16: §2 reescrito con el **caso real ya ejecutado** (`provider_id` en medio del enum, con reconstrucción de tabla) y §3 con el paso 0 nuevo — añadir un proveedor empieza por `AnimeProviderId` |
+| **Última revisión** | 2026-11-08 (**citas a trampas**): las citas a [10](10-invariantes-y-trampas.md) siguen su renumeración (37 trampas), y las de las trampas que pasaron a [05](05-proveedores-y-scraping.md) o a [09 §6m](09-verificacion-y-pruebas.md) apuntan allí. Antes, 2026-10-28 (**versión 0.5.0**): §1 — una vista nueva calcula su **firma** y construye en la página de `show_view()`, nunca en `content_frame`; §3 — el proveedor define también **`PROVIDER_SHORT_NAME`** (cuatro atributos) y puede sobrescribir `get_anime_relations` y `_genre_from_slug`, y declarar `RELATIONS_CARRY_FORMAT`; §4 — los campos `format` y `related` como ejemplo de campo que **no** se persiste, y anclas al día; §6 — `hiddenimports` a **43**. Antes, 2026-10-27 (**conexiones por hilo**): `hiddenimports` pasa a **40** nombres con `utils.http_session`, y el `_fetch` de §3 pide con `thread_session()`. Antes, 2026-10-27 (**refresco de episodios**): `hiddenimports` pasa a **39** nombres con `gui.episode_refresher`. Antes, 2026-10-20 (**reproductor in-app**): **§9 nuevo, «Añadir un resolutor»**, con MP4Upload como caso real; **§6** gana la DLL de libmpv en `binaries`, `hiddenimports` a **37** y sus anclas al día. Antes, 2026-08-17: **§6 reescrito** — 8 pasos en vez de 6, con la verificación compilando, la regla de no volver a meter datos de usuario en `datas`, la copia de los ficheros legales tras `COLLECT` y la regeneración de `THIRD-PARTY-NOTICES.txt`. Antes, 2026-08-16: §2 reescrito con el **caso real ya ejecutado** (`provider_id` en medio del enum, con reconstrucción de tabla) y §3 con el paso 0 nuevo — añadir un proveedor empieza por `AnimeProviderId` |
 | **Cubre** | recetas operativas sobre los módulos de `src/` + `MiBibliotecaAnime.spec` |
 
 Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ sin verificar.
@@ -100,7 +100,7 @@ Antes de escribir un widget en una vista, pregúntate si lo va a necesitar otra.
    vista. (`Sidebar` es la excepción y está documentada como tal: necesita el hub para el proveedor
    y las preferencias.)
 4. **Declara `height=` explícito** en todo marco decorativo o que vaya a nacer vacío
-   ([trampa 19](10-invariantes-y-trampas.md)).
+   ([trampa 16](10-invariantes-y-trampas.md)).
 4b. 🆕 **Si el componente se adapta al ancho, tiene que poder medirlo.** Documenta en su docstring que
    la vista lo coloque con `sticky="ew"` y con `weight` en la columna del padre: sin eso mide su
    propio contenido y cualquier cuenta que haga sobre `winfo_width()` es un punto fijo
@@ -323,8 +323,8 @@ la sesión, y un **pin** al lado escribe en `DB_user.db`.
    superficies** que necesitan los 5 métodos, no solo la portada.
 
    ⚠️ **Una rejilla vacía no significa que haga falta un navegador.** Antes de concluir que el sitio
-   necesita renderizado JS, busca el payload en el HTML crudo (`grep 'animes *= *{'`). Es la
-   **trampa 15**, y descartó una tarde de trabajo mal enfocado.
+   necesita renderizado JS, busca el payload en el HTML crudo (`grep 'animes *= *{'`). Lo cuenta
+   [05 §3b](05-proveedores-y-scraping.md): descartó una tarde de trabajo mal enfocado.
 2. Crea la clase con los **4 atributos obligatorios** ya en el esqueleto —`PROVIDER_ID`,
    `PROVIDER_NAME`, 🆕 `PROVIDER_SHORT_NAME` (sus siglas, que la interfaz pone a lo que aporta; elige
    unas que no choquen con `AV1`, `JK` ni `FLV`) y `BASE_URL`—; sin ellos el módulo no importa
@@ -332,7 +332,7 @@ la sesión, y un **pin** al lado escribe en `DB_user.db`.
 3. Implementa los **5 métodos**. Devuelve siempre tipos de `APIs.common.models`.
    🆕 *(0.5.0)* En la ficha, rellena **`format`** y **`related`** si el sitio los da: `related` es una
    lista de `RelatedAnime` (`[]` si no tiene) y lo que no sea precuela, secuela o versión alternativa
-   va como `OTHER` ([05 §1](05-proveedores-y-scraping.md), [trampa 35](10-invariantes-y-trampas.md)).
+   va como `OTHER` ([05 §1](05-proveedores-y-scraping.md), [05 §3](05-proveedores-y-scraping.md)).
    Si el sitio **no sabe** dar relaciones, déjalo en `None` y la ficha no enseñará la pestaña. Tres
    piezas opcionales: sobrescribe **`get_anime_relations`** si la ficha completa cuesta más de una
    petición (los episodios aparte, como JKAnime); sobrescribe **`_genre_from_slug`** si traduces
@@ -408,7 +408,7 @@ la sesión, y un **pin** al lado escribe en `DB_user.db`.
 - [ ] `AnimeInfo.id` es un slug limpio, sin `/` ni `http` (si no, se duplican filas en la
       biblioteca).
 - [ ] El póster de los listados es la **carátula del anime**, no una miniatura de episodio
-      (trampa 14).
+      ([05 §3b](05-proveedores-y-scraping.md)).
 - [ ] **Tildes correctas** en `synopsis` y `title`.
 - [ ] Fallback probado: fuerza un fallo del por defecto y comprueba que entra el tuyo
       ([09 §4](09-verificacion-y-pruebas.md)).
@@ -417,7 +417,7 @@ la sesión, y un **pin** al lado escribe en `DB_user.db`.
 
 > ✅ **JKAnime (2026-08-06) es el recorrido completo de este playbook**, y el único que ha ejercitado
 > los pasos 5 (traducción de géneros) y 8 (posición en el fallback). Si vas a añadir MonosChinos2 o
-> TioAnime, lee antes [05 §3b](05-proveedores-y-scraping.md) y las trampas 14-16.
+> TioAnime, lee antes [05 §3b](05-proveedores-y-scraping.md), con sus tres trampas.
 
 ---
 
@@ -628,8 +628,8 @@ la barra diagonal del icono «sin conexión».
 
 **Cuándo**: un servidor que hoy lleva ↗ —se abre en el navegador— y se quiere ver dentro de la
 aplicación. Un resolutor es **de un hoster**, no de un proveedor: si el mismo hoster lo embeben dos
-sitios, sirve a los dos sin tocar nada más. Lee antes [05 §9](05-proveedores-y-scraping.md) y las
-[trampas 25-27](10-invariantes-y-trampas.md).
+sitios, sirve a los dos sin tocar nada más. Lee antes [05 §9](05-proveedores-y-scraping.md), cabeceras incluidas, y la
+[trampa 22](10-invariantes-y-trampas.md).
 
 **Ficheros**: `src/APIs/resolvers/<hoster>.py` (nuevo), `src/APIs/resolvers/registry.py`,
 `MiBibliotecaAnime.spec`. **Ni la GUI ni los proveedores se tocan**: la ↗ desaparece sola, porque la
@@ -697,12 +697,12 @@ class MP4UploadResolver(Resolver):
 ⚠️ **Lo que no hay que hacer**:
 
 - **Cachear** el `MediaSource` o la URL del medio: hay URLs que caducan en horas y otras atadas a la
-  IP ([trampa 27](10-invariantes-y-trampas.md)). Se resuelve cada vez que se pulsa.
+  IP ([trampa 22](10-invariantes-y-trampas.md)). Se resuelve cada vez que se pulsa.
 - **Resolver al listar los servidores**: solo al pulsar. `ServerInfo` no cambia.
 - **Añadir el resolutor como método de `AnimeProvider`** ni pasar por el *fallback* del manager
   ([01 I10](01-arquitectura.md)).
 - **Poner cabeceras por defecto** en `base.py` o en `VideoPlayer.play()` para que «funcione» este
-  hoster: rompe otro ([trampa 26](10-invariantes-y-trampas.md)).
+  hoster: rompe otro ([05 §9](05-proveedores-y-scraping.md)).
 
 **Checklist**
 

@@ -6,7 +6,7 @@
 | **Estado** | ✅ **Cerrado del todo.** La fase 8 implementa la columna que quedaba diferida ([§14](#14-fase-8--la-columna-provider_id-2026-08-16)) |
 | **Cierra** | TODO #4 (borrado de `main_window.py`), el punto «Selector de proveedor con preferencia persistida» y el punto 2 del roadmap ([12 §6](12-deuda-tecnica-y-roadmap.md)) |
 | **Mitiga** | **R2** — dependencia de un único proveedor sano ([12 §5](12-deuda-tecnica-y-roadmap.md)) |
-| **Última revisión** | 2026-08-16 (**fase 8**): §8 pasa de «diferida» a **implementada**, §9 cierra los puntos 1 y 5 de lo no verificado, y §14 documenta lo entregado. ✅ Los 16 ficheros de `src/` que entonces estaban sin commitear entraron en **`a3d4331`** |
+| **Última revisión** | 2026-11-08 (**citas a trampas**): las citas a [10](10-invariantes-y-trampas.md) siguen su renumeración (37 trampas), y las de las trampas que pasaron a [05](05-proveedores-y-scraping.md) o a [09 §6m](09-verificacion-y-pruebas.md) apuntan allí. Antes, 2026-08-16 (**fase 8**): §8 pasa de «diferida» a **implementada**, §9 cierra los puntos 1 y 5 de lo no verificado, y §14 documenta lo entregado. ✅ Los 16 ficheros de `src/` que entonces estaban sin commitear entraron en **`a3d4331`** |
 
 Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ sin verificar.
 
@@ -23,7 +23,7 @@ Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ si
 > Lo más importante que dejó esta tarea son tres invariantes:
 > **[trampa 13](10-invariantes-y-trampas.md)** (dos identidades del anime en la ficha — la única que
 > se ha llegado a reintroducir), **[regla R6](10-invariantes-y-trampas.md)** (buscar la biblioteca por slug) y
-> **[trampa 18](10-invariantes-y-trampas.md)** (reapuntar una fila puede duplicarla).
+> **[trampa 15](10-invariantes-y-trampas.md)** (reapuntar una fila puede duplicarla).
 
 ---
 
