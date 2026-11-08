@@ -1558,14 +1558,20 @@ class AnimeWindowViewer:
         self.__set_exclusive_status(AnimeStatus.PENDING)
         self.__after_status_change()
 
-    def add_to_watching(self):
+    def add_to_watching(self) -> bool:
+        """Pone el anime en «Viendo», creando su fila si no la tenía.
+
+        :return: Si quedó guardado; False si el usuario cancela el aviso de duplicado o falla la BD.
+        """
         if not self.__confirm_save(AnimeStatus.WATCHING):
-            return
+            return False
         anime_info = self.__persistence_anime_info()
-        self.main_window.animes_persistence.update_anime_to_watching(anime_info)
+        if not self.main_window.animes_persistence.update_anime_to_watching(anime_info):
+            return False
         print(f"{self.anime_info.title} añadido a viendo.")
         self.__set_exclusive_status(AnimeStatus.WATCHING)
         self.__after_status_change()
+        return True
 
     def remove_from_watching(self):
         self.main_window.animes_persistence.update_anime_to_not_watching(self.persistence_anime_id)
@@ -2504,15 +2510,25 @@ class AnimeWindowViewer:
     def __toggle_episode_switch(self, episode_id: int):
         """Marca o desmarca un episodio desde su interruptor.
 
+        Marcar un anime sin ningún estado, tenga fila o no, lo pone antes en
+        «Viendo». Si no llega a guardarse, el interruptor, que CustomTkinter ya ha
+        movido, vuelve a su sitio.
+
         :param episode_id: Episodio sobre el que actúa el interruptor.
         """
-        self.__set_episode_watched(episode_id, not self.watched_status.get(episode_id, False))
+        marking_as_watched = not self.watched_status.get(episode_id, False)
+        record = self.main_window.animes_persistence.get_anime_by_anime_id(self.persistence_anime_id)
+        if marking_as_watched and library_status(record) is None and not self.add_to_watching():
+            self.__refresh_episode_states()
+            return
+        self.__set_episode_watched(episode_id, marking_as_watched)
 
     def __set_episode_watched(self, episode_id: int, marking_as_watched: bool) -> bool:
         """Marca o desmarca un episodio. Marcar es acumulativo; desmarcar, no.
 
         Marcar el 5 marca del 1 al 5 y conserva los posteriores que ya estuvieran
-        vistos; desmarcar el 3 desmarca solo el 3.
+        vistos; desmarcar el 3 desmarca solo el 3. Solo escribe si el anime ya
+        tiene fila, y la ficha cambia después de saberlo.
 
         :param episode_id: Episodio que se marca o desmarca.
         :param marking_as_watched: True para marcarlo, False para desmarcarlo.
@@ -2531,14 +2547,6 @@ class AnimeWindowViewer:
         # IDs de todos los episodios hasta el marcado (inclusive) en orden real.
         episodes_up_to = {ep.id for ep in all_episodes_sorted[:ep_index_asc + 1]}
 
-        if marking_as_watched:
-            for ep_id in episodes_up_to:
-                self.watched_status[ep_id] = True
-        else:
-            self.watched_status[episode_id] = False
-        self.__refresh_episode_states()
-        self.__refresh_seen_bar()
-
         bd_watched = self.main_window.animes_persistence.get_watched_episodes(self.persistence_anime_id)
 
         if marking_as_watched:
@@ -2550,6 +2558,16 @@ class AnimeWindowViewer:
             merged = bd_watched - {episode_id}
 
         saved = self.main_window.animes_persistence.update_watched_episodes(self.persistence_anime_id, merged)
+
+        if saved:
+            if marking_as_watched:
+                for ep_id in episodes_up_to:
+                    self.watched_status[ep_id] = True
+            else:
+                self.watched_status[episode_id] = False
+        # Se repinta también sin guardar: el interruptor pulsado ya se movió solo.
+        self.__refresh_episode_states()
+        self.__refresh_seen_bar()
 
         # «Retomar donde lo dejaste» de la portada sale de aquí. Se apunta solo al
         # marcar (desmarcar no es «seguir viendo») y solo si el UPDATE encontró la

@@ -110,14 +110,26 @@ SQL se ejecutó sin excepción».
 
 ---
 
-### 5. Marcar episodios de un anime sin estado no persiste nada ✅
+### 5. `update_watched_episodes` no crea la fila, y una fila sin estado no se ve en ninguna vista ✅
 
-`update_watched_episodes` devuelve `False` sin escribir si el anime no está en `ANIMES`
-(`animesPersistence.py:358`). Un anime solo entra en BD al pulsar uno de los 4 botones de estado
-(`_set_status:483-491`).
+`update_watched_episodes` devuelve `False` sin escribir si el anime no está en `ANIMES`. Una fila solo
+se crea con `_set_status`: los cuatro botones de estado y, desde el 2026-11-08, **el interruptor de un
+episodio**. En un anime **sin ningún estado** (`library_status()` es `None`: sin fila, o con los
+cuatro a 0), el interruptor llama antes a `add_to_watching()`, con su aviso de duplicado y la
+identidad de persistencia. Si se cancela el aviso, no se guarda nada y el interruptor vuelve a
+apagarse. El reproductor sigue **sin** crear filas ni cambiar estados (trampas 24 y 25).
 
-**Síntoma**: el usuario marca episodios en la ficha de un anime recién descubierto, sale, vuelve, y
-los switches están todos apagados. **Sin ningún mensaje.**
+**Síntoma si un camino nuevo escribe vistos sin mirar el `False`**: el usuario marca, sale, vuelve y
+está todo apagado, sin ningún mensaje. Era lo que hacía el interruptor hasta el 2026-11-08, porque
+repintaba **antes** de saber si se había guardado. Quien escriba vistos cambia la ficha después de
+guardar, y repinta igual si falla: `CTkSwitch` se mueve solo antes de llamar a su `command`.
+
+**Y la otra mitad**: las filas no se borran nunca. Quitar un anime de su última sección —«Viendo»,
+«Pendientes» o «Favoritos»; «Finalizados» no, que pasa a «Pendientes»— deja la fila con los cuatro
+estados a 0 (16 de 55 en la BD real el 2026-11-08). Lo que escriba vistos en ella **sin pasar por el
+interruptor** —hoy, el reproductor— guarda, pero el anime no sale en ninguna vista, salvo la banda
+«Retomar», y lo visto solo se ve abriendo su ficha. Un favorito sin estado excluyente **no** cuenta
+como «sin estado»: marcar no lo mueve.
 
 ---
 
@@ -150,7 +162,8 @@ por visto el que se deja—:
 **Si lo cambias**: se pierde el caso de uso principal («voy por el 340»), que evita 340 clics, y
 terminar o saltar un episodio en el reproductor dejaría huecos en lo visto.
 
-**Solo escribe si el anime ya tiene fila** (trampa 5): el reproductor nunca crea una.
+**Solo escribe si el anime ya tiene fila** (trampa 5). Si el anime no tiene ningún estado, el
+interruptor lo pone en «Viendo» antes de llamarlo; el reproductor nunca crea una fila.
 
 ---
 
@@ -1036,8 +1049,9 @@ se precarga: dentro del proceso solo cambia de sitio el congelado; la vía medid
 2. **Trampa 15** — reapuntar una fila a otro proveedor puede duplicarla: la BD no tiene `UNIQUE`.
 3. **Trampa 3** — el orden de `episodes` depende del proveedor y se invierte al guardar; y hay una
    lista que **no** hay que invertir.
-4. **Trampa 5** — marcar episodios sin estado asignado no guarda nada, sin avisar.
-5. **Trampa 11** — la purga de pósters borra todo lo que no esté en la lista actual.
+4. **Trampa 11** — la purga de pósters borra todo lo que no esté en la lista actual.
+5. **Trampa 25** — un corte a mitad de episodio tratado como final marca como vistos ese episodio y
+   todos los anteriores, en la biblioteca real.
 
 > **Cómo se mantiene este documento**: una trampa que ya no puede darse con el código actual se
 > **borra**; una que el código evita pero cuya causa sigue viva pasa a **regla**; una que no es del código —un sitio que se

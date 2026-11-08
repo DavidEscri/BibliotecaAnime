@@ -699,6 +699,13 @@ legítimas, así que ahora las separan los **números** del título ([regla R19]
 ✅ Relocalizando las 46 filas de la biblioteca en el otro proveedor, **0** cambian de elección
 respecto al criterio anterior.
 
+✅ **AnimeAV1 y JKAnime comparten casi siempre el slug** (2026-11-08): de 11 filas de AnimeAV1
+buscadas en JKAnime, las 11 dan el mismo `anime_id`. AnimeFLV sí difiere (`jujutsu-kaisen-tv` frente a
+`jujutsu-kaisen`, `one-piece-gyojin-touhen` frente a `-tou-hen`). Consecuencia para probar la
+[trampa 13](10-invariantes-y-trampas.md): desviar el desplegable entre AnimeAV1 y JKAnime casi nunca
+parte la identidad, porque la fila se encuentra con el slug de la ficha. Para provocar el aviso de
+duplicado hay que usar una fila de AnimeFLV.
+
 ⚠️ **Lo que sigue sin verificarse**: un título que difiera **de verdad** entre sitios (un nombre
 localizado frente al romaji). No ha aparecido ninguno en la biblioteca del usuario. Si algún día
 falla, el síntoma es «*X no tiene este anime*» sobre algo que sí está: bájale el umbral **con datos**,
