@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Fecha** | 2026-10-28 · rama `release/0.5.0` · último commit de código **`7bbbb3c`** |
-| **Última revisión** | 2026-10-28 (**versión 0.5.0**): §1 gana el **cuarto atributo obligatorio** (`PROVIDER_SHORT_NAME`), el atributo opcional `RELATIONS_CARRY_FORMAT` y **dos métodos no abstractos** (`get_anime_relations` y `genre_filters`, con su gancho `_genre_from_slug`); §3 gana **«Relaciones, formato y géneros»** (los códigos de `relations`, `category.malId`, el recorte del array y el *fallback* al DOM; el catálogo y sus géneros con **O**); §3b gana **«Temporadas y relacionados»** (la sección con `id` repetidos, el paréntesis que no siempre es formato, la ficha ligera de **una** petición y el 429 del directorio). Antes, 2026-10-20 (**reproductor in-app**): **§9 nuevo**, los **hosters**: qué entrega cada uno, con qué cabeceras y con qué caducidad, por qué la resolución **no** es un método de `AnimeProvider` y cómo se diagnostica uno que dejó de resolver. §6 gana la fila que remite allí. JKAnime convierte en absolutas las URLs de servidor relativas (Okru, `urljoin`). Antes, 2026-08-16: `PROVIDER_ID` deja de ser una cadena y pasa a ser **`AnimeProviderId`** (§1); `provider_info()` nuevo; el fallback ahora **estampa** quién respondió (§5) |
+| **Última revisión** | 2026-11-08 (**trampas de los sitios**): llegan desde [10](10-invariantes-y-trampas.md) las 12 trampas que son comportamiento de los sitios, no del código, con su síntoma y su invariante: §3 gana «Historia principal» y «Predecesor» no son precuelas, el array de relaciones con `]` y los géneros del catálogo con **O**; §3b, las seis de JKAnime (las dos imágenes de la portada, las rejillas vacías del directorio, el slug frente al id numérico, los `<h5>` con el mismo `id`, el paréntesis que no es formato y el 429 del directorio), fundidas con los apartados que ya las explicaban; §5b, el mismo slug que en el otro proveedor es otro anime; y §9 estrena **«Cabeceras: cada hoster quiere las suyas»** (zilla y su `Sec-Fetch-Site`, y lo que un hoster exige y otro rechaza). Antes, 2026-10-28 (**versión 0.5.0**): §1 gana el **cuarto atributo obligatorio** (`PROVIDER_SHORT_NAME`), el atributo opcional `RELATIONS_CARRY_FORMAT` y **dos métodos no abstractos** (`get_anime_relations` y `genre_filters`, con su gancho `_genre_from_slug`); §3 gana **«Relaciones, formato y géneros»** (los códigos de `relations`, `category.malId`, el recorte del array y el *fallback* al DOM; el catálogo y sus géneros con **O**); §3b gana **«Temporadas y relacionados»** (la sección con `id` repetidos, el paréntesis que no siempre es formato, la ficha ligera de **una** petición y el 429 del directorio). Antes, 2026-10-20 (**reproductor in-app**): **§9 nuevo**, los **hosters**: qué entrega cada uno, con qué cabeceras y con qué caducidad, por qué la resolución **no** es un método de `AnimeProvider` y cómo se diagnostica uno que dejó de resolver. §6 gana la fila que remite allí. JKAnime convierte en absolutas las URLs de servidor relativas (Okru, `urljoin`). Antes, 2026-08-16: `PROVIDER_ID` deja de ser una cadena y pasa a ser **`AnimeProviderId`** (§1); `provider_info()` nuevo; el fallback ahora **estampa** quién respondió (§5) |
 | **Cubre** | `src/APIs/common/animeProviderMgr.py`, `src/APIs/common/models.py`, `src/APIs/animeav1/animeav1.py`, `src/APIs/animeflv/animeflv.py`, `src/APIs/jkanime/jkanime.py`, `src/APIs/resolvers/` |
 
 Procedencia: ✅ verificado en ejecución contra los sitios reales el 2026-07-28 · 📖 leído en código ·
@@ -98,7 +98,7 @@ el proveedor bajo una clave que nadie busca, y el fallo no aparecería hasta el 
    **`related = None` significa «este proveedor no sabe dar relaciones»** (AnimeFLV, y todos los
    listados): la ficha distingue «no tiene» de «no lo sé» y en el segundo caso **no pinta la pestaña**.
    Lo que no sea precuela, secuela o versión alternativa se traduce a `OTHER` **dentro del proveedor**
-   ([trampa 35](10-invariantes-y-trampas.md)).
+   (§3: «Historia principal» y «Predecesor» **no** son precuelas).
 6. 🆕 **No rellenes `AnimeInfo.provider_id`.** Lo estampa el manager al responder (§5), que es el único
    que sabe cuál de los proveedores acabó contestando cuando entra el fallback. Un proveedor que lo
    rellenara a mano mentiría en cuanto alguien llamara a su método directamente.
@@ -252,13 +252,26 @@ relations:[{type:2,destination:{id:317,slug:"kusuriya-no-hitorigoto-2nd-season",
 | `6`, `7`, `8`, `10` | Resumen, Historia completa, **Historia principal**, Otro | `OTHER`, sin aviso |
 | cualquier otro | — | `OTHER` **con un `print`** (⚠️ el 3, el 5 y el 9 no han salido en ninguna muestra) |
 
-⚠️ «Historia principal» (`8`) apunta de una película u OVA **a la serie madre**: no es una precuela
-([trampa 35](10-invariantes-y-trampas.md)).
+🔴 **Trampa: «Historia principal» y «Predecesor» no son precuelas** ✅. AnimeAV1 (`type:8`) y JKAnime
+(«Predecesor», §3b) las usan para apuntar **de una película, OVA o especial a su serie madre**, no a la
+temporada anterior.
+
+**Síntoma si se traducen a `PREQUEL`**: el recorrido de la franquicia mete **la serie entera** como
+temporada anterior de una película, y «◀ Temporada anterior» de la película 1 de SnK lleva a la serie.
+
+**Invariante**: solo el código `1` de AnimeAV1 y la etiqueta «Precuela» de JKAnime son `PREQUEL`. Todo
+lo que no sea precuela, secuela o versión alternativa es `OTHER` (decisión P3/P8 del usuario: solo
+cuatro tipos), y un código de AnimeAV1 que no esté en la tabla cae en `OTHER` **con un `print`**, nunca
+en excepción.
 
 - **El array se recorta contando corchetes y respetando las cadenas** (`__extract_js_array`,
-  `:464-497`), porque hay títulos con `]` («[Oshi no Ko]», [trampa 36](10-invariantes-y-trampas.md)).
-  Cada entrada se parte por `{type:` y sus campos salen con **regex independientes del orden**; las
-  cadenas se des-escapan con `json.loads` (`_unescape_js`).
+  `:464-497`). 🔴 **Trampa** ✅: `relations` es JavaScript, no JSON, y sus títulos pueden llevar `]`
+  («[Oshi no Ko]») y `\"`. **Síntoma con una regex perezosa hasta `]`**: el array se corta en el
+  primer título con corchete y se pierden **en silencio** todos los relacionados siguientes.
+  **Invariante**: recortar contando corchetes y respetando las cadenas, y des-escapar cada cadena con
+  `json.loads` (`_unescape_js`). Probado offline con `[Oshi no Ko]`, `\"`, un código 99 y un payload
+  sin `relations`. Cada entrada se parte por `{type:` y sus campos salen con **regex independientes
+  del orden**.
 - **Año**: los cuatro primeros dígitos de `startDate`. **Póster**: `cdn.animeav1.com/covers/{id}.jpg`
   con el `id` de `destination` (`COVER_URL`, `:30`), gratis y sin petición extra.
 - **La relación no trae formato**: el de cada relacionado solo se sabe abriendo su ficha, o
@@ -287,11 +300,19 @@ del sitio, y **33 son idénticos** a los `value` de `AnimeGenreFilter`, así que
 `mahou-shoujo`, `mitologia`, `shoujo-ai`, `shounen-ai`) se descartan con un aviso por sesión. Del enum
 faltan en el sitio `demencia`, `demonios`, `juegos`, `magia`, `policia`, `yaoi` y `yuri`.
 
-🔴 **Dos géneros en el catálogo se combinan con O, no con Y** ([trampa 42](10-invariantes-y-trampas.md)):
-«acción + romance» trae animes de solo romance. 20 resultados por página. El catálogo **no ordena por
-calificación** (`__apply_client_side_order` ordena en el cliente lo que sabe); admite `order` en la
-URL, pero ⚠️ sus valores no salen en el HTML y no se investigaron. Ningún resultado de búsqueda trae
-sus géneros (la tarjeta y su payload: `id`, `title`, `synopsis`, `categoryId`, `slug`).
+🔴 **Trampa: dos géneros en el catálogo se combinan con O, no con Y** ✅.
+`catalogo?genre=accion&genre=romance` trae animes que solo tienen **uno** de los dos.
+
+**Síntoma**: quien espere una intersección recibe animes que comparten un género, no los dos.
+
+**Invariante**: es lo que da el sitio. «Te puede interesar» lo asume —cada resultado comparte **al
+menos uno**— y, si tras filtrar faltan, pide **la página siguiente**, no «el primer género solo», que
+con O sería un subconjunto de lo ya pedido.
+
+20 resultados por página. El catálogo **no ordena por calificación** (`__apply_client_side_order`
+ordena en el cliente lo que sabe); admite `order` en la URL, pero ⚠️ sus valores no salen en el HTML y
+no se investigaron. Ningún resultado de búsqueda trae sus géneros (la tarjeta y su payload: `id`,
+`title`, `synopsis`, `categoryId`, `slug`).
 
 ---
 
@@ -313,9 +334,9 @@ perder el tiempo mirando el DOM equivocado.
 
 ### El directorio: rejillas vacías que NO son un fallo
 
-⚠️ **La trampa principal.** Los tres `div.row.page_directorio` (modos de vista 1/2/3) llegan
-**vacíos** en el HTML. Es tentador concluir que hace falta renderizar JS o encontrar un endpoint
-AJAX. **Las dos conclusiones son falsas**, y ambas se probaron:
+🔴 **Trampa** ✅ —la principal de JKAnime—. Los tres `div.row.page_directorio` (modos de vista
+1/2/3) llegan **vacíos** en el HTML. Es tentador concluir que hace falta renderizar JS o encontrar un
+endpoint AJAX. **Las dos conclusiones son falsas**, y ambas se probaron:
 
 - No existe endpoint: `/ajax/directorio`, `/ajax/filtros`, `/ajax/filter` y `/ajax/animes`
   devuelven 404 o 405.
@@ -333,6 +354,12 @@ así que `last_page` viene dado y no hay que deducirlo del DOM como en los otros
 `url` ya resueltos: **el listado del directorio no necesita una segunda petición** para completarse,
 al contrario que las tarjetas de AnimeAV1 y AnimeFLV.
 
+**Síntoma de haber caído en la trampa**: se concluye que el proveedor necesita un navegador y se
+descarta o se degrada `search_animes_by_genres_and_order` sin motivo.
+
+**Invariante**: ante una rejilla vacía, buscar primero el payload en el HTML crudo
+—`grep 'animes *= *{'`— antes de asumir que el contenido llega por red.
+
 ### Los episodios: la única petición con CSRF
 
 📖 `__get_episodes`. Laravel responde **419** si falta el token. Hacen falta tres cosas, y las tres
@@ -347,16 +374,22 @@ salen del HTML de la ficha:
    cookies a propósito**, y con ella el AJAX daría 419. JKAnime se quedó fuera de B16 por eso y
    porque el resto de sus peticiones son de una en una por hilo, donde reutilizar no gana nada.
 
-> ⚠️ **Dos identidades**, igual de traicioneras que las de la ficha de detalle: el **slug**
-> (`hunter-x-hunter-2011`) es lo que viaja en `AnimeInfo.id` y en las URL; el **id numérico** (`429`)
-> solo sirve para ese endpoint. No son intercambiables y el numérico no aparece en ninguna URL
-> navegable.
+> 🔴 **Trampa: el slug y el id numérico no son intercambiables** ✅. Son **dos identidades**, la
+> misma clase de confusión que la [trampa 13](10-invariantes-y-trampas.md) de la ficha de detalle,
+> pero dentro de un proveedor: el **slug** (`hunter-x-hunter-2011`) es lo que viaja en `AnimeInfo.id`
+> y en las URL; el **id numérico** (`429`) solo sirve para `POST /ajax/episodes/<id>/`, no aparece en
+> ninguna URL navegable y hay que sacarlo del HTML de la ficha. Esa llamada exige además el token
+> CSRF y las cookies de sesión, o Laravel responde **419**.
+>
+> **Síntoma**: fichas que se abren con título, sinopsis, géneros y póster correctos pero con **cero
+> episodios**, sin más aviso que un `print`.
 
 La respuesta es otro paginador de Laravel, pero **solo se usa su `total`**: los episodios están
 numerados de 1 a N, así que no hace falta recorrer sus páginas para reconstruir la lista.
 
-Si esa segunda llamada falla, `get_anime_info` **devuelve la ficha igualmente** con `episodes=[]`,
-en vez de perder también título, sinopsis y géneros que sí se leyeron.
+📖 Si esa segunda llamada falla, `get_anime_info` **devuelve la ficha igualmente** con `episodes=[]`,
+en vez de perder también título, sinopsis y géneros que sí se leyeron. Es deliberado, y es lo que deja
+el síntoma de arriba como único rastro del fallo.
 
 ### La búsqueda no pagina, y es por diseño
 
@@ -376,15 +409,26 @@ crudo devuelven los mismos 22 resultados. No hace falta lógica de separadores.
 
 ### Tarjetas: dos imágenes por `<img>` en la portada
 
-⚠️ Las tarjetas de la portada son de **episodio**, no de anime, y su `<img>` lleva dos imágenes:
+🔴 **Trampa** ✅: las tarjetas de la portada (`div.card`) son de **episodio**, no de anime, y su
+`<img>` lleva dos imágenes:
 
 | Atributo | Contenido |
 |---|---|
 | `src` | captura del episodio (`.../animes/video/image/jkvideo_*.jpg`) |
 | `data-animepic` | **póster del anime** (`.../animes/image/<slug>.jpg`) ← el que se usa |
 
-Usar `src` llenaría la biblioteca de fotogramas sueltos en vez de pósters. En la **búsqueda** el
-póster tampoco está en un `<img>`: va en `data-setbg` de `.anime__item__pic`.
+Leer `src`, que es lo que haría cualquiera copiando el patrón de los otros dos proveedores, llena la
+biblioteca de **fotogramas sueltos** en vez de carátulas.
+
+**Síntoma**: los animes recientes se ven con imágenes borrosas y apaisadas, distintas cada vez que
+sale un episodio nuevo, y el póster cambia solo al recargar. Ningún error por consola.
+
+📖 `jkanime.py` lo resuelve con `img_el.get("data-animepic") or img_el.get("src", "")`. En la
+**búsqueda** el problema es otro: ahí el póster no está en un `<img>`, sino en el atributo
+`data-setbg` de `.anime__item__pic`.
+
+**Invariante**: al añadir un proveedor, comprobar de dónde sale el póster de un listado **mirando la
+URL resultante**, no solo que la imagen no esté vacía.
 
 ### El orden del directorio necesita dos parámetros
 
@@ -409,21 +453,25 @@ devuelve de la Z a la A:
 La ficha trae una sección `<h3>Temporadas y relacionados</h3>` con bloques
 `<h5 id="aditional">Secuela</h5>` seguidos de `<a href="https://jkanime.net/<slug>/">Título (Serie)</a><br>`.
 
-- **Todos los `<h5>` llevan el mismo `id="aditional"`** ([trampa 37](10-invariantes-y-trampas.md)):
-  `__extract_relations` recorre **en orden** los hermanos `h5`/`a` del `<h3>`, y el tipo de cada
-  enlace es el del último `<h5>`.
+- 🔴 **Trampa: todos los `<h5>` llevan el mismo `id="aditional"`** ✅, y `li[rel='tipo']` (el formato
+  del propio anime) sale **dos veces** en la página, en dos bloques de información.
+  **Síntoma**: un selector por `#aditional` devuelve solo el primer bloque, y ninguno distingue tipos.
+  **Invariante**: `__extract_relations` recorre **en orden** los hermanos `h5`/`a` del `<h3>`, y el
+  tipo de cada enlace es el texto del último `<h5>` visto. Del formato vale el primer `li[rel='tipo']`.
 - Tipos vistos y su traducción (etiqueta normalizada con `normalize_title()`, sin tildes, como las
   escribe el sitio): **Precuela** → `PREQUEL`, **Secuela** → `SEQUEL`, **Version alternativa** →
   `ALTERNATIVE`; Adicional, Derivado, Resumen, Personaje incluido, Otro, **Predecesor** y **Version
   completa** → `OTHER` sin aviso; cualquier otro, `OTHER` con un `print`. «Predecesor» es la historia
-  madre, no una precuela ([trampa 35](10-invariantes-y-trampas.md)).
-- **Formato en el paréntesis final** (Serie, OVA, Pelicula, Especial, ONA), que `__split_format` solo
-  separa **si es un formato conocido**: «Hunter x Hunter (2011)» se queda entero
-  ([trampa 38](10-invariantes-y-trampas.md)). Por eso `RELATIONS_CARRY_FORMAT = True`.
+  madre, no una precuela: es la trampa de §3.
+- 🔴 **Trampa: el paréntesis final del enlace no siempre es el formato** ✅. Los enlaces son «Título
+  (Serie)», pero también «Hunter x Hunter (2011)». **Síntoma**: separar siempre el último paréntesis
+  deja «Hunter x Hunter» sin año y con un formato «2011» que no existe. **Invariante**:
+  `__split_format` solo lo separa si es un formato conocido (Serie, OVA, Pelicula —sin tilde—,
+  Especial, ONA); si no, se queda en el título. Por eso `RELATIONS_CARRY_FORMAT = True`.
 - **Sin año ni póster** en la relación. Los de la línea principal salen de las páginas que el
   recorrido ya descarga (`og:image`); los «otros» van sin póster.
-- **Formato del propio anime**: `<li rel="tipo"><span>Tipo:</span> Serie</li>`, que aparece **dos
-  veces** en la página; vale la primera (`__extract_format`).
+- **Formato del propio anime**: `<li rel="tipo"><span>Tipo:</span> Serie</li>`, el primero de los
+  dos (`__extract_format`).
 
 **La ficha ligera es una petición.** `get_anime_info` = `__get_anime_page()` (`:317-359`, la página)
 **+** el POST de episodios con CSRF; `get_anime_relations` (`:303-310`) se queda en la primera. ✅
@@ -434,10 +482,16 @@ de `_GENRE_TRANSLATIONS`: `colegial` → `ESCOLARES`, `sci-fi` → `CIENCIA_FICC
 `nios` → `INFANTIL`. El directorio admite **un solo** género, así que «Te puede interesar» busca por el
 primero.
 
-🔴 **El directorio responde 429 con su propio texto** si se le pide de seguido («Estas realizando
-demasiadas peticiones… el bloqueo dura 60 segundos»), también tras las peticiones de una sesión
-anterior del mismo día. La búsqueda devuelve `([], 1)` y parece vacía
-([trampa 41](10-invariantes-y-trampas.md)).
+🔴 **Trampa: el directorio responde 429 con su propio texto** ✅ si se le pide de seguido («Estas
+realizando demasiadas peticiones… el bloqueo dura 60 segundos»), también tras las peticiones de una
+sesión anterior del mismo día.
+
+**Síntoma**: `search_animes_by_genres_and_order` cae en `raise_for_status()` y devuelve `([], 1)`; la
+búsqueda **parece vacía**, porque el manager no distingue vacío de error
+([trampa 9](10-invariantes-y-trampas.md)).
+
+**Invariante**: no reintentar solo. «Te puede interesar» trata un `([], 1)` como error y ofrece
+**«Reintentar» a mano** ([09 §7.9](09-verificacion-y-pruebas.md)).
 
 ---
 
@@ -650,6 +704,17 @@ localizado frente al romaji). No ha aparecido ninguno en la biblioteca del usuar
 falla, el síntoma es «*X no tiene este anime*» sobre algo que sí está: bájale el umbral **con datos**,
 no a ojo.
 
+🔴 **Trampa: el mismo slug en el otro proveedor puede ser otro anime** ✅.
+`FranchiseService.request_formats` pide **una** ficha al otro proveedor con el mismo slug para
+completar los formatos de los relacionados ([03 §15](03-flujos-de-ejecucion.md)). El slug coincide muchas veces entre sitios, pero no siempre
+significa lo mismo.
+
+**Síntoma sin comprobarlo**: los relacionados se pintan con los formatos **de otra franquicia**.
+
+**Invariante**: la página del otro proveedor se descarta si `title_similarity()` con el título propio
+queda por debajo de `TITLE_MATCH_THRESHOLD`: es la [regla R19](10-invariantes-y-trampas.md) aplicada a
+un slug.
+
 > 📌 `resolve_anime_in_provider` **valida** que el proveedor esté registrado y devuelve `None` con un
 > aviso (`:418-420`). Es la excepción entre los métodos del manager, y conviene copiar el patrón:
 > los wrappers de `call_with_fallback` no validan y caen en la [trampa 10](10-invariantes-y-trampas.md).
@@ -782,7 +847,7 @@ sirve el vídeo: zilla, MP4Upload, playmudos… `ServerInfo.url` es la URL del *
   navegador**, no preguntar a otro proveedor. Meterlo en el contrato habría arrastrado a la
   resolución la semántica de «vacío = error» del manager ([trampa 9](10-invariantes-y-trampas.md)).
 - **`ServerInfo` no cambia**, y se resuelve **al pulsar**, no al listar: varias URLs de medio caducan
-  o van atadas a la IP ([trampa 27](10-invariantes-y-trampas.md)).
+  o van atadas a la IP ([trampa 22](10-invariantes-y-trampas.md)).
 
 Las dependencias de la capa están en [01 §2](01-arquitectura.md): solo stdlib, `requests` y ella
 misma. **No importa de `APIs.<sitio>` ni de `gui/`.**
@@ -806,8 +871,8 @@ cualquier otra excepción de `matches()` o `resolve()` y devuelve `None`.
 
 | Servidor (proveedor) | URL del *embed* | Resolutor y cómo | Medio | Cabeceras | Caducidad | Cobertura |
 |---|---|---|---|---|---|---|
-| **HLS** (AnimeAV1) | `player.zilla-networks.com/play/<hash 32 hex>` | `ZillaResolver`, **sintáctico**: `play/` → `m3u8/`, sin pedir la página | HLS **fMP4**, AV1 1080p | `Sec-Fetch-Site: same-origin` ([trampa 25](10-invariantes-y-trampas.md)) | no declarada | 0/3 el 2026-09-24 (**origen caído**, 522); ✅ vuelve el 2026-10-20 |
-| **MP4Upload** (AnimeAV1) | `www.mp4upload.com/embed-<id>.html` | `MP4UploadResolver`: baja el *embed* y saca la URL de `player.src({…})` de video.js | MP4 en `aN.mp4upload.com:183`, **AV1 1080p** (no H.264) | UA de navegador + `Referer: https://www.mp4upload.com/` ([trampa 26](10-invariantes-y-trampas.md)) | token de sesión, `None` | 3/3 |
+| **HLS** (AnimeAV1) | `player.zilla-networks.com/play/<hash 32 hex>` | `ZillaResolver`, **sintáctico**: `play/` → `m3u8/`, sin pedir la página | HLS **fMP4**, AV1 1080p | `Sec-Fetch-Site: same-origin` ([abajo](#cabeceras-cada-hoster-quiere-las-suyas)) | no declarada | 0/3 el 2026-09-24 (**origen caído**, 522); ✅ vuelve el 2026-10-20 |
+| **MP4Upload** (AnimeAV1) | `www.mp4upload.com/embed-<id>.html` | `MP4UploadResolver`: baja el *embed* y saca la URL de `player.src({…})` de video.js | MP4 en `aN.mp4upload.com:183`, **AV1 1080p** (no H.264) | UA de navegador + `Referer: https://www.mp4upload.com/` ([abajo](#cabeceras-cada-hoster-quiere-las-suyas)) | token de sesión, `None` | 3/3 |
 | **Desu**, **Magi** (JKAnime) | `jkanime.net/jkplayer/um?…` y `umv?…` | `JKPlayerResolver`: baja la página (con `Referer: https://jkanime.net/`) y busca el `.m3u8` **en claro** (`hls.loadSource(…)`); si no, dentro de los `atob()` | HLS **MPEG-TS** de `nika.playmudos.com`, H.264 720p, subtítulos incrustados | ninguna | `e=` → **~3 h** | 7/7 |
 | **Desuka** (JKAnime) | `jkanime.net/jkplayer/jk?…` | `JKPlayerResolver`: `url: '…'` de la página | MP4 de `jkplayers.com/stream/jkmedia/…` | **ninguna** — con `Referer` da **410** | **atado a la IP** del cliente | 1/1 |
 
@@ -823,6 +888,61 @@ navegador no sabía resolverla; ahora `JKAnime.get_anime_episode_servers()` la h
 máquina de pruebas (GTX 1070) y va por software (dav1d): **0,2-0,33 núcleos**, sin un fotograma
 perdido. El H.264 de JKAnime va por `d3d11va`.
 
+### Cabeceras: cada hoster quiere las suyas
+
+Dos trampas del lado de los hosters. Como todo lo de esta capa, **fallan cayendo al navegador**: el
+síntoma no es un error, sino «este servidor se abre fuera cuando debería verse aquí». Que una URL de
+medio caduque o vaya atada a la IP es la otra mitad del problema, pero su invariante es del código y
+sigue en [10, trampa 22](10-invariantes-y-trampas.md).
+
+**🔴 Los segmentos de zilla dan 403 sin `Sec-Fetch-Site: same-origin`** ✅
+
+El playlist `https://player.zilla-networks.com/m3u8/<hash>` (el servidor «HLS» de AnimeAV1) responde
+200 a cualquiera. Los **segmentos** —`segs/<hash>/NNN.html`, que pese a la extensión son fMP4 y
+empiezan por `styp`— exigen la cabecera `Sec-Fetch-Site: same-origin`, **exactamente con ese valor**.
+Es la forma que tiene el sitio de comprobar que la petición sale de su propio reproductor.
+
+**Síntoma**: mpv baja el playlist, pide el primer segmento, recibe 403 y acaba en `end-file` con
+`reason=4`. En pantalla, la tarjeta de «Cargando» dura un instante y el episodio **se abre en el
+navegador** con «No se ha podido cargar aquí». Parece que zilla está caído, y no lo está.
+
+⚠️ **No confundirlo con una caída real**, que también pasa (tres días seguidos en septiembre de 2026,
+con **522** de Cloudflare): entonces mpv espera el `network-timeout` de 15 s y la caída al navegador
+tarda **~20 s**. **Instantáneo → cabecera; ~20 s → origen caído.** Y si responde, pero **despacio**,
+cae a los **30 s**, por el tope propio del reproductor ([regla R15](10-invariantes-y-trampas.md)).
+
+**Invariante**: las cabeceras viajan en `MediaSource.headers` y `VideoPlayer.play()`
+(`video_player.py:680`) las pasa a mpv como `http_header_fields` —todas salvo `User-Agent`, que va a
+su propiedad—. El cliente `curl` de mpv las aplica a **cada** petición, playlist y segmentos. Nunca se
+ponen solo en la petición del playlist.
+
+**Cómo comprobarlo**: un segmento con y sin la cabecera ([09 §6h](09-verificacion-y-pruebas.md)).
+✅ 2026-09-23 contra un servidor local con la misma regla (los segmentos llegan con la cabecera) y ✅
+2026-10-20 contra zilla real: **200 con ella, 403 sin ella**, y `dandadan` ep. 1 visto en la app.
+
+**🔴 Lo que un hoster exige, otro lo rechaza** ✅
+
+No hay una política de cabeceras común que valga para todos:
+
+| Medio | Cabeceras que funcionan | Lo que lo rompe |
+|---|---|---|
+| zilla (HLS de AnimeAV1) | `Sec-Fetch-Site: same-origin` | quitarla → 403 en los segmentos (arriba) |
+| MP4Upload | UA de navegador + `Referer: https://www.mp4upload.com/` (**el suyo**) | el `Referer` del sitio que lo embebe (`https://animeav1.com/`) → **403** |
+| `jkplayers.com` (`/jkplayer/jk`, «Desuka») | **ninguna** | **cualquier `Referer` → 410 Gone** |
+| `playmudos` (`/jkplayer/um` y `umv`, «Desu» y «Magi») | ninguna | — |
+
+**Síntoma**: añadir una cabecera «por si acaso» en un sitio común —en `base.py` o en
+`VideoPlayer.play()`— **rompe en silencio un hoster que funcionaba**. Un `Referer` genérico deja
+Desuka cayendo al navegador sin un solo error.
+
+**Invariante**: las cabeceras son del **resolutor** que conoce el hoster, y el reproductor manda
+**exactamente** las de `MediaSource.headers`, ni una más. Por eso `base.py` no tiene cabeceras por
+defecto, y por eso el UA de navegador está **duplicado a propósito** en `base.py` respecto a
+`jkanime.py`: la capa de resolución no importa de `APIs.<sitio>` ([01](01-arquitectura.md)).
+
+✅ Medido el 2026-09-24 (fase 1): `jkplayers` con `Referer` → 410; MP4Upload con el de AnimeAV1 →
+403 y con el suyo → 206.
+
 ### Diagnosticar un hoster que dejó de resolver
 
 Lo primero: **un hoster que falla no da error, abre el navegador** —es la degradación diseñada—.
@@ -833,12 +953,12 @@ Lo que dice qué ha pasado es **la consola** (con `python src/app.py`; el `.exe`
 |---|---|---|---|
 | Cae al navegador **al instante**, sin «Cargando» apreciable | `[zilla] URL de embed sin hash reconocible` · `[mp4upload] El embed no trae la URL del vídeo` · `[jkplayer] El reproductor um no trae ninguna URL .m3u8` | cambió el formato del *embed* o de su página | bajar **una vez** la página y comparar con la regex del resolutor ([09 §6h](09-verificacion-y-pruebas.md)) |
 | Igual, pero | `No se pudo descargar …` con **403** | Cloudflare | **parar**: no reintentar en bucle (la IP ya se bloqueó una vez, el 2026-08-23) |
-| «Cargando» un instante y navegador | `mpv no pudo reproducir el medio (error …)` | el medio rechaza la petición: cabeceras o caducidad | [trampas 25-27](10-invariantes-y-trampas.md) |
+| «Cargando» un instante y navegador | `mpv no pudo reproducir el medio (error …)` | el medio rechaza la petición: cabeceras o caducidad | [cabeceras](#cabeceras-cada-hoster-quiere-las-suyas) y [trampa 22](10-invariantes-y-trampas.md) |
 | «Cargando» **~20 s** y navegador | idem, tras el `network-timeout` de 15 s | el origen del hoster está **caído** | esperar; no es el resolutor |
 | «Cargando» **30 s** y navegador | `El medio no ha empezado a verse en 30 s: …` y `[reproductor] …: El servidor tarda demasiado en entregar el vídeo` | el hoster **responde, pero lento** (zilla, 2026-10-20: ~70 s hasta abrir) | ya cae solo al navegador; si se repite, el hoster va lento ese día ([regla R15](10-invariantes-y-trampas.md), B15 cerrada) |
 | **Todos** los servidores al navegador | `No se pudo cargar libmpv…` | falta la DLL | [trampa 12e](10-invariantes-y-trampas.md) |
 | Se ve, pero **a tirones** | — (mpv: `paused-for-cache`) | el hoster sirve por debajo del bitrate (MP4Upload, 110-260 KB/s el 2026-09-24) | nada en la app |
-| Navegador tras ver **un buen rato** | `El medio terminó en … : se trata como un corte del servidor` | el stream se cortó antes del final | [trampa 30](10-invariantes-y-trampas.md): no marca el episodio |
+| Navegador tras ver **un buen rato** | `El medio terminó en … : se trata como un corte del servidor` | el stream se cortó antes del final | [trampa 25](10-invariantes-y-trampas.md): no marca el episodio |
 
 **Regla de oro**: se arregla **el resolutor de ese hoster**, no el resto de la capa. Y añadir uno
 nuevo es [11 §9](11-playbooks.md).

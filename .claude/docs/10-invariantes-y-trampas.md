@@ -2,9 +2,9 @@
 
 | | |
 |---|---|
-| **Fecha** | 2026-11-08 · rama `feature/reproductor-uso-diario` · sobre **`2578546`** |
+| **Fecha** | 2026-11-08 · rama `feature/reorganizar-trampas` · sobre **`936213f`** |
 | **Cubre** | los **43** módulos con contenido de `src/` (42 + `app.py`) + `MiBibliotecaAnime.spec` + `requirements.txt` |
-| **Última revisión** | 2026-11-08 (**depuración**): se borran las trampas que ya no pueden darse con el código actual, las resueltas cuya causa sigue viva —la librería, Windows o los sitios— pasan a **reglas** condensadas (R1-R24) y todo se renumera: **54 trampas y 24 reglas**. La numeración anterior (1-84) está en el historial de git, en `2578546`; los planes de `.claude/plan-*` la siguen usando |
+| **Última revisión** | 2026-11-08 (**reorganización**): las 17 trampas que no eran del código pasan a su documento temático —las 12 de comportamiento de los sitios a [05](05-proveedores-y-scraping.md) (§3, §3b, §5b y §9) y las 5 que engañan a un script o a una medición a [09 §6m](09-verificacion-y-pruebas.md)— y las que quedan se renumeran: **37 trampas**; las reglas R1-R24 no cambian. La numeración de 54 está en `936213f`. Antes, el mismo día (**depuración**): se borran las trampas que ya no pueden darse con el código actual, las resueltas cuya causa sigue viva —la librería, Windows o los sitios— pasan a **reglas** condensadas (R1-R24) y todo se renumera: **54 trampas y 24 reglas**. La numeración anterior (1-84) está en el historial de git, en `2578546`; los planes de `.claude/plan-*` la siguen usando |
 
 Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ sin verificar.
 
@@ -12,6 +12,10 @@ Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ si
 > rompe aquello», con el **síntoma observable** que verás cuando lo rompas. Las **reglas** del final
 > son problemas que el código ya evita, pero que vuelven en cuanto se escribe código nuevo sin
 > tenerlos en cuenta.
+>
+> **Lo que no es del código está en su documento**, con su síntoma y su invariante: el comportamiento
+> de los sitios y de los hosters, en [05](05-proveedores-y-scraping.md) (§3, §3b, §5b y §9), y lo
+> que engaña a un script de verificación o a una medición, en [09 §6m](09-verificacion-y-pruebas.md).
 
 ---
 
@@ -351,76 +355,9 @@ comprobaciones). Ver [13 D5](13-selector-de-proveedor.md) y [09](09-verificacion
 
 ---
 
-## Proveedores concretos
-
-### 14. En JKAnime, el `<img>` de la portada lleva **dos** imágenes ✅
-
-Las tarjetas de la portada (`div.card`) son de **episodio**, no de anime, y su `<img>` trae dos
-rutas distintas:
-
-| Atributo | Contenido |
-|---|---|
-| `src` | captura del episodio (`.../animes/video/image/jkvideo_*.jpg`) |
-| `data-animepic` | **póster del anime** (`.../animes/image/<slug>.jpg`) |
-
-Leer `src`, que es lo que haría cualquiera copiando el patrón de los otros dos proveedores, llena la
-biblioteca de **fotogramas sueltos** en vez de carátulas.
-
-**Síntoma**: los animes recientes se ven con imágenes borrosas y apaisadas, distintas cada vez que
-sale un episodio nuevo, y el póster cambia solo al recargar. Ningún error por consola.
-
-📖 `jkanime.py` lo resuelve con `img_el.get("data-animepic") or img_el.get("src", "")`. En la
-**búsqueda** el problema es otro: ahí el póster no está en un `<img>` sino en el atributo
-`data-setbg` de `.anime__item__pic`.
-
-**Invariante**: al añadir un proveedor, comprobar de dónde sale el póster de un listado **mirando la
-URL resultante**, no solo que la imagen no esté vacía.
-
----
-
-### 15. Las rejillas vacías de JKAnime no significan «hace falta renderizar JS» ✅
-
-Los tres `div.row.page_directorio` del directorio llegan **vacíos** en el HTML. La conclusión
-intuitiva —que hay que renderizar JavaScript o encontrar un endpoint AJAX— es **falsa**, y cuesta
-horas comprobarlo: `/ajax/directorio`, `/ajax/filtros`, `/ajax/filter` y `/ajax/animes` devuelven
-404 o 405.
-
-El servidor **ya incrusta el listado completo** en un `<script>` de la propia página, como una
-variable `animes = {…}` que jQuery se limita a pintar. El dato está en el HTML que devuelve
-`requests`; solo hay que recortarlo contando llaves ([05 §3b](05-proveedores-y-scraping.md)).
-
-**Síntoma de haber caído en la trampa**: se concluye que el proveedor necesita un navegador y se
-descarta o se degrada `search_animes_by_genres_and_order` sin motivo.
-
-**Invariante**: ante una rejilla vacía, buscar primero el payload en el HTML crudo —
-`grep 'animes *= *{'` — antes de asumir que el contenido llega por red.
-
----
-
-### 16. En JKAnime, el slug y el id numérico no son intercambiables ✅
-
-Un anime tiene **dos identificadores**: el *slug* (`hunter-x-hunter-2011`), que es el que viaja en
-las URL y en `AnimeInfo.id`, y un **id numérico interno** (`429`) que solo sirve para
-`POST /ajax/episodes/<id>/`. El numérico **no aparece en ninguna URL navegable**: hay que sacarlo
-del HTML de la ficha.
-
-Esa llamada además exige token CSRF (`<meta name="csrf-token">`) y cookies de sesión, o Laravel
-responde **419**.
-
-**Síntoma**: fichas que se abren con título, sinopsis, géneros y póster correctos pero con **cero
-episodios**, sin más aviso que un `print`.
-
-📖 `get_anime_info` devuelve la ficha igualmente en ese caso, con `episodes=[]`, en vez de perder
-también lo que sí se leyó. Es deliberado: [05 §3b](05-proveedores-y-scraping.md).
-
-Es la misma clase de confusión que la **trampa 13**, pero dentro de un proveedor en vez de en la
-ficha de detalle.
-
----
-
 ## Columna `provider_id`
 
-### 17. `provider_id` dice **quién sirve el slug**, no de dónde salió el anime ⚠️
+### 14. `provider_id` dice **quién sirve el slug**, no de dónde salió el anime ⚠️
 
 Las filas anteriores a la columna se rellenan solas al abrirlas ([04 §8](04-modelo-de-datos.md)),
 anotando **quién sirvió la ficha esa vez**. Cuando el slug existe en varios sitios —`dandadan` está
@@ -440,7 +377,7 @@ lo saques de esta.
 
 ---
 
-### 18. Reapuntar una fila a otro proveedor puede duplicarla en silencio ✅
+### 15. Reapuntar una fila a otro proveedor puede duplicarla en silencio ✅
 
 `ANIMES` **no tiene `UNIQUE` sobre `anime_id`** ([04 §3](04-modelo-de-datos.md)). Un
 `UPDATE … SET anime_id = ?` hacia un slug que ya ocupa otra fila se ejecuta **sin error** y deja dos
@@ -469,7 +406,7 @@ el destino esté libre. La BD no lo va a hacer por ti.
 Ninguna da error: todas se manifiestan como algo que sale mal colocado, invisible o parpadeando.
 Las reglas R7, R8 y R10-R13 son de la misma familia.
 
-### 19. Un `CTkFrame` sin hijos conserva 200 × 200 como tamaño pedido 🔴 ✅
+### 16. Un `CTkFrame` sin hijos conserva 200 × 200 como tamaño pedido 🔴 ✅
 
 Un marco vacío —o que solo tiene widgets colocados con `place()`, que no piden sitio— **no mide
 cero**: conserva el tamaño por defecto de `CTkFrame` y **estira la fila o la columna que lo
@@ -498,7 +435,7 @@ pide más ancho del que cabe — medido, 219 px en vez de 224.
 
 ---
 
-### 20. `wraplength` no limita a dos líneas, y un `CTkLabel` no se recorta a su `height` 🔴 ✅
+### 17. `wraplength` no limita a dos líneas, y un `CTkLabel` no se recorta a su `height` 🔴 ✅
 
 `wraplength` envuelve **todas** las líneas que necesite el texto, y el `CTkLabel` **crece** por
 encima de su `height` en vez de recortarse. Reservar alto no sirve de nada.
@@ -512,7 +449,7 @@ líneas)`**, que reproduce el reparto por palabras de Tk midiendo con `font.meas
 
 ---
 
-### 21. Los contadores de la barra salen de listas que solo se llenan al arrancar 🔴 ✅
+### 18. Los contadores de la barra salen de listas que solo se llenan al arrancar 🔴 ✅
 
 `MainWindow.recent_animes`, `favourite_animes`, `watching_animes`, `pending_animes` y
 `finished_animes` son **cachés en memoria** que se pueblan en `load_animes()`.
@@ -527,7 +464,7 @@ desde la fase 8).
 
 ---
 
-### 22. La configuración de rejilla del `content_frame` sobrevive a `clear_frame()` 🔴 ✅
+### 19. La configuración de rejilla del `content_frame` sobrevive a `clear_frame()` 🔴 ✅
 
 `clear_frame()` destruye los **hijos**, no la configuración de filas y columnas del contenedor. Y una
 columna **con peso y sin widgets también recibe el espacio sobrante**.
@@ -555,7 +492,7 @@ cero al salir**. Hoy solo la ficha reparte; si otra lo hace, hereda la obligaci�
 
 ---
 
-### 23. Un `<Leave>` no significa que el ratón se haya ido 🔴 ✅
+### 20. Un `<Leave>` no significa que el ratón se haya ido 🔴 ✅
 
 Tk manda `<Leave>` al marco **también cuando el puntero pasa a uno de sus propios hijos**.
 
@@ -578,7 +515,7 @@ siempre. Las dos se arreglan juntas o no se arregla ninguna.
 
 ---
 
-### 24. `bind()` y `event_generate()` no hablan del mismo widget en CustomTkinter 🔴 ✅
+### 21. `bind()` y `event_generate()` no hablan del mismo widget en CustomTkinter 🔴 ✅
 
 Un widget de CustomTkinter es un marco de Tk con hijos dentro, y `bind()` **reenvía** el atajo a esos
 hijos: `CTkFrame.bind()` va a su `_canvas`; `CTkLabel.bind()`, al `_label` **y** al canvas;
@@ -611,65 +548,13 @@ Lo que tienen en común casi todas: **fallan cayendo al navegador**, que es la d
 diseñada (`plan-reproductor/README.md`, regla 2). Así que el
 síntoma típico **no** es un error, sino «este servidor se abre fuera cuando debería verse aquí», y
 eso se confunde fácilmente con que el hoster haya cambiado. Antes de tocar un resolutor, descarta
-las de este apartado.
+las de este apartado y las cabeceras de cada hoster, que son cosa del sitio y están en
+[05 §9](05-proveedores-y-scraping.md).
 
 La capa y el reproductor se describen en [06 §12](06-gui-y-vistas.md) y
 [05 §9](05-proveedores-y-scraping.md); el flujo entero, en [03 §13](03-flujos-de-ejecucion.md).
 
-### 25. Los segmentos de zilla dan 403 sin `Sec-Fetch-Site: same-origin` 🔴 ✅
-
-**Por qué**: el playlist `https://player.zilla-networks.com/m3u8/<hash>` (el servidor «HLS» de
-AnimeAV1) responde 200 a cualquiera. Los **segmentos** —`segs/<hash>/NNN.html`, que pese a la
-extensión son fMP4 y empiezan por `styp`— exigen la cabecera `Sec-Fetch-Site: same-origin`,
-**exactamente con ese valor**. Es la forma que tiene el sitio de comprobar que la petición sale de su
-propio reproductor.
-
-**Síntoma observable**: mpv baja el playlist, pide el primer segmento, recibe 403 y acaba en
-`end-file` con `reason=4`. En pantalla, la tarjeta de «Cargando» dura un instante y el episodio **se
-abre en el navegador** con «No se ha podido cargar aquí». Parece que zilla está caído, y no lo está.
-
-⚠️ **No confundirlo con una caída real**, que también pasa (tres días seguidos en septiembre de
-2026, con **522** de Cloudflare): entonces mpv espera el `network-timeout` de 15 s y la caída al
-navegador tarda **~20 s**. **Instantáneo → cabecera; ~20 s → origen caído.** Y si responde, pero
-**despacio**, cae a los **30 s**, por el tope propio del reproductor: [regla R15](#r15-un-hoster-lento-no-da-error-load_timeout_s).
-
-**Invariante**: las cabeceras viajan en `MediaSource.headers` y `VideoPlayer.play()`
-(`video_player.py:680`) las pasa a mpv como `http_header_fields` —todas salvo `User-Agent`, que va a
-su propiedad—. El cliente `curl` de mpv las aplica a **cada** petición, playlist y segmentos. Nunca
-se ponen solo en la petición del playlist.
-
-**Cómo comprobarlo**: un segmento con y sin la cabecera ([09 §6h](09-verificacion-y-pruebas.md)).
-✅ 2026-09-23 contra un servidor local con la misma regla (los segmentos llegan con la cabecera) y ✅
-2026-10-20 contra zilla real: **200 con ella, 403 sin ella**, y `dandadan` ep. 1 visto en la app.
-
----
-
-### 26. Cada hoster quiere sus cabeceras, y lo que uno exige otro lo rechaza 🔴 ✅
-
-**Por qué**: no hay una política de cabeceras común que valga para todos:
-
-| Medio | Cabeceras que funcionan | Lo que lo rompe |
-|---|---|---|
-| zilla (HLS de AnimeAV1) | `Sec-Fetch-Site: same-origin` | quitarla → 403 en los segmentos ([trampa 25](#25-los-segmentos-de-zilla-dan-403-sin-sec-fetch-site-same-origin--)) |
-| MP4Upload | UA de navegador + `Referer: https://www.mp4upload.com/` (**el suyo**) | el `Referer` del sitio que lo embebe (`https://animeav1.com/`) → **403** |
-| `jkplayers.com` (`/jkplayer/jk`, «Desuka») | **ninguna** | **cualquier `Referer` → 410 Gone** |
-| `playmudos` (`/jkplayer/um` y `umv`, «Desu» y «Magi») | ninguna | — |
-
-**Síntoma observable**: añadir una cabecera «por si acaso» en un sitio común —en `base.py` o en
-`VideoPlayer.play()`— **rompe en silencio un hoster que funcionaba**. Un `Referer` genérico deja
-Desuka cayendo al navegador sin un solo error.
-
-**Invariante**: las cabeceras son del **resolutor** que conoce el hoster, y el reproductor manda
-**exactamente** las de `MediaSource.headers`, ni una más. Por eso `base.py` no tiene cabeceras por
-defecto, y por eso el UA de navegador está **duplicado a propósito** en `base.py` respecto a
-`jkanime.py`: la capa de resolución no importa de `APIs.<sitio>` ([01](01-arquitectura.md)).
-
-✅ Medido el 2026-09-24 (fase 1): `jkplayers` con `Referer` → 410; MP4Upload con el de AnimeAV1 →
-403 y con el suyo → 206.
-
----
-
-### 27. Una URL de medio no se guarda: caduca o va atada a tu IP 🔴 ✅
+### 22. Una URL de medio no se guarda: caduca o va atada a tu IP 🔴 ✅
 
 **Por qué**:
 
@@ -695,7 +580,7 @@ fallaría y caería al navegador. No se ha visto; se deduce del código.
 
 ---
 
-### 28. Los eventos de mpv llegan en su hilo, y desde ahí ni `after()` es seguro 🔴
+### 23. Los eventos de mpv llegan en su hilo, y desde ahí ni `after()` es seguro 🔴
 
 **Por qué**: los observadores (`observe_property`) y los callbacks de evento (`event_callback`) de
 `python-mpv` se ejecutan en el hilo **`MPVEventHandlerThread`** (✅ fase 0), no en el de Tk. Tocar
@@ -718,7 +603,7 @@ añades un observador, sigue ese patrón. Los callbacks hacia el dueño (`on_sta
 
 ---
 
-### 29. El final de un vídeo no es un evento: `end-file` llega también al parar, y con `keep-open` no llega al terminar 🔴 ✅
+### 24. El final de un vídeo no es un evento: `end-file` llega también al parar, y con `keep-open` no llega al terminar 🔴 ✅
 
 **Por qué**, en dos mitades:
 
@@ -742,7 +627,7 @@ biblioteca**. Si se espera solo `reason == 0`, la tarjeta no sale nunca y no se 
 
 ---
 
-### 30. Un fin de fichero a mitad de episodio es un corte, no el final 🔴 📖
+### 25. Un fin de fichero a mitad de episodio es un corte, no el final 🔴 📖
 
 **Por qué**: un servidor que corta el stream a mitad deja a mpv en fin de fichero, **igual que el
 final de verdad**. Y desde la fase 4 el final **escribe en la biblioteca**: marca el episodio como
@@ -757,7 +642,7 @@ de `END_TOLERANCE_S` = 15 s, lo trata como error (`on_error` → navegador) y **
 
 ---
 
-### 31. Un widget dentro del frame del vídeo no se ve; uno hermano encima, sí 🔴 ✅
+### 26. Un widget dentro del frame del vídeo no se ve; uno hermano encima, sí 🔴 ✅
 
 **Por qué**: mpv pinta en la ventana nativa del frame cuyo `winfo_id()` recibe como `wid`. Los
 **hijos** de ese frame quedan tapados (**0 %** de sus píxeles visibles, ✅ fase 0). Un **hermano**
@@ -781,11 +666,11 @@ primer fotograma, y luego desaparece.
 
 **Invariante**: nada dentro de `__surface`. Lo que vaya encima va como **hermano** en `__stage`, y
 opaco. Lo que tenga que flotar sobre la imagen a pantalla completa son ventanas aparte
-([trampa 34](#34-la-barra-flotante-y-el-deslizador-de-volumen-son-ventanas-aparte-siempre-encima--)).
+([trampa 29](#29-la-barra-flotante-y-el-deslizador-de-volumen-son-ventanas-aparte-siempre-encima--)).
 
 ---
 
-### 32. El ratón y el teclado sobre el vídeo llegan a Tk, no a mpv 🔴 ✅
+### 27. El ratón y el teclado sobre el vídeo llegan a Tk, no a mpv 🔴 ✅
 
 **Por qué**: al revés de lo que esperaba el plan. Con `input-vo-keyboard` encendido **o** apagado,
 39-40 de 40 `<Motion>` sobre el vídeo llegan al frame de Tk; `Esc` y `q` los recibe `bind_all`; los
@@ -805,7 +690,7 @@ ni la `q` que cierra, ni barra en pantalla.
   sobre `__stage`, `__surface` y `__card_frame` (`__set_cursor_hidden`).
 - `<Motion>` se ata **dos veces** por widget, con `tkinter.Frame.bind` y con el `bind` de CTk
   (en `VideoPlayer.__init__`), porque `CTkFrame.bind()` solo ata el lienzo interno
-  ([trampa 24](#24-bind-y-event_generate-no-hablan-del-mismo-widget-en-customtkinter--)). ⚠️ No se
+  ([trampa 21](#21-bind-y-event_generate-no-hablan-del-mismo-widget-en-customtkinter--)). ⚠️ No se
   probó a quitar una de las dos.
 
 **Síntoma**: un atajo definido en mpv no hace nada; con `cursor-autohide` el cursor no se oculta
@@ -813,7 +698,7 @@ nunca.
 
 ---
 
-### 33. `-fullscreen` lleva la ventana al monitor principal 🔴 ✅
+### 28. `-fullscreen` lleva la ventana al monitor principal 🔴 ✅
 
 **Por qué**: `attributes("-fullscreen", True)` movió la ventana del monitor secundario (`2028, 91`)
 al principal (`0, 0, 1920, 1080`), y al salir la devolvió a su sitio (✅ fase 0). También acabaron en
@@ -844,7 +729,7 @@ con la ventana de la fase 0.
 
 ---
 
-### 34. La barra flotante y el deslizador de volumen son ventanas aparte, siempre encima 🔴 ✅
+### 29. La barra flotante y el deslizador de volumen son ventanas aparte, siempre encima 🔴 ✅
 
 **Por qué**: a pantalla completa no hay rejilla donde poner la barra sin encoger el vídeo. Por decisión
 del usuario es un `Toplevel` sin marco y con `-topmost`, igual que el deslizador de volumen
@@ -864,65 +749,13 @@ ella.
 
 ## Relaciones y franquicia
 
-Las trae el plan de la 0.5.0 (temporadas, relacionados y «Te puede interesar»). Las cuatro primeras
-son de **parseo**: cada sitio anuncia las relaciones a su manera, y equivocarse no da error, sino
-relacionados de menos o una franquicia mal montada.
+Las trae el plan de la 0.5.0 (temporadas, relacionados y «Te puede interesar»). Las de **parseo**
+—cada sitio anuncia las relaciones a su manera, y equivocarse no da error, sino relacionados de
+menos o una franquicia mal montada— están con su sitio, en [05 §3 y §3b](05-proveedores-y-scraping.md),
+y la del mismo slug en el otro proveedor, en [05 §5b](05-proveedores-y-scraping.md). Aquí queda la
+que es del código.
 
-### 35. «Historia principal» y «Predecesor» no son precuelas ✅
-
-AnimeAV1 (`type:8`, «Historia principal») y JKAnime («Predecesor») las usan para apuntar **de una
-película, OVA o especial a su serie madre**, no a la temporada anterior.
-
-**Síntoma si se traducen a `PREQUEL`**: el recorrido de la franquicia mete **la serie entera** como
-temporada anterior de una película, y «◀ Temporada anterior» de la película 1 de SnK lleva a la serie.
-
-**Invariante**: solo el código `1` de AnimeAV1 y la etiqueta «Precuela» de JKAnime son `PREQUEL`. Todo
-lo que no sea precuela, secuela o versión alternativa es `OTHER` (decisión P3/P8 del usuario: solo
-cuatro tipos). Un código de AnimeAV1 que no esté en la tabla cae en `OTHER` **con un `print`**, nunca
-en excepción ([05 §3](05-proveedores-y-scraping.md)).
-
----
-
-### 36. Un título de relación puede llevar corchetes y comillas escapadas ✅
-
-El array `relations` del payload de AnimeAV1 es JavaScript, no JSON, y sus títulos pueden contener
-`]` («[Oshi no Ko]») y `\"`.
-
-**Síntoma con una regex perezosa hasta `]`**: el array se corta en el primer título con corchete y se
-pierden **en silencio** todos los relacionados siguientes.
-
-**Invariante**: `AnimeAV1.__extract_js_array()` recorta el array **contando corchetes y respetando las
-cadenas**, y cada cadena se des-escapa con `json.loads`. ✅ Probado offline con `[Oshi no Ko]`, `\"`,
-un código 99 y un payload sin `relations`.
-
----
-
-### 37. En JKAnime, todos los `<h5>` de «Temporadas y relacionados» llevan el mismo `id` ✅
-
-Cada bloque de tipo es `<h5 id="aditional">Secuela</h5>` seguido de sus enlaces, y **todos** repiten
-`id="aditional"`. Además, `li[rel='tipo']` (el formato del propio anime) sale **dos veces** en la
-página, en dos bloques de información.
-
-**Síntoma**: un selector por `#aditional` devuelve solo el primer bloque, y ninguno distingue tipos.
-
-**Invariante**: se recorren **en orden** los hermanos `h5`/`a` del `<h3>Temporadas y relacionados</h3>`;
-el tipo de cada enlace es el texto del último `<h5>` visto. Del formato vale el primer `li[rel='tipo']`.
-
----
-
-### 38. En JKAnime, el paréntesis final del enlace no siempre es el formato ✅
-
-Los enlaces son «Título (Serie)», pero también «Hunter x Hunter (2011)».
-
-**Síntoma**: separar siempre el último paréntesis deja «Hunter x Hunter» sin año y con un formato
-«2011» que no existe.
-
-**Invariante**: solo se separa si el paréntesis es un formato conocido (Serie, OVA, Pelicula —sin
-tilde—, Especial, ONA). Si no, se queda en el título.
-
----
-
-### 39. `get_anime_relations` de AnimeAV1 hereda los 3 reintentos de su ficha ✅
+### 30. `get_anime_relations` de AnimeAV1 hereda los 3 reintentos de su ficha ✅
 
 En AnimeAV1 la ficha ligera **es** `get_anime_info`, que reintenta tres veces con 1 s de espera.
 
@@ -935,97 +768,9 @@ en AnimeAV1 sin reintentos; no se ha hecho.
 
 ---
 
-### 40. El mismo slug en el otro proveedor puede ser otro anime ✅
-
-`request_formats` pide **una** ficha al otro proveedor con el mismo slug para completar formatos. El
-slug coincide muchas veces entre sitios, pero no siempre significa lo mismo.
-
-**Síntoma sin comprobarlo**: los relacionados se pintan con los formatos **de otra franquicia**.
-
-**Invariante**: la página del otro proveedor se descarta si `title_similarity()` con el título propio
-queda por debajo de `TITLE_MATCH_THRESHOLD` (es la [regla R19](#r19-toda-identidad-por-título-pasa-por-title_similarity)
-aplicada a un slug).
-
----
-
-### 41. El directorio de JKAnime responde 429 con su propio texto ✅
-
-Tras las peticiones de una sesión anterior del mismo día, `jkanime.net/directorio` devolvió **429**
-con «Estas realizando demasiadas peticiones… el bloqueo dura 60 segundos».
-
-**Síntoma**: `search_animes_by_genres_and_order` cae en `raise_for_status()` y devuelve `([], 1)`; la
-búsqueda **parece vacía** (trampa 9: el manager no distingue vacío de error).
-
-**Invariante**: no reintentar solo. «Te puede interesar» trata un `([], 1)` como error y ofrece
-**«Reintentar» a mano** ([09 §7.9](09-verificacion-y-pruebas.md)).
-
----
-
-### 42. En AnimeAV1, dos géneros del catálogo se combinan con O, no con Y ✅
-
-`catalogo?genre=accion&genre=romance` trae animes que solo tienen **uno** de los dos.
-
-**Síntoma**: quien espere una intersección recibe animes que comparten un género, no los dos.
-
-**Invariante**: es lo que da el sitio. «Te puede interesar» lo asume —cada resultado comparte **al
-menos uno**— y, si tras filtrar faltan, pide **la página siguiente**, no «el primer género solo», que
-con O sería un subconjunto de lo ya pedido.
-
----
-
-## Verificar fuera de la aplicación
-
-Las cuatro mienten a un **script de verificación**, no a la aplicación. Las cuatro hicieron perder
-tiempo durante el plan de la 0.5.0.
-
-### 43. `after()` desde un hilo sin `mainloop()` en el principal no avisa ✅
-
-Con un `tk.Tk()` oculto y `root.update()` en bucle, `after()` desde un hilo lanza
-`RuntimeError: main thread is not in main loop`, y `FranchiseService` (como `EpisodeRefresher`) lo
-traga como «la ventana se cerró».
-
-**Síntoma**: el script **se queda esperando el callback para siempre**, sin error.
-
-**Cómo evitarlo**: en los scripts, esperar con `root.mainloop()` y `root.quit()` en el callback. En la
-aplicación no pasa: Tk está en `mainloop()`.
-
----
-
-### 44. `requests.get()` llega a `Session.request` con el método en minúsculas ✅
-
-`requests.get()` pasa `'get'`; la `Session` de JKAnime y `thread_session()`, `'GET'`.
-
-**Síntoma**: un contador de peticiones que compare `== "GET"` da falsos «ha habido un POST».
-
-**Cómo evitarlo**: normalizar con `.upper()` al contar.
-
----
-
-### 45. Las listas del hub se reasignan al terminar la carga del arranque ✅
-
-`MainWindow.finished_animes` y compañía se **reasignan** (no se mutan) cuando acaba la carga.
-
-**Síntoma**: un script que guarda `app.finished_animes` justo tras crear la ventana se queda con la
-lista vacía de antes de cargar.
-
-**Cómo evitarlo**: leerlas en el momento de usarlas, nunca guardarlas al arrancar. Es la misma
-familia que la [trampa 21](#21-los-contadores-de-la-barra-salen-de-listas-que-solo-se-llenan-al-arrancar--).
-
----
-
-### 46. `CTkScrollbar._draw()` llama a `update_idletasks()` por dentro ✅
-
-**Síntoma**: en `cProfile`, el repintado de toda una página aparece como **80 ms en
-`CTkScrollbar.set`**, y parece que lo caro es la barra de desplazamiento.
-
-**Cómo leerlo**: el `set` lo dispara el cambio de alto del contenido y **arrastra todo el repintado
-pendiente** de Tk. Lo que mide es el coste de Tk, no el de la barra.
-
----
-
 ## Lo que cuesta pintar con CustomTkinter
 
-### 47. Un `CTkFrame` de `height=1` no pinta nada 🔴 ✅
+### 31. Un `CTkFrame` de `height=1` no pinta nada 🔴 ✅
 
 CustomTkinter 5.2.2 redondea el alto **a par** al dibujar: uno de 1 px no pinta, uno de 3 pinta 2.
 
@@ -1038,7 +783,7 @@ su marco, que la recorta. Es lo que hace la raya de `TabBar`.
 
 ---
 
-### 48. Cada widget de CustomTkinter cuesta ~3,5 ms al abrir una pantalla 🔴 ✅
+### 32. Cada widget de CustomTkinter cuesta ~3,5 ms al abrir una pantalla 🔴 ✅
 
 Crearlo, pintarlo en el `update()` y destruirlo en el siguiente `clear_frame()`. El código Python que
 lo construye es lo de menos.
@@ -1053,7 +798,7 @@ arranques la línea base se mueve 15-30 ms ([09 §6l](09-verificacion-y-pruebas.
 
 ---
 
-### 49. Atar todo un subárbol con el `bind` de CustomTkinter ejecuta el clic dos veces ✅
+### 33. Atar todo un subárbol con el `bind` de CustomTkinter ejecuta el clic dos veces ✅
 
 `CTkBaseClass.bind()` reenvía a los hijos internos del widget. Si además se recorre el árbol entero
 atando cada widget, los internos quedan atados **dos veces**.
@@ -1064,11 +809,11 @@ atando cada widget, los internos quedan atados **dos veces**.
 "+")`** cada widget del subárbol, internos de CTk incluidos —**lienzos de los `CTkFrame` también**,
 que es lo que el recorrido se saltaba hasta el 2026-10-29 ([regla R21](#r21-para-recorrer-un-ctkframe-tkintermiscwinfo_children))—. Ata exactamente ese widget, y así
 `event_generate("<Button-1>")` sobre el marco también dispara
-([trampa 24](#24-bind-y-event_generate-no-hablan-del-mismo-widget-en-customtkinter--)).
+([trampa 21](#21-bind-y-event_generate-no-hablan-del-mismo-widget-en-customtkinter--)).
 
 ---
 
-### 50. Volver a mostrar una página conservada no es gratis ✅
+### 34. Volver a mostrar una página conservada no es gratis ✅
 
 Tk repinta cada lienzo de CustomTkinter al volver a colocar la página: ~0,1 ms por widget.
 
@@ -1080,7 +825,7 @@ mejor ([12 §4](12-deuda-tecnica-y-roadmap.md)).
 
 ---
 
-### 51. Una página recién creada mide 1 px de ancho 🔴 ✅
+### 35. Una página recién creada mide 1 px de ancho 🔴 ✅
 
 Hasta el siguiente paso de geometría, y `PosterGrid` saca sus columnas del ancho de su contenedor
 ([regla R12](#r12-quien-mide-su-contenedor-tiene-que-estar-estirado-hasta-él)).
@@ -1093,24 +838,9 @@ mide nada.
 
 ---
 
-## Hilos y recolección de basura
-
-### 52. Un hilo de póster retiene la ficha entera hasta que termina su descarga ✅
-
-Guarda el método de entrega (`deliver`), y con él `self`: la ficha.
-
-**Síntoma**: en un bucle rápido de aperturas, las imágenes de Tk «crecen» de 35 a 67 y luego se
-estabilizan. Era una fila con póster de AnimeFLV, que tarda 10 s en fallar.
-
-**No es una fuga**: dura lo que el *timeout*. Para medir memoria, usar pósters que no dependan de un
-sitio lento, o esperar a los hilos ([09 §6j](09-verificacion-y-pruebas.md)). Con pósters que no
-cuelgan: **26 imágenes sin la pestaña y 32 con ella**, iguales en 25 vueltas.
-
----
-
 ## Ficha con pestañas y vistas conservadas
 
-### 53. Desplazarse hasta un episodio con otra pestaña delante mide un widget sin colocar ✅
+### 36. Desplazarse hasta un episodio con otra pestaña delante mide un widget sin colocar ✅
 
 El reproductor desplaza la ficha al cambiar de episodio, y «Viendo» abre la ficha por un episodio.
 
@@ -1121,7 +851,7 @@ El reproductor desplaza la ficha al cambiar de episodio, y «Viendo» abre la fi
 
 ---
 
-### 54. La firma de una vista conservada tiene que ser una copia 🔴 ✅
+### 37. La firma de una vista conservada tiene que ser una copia 🔴 ✅
 
 Las vistas modifican sus filas en memoria; por ejemplo, la calificación de «Favoritos».
 
@@ -1190,13 +920,13 @@ de uno. Y el `minsize` de una columna sobrevive a quitar su widget con `grid_for
 fila por un hijo sin atar no manda ningún `<Leave>`, y el resaltado se queda encendido. En
 `EpisodeRow` el hover va a sus cuatro hijos y el clic a tres (el interruptor tiene su comando), y
 `EpisodeRow.__hovered` es de clase para que no pueda haber dos filas encendidas. Un hijo nuevo,
-atado. Se lee junto a la trampa 23.
+atado. Se lee junto a la trampa 20.
 
 ### R9. `ANIMES.episodes` es una foto: la refresca `EpisodeRefresher`
 
 Dice cuántos episodios servía el proveedor la última vez que se miró. La banda «Retomar», «Viendo» y
 «Pendientes» los refresca `EpisodeRefresher` con `strict=True`, sin escribir si la respuesta viene
-vacía y releyendo la fila antes de escribir (trampa 17). «Finalizados», las filas sin `provider_id` y
+vacía y releyendo la fila antes de escribir (trampa 14). «Finalizados», las filas sin `provider_id` y
 las de un proveedor caído se quedan con el dato viejo. Para refrescar otra vista, `refresh()` del
 servicio; no copiar su patrón.
 
@@ -1206,7 +936,7 @@ Por dentro es una rejilla de 5 × 5 con propagación. Quien coloque botones con 
 cuenta del ancho suma lo que reserva: `max(corner_radius, border_width + 1, border_spacing)` por lado,
 1 px por lado de la etiqueta, 6 px entre texto e icono y 2 px por lado del icono. Se mide con
 `winfo_reqwidth()`, no con `cget("width")`. Lo hace `GenreChips.__chip_width()`, con los números de
-customtkinter 5.2.2. Familia de las trampas 19 y 20.
+customtkinter 5.2.2. Familia de las trampas 16 y 17.
 
 ### R11. Todo `bind()` encima de un widget de CustomTkinter va con `add="+"`
 
@@ -1219,7 +949,7 @@ pulsando y contando qué manejador corre ([09 §6e](09-verificacion-y-pruebas.md
 
 Con `sticky="w"` un widget mide su contenido, y sacar columnas de ese `winfo_width()` es un punto
 fijo. `PosterGrid` va con `sticky="ew"` y peso en la columna del padre; el sobrante se reparte con
-`weight=1` + `uniform`, y al encoger se **quita** el peso (trampa 22). Se comprueba midiendo a dos
+`weight=1` + `uniform`, y al encoger se **quita** el peso (trampa 19). Se comprueba midiendo a dos
 anchos de ventana ([09 §6f](09-verificacion-y-pruebas.md)).
 
 ### R13. `wraplength` no deshace un `\n`
@@ -1303,12 +1033,13 @@ se precarga: dentro del proceso solo cambia de sitio el congelado; la vía medid
 
 1. **Trampa 13** — en la ficha, `anime_info.id` no es la clave de la BD; confundirlas duplica filas
    en la biblioteca real. **La única que ya se ha reintroducido una vez.**
-2. **Trampa 18** — reapuntar una fila a otro proveedor puede duplicarla: la BD no tiene `UNIQUE`.
+2. **Trampa 15** — reapuntar una fila a otro proveedor puede duplicarla: la BD no tiene `UNIQUE`.
 3. **Trampa 3** — el orden de `episodes` depende del proveedor y se invierte al guardar; y hay una
    lista que **no** hay que invertir.
 4. **Trampa 5** — marcar episodios sin estado asignado no guarda nada, sin avisar.
 5. **Trampa 11** — la purga de pósters borra todo lo que no esté en la lista actual.
 
 > **Cómo se mantiene este documento**: una trampa que ya no puede darse con el código actual se
-> **borra**; una que el código evita pero cuya causa sigue viva pasa a **regla**. Al hacerlo se
+> **borra**; una que el código evita pero cuya causa sigue viva pasa a **regla**; una que no es del código —un sitio que se
+> comporta así, o algo que engaña a un script— va a [05](05-proveedores-y-scraping.md) o a [09 §6m](09-verificacion-y-pruebas.md). Al hacerlo se
 > renumera y se actualizan las citas de `.claude/` (no las de los planes, que son historia).

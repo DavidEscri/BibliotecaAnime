@@ -198,8 +198,10 @@ antes de tocar nada.
 ### Bugs ya conocidos
 
 Antes de reportar, un vistazo a [`docs/10-invariantes-y-trampas.md`](docs/10-invariantes-y-trampas.md)
-te ahorra tiempo: hay **80** trampas documentadas con su síntoma observable. Si tu síntoma está ahí,
-basta con **«arregla la trampa N»**.
+te ahorra tiempo: hay **37** trampas documentadas con su síntoma observable. Si lo que falla es un
+sitio o un hoster —un póster que no es, un servidor que se abre fuera—, mira también
+[`docs/05`](docs/05-proveedores-y-scraping.md), que guarda las trampas de cada sitio. Si tu síntoma
+está ahí, basta con **«arregla la trampa N»**.
 
 ---
 
