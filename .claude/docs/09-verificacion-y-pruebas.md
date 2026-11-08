@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Fecha** | 2026-10-28 · rama `release/0.5.0` · último commit de código **`7bbbb3c`** |
-| **Última revisión** | 2026-10-28 (**versión 0.5.0**): **§6l nuevo** — el arnés con el que se verificaron las fases 3-5 (app sobre copia sin precarga ni refresco, fichas guardadas en un *pickle*, contar peticiones, medir contra `develop` en un *worktree* alternando, gestor o búsqueda falsa sin red); §6j gana los valores de referencia con las seis vistas conservadas; **§7.9** gana la barra de pestañas, la línea de temporadas, «Temporadas y relacionados», «Te puede interesar» y «Volver», y pierde el separador de `EpisodeRow`; **§7.12** gana la regresión de las vistas conservadas. Antes, 2026-10-27 (**conexiones y `<Configure>`**): **§6k nuevo** — cómo medir handshakes, tiempo por petición y los pasos a Python del `<Configure>` de la raíz, y cómo comprobar de verdad que el reproductor se reajusta al cambiar solo el alto. Antes, 2026-10-27 (**refresco de episodios**): la comprobación del refresco de la banda pasa a cubrir «Viendo» y «Pendientes» (`EpisodeRefresher`). Antes, 2026-10-20 (**reproductor in-app**): **§6h nuevo** —probar la capa de resolución sin GUI, primero **sin red** y luego con **una** petición por hoster— y **§6i nuevo** —verificar el reproductor en la aplicación, con el arnés de las fases 3-5 y sus cuatro lecciones (el `Alt` suelto, el aviso modal, `faulthandler` y «bytes no es vídeo»)—; **§7.13 nuevo**, el checklist del reproductor; §7.9 deja de decir que los servidores congelan la ventana y que un servidor abre el navegador. Antes, 2026-09-01 (**abrir la ficha por un episodio**): **§6e nuevo** —pulsar de verdad un botón que vive dentro de otro widget, que es lo único que destapa un `command` que no se ejecuta ([trampa 40](10-invariantes-y-trampas.md))—; §7.5 y §7.6 ganan la regresión de las tres acciones que llevan a un episodio. Antes, 2026-09-01 (**ancho de las fichas de género**): **§6d nuevo** —comprobar una medida de layout leyendo el widget en vez de mirarlo—, y §7.6 gana la regresión de las fichas solapadas. Antes, 2026-09-01 (**refresco de la banda «Retomar»**): **§6c nuevo** —cómo comprobar en tres tramos algo que sale a la red, escribe en la biblioteca y repinta un widget, sin tocar la BD real—, y §7.3 gana la regresión del anime en emisión. Antes, 2026-09-01 (**hover de la lista de episodios**): **§6b nuevo** —recorrer el hover con `SetCursorPos` de píxel en píxel, que es lo único que encuentra un `<Leave>` que no llega—, §7.9 gana el recorrido de la lista de episodios y §8 avisa de no matar la instancia que tenga abierta el usuario. Antes, 2026-08-31 (**fondo de la pantalla de carga**): §7.1 gana la comprobación del fondo del arranque —que a ojo se falla— y la receta de captura de §8 usa el título real de la ventana. Antes, 2026-08-16 (**columna `provider_id`**): **§3c nuevo** — las 8 tandas de comprobaciones de la fase 8, **351 sin fallos**; checklist de §7 puesto al día con lo que ha cambiado de comportamiento |
+| **Última revisión** | 2026-10-28 (**versión 0.5.0**): **§6l nuevo** — el arnés con el que se verificaron las fases 3-5 (app sobre copia sin precarga ni refresco, fichas guardadas en un *pickle*, contar peticiones, medir contra `develop` en un *worktree* alternando, gestor o búsqueda falsa sin red); §6j gana los valores de referencia con las seis vistas conservadas; **§7.9** gana la barra de pestañas, la línea de temporadas, «Temporadas y relacionados», «Te puede interesar» y «Volver», y pierde el separador de `EpisodeRow`; **§7.12** gana la regresión de las vistas conservadas. Antes, 2026-10-27 (**conexiones y `<Configure>`**): **§6k nuevo** — cómo medir handshakes, tiempo por petición y los pasos a Python del `<Configure>` de la raíz, y cómo comprobar de verdad que el reproductor se reajusta al cambiar solo el alto. Antes, 2026-10-27 (**refresco de episodios**): la comprobación del refresco de la banda pasa a cubrir «Viendo» y «Pendientes» (`EpisodeRefresher`). Antes, 2026-10-20 (**reproductor in-app**): **§6h nuevo** —probar la capa de resolución sin GUI, primero **sin red** y luego con **una** petición por hoster— y **§6i nuevo** —verificar el reproductor en la aplicación, con el arnés de las fases 3-5 y sus cuatro lecciones (el `Alt` suelto, el aviso modal, `faulthandler` y «bytes no es vídeo»)—; **§7.13 nuevo**, el checklist del reproductor; §7.9 deja de decir que los servidores congelan la ventana y que un servidor abre el navegador. Antes, 2026-09-01 (**abrir la ficha por un episodio**): **§6e nuevo** —pulsar de verdad un botón que vive dentro de otro widget, que es lo único que destapa un `command` que no se ejecuta ([regla R11](10-invariantes-y-trampas.md))—; §7.5 y §7.6 ganan la regresión de las tres acciones que llevan a un episodio. Antes, 2026-09-01 (**ancho de las fichas de género**): **§6d nuevo** —comprobar una medida de layout leyendo el widget en vez de mirarlo—, y §7.6 gana la regresión de las fichas solapadas. Antes, 2026-09-01 (**refresco de la banda «Retomar»**): **§6c nuevo** —cómo comprobar en tres tramos algo que sale a la red, escribe en la biblioteca y repinta un widget, sin tocar la BD real—, y §7.3 gana la regresión del anime en emisión. Antes, 2026-09-01 (**hover de la lista de episodios**): **§6b nuevo** —recorrer el hover con `SetCursorPos` de píxel en píxel, que es lo único que encuentra un `<Leave>` que no llega—, §7.9 gana el recorrido de la lista de episodios y §8 avisa de no matar la instancia que tenga abierta el usuario. Antes, 2026-08-31 (**fondo de la pantalla de carga**): §7.1 gana la comprobación del fondo del arranque —que a ojo se falla— y la receta de captura de §8 usa el título real de la ventana. Antes, 2026-08-16 (**columna `provider_id`**): **§3c nuevo** — las 8 tandas de comprobaciones de la fase 8, **351 sin fallos**; checklist de §7 puesto al día con lo que ha cambiado de comportamiento |
 | **Cubre** | procedimiento; scripts ejecutados el 2026-07-28 contra el código de `src/` |
 
 Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ sin verificar.
@@ -321,7 +321,7 @@ check("episodios", len(info.episodes or []) == 148, f"({len(info.episodes or [])
 |---|---|
 | Los 40 `AnimeGenreFilter` traducen a un slug **que existe en el sitio** | Una traducción inventada devuelve listas vacías en silencio |
 | `AnimeInfo.id` es un slug, **sin `/` ni `http`** | Si se cuela una URL entera, se duplican filas en la biblioteca |
-| El póster es el del **anime**, no una miniatura de episodio | Ver trampa 23 |
+| El póster es el del **anime**, no una miniatura de episodio | Ver trampa 14 |
 | **Orden** de `episodes` y numeración 1…N | Afecta al corte `[:25]` y a lo que se guarda en BD |
 | Página 2 ≠ página 1 (comparando ids, no longitudes) | Un paginador roto suele devolver la misma página |
 | Anime y episodio **inexistentes** → `None` / `[]` | El manager trata la excepción como «probar el siguiente» |
@@ -460,7 +460,7 @@ Los fallos de hover **no se ven a ojo ni se reproducen con la mano**: dependen d
 cruzas y de a qué velocidad. La única forma honesta de comprobarlos es mover el puntero por programa
 y **contar** lo que queda encendido.
 
-La receta, que es la que encontró la [trampa 37](10-invariantes-y-trampas.md):
+La receta, que es la que encontró la [regla R8](10-invariantes-y-trampas.md):
 
 1. Montar una ventana suelta en el scratchpad con **el componente real** —importado de `src`, no una
    copia— repetido unas cuantas veces. No hace falta ni BD ni red: `EpisodeRow` solo necesita un
@@ -474,7 +474,7 @@ La receta, que es la que encontró la [trampa 37](10-invariantes-y-trampas.md):
 Cuatro cosas que hacen la diferencia entre encontrar el fallo y darlo por bueno:
 
 - 🔴 **El paso tiene que ser de 1 px.** Con 2 px el recorrido se salta el separador de 1 px que hay
-  entre filas y **todo parece correcto**. La trampa 37 es invisible con pasos de 2.
+  entre filas y **todo parece correcto**. La regla R8 es invisible con pasos de 2.
 - **Salir de la pila también a pasos.** Teletransportar el puntero fuera de la ventana de un solo
   `SetCursorPos` no genera cruce: la última fila se queda encendida y parece un fallo que no existe.
   Un ratón de verdad no puede teletransportarse; la sonda sí.
@@ -531,7 +531,7 @@ Tres detalles que costaron un intento cada uno:
 - ⚠️ **`AnimeRecord.watched_episodes` es un `Set[int]`**, así que compararlo con una `list` da `False`
   aunque el contenido sea idéntico. Un falso positivo de «se ha corrompido el campo» que asusta.
 - ⚠️ **No dobles la inversión.** `update_anime_episodes()` invierte lo que le des
-  ([trampa 4](10-invariantes-y-trampas.md)): hay que pasarle los episodios **en el orden del
+  ([trampa 3](10-invariantes-y-trampas.md)): hay que pasarle los episodios **en el orden del
   proveedor** (ascendente en AnimeAV1), no ya invertidos, o la copia queda al revés y parece un fallo
   del código.
 
@@ -543,7 +543,7 @@ Un problema de anchos **no se comprueba mirando la ventana**: a ojo no se distin
 de «el hueco es más pequeño de lo que debería», y menos aún se ve que una ficha sin seleccionar
 también sobre 6 px. Lo que hay que hacer es **preguntarle a Tk dónde ha puesto cada cosa**.
 
-La receta, que es la que encontró la [trampa 39](10-invariantes-y-trampas.md):
+La receta, que es la que encontró la [regla R10](10-invariantes-y-trampas.md):
 
 1. `root = ctk.CTk(); root.withdraw()` y el **componente real** importado de `src` dentro de un marco
    con el ancho que se quiera simular. Ocultar la raíz no impide medir: Tk calcula la geometría igual.
@@ -563,7 +563,7 @@ Y tres comprobaciones que salen casi gratis una vez montado:
 - que ninguna caja **desborda** por la derecha (`x + ancho > available`);
 - que el **alto pedido** por el marco (`cget("height")`) coincide con el real
   (`max(y) + alto de la ficha`), que es lo que evita que la fila se coma lo que tiene debajo
-  ([trampa 29](10-invariantes-y-trampas.md));
+  ([trampa 19](10-invariantes-y-trampas.md));
 - repetir todo con **varios anchos** y **varios estados**, que es donde aparecen los casos raros.
 
 ✅ **Ejecutada el 2026-09-01** sobre `GenreChips`. Antes del arreglo, con la fila colocada:
@@ -589,7 +589,7 @@ esté bien**, y esta receta es la que lo demuestra.
 
 Leer el código **no vale** para saber quién responde a un clic. `AnimeRow` excluía su píldora del
 clic de la fila con un `if widget is self.__action_button: continue` que se lee correctísimo, y aun
-así la píldora llevaba diez días sin ejecutar su `command` ([trampa 40](10-invariantes-y-trampas.md)).
+así la píldora llevaba diez días sin ejecutar su `command` ([regla R11](10-invariantes-y-trampas.md)).
 Lo que hay que hacer es **pulsarla y contar cuál de los dos manejadores ha corrido**.
 
 La receta, en dos mitades. La primera es estática y encuentra el fallo en un segundo:
@@ -609,7 +609,7 @@ La segunda mitad ejercita el gesto, y tiene **dos requisitos que no son negociab
    **no entrega** un `<Button-1>` sintético: la prueba pasa sin ejecutar nada. Se deja la ventana
    visible y se aparta de la vista con `root.geometry("...+3000+3000")`. *(Al revés que §6d, donde
    solo se mide y ocultar la raíz no estorba.)*
-4. 🔴 **Se pulsa el hijo interno, no el widget de CustomTkinter** — es la [trampa 35](10-invariantes-y-trampas.md).
+4. 🔴 **Se pulsa el hijo interno, no el widget de CustomTkinter** — es la [trampa 24](10-invariantes-y-trampas.md).
    La píldora es un `CTkButton`: hay que buscar dentro su `!label`, que es donde cae el ratón de
    verdad porque tapa el marco entero. Lo mismo para el título de la fila: la `CTkLabel` es un marco y
    su `Label` interno la cubre.
@@ -642,7 +642,7 @@ Es el caso peor de «a ojo no se ve»: una rejilla que no se adapta y una que s�
 tamaño con el que se diseñó**. La diferencia solo aparece al cambiar el tamaño de la ventana, y ahí
 la trampa es la contraria: se ve *algo* moverse y se da por bueno. Hay que **medir**.
 
-La receta, que es la que encontró y cerró la [trampa 41](10-invariantes-y-trampas.md):
+La receta, que es la que encontró y cerró la [regla R12](10-invariantes-y-trampas.md):
 
 1. Reproducir la jerarquía **entera**, no solo el componente: raíz con `grid_columnconfigure(1,
    weight=1)`, un marco de `Metrics.SIDEBAR_W` en la columna 0 y un **`CTkScrollableFrame`** en la 1.
@@ -667,7 +667,7 @@ La receta, que es la que encontró y cerró la [trampa 41](10-invariantes-y-tram
 
 🔴 **Los tres tamaños no son tres: son cuatro.** Hay que **volver** al ancho grande después del
 estrecho, porque es ahí y solo ahí donde se ve si quedaron pesos de columna huérfanos
-([trampa 32](10-invariantes-y-trampas.md)).
+([trampa 22](10-invariantes-y-trampas.md)).
 
 ⚠️ **`root.geometry()` no des-maximiza una ventana.** Después de un `state("zoomed")` hay que hacer
 `state("normal")` **antes** de pedir un tamaño concreto, o se mide otra vez el maximizado y las
@@ -781,10 +781,10 @@ comprueba en cada uno:
 
 | Hoster | Cómo se consigue una URL de *embed* | Qué tiene que salir |
 |---|---|---|
-| zilla (AnimeAV1 «HLS») | `get_anime_episode_servers(slug, n, provider_id=ANIMEAV1, strict=True)` | playlist 200 con `#EXTM3U` y `EXT-X-MAP`; un segmento **200 con** `Sec-Fetch-Site` y **403 sin** ella ([trampa 43](10-invariantes-y-trampas.md)) |
+| zilla (AnimeAV1 «HLS») | `get_anime_episode_servers(slug, n, provider_id=ANIMEAV1, strict=True)` | playlist 200 con `#EXTM3U` y `EXT-X-MAP`; un segmento **200 con** `Sec-Fetch-Site` y **403 sin** ella ([trampa 25](10-invariantes-y-trampas.md)) |
 | MP4Upload | idem, el servidor «MP4Upload» | `GET` del medio con `Range: bytes=0-15` → **206** y `ftyp` en los bytes 4-8; con el `Referer` de AnimeAV1 → **403** |
 | Desu / Magi (JKAnime) | idem con `provider_id=JKANIME` | 206/200 y `#EXTM3U`; `expires_at` unas 3 h por delante |
-| Desuka (JKAnime) | idem, el servidor «Desuka» | 206 y `ftyp` **sin** cabeceras; **410** con cualquier `Referer` ([trampa 44](10-invariantes-y-trampas.md)) |
+| Desuka (JKAnime) | idem, el servidor «Desuka» | 206 y `ftyp` **sin** cabeceras; **410** con cualquier `Referer` ([trampa 26](10-invariantes-y-trampas.md)) |
 
 La pasada de zilla del 2026-10-20 fue un script de 30 líneas: `registry.resolve(play)` → `GET` del
 playlist con `source.headers` → primer segmento con y sin la cabecera, con `time.sleep(2-3)` entre
@@ -837,7 +837,7 @@ lo pinte.
 **Desde el `.exe`** (fase 5): compilar con `--distpath` y `--workpath` en el scratchpad —para no pisar
 el `dist/` del repo—, comprobar que la DLL **no** está en `%PATH%`, lanzarlo desde fuera del repo y
 mirar con `Get-Process -Module` que la `libmpv-2.dll` cargada es la de `_internal\vendor`
-([trampa 18f](10-invariantes-y-trampas.md)). El `.exe` crea su propia BD en su `_internal/resources/DB`:
+([trampa 12e](10-invariantes-y-trampas.md)). El `.exe` crea su propia BD en su `_internal/resources/DB`:
 la del repo no se toca.
 
 ⚠️ **El audio no lo puede comprobar quien no oye.** Que `aac` se decodifique y avance con el vídeo es
@@ -847,7 +847,7 @@ todo lo que se puede medir; **oírlo** es cosa del usuario.
 
 ## 6j. Medir fugas de memoria, widgets e imágenes *(2026-10-21)*
 
-Así se encontraron y se cerraron las [trampas 55-57](10-invariantes-y-trampas.md). Una prueba de humo
+Así se encontraron y se cerraron las [reglas R16-R18](10-invariantes-y-trampas.md). Una prueba de humo
 **no** las ve: la app funciona igual, solo crecen la memoria y los handles.
 
 **Montaje**: un script en el scratchpad que copia `resources/` a un sandbox, parchea
@@ -890,7 +890,7 @@ visitar las seis vistas una vez hay ~1 100 ventanas de Tk más y ~30 MB más de 
 vueltas con `navigate_to()` + `update()` y la firma registrada envolviendo `show_view`, para saber en
 cada vuelta qué vista se reconstruyó.
 
-⚠️ **Un hilo de póster retiene la ficha hasta que acaba su descarga** ([trampa 78](10-invariantes-y-trampas.md)):
+⚠️ **Un hilo de póster retiene la ficha hasta que acaba su descarga** ([trampa 52](10-invariantes-y-trampas.md)):
 con filas cuyo póster sea de un sitio lento (AnimeFLV tarda 10 s en fallar), las imágenes «crecen» y
 luego se estabilizan. Mide con pósters que no cuelguen, o espera a los hilos.
 
@@ -953,23 +953,23 @@ reintento).
    de JKAnime) se piden con `strict=True` a un `infos.pkl` y se pintan con `display_anime_info()` +
    `update()`, sin red.
 4. **Contar peticiones**: envolver `requests.Session.request` (método, URL, hilo) y normalizar el
-   método con `.upper()` ([trampa 68](10-invariantes-y-trampas.md)). Es así como se comprueba que
+   método con `.upper()` ([trampa 44](10-invariantes-y-trampas.md)). Es así como se comprueba que
    abrir la ficha cuesta lo mismo que antes y que cada pestaña pide lo que dice.
 5. **Medir contra `develop` en la misma tanda**: `git worktree add <scratchpad>/develop develop` y un
    `SRC_DIR` que elige qué `src/` importa el arnés. Alternar rama y `develop` dos veces, mediana de 5
    tras calentar. Entre arranques la línea base se mueve; en la misma tanda, no
-   ([trampa 72](10-invariantes-y-trampas.md)).
+   ([trampa 48](10-invariantes-y-trampas.md)).
 6. **Clic**: `event_generate("<Button-1>")` sobre el widget de Tk atado (la etiqueta del póster, el
    marco de la tarjeta) e `invoke()` de los botones ([§6e](#6e-pulsar-de-verdad-un-botón-que-vive-dentro-de-otro-widget-2026-09-01)).
    ⚠️ El hover y el ratón real **no** se recorrieron (la terminal está en el otro monitor).
 7. **Sin red, con dobles**: un gestor falso para el recorrido de la franquicia (ciclos, dos secuelas,
    fallo a mitad, tope) y una búsqueda falsa que **cuenta llamadas** para «Te puede interesar»
    (fallo → reintento, página 1 toda filtrada → pide la 2 y ninguna más). Con un `tk.Tk()` oculto, se
-   espera con `mainloop()` + `quit()`, no con `update()` en bucle ([trampa 67](10-invariantes-y-trampas.md)).
+   espera con `mainloop()` + `quit()`, no con `update()` en bucle ([trampa 43](10-invariantes-y-trampas.md)).
 8. **Errores de callback**: sustituir `report_callback_exception` para que cualquier excepción de Tk
    quede registrada y haga fallar la tanda.
 9. **Congelaciones**: `faulthandler.dump_traceback_later()` saca la pila de todos los hilos si la
-   tanda no termina; así se encontró la [trampa 77](10-invariantes-y-trampas.md).
+   tanda no termina; así se encontró la [regla R20](10-invariantes-y-trampas.md).
 
 **Vistas conservadas**: `navigate_to()` + `update()` cronometrado, seis vueltas a las seis vistas a
 1440 × 910, mediana de las vueltas 2-6 (la 1.ª es la construcción). Para comprobar la invalidación,
@@ -1003,9 +1003,9 @@ tema y el plegado no cambian de vista, así que se hacen dos pasadas de siete.
 - [ ] La barra lateral aparece **solo** al terminar la carga.
 - [ ] 🆕 **El fondo del arranque es uno solo, y el mismo que el de la portada.** Ni recuadro gris
       alrededor del GIF, ni banda vertical a la izquierda. Es la
-      [trampa 36](10-invariantes-y-trampas.md), y **a ojo se falla**: capturar la ventana y muestrear
+      [regla R7](10-invariantes-y-trampas.md), y **a ojo se falla**: capturar la ventana y muestrear
       píxeles. Todo punto de fondo debe dar `#14161A` en oscuro y `#F4F5F7` en claro.
-- [ ] 🆕 **La pantalla de carga desaparece**. Si se queda, es la [trampa 33](10-invariantes-y-trampas.md).
+- [ ] 🆕 **La pantalla de carga desaparece**. Si se queda tapando la portada, `__on_startup_loaded()` no la retira en alguna salida.
 - [ ] 🔴 **Sin conexión**: sale el aviso, **la pantalla de carga se retira igual** y la portada
       muestra su estado vacío con «Reintentar». Es el caso que nadie prueba y el que estuvo roto.
 - [ ] 🆕 La barra recuerda si la dejaste plegada (`sidebar_collapsed` en `DB_user.db`).
@@ -1014,10 +1014,10 @@ tema y el plegado no cambian de vista, así que se hacen dos pasadas de siete.
 - [ ] Los seis destinos en este orden: Nuevos lanzamientos · Favoritos · Viendo · Pendientes ·
       Finalizados · Buscar. **Ninguno lleva la palabra «Anime»**.
 - [ ] El activo tiene fondo `CARD` y la barrita de 2 px en `ACCENT` a la izquierda.
-- [ ] 🔴 **Los seis se ven**. Si salen en blanco, es la [trampa 29](10-invariantes-y-trampas.md).
+- [ ] 🔴 **Los seis se ven**. Si salen en blanco, es la [trampa 19](10-invariantes-y-trampas.md).
 - [ ] Los contadores cuadran con lo que hay en cada pestaña.
 - [ ] 🆕 Marcar un estado desde la ficha **mueve el contador en el acto**
-      ([trampa 31](10-invariantes-y-trampas.md)).
+      ([trampa 21](10-invariantes-y-trampas.md)).
 - [ ] Plegar (««»): la barra baja a 84 px, quedan los iconos a 48 × 48 y el contador pasa a globo
       arriba a la derecha. El pie pierde las etiquetas y el desplegable de apariencia.
 - [ ] Desplegar la devuelve exactamente a como estaba.
@@ -1036,7 +1036,7 @@ tema y el plegado no cambian de vista, así que se hacen dos pasadas de siete.
 - [ ] 🆕 **Un anime en emisión con capítulo nuevo se corrige solo**: con la fila desactualizada, al
       entrar en la vista la tarjeta pasa de «Lo has visto entero» a «Siguiente: episodio N de N» en
       un segundo o dos, **sin recargar la portada ni abrir la ficha**, y por consola sale
-      «*X* pasa de N a M episodios» ([trampa 38](10-invariantes-y-trampas.md)).
+      «*X* pasa de N a M episodios» ([regla R9](10-invariantes-y-trampas.md)).
 - [ ] 🆕 **Sin conexión, la banda no se rompe ni se vacía**: las tarjetas siguen con el dato guardado
       y no se escribe nada en la BD.
 - [ ] 🆕 **Salir de la vista mientras se piden los datos no revienta nada**: entrar y cambiar de
@@ -1078,9 +1078,9 @@ tema y el plegado no cambian de vista, así que se hacen dos pasadas de siete.
 - [ ] Barra de progreso y «N / M vistos» en cada fila.
 - [ ] **Hover**: la fila se resalta con `CARD_HOVER` y aparece la píldora «Episodio N →».
 - [ ] 🔴 **La píldora no se apaga al ir a pulsarla**, y la fila **no cambia de ancho**
-      ([trampa 34](10-invariantes-y-trampas.md)).
+      ([trampa 23](10-invariantes-y-trampas.md)).
 - [ ] 🆕 **La píldora se colorea al pasar por encima** (`ACCENT_SOFT`), además de resaltarse la fila.
-      Hasta el 2026-09-01 no lo hacía: la fila le pisaba su hover ([trampa 40](10-invariantes-y-trampas.md)).
+      Hasta el 2026-09-01 no lo hacía: la fila le pisaba su hover ([regla R11](10-invariantes-y-trampas.md)).
 - [ ] 🆕 **Pulsar «Episodio N →» abre la ficha con ese episodio desplegado**, no arriba del todo, y
       con sus servidores a la vista.
 - [ ] 🆕 **«Seguir por el N» del panel hace lo mismo**; pulsar el **póster o el título** del panel
@@ -1098,7 +1098,7 @@ tema y el plegado no cambian de vista, así que se hacen dos pasadas de siete.
 - [ ] La elección **sobrevive al reinicio** (`pending_order`), como la de Favoritos.
 - [ ] 🔴 **Hover** → píldora «Empezar»; pulsarla **mueve el anime a «Viendo»** y **mueve los
       contadores de la barra**. Hasta el 2026-09-01 **no movía nada**: su `command` no llegaba a
-      ejecutarse ([trampa 40](10-invariantes-y-trampas.md)). Compruébalo volviendo a «Pendientes»:
+      ejecutarse ([regla R11](10-invariantes-y-trampas.md)). Compruébalo volviendo a «Pendientes»:
       el anime ya no tiene que estar.
 - [ ] 🆕 Y abre la ficha **por el primer episodio**, desplegado y con sus servidores; la lista sale
       **de menor a mayor** y el botón de orden dice «Menor a mayor ↑».
@@ -1120,7 +1120,7 @@ tema y el plegado no cambian de vista, así que se hacen dos pasadas de siete.
 - [ ] 🆕 **La ficha seleccionada no se mete encima de la de al lado**: la ✕ se ve entera y el hueco
       hasta la siguiente es el mismo que entre dos fichas sin seleccionar. Probar con **varias**
       activas a la vez y con la fila desplegada («Más géneros»), que es cuando envuelve en varias
-      líneas ([trampa 39](10-invariantes-y-trampas.md)).
+      líneas ([regla R10](10-invariantes-y-trampas.md)).
 - [ ] 🆕 **Plegar la barra lateral re-envuelve las fichas** sin solaparlas ni desbordar por la
       derecha, y sin meterse debajo del desplegable de orden.
 - [ ] 🔴 **Texto y géneros no se combinan: manda el último gesto.** Buscar por texto apaga las fichas;
@@ -1131,7 +1131,7 @@ tema y el plegado no cambian de vista, así que se hacen dos pasadas de siete.
 - [ ] Sello «ya lo tienes» sobre los resultados guardados, **también cuando el slug no coincide** y
       el cruce es por título.
 - [ ] 🔴 Abrir un resultado sellado y marcarle un estado **no crea una fila duplicada**
-      ([trampa 21](10-invariantes-y-trampas.md)).
+      ([trampa 13](10-invariantes-y-trampas.md)).
 - [ ] Paginador: con un género («Acción») debe salir «Página 1 de 50» y los botones deben traer
       resultados distintos.
 - [ ] Salir y volver: se restaura la última búsqueda sin repetir la petición.
@@ -1152,7 +1152,7 @@ tema y el plegado no cambian de vista, así que se hacen dos pasadas de siete.
       [07 C5](07-concurrencia-e-hilos.md)). Plegar mientras carga no pinta nada al llegar la respuesta.
 - [ ] 🆕 🔴 **Bajar el ratón despacio por toda la lista de episodios**: en cada momento hay **una
       sola** fila resaltada, y al sacar el ratón no queda ninguna. Si se quedan encendidas las que has
-      recorrido, es la [trampa 37](10-invariantes-y-trampas.md); recórrela de píxel en píxel
+      recorrido, es la [regla R8](10-invariantes-y-trampas.md); recórrela de píxel en píxel
       ([§6b](#6b-recorrer-el-hover-con-el-puntero-2026-09-01)). El separador de 1 px que la provocaba
       se quitó en la 0.5.0, pero cualquier hijo nuevo de la fila sin atar la reabre.
 - [ ] 🆕 Al **plegar** los servidores con el ratón encima, la fila se queda en color de hover, no
@@ -1160,13 +1160,13 @@ tema y el plegado no cambian de vista, así que se hacen dos pasadas de siete.
 - [ ] 🆕 Los servidores que **no** se pueden ver dentro llevan **↗**; elegir uno de ellos abre el
       navegador. Elegir uno sin ↗ abre el reproductor encima de la ficha (§7.13).
 - [ ] 🆕 Dos servidores con el mismo nombre salen como «Desu» y «Desu 2», y cada uno abre su URL
-      ([trampa 53](10-invariantes-y-trampas.md)).
+      ([regla R14](10-invariantes-y-trampas.md)).
 - [ ] Con la red caída, el clic muestra un **diálogo de error** y no deja la app muda.
 - [ ] **Identidad partida**: con JKAnime seleccionado, abrir un anime guardado desde AnimeAV1 debe
       sacar «⚠ En tu biblioteca: AnimeAV1» en ámbar y el botón «Actualizar a JKAnime».
 - [ ] Migrar **conserva los episodios vistos y las cuatro categorías**, y **no duplica**.
 - [ ] 🔴 **Salir de la ficha y entrar en otra vista**: la vista siguiente ocupa el ancho completo. Si
-      sale apretada a la izquierda, es la [trampa 32](10-invariantes-y-trampas.md).
+      sale apretada a la izquierda, es la [trampa 22](10-invariantes-y-trampas.md).
 
 **🆕 Pestañas, temporadas y «Te puede interesar»** (0.5.0, 2026-10-28):
 
@@ -1184,7 +1184,7 @@ tema y el plegado no cambian de vista, así que se hacen dos pasadas de siete.
 - [ ] «Otros» agrupados por formato; borde continuo (del proveedor), discontinuo (deducido) o «…»
       punteado (pidiéndose); siglas solo si lo dio **otro** proveedor; sellos de lo guardado.
 - [ ] 🔴 Abrir un relacionado **guardado** abre **su fila** (sus estados encendidos); marcar y
-      desmarcar un estado no cambia el **recuento de filas** de la copia (trampa 21).
+      desmarcar un estado no cambia el **recuento de filas** de la copia (trampa 13).
 - [ ] Abrir uno **no guardado**: 1 GET `strict=True` al proveedor de la ficha y ninguna fila nueva.
 - [ ] «← Volver a …» vuelve a la ficha anterior **sin red** y en «Episodios»; dos niveles se deshacen
       en orden. Cambiar de vista por la barra borra la cadena.
@@ -1192,7 +1192,7 @@ tema y el plegado no cambian de vista, así que se hacen dos pasadas de siete.
       «Ver otros 4» = 0 si hay candidatos; nada finalizado, ni el propio anime, ni su franquicia; los
       sellos coinciden con los de «Buscar».
 - [ ] Sin red: «No se han podido buscar…» + **«Reintentar»**, que pinta al volver la red, y **la app
-      no se congela** al pulsarlo ([trampa 77](10-invariantes-y-trampas.md)).
+      no se congela** al pulsarlo ([regla R20](10-invariantes-y-trampas.md)).
 - [ ] Terminar el **último** episodio de una temporada con secuela: la tarjeta de fin ofrece «Empezar
       <secuela>», que abre la secuela por el episodio 1 con «← Volver a …».
 - [ ] Cambiar de ficha **mientras** se recorre la franquicia: sin `Traceback` ni `invalid command name`.
@@ -1223,7 +1223,7 @@ del scratchpad **antes** de construir `MainWindow`.
       vacía a la derecha.)*
 - [ ] 🆕 La sinopsis **envuelve al ancho de la ventana** y no conserva los renglones del proveedor,
       pero **sí conserva sus párrafos**: «One Piece Film: Red» se lee en tres bloques separados por
-      una línea en blanco ([trampa 42](10-invariantes-y-trampas.md)).
+      una línea en blanco ([regla R13](10-invariantes-y-trampas.md)).
 
 ### 7.12 Regresión global
 
@@ -1234,7 +1234,7 @@ del scratchpad **antes** de construir `MainWindow`.
       Pendientes, terminar un episodio o «Actualizar a X», y volver a cada vista afectada. Si alguna
       sigue igual, la firma no recoge ese dato ([03 §18](03-flujos-de-ejecucion.md)).
 - [ ] 🆕 Calificar en Favoritos y volver: el orden por calificación **se actualiza**
-      ([trampa 80](10-invariantes-y-trampas.md)).
+      ([trampa 54](10-invariantes-y-trampas.md)).
 - [ ] 🆕 Maximizar con una vista de rejilla **oculta**: al volver, sus columnas son las que caben.
 - [ ] `SELECT COUNT(*) FROM ANIMES` antes y después de toda la sesión → el mismo número, salvo lo que
       hayas añadido a propósito.
@@ -1264,7 +1264,7 @@ si el anime está guardado: terminar un episodio escribe ([§6i](#6i-verificar-e
 - [ ] 🔴 Un servidor con ↗ (UPNShare, Mega…) **abre el navegador** y el recuadro dice «X se abre en tu
       navegador», con «Ver aquí con Y» si hay otro que sí se ve.
 - [ ] 🔴 Un servidor que no responde (zilla caído) cae al navegador a los **~20 s**. Uno que
-      responde **lento** cae a los **30 s** (`LOAD_TIMEOUT_S`, [trampa 54](10-invariantes-y-trampas.md)),
+      responde **lento** cae a los **30 s** (`LOAD_TIMEOUT_S`, [regla R15](10-invariantes-y-trampas.md)),
       y mientras tanto la columna sigue respondiendo y se puede pulsar otro servidor.
 - [ ] 🔴 Sin `vendor/libmpv-2.dll`, la app arranca igual y **todo** servidor acaba en el navegador.
 
@@ -1276,10 +1276,10 @@ si el anime está guardado: terminar un episodio escribe ([§6i](#6i-verificar-e
       marcada en la BD (acumulativo). Si **no** lo está, sin franja y **sin fila nueva**.
 - [ ] La ✕ retira el aviso y deja el último fotograma; play pasa a «repetir».
 - [ ] 🔴 «← Volver a la ficha» a mitad de episodio **no** saca la tarjeta de fin ni marca nada
-      ([trampa 47](10-invariantes-y-trampas.md)).
+      ([trampa 29](10-invariantes-y-trampas.md)).
 
 **Pantalla completa**
-- [ ] Ocupa **el monitor donde está la ventana**, también el secundario ([trampa 51](10-invariantes-y-trampas.md)).
+- [ ] Ocupa **el monitor donde está la ventana**, también el secundario ([trampa 33](10-invariantes-y-trampas.md)).
 - [ ] La barra flotante sale al mover el ratón y se va a los 5 s **con el cursor**; no se va con el
       ratón encima ni con el volumen abierto.
 - [ ] `Alt+Tab` a otra aplicación: la barra **no** se queda flotando encima de ella.
@@ -1328,7 +1328,7 @@ git status    # debe mostrar SOLO lo que tenías antes de empezar
 
 ### Capturar la ventana de la app sin robar el foco
 
-Útil para verificar layout (es la única forma de detectar la trampa 22, que no lanza ningún error):
+Útil para verificar layout (un defecto de layout no lanza ningún error):
 
 ```powershell
 # El objeto de Start-Process no publica MainWindowHandle con Tk: buscar por titulo.

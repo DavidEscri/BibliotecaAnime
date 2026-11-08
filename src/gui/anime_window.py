@@ -1,7 +1,7 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "gui"
 __module__ = "anime_window.py"
-__version__ = "0.17"
+__version__ = "0.18"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 """Ficha de detalle de un anime: la pantalla desde la que se ve un episodio.
@@ -2824,12 +2824,18 @@ class AnimeWindowViewer:
         self.__player.play(source)
 
     def __play_adjacent(self, step: int) -> None:
-        """Pasa al episodio anterior (``-1``) o al siguiente (``1``) del que está en el reproductor."""
+        """Pasa al episodio anterior (``-1``) o al siguiente (``1``) del que está en el reproductor.
+
+        Avanzar da por visto el episodio que se deja, como si hubiera terminado.
+        """
         if self.__playing_episode is None:
             return
         target = self.__adjacent_episode(self.__playing_episode.id, step)
-        if target is not None:
-            self.__play_episode(target)
+        if target is None:
+            return
+        if step > 0:
+            self.__mark_finished_episode(self.__playing_episode.id)
+        self.__play_episode(target)
 
     def __play_episode(self, episode_info: EpisodeInfo) -> None:
         """Cambia el reproductor a otro episodio, por el mismo servidor si lo tiene.

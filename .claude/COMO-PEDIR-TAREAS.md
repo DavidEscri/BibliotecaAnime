@@ -50,7 +50,7 @@ VERIFICAR:  <ejecutar la GUI / script sin GUI / solo leer / nada>
 Ejemplo real y suficiente:
 
 > **QUÉ**: que el póster de la ficha se vea a 195×275 también cuando hay que descargarlo.
-> **DÓNDE**: `utils.py:176-177`, es la trampa 16.
+> **DÓNDE**: `utils.py:176-177`, es la regla R5.
 > **ALCANCE**: solo esa función, no toques la caché.
 > **VERIFICAR**: con script sin GUI; la GUI la abro yo.
 
@@ -179,7 +179,7 @@ Consola: <pega la salida>
 > Marco los episodios 1-10 de un anime que acabo de encontrar, salgo, vuelvo, y están todos
 > apagados. Con los de mi lista de favoritos no pasa. Consola limpia, sin errores.
 >
-> *(Esto es la trampa 7 y lo identifico en un minuto: el anime no está en BD, así que
+> *(Esto es la trampa 5 y lo identifico en un minuto: el anime no está en BD, así que
 > `update_watched_episodes` devuelve `False` en silencio.)*
 
 ❌ **Flojo**
@@ -232,7 +232,7 @@ empíricamente, regenerar `.claude/docs/`). Es caro. Para retoques, pide directo
 Actualiza docs/<fichero> porque <qué cambió>.
 ```
 
-> Acabo de cambiar `get_anime_image`. Actualiza la trampa 15 y 16 de `docs/10` y la ficha de
+> Acabo de cambiar `get_anime_image`. Actualiza la reglas R4 y R5 de `docs/10` y la ficha de
 > `utils.py` en `docs/02`.
 
 Si haces un cambio de código y quieres que la documentación acompañe, **dilo en la misma petición**:

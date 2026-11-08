@@ -1,7 +1,7 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "gui"
 __module__ = "main_window.py"
-__version__ = "0.10"
+__version__ = "0.11"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 import copy
@@ -300,6 +300,8 @@ class MainWindow(ctk.CTk):
         self.player_frame.grid(row=0, column=0, columnspan=2, rowspan=8, sticky="nsew", padx=0, pady=0)
 
         self.overrideredirect(True)
+        self.__keep_taskbar_button()
+        self.__drop_topmost()
         tkinter.Tk.wm_geometry(self, f"{right - left}x{bottom - top}+{left}+{top}")
         self.update_idletasks()
 
@@ -315,6 +317,7 @@ class MainWindow(ctk.CTk):
         self.__fullscreen_restore = None
 
         self.overrideredirect(False)
+        self.__drop_topmost()
         tkinter.Tk.wm_geometry(self, saved_geometry)
         if was_zoomed:
             self.state("zoomed")
@@ -327,6 +330,41 @@ class MainWindow(ctk.CTk):
         if self.sidebar_frame is not None:
             self.sidebar_frame.grid()
         self.update_idletasks()
+
+    def __keep_taskbar_button(self) -> None:
+        """Devuelve a la ventana sin marco su botón en la barra de tareas, Alt+Tab y minimizar.
+
+        ``overrideredirect()`` la convierte en ventana de herramientas, que no tiene
+        ninguna de las tres: tapada o minimizada, no habría forma de volver a ella.
+        La barra de tareas solo relee los estilos al mostrarse la ventana.
+        """
+        try:
+            user32 = ctypes.windll.user32
+            hwnd = wintypes.HWND(int(self.wm_frame(), 16))
+            # GWL_EXSTYLE: fuera WS_EX_TOOLWINDOW (0x80), dentro WS_EX_APPWINDOW (0x40000).
+            ex_style = user32.GetWindowLongW(hwnd, -20)
+            user32.SetWindowLongW(hwnd, -20, (ex_style & ~0x80) | 0x40000)
+            # GWL_STYLE: WS_MINIMIZEBOX (0x20000) y WS_SYSMENU (0x80000), sin dibujar marco.
+            style = user32.GetWindowLongW(hwnd, -16)
+            user32.SetWindowLongW(hwnd, -16, style | 0x20000 | 0x80000)
+            user32.ShowWindow(hwnd, 0)  # SW_HIDE
+            user32.ShowWindow(hwnd, 5)  # SW_SHOW
+        except Exception as exc:
+            print(f"No se pudo dejar la ventana en la barra de tareas: {exc}")
+
+    def __drop_topmost(self) -> None:
+        """Saca la ventana de la banda «siempre encima», donde la puede dejar ``overrideredirect()``.
+
+        Tk recrea la ventana nativa detrás de la que tenía encima, y si ésa es
+        «siempre encima» (la barra flotante, el volumen o la barra de tareas), la
+        nueva hereda la banda y ninguna otra aplicación puede ponérsele delante.
+        """
+        try:
+            # -2 = HWND_NOTOPMOST; 0x13 = SWP_NOSIZE | SWP_NOMOVE | SWP_NOACTIVATE.
+            ctypes.windll.user32.SetWindowPos(wintypes.HWND(int(self.wm_frame(), 16)), wintypes.HWND(-2),
+                                              0, 0, 0, 0, 0x13)
+        except Exception as exc:
+            print(f"No se pudo sacar la ventana de «siempre encima»: {exc}")
 
     def __monitor_rect(self) -> Tuple[int, int, int, int]:
         """:return: (izquierda, arriba, derecha, abajo) del monitor donde está la ventana."""

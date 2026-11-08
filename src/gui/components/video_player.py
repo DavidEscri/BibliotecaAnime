@@ -1,7 +1,7 @@
 __author__ = "Jose David Escribano Orts"
 __subsystem__ = "gui.components"
 __module__ = "video_player.py"
-__version__ = "0.3"
+__version__ = "0.4"
 __info__ = {"subsystem": __subsystem__, "module_name": __module__, "version": __version__}
 
 """Reproductor de vídeo incrustado: la superficie de mpv, sus tarjetas de estado y la barra de controles.
@@ -669,7 +669,8 @@ class VideoPlayer(ctk.CTkFrame):
         self.__floating_controls: Optional[PlayerControls] = None
         self.__idle_job: Optional[str] = None
         self.__foreground_job: Optional[str] = None
-        self.__escape_funcid: Optional[str] = None
+        #: Atajos de teclado de la pantalla completa: (secuencia, comando Tcl).
+        self.__key_bindings: List[Tuple[str, str]] = []
         self.__ring_job: Optional[str] = None
 
         self.grid_columnconfigure(0, weight=1)
@@ -693,6 +694,10 @@ class VideoPlayer(ctk.CTkFrame):
         for widget in (self.__stage, self.__surface, self.__card_frame):
             tkinter.Frame.bind(widget, "<Motion>", self.__on_motion, "+")
             widget.bind("<Motion>", self.__on_motion, add="+")
+        # El clic sobre el vídeo, no sobre las tarjetas: las tarjetas tienen sus botones.
+        for widget in (self.__stage, self.__surface):
+            tkinter.Frame.bind(widget, "<Button-1>", self.__on_video_click, "+")
+            widget.bind("<Button-1>", self.__on_video_click, add="+")
         self.bind("<Configure>", self.__on_configure, add="+")
         self.__refresh_controls()
 
@@ -1173,16 +1178,20 @@ class VideoPlayer(ctk.CTkFrame):
             # geometría del vídeo ya a pantalla completa.
             root.update()
             self.__create_floating_bar()
-            self.__escape_funcid = root.bind_all("<Escape>", self.__on_escape)
+            for sequence, handler in (("<Escape>", self.__on_escape),
+                                      ("<space>", self.__on_space),
+                                      ("<Left>", lambda _event: self.__on_seek_key(-SEEK_STEP)),
+                                      ("<Right>", lambda _event: self.__on_seek_key(SEEK_STEP))):
+                self.__key_bindings.append((sequence, root.bind_all(sequence, handler)))
             root.focus_force()
             self.__show_floating_bar()
             self.__foreground_job = self.after(FOREGROUND_CHECK_MS, self.__check_foreground)
         else:
-            if self.__escape_funcid is not None:
-                # unbind_all() no borra el comando Tcl, y ese comando retiene el reproductor.
-                root.unbind_all("<Escape>")
-                root.deletecommand(self.__escape_funcid)
-                self.__escape_funcid = None
+            # unbind_all() no borra el comando Tcl, y ese comando retiene el reproductor.
+            for sequence, funcid in self.__key_bindings:
+                root.unbind_all(sequence)
+                root.deletecommand(funcid)
+            self.__key_bindings = []
             for job in (self.__idle_job, self.__foreground_job):
                 if job is not None:
                     self.after_cancel(job)
@@ -1277,6 +1286,26 @@ class VideoPlayer(ctk.CTkFrame):
     def __on_escape(self, _event=None) -> None:
         if self.__fullscreen and self.__on_fullscreen_request is not None:
             self.__on_fullscreen_request(False)
+
+    def __on_space(self, _event=None) -> None:
+        """Espacio: pausa o reanuda, y enseña la barra para que se vea el cambio."""
+        if self.__fullscreen:
+            self.toggle_pause()
+            self.__on_motion()
+
+    def __on_video_click(self, _event=None) -> None:
+        """Clic sobre el vídeo a pantalla completa: pausa o reanuda, como Espacio."""
+        if self.__fullscreen and not self.is_card_visible():
+            self.__on_space()
+
+    def __on_seek_key(self, seconds: float) -> None:
+        """Flechas: retrocede o avanza ``seconds``, y enseña la barra con el tiempo nuevo.
+
+        :param seconds: Segundos que se salta; negativo para retroceder.
+        """
+        if self.__fullscreen:
+            self.seek_relative(seconds)
+            self.__on_motion()
 
     def destroy(self):
         self.close()
