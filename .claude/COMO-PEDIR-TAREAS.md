@@ -176,11 +176,11 @@ Consola: <pega la salida>
 ### Ejemplo
 
 ✅ **Bien**
-> Marco los episodios 1-10 de un anime que acabo de encontrar, salgo, vuelvo, y están todos
-> apagados. Con los de mi lista de favoritos no pasa. Consola limpia, sin errores.
+> Termino en el reproductor un episodio de un anime que quité de «Viendo», y no aparece en ninguna
+> vista. Al abrir su ficha sí está marcado. Consola limpia, sin errores.
 >
-> *(Esto es la trampa 5 y lo identifico en un minuto: el anime no está en BD, así que
-> `update_watched_episodes` devuelve `False` en silencio.)*
+> *(Esto es la trampa 5 y lo identifico en un minuto: la fila sigue existiendo con los cuatro
+> estados a 0, y el reproductor guarda lo visto pero no cambia estados.)*
 
 ❌ **Flojo**
 > Los episodios vistos no se guardan bien, arréglalo.

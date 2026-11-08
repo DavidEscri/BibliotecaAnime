@@ -619,8 +619,9 @@ la barra diagonal del icono «sin conexión».
 3. Recuerda: `watched_episodes` son **rangos** (`[[1,1158]]`, no una lista de episodios) y `episodes`
    está **invertido** respecto a lo que devolvió el proveedor.
 4. Si el usuario dice «marqué episodios y no se guardaron», comprueba primero que el anime **tenga
-   algún estado asignado**: sin fila en `ANIMES`, `update_watched_episodes` devuelve `False` en
-   silencio (trampa 5).
+   fila** y **algún estado**. Desde el 2026-11-08 el interruptor pone en «Viendo» lo que no tenga
+   ninguno, pero el reproductor no: lo que marque en una fila con los cuatro estados a 0 se guarda,
+   aunque el anime no sale en ninguna vista (trampa 5).
 
 ---
 

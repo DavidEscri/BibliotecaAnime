@@ -526,6 +526,12 @@ filas ya guardadas sin migrar nada. De paso se quitó el tope de 74 caracteres d
 completa dejaba media ficha vacía.
 Marcar un episodio como visto es **acumulativo**: marca todos los anteriores hasta ése; desmarcar afecta solo a ese
 episodio. Conserva en BD los episodios posteriores ya vistos.
+🔴 **Marcar un episodio de un anime sin ningún estado lo pone en «Viendo»** (2026-11-08, trampa 5): sin
+fila, o con fila y los cuatro estados a 0, que es lo que deja quitarlo de su última sección, porque
+las filas no se borran. Pasa por `add_to_watching()` —aviso de duplicado e identidad de
+persistencia—, y si se cancela el aviso el interruptor vuelve a apagarse. Un favorito sin estado
+excluyente no se mueve. **La ficha cambia después de saber si se guardó**, no antes. El reproductor
+sigue sin crear filas ni cambiar estados ([`docs/03 §4`](docs/03-flujos-de-ejecucion.md)).
 
 Lo que cambió con el rediseño: **los 4 botones se encienden y se apagan** en vez de cambiar de texto,
 y comparten un único `command`; **`EpisodeRow` sustituye al botón de ancho completo** que repetía el

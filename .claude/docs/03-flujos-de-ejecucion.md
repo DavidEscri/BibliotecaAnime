@@ -291,49 +291,50 @@ métodos siguen existiendo con el mismo nombre.
 
 ## 4. Marcar / desmarcar un episodio
 
-📖 `anime_window.py:1101-1154`. Es el flujo más delicado del proyecto.
+📖 `anime_window.py`: `__toggle_episode_switch()` y `__set_episode_watched()`. Es el flujo más
+delicado del proyecto. Todo en el hilo de Tk: es SQLite local. Reescrito el 2026-11-08 (trampa 5).
 
 ```mermaid
 flowchart TD
-    A["Usuario mueve el switch<br/>__toggle_episode_switch(ep_id) :1052"] --> B{"¿ep_id en anime_info.episodes?<br/>:546-550"}
-    B -->|no| B2["print error + return"]
-    B -->|sí| C{"marking_as_watched<br/>= not watched_status[ep_id] :552-553"}
+    A["Usuario mueve el interruptor<br/>(CTkSwitch ya se ha movido solo)<br/>__toggle_episode_switch(ep_id)"] --> C{"marking_as_watched<br/>= not watched_status[ep_id]"}
+    C -->|marcar| R{"¿tiene algún estado?<br/>library_status(fila de<br/>persistence_anime_id)"}
+    R -->|"no: sin fila o<br/>los cuatro a 0"| W["add_to_watching()<br/>__confirm_save → update_anime_to_watching<br/>(identidad de persistencia, provider_id)<br/>→ pósters, listas del hub, contadores"]
+    W -->|cancelado o falla| X["__refresh_episode_states()<br/>el interruptor vuelve a apagarse"]
+    W -->|guardado| S
+    R -->|sí| S
+    C -->|desmarcar| S["__set_episode_watched(ep_id, marcar)"]
 
-    C -->|marcar| D{"sort_descending? :557"}
-    D -->|sí| D1["select() switches [index … fin]<br/>:558-562"]
-    D -->|no| D2["select() switches [0 … index]<br/>:568-572"]
-
-    C -->|desmarcar| E["deselect() SOLO este switch<br/>:564-566 / :573-576"]
-
-    D1 --> F["bd_watched = get_watched_episodes(id) :579"]
-    D2 --> F
-    E --> F
-
+    S --> B{"¿ep_id en anime_info.episodes?"}
+    B -->|no| B2["print error + return False"]
+    B -->|sí| F["bd_watched = get_watched_episodes(id)"]
     F --> G{"marking_as_watched?"}
-    G -->|sí| H["episodes_up_to = todos los eps ≤ ep_id<br/>en orden ASCENDENTE real :586-589<br/>episodes_after = vistos en BD > ep_id :591<br/><b>merged = union</b> :592"]
-    G -->|no| I["<b>merged = bd_watched - {ep_id}</b> :595"]
-
-    H --> J["update_watched_episodes(id, merged) :597"]
+    G -->|sí| H["episodes_up_to = todos los eps ≤ ep_id<br/>en orden ASCENDENTE real<br/>episodes_after = vistos en BD > ep_id<br/><b>merged = unión</b>"]
+    G -->|no| I["<b>merged = bd_watched - {ep_id}</b>"]
+    H --> J["update_watched_episodes(id, merged)"]
     I --> J
-    J --> K["_episodes_to_ranges(merged)<br/>animesPersistence.py:361"]
-    K --> L["UPDATE ANIMES SET watched_episodes=?,<br/>last_watched_episode=max(merged) :363-371"]
+    J -->|True| M["watched_status en memoria"]
+    J -->|False: sin fila| N["memoria intacta"]
+    M --> P["__refresh_episode_states() + __refresh_seen_bar()<br/>siempre: también deshace el interruptor si no se guardó"]
+    N --> P
+    P --> Q["si guardó y es marcar:<br/>push_last_watched_id() → banda «Retomar»"]
 ```
 
-**Reglas que hay que respetar** (✅ round-trip verificado):
+**Reglas que hay que respetar** (✅ verificado en la GUI sobre copia el 2026-11-08):
 
 1. **Marcar es acumulativo**: marca todos los episodios **anteriores en orden real ascendente**, no
-   los anteriores en pantalla (`:586-589`). Es correcto tanto si la lista está ascendente como
-   descendente.
-2. **Los episodios posteriores ya vistos se conservan** (`:591`).
-3. **Desmarcar es unitario**: solo se quita ese episodio (`:595`).
-4. `update_watched_episodes` **devuelve `False` y no escribe nada si el anime no está en BD**
-   (`animesPersistence.py:358`). ✅ Verificado. Es decir: **marcar episodios de un anime sin
-   estado asignado no persiste nada**.
-
-> ⚠️ Los pasos 1 y 2 usan `self.episode_switches`, que solo contiene los **widgets visibles** (25 como
-> mucho, o los filtrados por búsqueda). Con la lista filtrada a un único episodio, `index` viene de
-> `anime_info.episodes` (`:547`) pero se indexa `self.episode_switches[index]` (`:559-562`, `:566`) →
-> posible `IndexError`. Camino leído en código, no reproducido.
+   los anteriores en pantalla. Es correcto tanto si la lista está ascendente como descendente.
+2. **Los episodios posteriores ya vistos se conservan**.
+3. **Desmarcar es unitario**: solo se quita ese episodio. Nunca crea fila.
+4. **Marcar en un anime sin ningún estado lo pone antes en «Viendo»**: sin fila, o con fila y los
+   cuatro estados a 0, que es lo que deja quitarlo de su última sección. Va por el mismo camino que el
+   botón: aviso de duplicado por título (`__confirm_save()`, que no salta si la fila ya existe) e
+   identidad de persistencia, nunca `anime_info.id` a secas (trampa 13). Si se cancela el aviso, no se
+   guarda nada. Un favorito sin estado excluyente no se mueve. El usuario no recibe ningún aviso de que
+   ha pasado a «Viendo»: lo dice el propio botón, encendido (decisión del 2026-11-08).
+5. **La ficha cambia después de saber si se guardó**: `update_watched_episodes()` sigue devolviendo
+   `False` sin fila (trampa 5).
+6. **El reproductor no pasa por el interruptor**: el fin de episodio y «siguiente» llaman a
+   `__mark_finished_episode()`, que comprueba la fila y **no la crea** (trampas 24 y 25).
 
 ---
 

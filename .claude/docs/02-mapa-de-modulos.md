@@ -893,7 +893,7 @@ con el clic, marcar un episodio abriría sus servidores. Si añades un hijo, va 
 | `__toggle_sort_order` | `:1004-1014` | ordena `anime_info.episodes` **in place** |
 | `__search_episodes` | `:1016-1030` | filtra por número exacto |
 | `__previous_episode` / `__next_episode` | `:1032-1050` | |
-| `__toggle_episode_switch(episode_id)` | `:1052-1105` | marcado **acumulativo**; desmarcado unitario |
+| `__toggle_episode_switch(episode_id)` | `:1052-1105` | marcado **acumulativo**; desmarcado unitario. Sin ningún estado (sin fila o los cuatro a 0), `add_to_watching()` antes de marcar (2026-11-08, [03 §4](03-flujos-de-ejecucion.md)) |
 | `__toggle_servers_frame(...)` | `:1802-1871` | `provider_id=self.provider_id, strict=True`. ⚠️ **HTTP en el hilo de Tkinter** ([07 C5](07-concurrencia-e-hilos.md)) |
 | 🆕 `__focus_on_episode()` | `:1610-1656` | deja la ficha abierta **por el episodio** con el que se entró. Se dispara con `after(FOCUS_DELAY_MS)` tras pintar; **consume** `__focus_episode`. Si el episodio cae fuera de los 25, lo enseña solo con sus botones de navegación y escribe el número en «Ir al episodio…» |
 | 🆕 `__scroll_to_episode(episode_id)` | `:1658-1695` | desplaza el `content_frame` **solo si la fila y sus servidores no caben** en lo que se ve. 🔴 Usa `content_frame._parent_canvas`: `CTkScrollableFrame` no expone el desplazamiento en customtkinter 5.2.2 |
