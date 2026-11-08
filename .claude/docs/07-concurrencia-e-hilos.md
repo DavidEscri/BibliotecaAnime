@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Fecha** | 2026-10-28 · rama `release/0.5.0` · último commit de código **`7bbbb3c`**. **§1 reanclada entera** contra ese árbol; §6 y §7 lo están contra `f3fc229` |
-| **Última revisión** | 2026-10-30 (**el reproductor no congela la ventana**): **§1f nuevo** —`load_mpv()` sale del hilo de Tk a los hilos #13 y #14, bajo un cerrojo, y por qué no se precarga ([trampa 84](10-invariantes-y-trampas.md))—, y una regla más en §3. Ningún hilo nuevo. Antes, 2026-10-28 (**versión 0.5.0**): **22 hilos** (eran 17): dos de `FranchiseService` (#18 y #19) y tres de la ficha (#20 pósters de las pestañas, #21 abrir un relacionado no guardado, #22 «Te puede interesar»); **§1d nuevo**, el estado compartido de `FranchiseService` (un `Lock` + uno **por proveedor** que turna y espacia las peticiones); **§1e nuevo**, la congelación por `Font.__del__` en otro hilo ([trampa 77](10-invariantes-y-trampas.md)); §2 gana las vistas **ocultas** que siguen recibiendo repintados. Antes, 2026-10-27 (**conexiones por hilo**, B16): **§1c nuevo** — AnimeAV1 y los pósters piden con `thread_session()`, una `requests.Session` **por hilo** y sin cookies, que reutiliza la conexión dentro de cada hilo y **no comparte nada entre hilos**; reglas nuevas en §3. Ningún hilo nuevo. Antes, 2026-10-27 (**refresco de episodios**): los hilos del refresco de episodios pasan a `EpisodeRefresher`: **como mucho uno por proveedor**, que muere al vaciar su cola, con el estado bajo un `Lock` y la escritura de vuelta en Tk. Antes, 2026-10-21 (**auditoría de rendimiento**): **C1 resuelta en el arranque** —la portada, el aviso sin estrenos y la barra de progreso se pintan ya en el hilo de Tk; antes la portada se construía desde el hilo daemon y tardaba **860-1 000 ms** en vez de ~200—, y **sale del hilo de Tk el último acceso a la red**, que no estaba contado: el póster de la ficha cuando no está en disco (hilo **#17**). Antes, 2026-10-20 (**reproductor in-app**): **C5 resuelta** —la petición de servidores salió del hilo de Tk el 2026-09-24 y ya **ningún** sitio de la GUI sale a la red desde él—; **16 hilos** (eran 13: tres nuevos de la ficha, para servidores, resolución y cambio de episodio) **más el de eventos de mpv**, que no es nuestro y tiene su propia regla (§1b, [trampa 46](10-invariantes-y-trampas.md)); `after()` pasa de 11 a **28**; §7 gana `WM_DELETE_WINDOW`, que no existía. ⚠️ El commit `cbd2721` (comentarios, −400 líneas) había desplazado todas las anclas de §1 y §6. Antes, 2026-09-01 (**abrir la ficha por un episodio**): **C5 sube de gravedad** — la petición de servidores ya no la dispara solo el usuario, la dispara también abrir la ficha desde «Viendo» o «Pendientes»; el `after(50 ms)` que lo envuelve es una tirita, no el arreglo. Antes, 2026-09-01 (**refresco de la banda «Retomar»**): hilo nuevo en la portada, y **§1, §2 y §6 reancladas enteras contra el código real** — la mitad de las líneas que citaban se habían movido con el rediseño y tres hilos del inventario **ya no existían**. Antes, 2026-08-31 (**fondo de la pantalla de carga**): anclas de `main_window.py` reverificadas en §1, §2 y §4 (iban ~29 líneas desplazadas) y `place_forget()` corregido a `destroy()` en C1; las de #5 a #13 **siguen sin verificar**. Antes, 2026-08-16 (**columna `provider_id`**): hilos a **13** (eran 8) y `after()` a **10** (eran 4); **C2 resuelta** — los 4 puntos que abren una ficha pintan ya en el hilo de Tk. C5 sigue viva |
+| **Última revisión** | 2026-10-30 (**el reproductor no congela la ventana**): **§1f nuevo** —`load_mpv()` sale del hilo de Tk a los hilos #13 y #14, bajo un cerrojo, y por qué no se precarga ([regla R24](10-invariantes-y-trampas.md))—, y una regla más en §3. Ningún hilo nuevo. Antes, 2026-10-28 (**versión 0.5.0**): **22 hilos** (eran 17): dos de `FranchiseService` (#18 y #19) y tres de la ficha (#20 pósters de las pestañas, #21 abrir un relacionado no guardado, #22 «Te puede interesar»); **§1d nuevo**, el estado compartido de `FranchiseService` (un `Lock` + uno **por proveedor** que turna y espacia las peticiones); **§1e nuevo**, la congelación por `Font.__del__` en otro hilo ([regla R20](10-invariantes-y-trampas.md)); §2 gana las vistas **ocultas** que siguen recibiendo repintados. Antes, 2026-10-27 (**conexiones por hilo**, B16): **§1c nuevo** — AnimeAV1 y los pósters piden con `thread_session()`, una `requests.Session` **por hilo** y sin cookies, que reutiliza la conexión dentro de cada hilo y **no comparte nada entre hilos**; reglas nuevas en §3. Ningún hilo nuevo. Antes, 2026-10-27 (**refresco de episodios**): los hilos del refresco de episodios pasan a `EpisodeRefresher`: **como mucho uno por proveedor**, que muere al vaciar su cola, con el estado bajo un `Lock` y la escritura de vuelta en Tk. Antes, 2026-10-21 (**auditoría de rendimiento**): **C1 resuelta en el arranque** —la portada, el aviso sin estrenos y la barra de progreso se pintan ya en el hilo de Tk; antes la portada se construía desde el hilo daemon y tardaba **860-1 000 ms** en vez de ~200—, y **sale del hilo de Tk el último acceso a la red**, que no estaba contado: el póster de la ficha cuando no está en disco (hilo **#17**). Antes, 2026-10-20 (**reproductor in-app**): **C5 resuelta** —la petición de servidores salió del hilo de Tk el 2026-09-24 y ya **ningún** sitio de la GUI sale a la red desde él—; **16 hilos** (eran 13: tres nuevos de la ficha, para servidores, resolución y cambio de episodio) **más el de eventos de mpv**, que no es nuestro y tiene su propia regla (§1b, [trampa 28](10-invariantes-y-trampas.md)); `after()` pasa de 11 a **28**; §7 gana `WM_DELETE_WINDOW`, que no existía. ⚠️ El commit `cbd2721` (comentarios, −400 líneas) había desplazado todas las anclas de §1 y §6. Antes, 2026-09-01 (**abrir la ficha por un episodio**): **C5 sube de gravedad** — la petición de servidores ya no la dispara solo el usuario, la dispara también abrir la ficha desde «Viendo» o «Pendientes»; el `after(50 ms)` que lo envuelve es una tirita, no el arreglo. Antes, 2026-09-01 (**refresco de la banda «Retomar»**): hilo nuevo en la portada, y **§1, §2 y §6 reancladas enteras contra el código real** — la mitad de las líneas que citaban se habían movido con el rediseño y tres hilos del inventario **ya no existían**. Antes, 2026-08-31 (**fondo de la pantalla de carga**): anclas de `main_window.py` reverificadas en §1, §2 y §4 (iban ~29 líneas desplazadas) y `place_forget()` corregido a `destroy()` en C1; las de #5 a #13 **siguen sin verificar**. Antes, 2026-08-16 (**columna `provider_id`**): hilos a **13** (eran 8) y `after()` a **10** (eran 4); **C2 resuelta** — los 4 puntos que abren una ficha pintan ya en el hilo de Tk. C5 sigue viva |
 | **Cubre** | `src/gui/main_window.py`, `src/gui/anime_window.py`, `src/gui/franchise_service.py`, `src/gui/episode_refresher.py`, `src/gui/components/video_player.py`, `src/gui/sidebarButtons/**`, `src/utils/utils.py`, `src/utils/http_session.py` |
 
 Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ sin verificar.
@@ -79,7 +79,7 @@ Más **dos `ThreadPoolExecutor(max_workers=8)`** para pósters:
 `after()`**. Los callbacks solo **asignan atributos** o **meten en una `queue.Queue`**, y
 `VideoPlayer.__poll()` (`:816`) los recoge cada `POLL_MS` = 100 ms en el hilo de la interfaz. El
 motivo es el cierre: `after()` desde otro hilo espera a que Tk lo atienda, y `terminate()` desde Tk
-espera a que acabe ese hilo ([trampa 46](10-invariantes-y-trampas.md)).
+espera a que acabe ese hilo ([trampa 28](10-invariantes-y-trampas.md)).
 
 Al cerrar el reproductor (`close()` → `terminate()`, 0,01 s) **no queda ningún hilo de mpv vivo**. ✅
 Comprobado en las fases 3 y 4: tras «← Volver a la ficha», cambiar de vista o cerrar la ventana, solo
@@ -122,7 +122,7 @@ reprodujeron**: ahorrar el handshake vale ~35 ms con esta red.
 CSRF ([05 §3b](05-proveedores-y-scraping.md))—, el resto de JKAnime y la comprobación de
 disponibilidad del manager —una petición por hilo, no ganan nada—, **AnimeFLV** —en desuso— y los
 **resolutores**, que llevan cabeceras distintas por hoster y la capa no importa nada de `utils/`
-([trampas 43-45](10-invariantes-y-trampas.md)).
+([trampas 25-27](10-invariantes-y-trampas.md)).
 
 > 🆕 **El hilo #6 es el primero que sale a la red por datos que ya están guardados.** Los otros doce
 > traen algo que el usuario acaba de pedir; éste corrige una fila de la biblioteca por su cuenta al
@@ -154,7 +154,7 @@ recientes y la hora de la última petición a cada proveedor.
   no se pide dos veces. Dos proveedores distintos van **en paralelo**.
 - **De vuelta al hilo de Tk** solo con `after(0, …)`, y solo si la ventana existe; un `RuntimeError`
   (la ventana se cerró) se traga. ⚠️ En un script sin `mainloop()` ese mismo `RuntimeError` hace que el
-  callback no llegue nunca ([trampa 67](10-invariantes-y-trampas.md)).
+  callback no llegue nunca ([trampa 43](10-invariantes-y-trampas.md)).
 - **No numera peticiones.** Es la ficha la que descarta lo que llega tarde, con `__is_on_screen()`.
 - Las llamadas síncronas (`walk_franchise`, `find_formats`) corren en el hilo que llama: **nunca desde
   el de Tk**.
@@ -162,7 +162,7 @@ recientes y la hora de la última petición a cada proveedor.
 ### 1e. Lanzar un hilo justo después de destruir widgets puede congelar la aplicación 🔴 🆕 *(2026-10-28)*
 
 ✅ Reproducido y diagnosticado con `faulthandler` durante la fase 4 de la 0.5.0
-([trampa 77](10-invariantes-y-trampas.md)). Un widget de CustomTkinter **sin `font=`** crea un
+([regla R20](10-invariantes-y-trampas.md)). Un widget de CustomTkinter **sin `font=`** crea un
 `CTkFont` propio en un ciclo de referencias con él; al destruirlo, la fuente la libera el recolector
 **en el hilo en el que toque**. Si es un hilo que el de Tk acaba de crear, su `Font.__del__` espera al
 de Tk para llamar a Tcl, mientras el de Tk espera en `Thread.start()` a que ese hilo arranque. **Se
@@ -175,7 +175,7 @@ bloquean los dos**, sin error y con la CPU a 0.
 
 La primera carga de una copia nueva de `libmpv-2.dll` la revisa el antivirus: ✅ **4,5-13 s**. En el
 hilo de Tk dejaba la ventana congelada 8,1 s al pulsar el primer servidor en un `.exe` recién
-compilado ([trampa 84](10-invariantes-y-trampas.md)). Ahora la hacen los hilos **#13** y **#14** antes
+compilado ([regla R24](10-invariantes-y-trampas.md)). Ahora la hacen los hilos **#13** y **#14** antes
 de resolver, y la ficha enseña «Cargando las librerías del reproductor» hasta que acaban.
 
 - `load_mpv()` va bajo **`_mpv_load_lock`**: si dos peticiones llegan a la vez, la segunda espera a la
@@ -279,7 +279,7 @@ de resolver, y la ficha enseña «Cargando las librerías del reproductor» hast
 7. 🆕 **Para pedir a un sitio, `thread_session().get(...)` con `timeout`** (§1c). Pídela en cada
    llamada, no la guardes en un atributo: así nunca acaba usándola otro hilo.
 8. 🆕 *(2026-10-28)* **`font=` en todo widget de CustomTkinter**, aunque no tenga texto (§1e,
-   [trampa 77](10-invariantes-y-trampas.md)).
+   [regla R20](10-invariantes-y-trampas.md)).
 9. 🆕 *(2026-10-28)* **Un servicio que reparte peticiones a un sitio, turnadas y espaciadas por
    proveedor**, como `FranchiseService` (§1d): un lock por proveedor, y la caché revisada otra vez
    dentro del turno.
@@ -530,7 +530,7 @@ llegaron después —`EpisodeRefresher` entre ellos— no se han añadido.
 | 🆕 `video_player.py:813`, `:830` | el **sondeo** de 100 ms que recoge los eventos de mpv (§1b) |
 | 🆕 `video_player.py:1087` | girar el aro de «Cargando» |
 | 🆕 `video_player.py:558`, `:566` | margen de gracia del deslizador de volumen |
-| 🆕 `video_player.py:1135`, `:1220` | guarda de primer plano a pantalla completa ([trampa 52](10-invariantes-y-trampas.md)) |
+| 🆕 `video_player.py:1135`, `:1220` | guarda de primer plano a pantalla completa ([trampa 34](10-invariantes-y-trampas.md)) |
 | 🆕 `video_player.py:1190` | ocultar la barra flotante y el cursor a los 5 s |
 
 > 🆕 **Los temporizadores del reproductor se cancelan al cerrarlo** (`VideoPlayer.close()` pasa

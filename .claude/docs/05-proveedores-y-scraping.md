@@ -50,7 +50,7 @@ póster y relacionados. Lo usa el recorrido de la franquicia (`gui/franchise_ser
 la ficha **traen su propio formato** (hoy solo JKAnime): es lo que permite al servicio pedir **una**
 ficha a ese sitio para completar los formatos que no sabe otro.
 
-En el manager, sus dos wrappers **validan el proveedor** antes de nada (trampa 13): 
+En el manager, sus dos wrappers **validan el proveedor** antes de nada (trampa 10): 
 `get_anime_relations(anime_id, provider_id)` (`:396-411`) va **siempre** con `strict=True` y sin
 parámetro `strict` —un slug solo significa algo en el sitio que lo dio— y `genre_filters(genres,
 provider_id)` (`:427-438`) devuelve `[]` si el proveedor no está registrado.
@@ -98,7 +98,7 @@ el proveedor bajo una clave que nadie busca, y el fallo no aparecería hasta el 
    **`related = None` significa «este proveedor no sabe dar relaciones»** (AnimeFLV, y todos los
    listados): la ficha distingue «no tiene» de «no lo sé» y en el segundo caso **no pinta la pestaña**.
    Lo que no sea precuela, secuela o versión alternativa se traduce a `OTHER` **dentro del proveedor**
-   ([trampa 59](10-invariantes-y-trampas.md)).
+   ([trampa 35](10-invariantes-y-trampas.md)).
 6. 🆕 **No rellenes `AnimeInfo.provider_id`.** Lo estampa el manager al responder (§5), que es el único
    que sabe cuál de los proveedores acabó contestando cuando entra el fallback. Un proveedor que lo
    rellenara a mano mentiría en cuanto alguien llamara a su método directamente.
@@ -253,10 +253,10 @@ relations:[{type:2,destination:{id:317,slug:"kusuriya-no-hitorigoto-2nd-season",
 | cualquier otro | — | `OTHER` **con un `print`** (⚠️ el 3, el 5 y el 9 no han salido en ninguna muestra) |
 
 ⚠️ «Historia principal» (`8`) apunta de una película u OVA **a la serie madre**: no es una precuela
-([trampa 59](10-invariantes-y-trampas.md)).
+([trampa 35](10-invariantes-y-trampas.md)).
 
 - **El array se recorta contando corchetes y respetando las cadenas** (`__extract_js_array`,
-  `:464-497`), porque hay títulos con `]` («[Oshi no Ko]», [trampa 60](10-invariantes-y-trampas.md)).
+  `:464-497`), porque hay títulos con `]` («[Oshi no Ko]», [trampa 36](10-invariantes-y-trampas.md)).
   Cada entrada se parte por `{type:` y sus campos salen con **regex independientes del orden**; las
   cadenas se des-escapan con `json.loads` (`_unescape_js`).
 - **Año**: los cuatro primeros dígitos de `startDate`. **Póster**: `cdn.animeav1.com/covers/{id}.jpg`
@@ -287,7 +287,7 @@ del sitio, y **33 son idénticos** a los `value` de `AnimeGenreFilter`, así que
 `mahou-shoujo`, `mitologia`, `shoujo-ai`, `shounen-ai`) se descartan con un aviso por sesión. Del enum
 faltan en el sitio `demencia`, `demonios`, `juegos`, `magia`, `policia`, `yaoi` y `yuri`.
 
-🔴 **Dos géneros en el catálogo se combinan con O, no con Y** ([trampa 66](10-invariantes-y-trampas.md)):
+🔴 **Dos géneros en el catálogo se combinan con O, no con Y** ([trampa 42](10-invariantes-y-trampas.md)):
 «acción + romance» trae animes de solo romance. 20 resultados por página. El catálogo **no ordena por
 calificación** (`__apply_client_side_order` ordena en el cliente lo que sabe); admite `order` en la
 URL, pero ⚠️ sus valores no salen en el HTML y no se investigaron. Ningún resultado de búsqueda trae
@@ -409,17 +409,17 @@ devuelve de la Z a la A:
 La ficha trae una sección `<h3>Temporadas y relacionados</h3>` con bloques
 `<h5 id="aditional">Secuela</h5>` seguidos de `<a href="https://jkanime.net/<slug>/">Título (Serie)</a><br>`.
 
-- **Todos los `<h5>` llevan el mismo `id="aditional"`** ([trampa 61](10-invariantes-y-trampas.md)):
+- **Todos los `<h5>` llevan el mismo `id="aditional"`** ([trampa 37](10-invariantes-y-trampas.md)):
   `__extract_relations` recorre **en orden** los hermanos `h5`/`a` del `<h3>`, y el tipo de cada
   enlace es el del último `<h5>`.
 - Tipos vistos y su traducción (etiqueta normalizada con `normalize_title()`, sin tildes, como las
   escribe el sitio): **Precuela** → `PREQUEL`, **Secuela** → `SEQUEL`, **Version alternativa** →
   `ALTERNATIVE`; Adicional, Derivado, Resumen, Personaje incluido, Otro, **Predecesor** y **Version
   completa** → `OTHER` sin aviso; cualquier otro, `OTHER` con un `print`. «Predecesor» es la historia
-  madre, no una precuela ([trampa 59](10-invariantes-y-trampas.md)).
+  madre, no una precuela ([trampa 35](10-invariantes-y-trampas.md)).
 - **Formato en el paréntesis final** (Serie, OVA, Pelicula, Especial, ONA), que `__split_format` solo
   separa **si es un formato conocido**: «Hunter x Hunter (2011)» se queda entero
-  ([trampa 62](10-invariantes-y-trampas.md)). Por eso `RELATIONS_CARRY_FORMAT = True`.
+  ([trampa 38](10-invariantes-y-trampas.md)). Por eso `RELATIONS_CARRY_FORMAT = True`.
 - **Sin año ni póster** en la relación. Los de la línea principal salen de las páginas que el
   recorrido ya descarga (`og:image`); los «otros» van sin póster.
 - **Formato del propio anime**: `<li rel="tipo"><span>Tipo:</span> Serie</li>`, que aparece **dos
@@ -437,7 +437,7 @@ primero.
 🔴 **El directorio responde 429 con su propio texto** si se le pide de seguido («Estas realizando
 demasiadas peticiones… el bloqueo dura 60 segundos»), también tras las peticiones de una sesión
 anterior del mismo día. La búsqueda devuelve `([], 1)` y parece vacía
-([trampa 65](10-invariantes-y-trampas.md)).
+([trampa 41](10-invariantes-y-trampas.md)).
 
 ---
 
@@ -641,7 +641,7 @@ sobra. Lo que el umbral protege no es la variación ortográfica sino los **fals
 🔴 **Corrección del 2026-10-26: para las temporadas no era holgado.** Cada temporada es un anime aparte
 en los dos sitios, y como texto se parecen más que el umbral: «Kusuriya no Hitorigoto» frente a «… 2nd
 Season» da 0.80, y la 2.ª frente a la 3.ª, 0.939. Ningún umbral las separa sin rechazar variantes
-legítimas, así que ahora las separan los **números** del título ([trampa 58](10-invariantes-y-trampas.md)).
+legítimas, así que ahora las separan los **números** del título ([regla R19](10-invariantes-y-trampas.md)).
 ✅ Relocalizando las 46 filas de la biblioteca en el otro proveedor, **0** cambian de elección
 respecto al criterio anterior.
 
@@ -652,7 +652,7 @@ no a ojo.
 
 > 📌 `resolve_anime_in_provider` **valida** que el proveedor esté registrado y devuelve `None` con un
 > aviso (`:418-420`). Es la excepción entre los métodos del manager, y conviene copiar el patrón:
-> los wrappers de `call_with_fallback` no validan y caen en la [trampa 13](10-invariantes-y-trampas.md).
+> los wrappers de `call_with_fallback` no validan y caen en la [trampa 10](10-invariantes-y-trampas.md).
 
 ---
 
@@ -756,7 +756,7 @@ Pasos detallados con checklist en [11 §3](11-playbooks.md). Resumen:
 6. Crear `MiSitioSingleton` siguiendo el patrón de `animeav1.py:361-367`.
 7. Registrarlo en `gui/main_window.py` (bloque de `register`), **decidiendo dónde**: el orden de
    registro es el orden del fallback.
-8. Añadir `APIs.<sitio>.<sitio>` a `hiddenimports` de `MiBibliotecaAnime.spec` ([trampa 18](10-invariantes-y-trampas.md)).
+8. Añadir `APIs.<sitio>.<sitio>` a `hiddenimports` de `MiBibliotecaAnime.spec` ([trampa 12](10-invariantes-y-trampas.md)).
 9. Verificar con el script de [09 §2](09-verificacion-y-pruebas.md), incluido el **orden de
    `episodes`** (afecta al corte `[:25]` y a lo que se guarda en BD).
 
@@ -780,9 +780,9 @@ sirve el vídeo: zilla, MP4Upload, playmudos… `ServerInfo.url` es la URL del *
   hoster**, así que un resolutor escrito una vez sirve a todos.
 - **El *fallback* del manager no pinta nada aquí.** Si un hoster no resuelve, la salida es **el
   navegador**, no preguntar a otro proveedor. Meterlo en el contrato habría arrastrado a la
-  resolución la semántica de «vacío = error» del manager ([trampa 12](10-invariantes-y-trampas.md)).
+  resolución la semántica de «vacío = error» del manager ([trampa 9](10-invariantes-y-trampas.md)).
 - **`ServerInfo` no cambia**, y se resuelve **al pulsar**, no al listar: varias URLs de medio caducan
-  o van atadas a la IP ([trampa 45](10-invariantes-y-trampas.md)).
+  o van atadas a la IP ([trampa 27](10-invariantes-y-trampas.md)).
 
 Las dependencias de la capa están en [01 §2](01-arquitectura.md): solo stdlib, `requests` y ella
 misma. **No importa de `APIs.<sitio>` ni de `gui/`.**
@@ -806,8 +806,8 @@ cualquier otra excepción de `matches()` o `resolve()` y devuelve `None`.
 
 | Servidor (proveedor) | URL del *embed* | Resolutor y cómo | Medio | Cabeceras | Caducidad | Cobertura |
 |---|---|---|---|---|---|---|
-| **HLS** (AnimeAV1) | `player.zilla-networks.com/play/<hash 32 hex>` | `ZillaResolver`, **sintáctico**: `play/` → `m3u8/`, sin pedir la página | HLS **fMP4**, AV1 1080p | `Sec-Fetch-Site: same-origin` ([trampa 43](10-invariantes-y-trampas.md)) | no declarada | 0/3 el 2026-09-24 (**origen caído**, 522); ✅ vuelve el 2026-10-20 |
-| **MP4Upload** (AnimeAV1) | `www.mp4upload.com/embed-<id>.html` | `MP4UploadResolver`: baja el *embed* y saca la URL de `player.src({…})` de video.js | MP4 en `aN.mp4upload.com:183`, **AV1 1080p** (no H.264) | UA de navegador + `Referer: https://www.mp4upload.com/` ([trampa 44](10-invariantes-y-trampas.md)) | token de sesión, `None` | 3/3 |
+| **HLS** (AnimeAV1) | `player.zilla-networks.com/play/<hash 32 hex>` | `ZillaResolver`, **sintáctico**: `play/` → `m3u8/`, sin pedir la página | HLS **fMP4**, AV1 1080p | `Sec-Fetch-Site: same-origin` ([trampa 25](10-invariantes-y-trampas.md)) | no declarada | 0/3 el 2026-09-24 (**origen caído**, 522); ✅ vuelve el 2026-10-20 |
+| **MP4Upload** (AnimeAV1) | `www.mp4upload.com/embed-<id>.html` | `MP4UploadResolver`: baja el *embed* y saca la URL de `player.src({…})` de video.js | MP4 en `aN.mp4upload.com:183`, **AV1 1080p** (no H.264) | UA de navegador + `Referer: https://www.mp4upload.com/` ([trampa 26](10-invariantes-y-trampas.md)) | token de sesión, `None` | 3/3 |
 | **Desu**, **Magi** (JKAnime) | `jkanime.net/jkplayer/um?…` y `umv?…` | `JKPlayerResolver`: baja la página (con `Referer: https://jkanime.net/`) y busca el `.m3u8` **en claro** (`hls.loadSource(…)`); si no, dentro de los `atob()` | HLS **MPEG-TS** de `nika.playmudos.com`, H.264 720p, subtítulos incrustados | ninguna | `e=` → **~3 h** | 7/7 |
 | **Desuka** (JKAnime) | `jkanime.net/jkplayer/jk?…` | `JKPlayerResolver`: `url: '…'` de la página | MP4 de `jkplayers.com/stream/jkmedia/…` | **ninguna** — con `Referer` da **410** | **atado a la IP** del cliente | 1/1 |
 
@@ -827,18 +827,18 @@ perdido. El H.264 de JKAnime va por `d3d11va`.
 
 Lo primero: **un hoster que falla no da error, abre el navegador** —es la degradación diseñada—.
 Lo que dice qué ha pasado es **la consola** (con `python src/app.py`; el `.exe` no la tiene,
-[trampa 18c](10-invariantes-y-trampas.md)) y **cuánto tarda en caer**:
+[trampa 12b](10-invariantes-y-trampas.md)) y **cuánto tarda en caer**:
 
 | Lo que ves | Lo que dice la consola | Causa probable | Qué hacer |
 |---|---|---|---|
 | Cae al navegador **al instante**, sin «Cargando» apreciable | `[zilla] URL de embed sin hash reconocible` · `[mp4upload] El embed no trae la URL del vídeo` · `[jkplayer] El reproductor um no trae ninguna URL .m3u8` | cambió el formato del *embed* o de su página | bajar **una vez** la página y comparar con la regex del resolutor ([09 §6h](09-verificacion-y-pruebas.md)) |
 | Igual, pero | `No se pudo descargar …` con **403** | Cloudflare | **parar**: no reintentar en bucle (la IP ya se bloqueó una vez, el 2026-08-23) |
-| «Cargando» un instante y navegador | `mpv no pudo reproducir el medio (error …)` | el medio rechaza la petición: cabeceras o caducidad | [trampas 43-45](10-invariantes-y-trampas.md) |
+| «Cargando» un instante y navegador | `mpv no pudo reproducir el medio (error …)` | el medio rechaza la petición: cabeceras o caducidad | [trampas 25-27](10-invariantes-y-trampas.md) |
 | «Cargando» **~20 s** y navegador | idem, tras el `network-timeout` de 15 s | el origen del hoster está **caído** | esperar; no es el resolutor |
-| «Cargando» **30 s** y navegador | `El medio no ha empezado a verse en 30 s: …` y `[reproductor] …: El servidor tarda demasiado en entregar el vídeo` | el hoster **responde, pero lento** (zilla, 2026-10-20: ~70 s hasta abrir) | ya cae solo al navegador; si se repite, el hoster va lento ese día ([trampa 54](10-invariantes-y-trampas.md), B15 cerrada) |
-| **Todos** los servidores al navegador | `No se pudo cargar libmpv…` | falta la DLL | [trampa 18f](10-invariantes-y-trampas.md) |
+| «Cargando» **30 s** y navegador | `El medio no ha empezado a verse en 30 s: …` y `[reproductor] …: El servidor tarda demasiado en entregar el vídeo` | el hoster **responde, pero lento** (zilla, 2026-10-20: ~70 s hasta abrir) | ya cae solo al navegador; si se repite, el hoster va lento ese día ([regla R15](10-invariantes-y-trampas.md), B15 cerrada) |
+| **Todos** los servidores al navegador | `No se pudo cargar libmpv…` | falta la DLL | [trampa 12e](10-invariantes-y-trampas.md) |
 | Se ve, pero **a tirones** | — (mpv: `paused-for-cache`) | el hoster sirve por debajo del bitrate (MP4Upload, 110-260 KB/s el 2026-09-24) | nada en la app |
-| Navegador tras ver **un buen rato** | `El medio terminó en … : se trata como un corte del servidor` | el stream se cortó antes del final | [trampa 48](10-invariantes-y-trampas.md): no marca el episodio |
+| Navegador tras ver **un buen rato** | `El medio terminó en … : se trata como un corte del servidor` | el stream se cortó antes del final | [trampa 30](10-invariantes-y-trampas.md): no marca el episodio |
 
 **Regla de oro**: se arregla **el resolutor de ese hoster**, no el resto de la capa. Y añadir uno
 nuevo es [11 §9](11-playbooks.md).

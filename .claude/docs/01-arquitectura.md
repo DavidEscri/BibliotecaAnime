@@ -278,7 +278,7 @@ nada de animes. Por qué están separadas: [13 D1](13-selector-de-proveedor.md).
 > caliente: crea tablas que falten, añade columnas con `ALTER TABLE` y reconstruye la tabla cuando
 > cambia el orden o la afinidad de tipo, copiando los datos **por nombre de columna** y dejando una
 > copia de seguridad en `resources/DB/backups/`. Ver [04 §3](04-modelo-de-datos.md),
-> [11 §2](11-playbooks.md) y trampa 2.
+> [11 §2](11-playbooks.md) y regla R1.
 
 ---
 
@@ -294,12 +294,12 @@ stdlib y de esos siete paquetes.
 🆕 **Y una dependencia que no es de pip**: `vendor/libmpv-2.dll` (build `20260923` de
 `shinchiro/mpv-winbuild-cmake`, 120 MB), que **no está en el repositorio** —supera el límite de
 GitHub— y se descarga siguiendo el paso 4 del `README.md`. `python-mpv` la busca en `%PATH%`
-([trampa 18f](10-invariantes-y-trampas.md)). Sin ella la app funciona igual, pero todo servidor se
+([trampa 12e](10-invariantes-y-trampas.md)). Sin ella la app funciona igual, pero todo servidor se
 abre en el navegador (I11).
 
 > **Histórico**: hasta 2026-07-28 `searchAnimes.py:15` hacía `from attr import dataclass`, del
 > paquete **`attrs`**, que no estaba declarado y solo existía en el entorno como transitiva de
-> `selenium`. Se sustituyó por `dataclasses` de la stdlib. Ver trampa 18b y
+> `selenium`. Se sustituyó por `dataclasses` de la stdlib. Ver
 > [12 §4 → Resuelto](12-deuda-tecnica-y-roadmap.md).
 
 ---
@@ -313,7 +313,7 @@ Para evitar que alguien lo busque:
 - ❌ Router de vistas, inyección de dependencias.
 - ❌ Backend propio, API, autenticación, telemetría. Todo el estado es local.
 - ❌ Restricciones de integridad en `ANIMES`: **ni `UNIQUE`, ni `NOT NULL`, ni claves foráneas**. Lo
-  que impide duplicar una fila son comprobaciones en Python ([trampa 28](10-invariantes-y-trampas.md)).
+  que impide duplicar una fila son comprobaciones en Python ([trampa 18](10-invariantes-y-trampas.md)).
 - ❌ Cualquier módulo de manga. El roadmap lo prevé, el código aún no lo contempla.
 
 > ⚠️ **Dos entradas de esta lista caducaron y se han retirado**: «migraciones de BD» (existen desde

@@ -333,7 +333,7 @@ class MiSitio(AnimeProvider):
     # Antes, en models.py:  MISITIO = "misitio"
     PROVIDER_ID = AnimeProviderId.MISITIO
     PROVIDER_NAME = "MiSitio"
-    PROVIDER_SHORT_NAME = "MS"   # siglas; obligatorio desde la 0.5.0 (trampa 11)
+    PROVIDER_SHORT_NAME = "MS"   # siglas; obligatorio desde la 0.5.0 (trampa 8)
     BASE_URL = BASE_URL
 
     def search_animes_by_genres_and_order(self, genres: List[AnimeGenreFilter], order: str = None,
@@ -398,5 +398,4 @@ src/gui/sidebarButtons/<vista>/<vista>.py
 
 ⚠️ **Deja los `__init__.py` vacíos.** ✅ Los **18** de `src/` lo están hoy (0 bytes). El último con
 contenido era `watchingAnimes/__init__.py`, con un stub `class WatchingAnimeButton: pass` que
-ensombrecía a la clase real; se vació el 2026-08-07 en `e6d1a73`
-([10, trampa 19](10-invariantes-y-trampas.md)).
+ensombrecía a la clase real; se vació el 2026-08-07 en `e6d1a73`.

@@ -102,7 +102,7 @@ anime_record.id        # PK de SQLite — NO existe en AnimeInfo
 > ⚠️ **`anime_id` sin `provider_id` no identifica nada.** Un slug es local a un sitio: el mismo anime es
 > `one-piece` en AnimeAV1 y JKAnime, y `one-piece-tv` en AnimeFLV; y `dandadan` existe en los tres. La
 > pareja **(`provider_id`, `anime_id`)** es lo que identifica de verdad una fila, aunque la tabla no lo
-> declare (§3, «lo que NO impone el esquema»). Buscar en la biblioteca por slug es la trampa **26**.
+> declare (§3, «lo que NO impone el esquema»). Buscar en la biblioteca por slug es la regla **R6**.
 
 ### Conversión
 
@@ -212,7 +212,7 @@ pero además el servicio de franquicia ni lo intenta.
   `EpisodeRefresher.cached_info()` conservan los campos nuevos. Las construcciones a mano de la GUI
   parten de filas guardadas y dejan `related=None`, que es correcto: de una fila no se sabe.
 - **Tipos traducidos en el proveedor**: lo que no sea precuela, secuela o versión alternativa es
-  `OTHER` ([05 §3 y §3b](05-proveedores-y-scraping.md), [trampa 59](10-invariantes-y-trampas.md)).
+  `OTHER` ([05 §3 y §3b](05-proveedores-y-scraping.md), [trampa 35](10-invariantes-y-trampas.md)).
 
 **`ProviderInfo.short_name`** (`models.py:33-42`): las siglas del proveedor (`AV1`, `JK`, `FLV`), campo
 **sin default** —solo lo construye `provider_info()` desde `PROVIDER_SHORT_NAME`—. La GUI marca con
@@ -332,7 +332,7 @@ reconstrucción completa de la tabla, no `ALTER TABLE`).
 > primera vez que la abriste**. Cuando el slug existe en varios sitios —`dandadan` está igual en los
 > tres— el que queda anotado es simplemente el que tenías seleccionado ese día. La columna responde
 > «**quién sirve este slug**», no «quién lo trajo». Para el uso que se le da —a quién preguntar al
-> reabrir— es la respuesta correcta; para una estadística de origen, no. Trampa 27.
+> reabrir— es la respuesta correcta; para una estadística de origen, no. Trampa 17.
 >
 > Se escribió un barrido de detección previo (`barrido_provider_id.py`, en el scratchpad de la sesión,
 > **no en el repo**) que preguntaba a cada proveedor por el slug en el orden de la aplicación. Su
@@ -433,7 +433,7 @@ importen.
 | **AnimeFLV** | **descendente** 1167…1 (`animeflv.py:222-223`) | ascendente |
 
 Es decir: **el orden en BD depende de qué proveedor sirvió el dato**. La inversión solo tiene sentido
-histórico para AnimeFLV. Trampa 4.
+histórico para AnimeFLV. Trampa 3.
 
 ### `watched_episodes` → JSON de **rangos comprimidos**
 
@@ -546,7 +546,7 @@ coincidentes, descendente (`:294-302`).
 > (`utilsButtons.py:341`), pasa `self.selected_order.get()`, que es un **`str`** (`"default"`). La
 > comparación `order != AnimeOrderFilter.POR_DEFECTO` (`:294`) es entonces **siempre `True`** → *return*
 > en `:295` → **la ordenación por coincidencias nunca se aplica desde la GUI**. Con el enum sí
-> funciona. Trampa 6.
+> funciona.
 >
 > ✅ **Resuelto el 2026-10-21**: el método acepta el orden como enum **o** como su `value`, que es
 > como lo maneja el resto del código. Hoy **no tiene llamantes**: `AccordionFilterButton` se fue con
@@ -605,7 +605,7 @@ Tres detalles que no se ven leyendo la firma:
 2. **Los episodios no se re-invierten** (`:487-488`). `anime_info.episodes` viene de la red → se
    invierte como en cualquier inserción; pero si el destino no trae episodios se conserva
    `record.episodes`, que **ya viene invertido de la BD**. Invertirlo otra vez lo dejaría al revés.
-   Trampa 4 otra vez, ahora por el otro lado.
+   Trampa 3 otra vez, ahora por el otro lado.
 3. **Cada campo cae a lo que había** (`:501-506`): `anime_info.title or record.title`, etc. Una ficha
    destino incompleta degrada la fila lo mínimo, en vez de vaciarle la sinopsis.
 

@@ -63,7 +63,7 @@ Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ si
    a la fila nueva. No basta con tocar el selector de apariencia.
 6. Si la vista muestra pósters propios, decide su carpeta en `resources/images/<categoría>/` y
    **añádela a `POSTER_FOLDERS` (`utils.py:212`)**, que es donde busca `find_cached_poster_path()`, o el póster se bajará de la red cada vez
-   (trampa 15). Esa lista tiene hoy las 6 categorías existentes; se olvidó `watching` durante meses,
+   (regla R4). Esa lista tiene hoy las 6 categorías existentes; se olvidó `watching` durante meses,
    así que es un paso fácil de saltarse. Si además creas un `AnimeStatus` nuevo, la carpeta sale de
    `status.name.lower()` (`utils.py:53-60`, y ahora también `move_anime_poster_by_status:62-79`) y el olvido es aún más silencioso.
 
@@ -74,13 +74,13 @@ Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ si
 - [ ] `show_frame()` funciona llamado a mano desde `MainWindow`.
 - [ ] Si usa `PosterGrid`: colocada con **`sticky="ew"`**, el `Pager` construido con
       `self.__poster_grid.columns * ROWS_PER_PAGE`, y un `on_columns_changed` que repagine y repinte
-      ([trampa 41](10-invariantes-y-trampas.md)). Sin `sticky="ew"` compila y se ve bien a 1440, y no
+      ([regla R12](10-invariantes-y-trampas.md)). Sin `sticky="ew"` compila y se ve bien a 1440, y no
       se adapta nunca.
 - [ ] La rejilla recalcula columnas al redimensionar y volver a entrar.
 - [ ] Cambiar a otra vista y volver **no** deja widgets huérfanos.
 - [ ] 🆕 Volver sin cambios **reutiliza** la página (no construye nada); cambiar lo que pinta desde
       otro sitio y volver **la reconstruye**. Si no, a la firma le falta ese dato.
-- [ ] 🆕 Todo widget nuevo de CustomTkinter lleva `font=` ([trampa 77](10-invariantes-y-trampas.md)).
+- [ ] 🆕 Todo widget nuevo de CustomTkinter lleva `font=` ([regla R20](10-invariantes-y-trampas.md)).
 - [ ] La carpeta de pósters está en `.gitignore` si se genera en runtime.
 - [ ] `hiddenimports` actualizado.
 
@@ -100,12 +100,12 @@ Antes de escribir un widget en una vista, pregúntate si lo va a necesitar otra.
    vista. (`Sidebar` es la excepción y está documentada como tal: necesita el hub para el proveedor
    y las preferencias.)
 4. **Declara `height=` explícito** en todo marco decorativo o que vaya a nacer vacío
-   ([trampa 29](10-invariantes-y-trampas.md)).
+   ([trampa 19](10-invariantes-y-trampas.md)).
 4b. 🆕 **Si el componente se adapta al ancho, tiene que poder medirlo.** Documenta en su docstring que
    la vista lo coloque con `sticky="ew"` y con `weight` en la columna del padre: sin eso mide su
    propio contenido y cualquier cuenta que haga sobre `winfo_width()` es un punto fijo
-   ([trampa 41](10-invariantes-y-trampas.md)). Reacciona en `<Configure>` **con `add="+"`**
-   ([trampa 40](10-invariantes-y-trampas.md)), descarta los eventos que no cambien nada y, si
+   ([regla R12](10-invariantes-y-trampas.md)). Reacciona en `<Configure>` **con `add="+"`**
+   ([regla R11](10-invariantes-y-trampas.md)), descarta los eventos que no cambien nada y, si
    repintar es caro, júntalos con un `after()` cancelable — y comprueba `winfo_exists()` al vencer,
    porque un `after` no se cancela solo al destruir el widget.
 5. **Añádelo a `hiddenimports`** en `MiBibliotecaAnime.spec`. Sin esto compila, pero el `.exe`
@@ -131,7 +131,7 @@ aplica en un sitio y se olvida en el otro.
 ## §2 — Añadir una columna a la BD
 
 > ✅ **Ya no hay que escribir la migración a mano** (desde 2026-07-30). `validate_db_integrity()` la
-> deduce del esquema declarado. Lee la trampa 2 para saber qué sigue siendo tu responsabilidad.
+> deduce del esquema declarado. Lee la regla R1 para saber qué sigue siendo tu responsabilidad.
 
 > ✅ **Ejecutado de verdad el 2026-08-16** con `provider_id`, y por el camino caro: **en la posición 2**,
 > no al final. Lo que sigue ya no es teoría.
@@ -324,21 +324,21 @@ la sesión, y un **pin** al lado escribe en `DB_user.db`.
 
    ⚠️ **Una rejilla vacía no significa que haga falta un navegador.** Antes de concluir que el sitio
    necesita renderizado JS, busca el payload en el HTML crudo (`grep 'animes *= *{'`). Es la
-   **trampa 24**, y descartó una tarde de trabajo mal enfocado.
+   **trampa 15**, y descartó una tarde de trabajo mal enfocado.
 2. Crea la clase con los **4 atributos obligatorios** ya en el esqueleto —`PROVIDER_ID`,
    `PROVIDER_NAME`, 🆕 `PROVIDER_SHORT_NAME` (sus siglas, que la interfaz pone a lo que aporta; elige
    unas que no choquen con `AV1`, `JK` ni `FLV`) y `BASE_URL`—; sin ellos el módulo no importa
-   (trampa 11).
+   (trampa 8).
 3. Implementa los **5 métodos**. Devuelve siempre tipos de `APIs.common.models`.
    🆕 *(0.5.0)* En la ficha, rellena **`format`** y **`related`** si el sitio los da: `related` es una
    lista de `RelatedAnime` (`[]` si no tiene) y lo que no sea precuela, secuela o versión alternativa
-   va como `OTHER` ([05 §1](05-proveedores-y-scraping.md), [trampa 59](10-invariantes-y-trampas.md)).
+   va como `OTHER` ([05 §1](05-proveedores-y-scraping.md), [trampa 35](10-invariantes-y-trampas.md)).
    Si el sitio **no sabe** dar relaciones, déjalo en `None` y la ficha no enseñará la pestaña. Tres
    piezas opcionales: sobrescribe **`get_anime_relations`** si la ficha completa cuesta más de una
    petición (los episodios aparte, como JKAnime); sobrescribe **`_genre_from_slug`** si traduces
    géneros, para que «Te puede interesar» pueda volver al catálogo común; y pon
    **`RELATIONS_CARRY_FORMAT = True`** si sus relacionados traen formato.
-4. 🟡 **Fija la codificación** si el sitio no envía `charset` (trampa 14). Copia el patrón ya
+4. 🟡 **Fija la codificación** si el sitio no envía `charset` (regla R3). Copia el patrón ya
    implantado en `animeav1.py:37-56`: un `_fetch()` de módulo por el que pasen **todas** las peticiones,
    en vez de repetir la línea en cada método.
 
@@ -375,7 +375,7 @@ la sesión, y un **pin** al lado escribe en `DB_user.db`.
    Verifica la tabla **contra los slugs reales del sitio**, no a ojo: una traducción inventada no
    lanza ningún error, simplemente devuelve listas vacías ([09 §3d](09-verificacion-y-pruebas.md)).
 6. **Documenta el orden de `episodes`** que devuelve `get_anime_info` — afecta al corte `[:25]` de la
-   ficha y a lo que se guarda en BD (trampas 4 y 8).
+   ficha y a lo que se guarda en BD (trampas 3 y 6).
 7. Crea el `<Sitio>Singleton` (patrón en `animeav1.py:361-367`).
 8. Registra en `main_window.py:47-49`. **El orden importa**: define la secuencia de fallback.
 
@@ -408,7 +408,7 @@ la sesión, y un **pin** al lado escribe en `DB_user.db`.
 - [ ] `AnimeInfo.id` es un slug limpio, sin `/` ni `http` (si no, se duplican filas en la
       biblioteca).
 - [ ] El póster de los listados es la **carátula del anime**, no una miniatura de episodio
-      (trampa 23).
+      (trampa 14).
 - [ ] **Tildes correctas** en `synopsis` y `title`.
 - [ ] Fallback probado: fuerza un fallo del por defecto y comprueba que entra el tuyo
       ([09 §4](09-verificacion-y-pruebas.md)).
@@ -417,7 +417,7 @@ la sesión, y un **pin** al lado escribe en `DB_user.db`.
 
 > ✅ **JKAnime (2026-08-06) es el recorrido completo de este playbook**, y el único que ha ejercitado
 > los pasos 5 (traducción de géneros) y 8 (posición en el fallback). Si vas a añadir MonosChinos2 o
-> TioAnime, lee antes [05 §3b](05-proveedores-y-scraping.md) y las trampas 23-25.
+> TioAnime, lee antes [05 §3b](05-proveedores-y-scraping.md) y las trampas 14-16.
 
 ---
 
@@ -542,15 +542,15 @@ la barra diagonal del icono «sin conexión».
    No está en el repositorio (120 MB) y el `.spec` **para con `SystemExit`** si falta, en
    vez de compilar un `.exe` que lo abriría todo en el navegador. Va en `binaries` (`:21`) con
    destino **`vendor`**, no `'.'`: `load_mpv()` la busca en `get_resource_path("vendor")`, que en el
-   `.exe` es `_internal/vendor` ([trampa 18f](10-invariantes-y-trampas.md)). Suma **~115 MB** a
+   `.exe` es `_internal/vendor` ([trampa 12e](10-invariantes-y-trampas.md)). Suma **~115 MB** a
    `dist/` (38 → 153 MB el 2026-10-20).
 3. ✅ **`datas` ya no empaqueta datos de usuario.** Desde el 2026-08-17 contiene **solo**
    `resources/images/utils`. No vuelvas a añadir `resources/DB` ni las carpetas de pósters: la app
    las crea sola en el primer arranque, y empaquetarlas distribuye la biblioteca personal del
-   desarrollador ([10 § trampa 18d](10-invariantes-y-trampas.md)).
+   desarrollador ([10 § trampa 12c](10-invariantes-y-trampas.md)).
 4. Revisa que toda carpeta nueva de recursos **de solo lectura** esté en `datas` (`:24`).
    ⚠️ Los destinos son relativos a `_internal/`, no a la carpeta del `.exe`
-   ([10 § trampa 18e](10-invariantes-y-trampas.md)).
+   ([10 § trampa 12d](10-invariantes-y-trampas.md)).
 5. **Si añades un fichero que el usuario final deba ver** (licencias, LÉEME), no lo pongas en
    `datas`: añádelo al bucle posterior a `COLLECT` (`:122-124`), que copia al primer nivel usando
    `DISTPATH`. Hoy copia `LICENSE`, `LEEME.txt` y `THIRD-PARTY-NOTICES.txt`.
@@ -620,7 +620,7 @@ la barra diagonal del icono «sin conexión».
    está **invertido** respecto a lo que devolvió el proveedor.
 4. Si el usuario dice «marqué episodios y no se guardaron», comprueba primero que el anime **tenga
    algún estado asignado**: sin fila en `ANIMES`, `update_watched_episodes` devuelve `False` en
-   silencio (trampa 7).
+   silencio (trampa 5).
 
 ---
 
@@ -629,7 +629,7 @@ la barra diagonal del icono «sin conexión».
 **Cuándo**: un servidor que hoy lleva ↗ —se abre en el navegador— y se quiere ver dentro de la
 aplicación. Un resolutor es **de un hoster**, no de un proveedor: si el mismo hoster lo embeben dos
 sitios, sirve a los dos sin tocar nada más. Lee antes [05 §9](05-proveedores-y-scraping.md) y las
-[trampas 43-45](10-invariantes-y-trampas.md).
+[trampas 25-27](10-invariantes-y-trampas.md).
 
 **Ficheros**: `src/APIs/resolvers/<hoster>.py` (nuevo), `src/APIs/resolvers/registry.py`,
 `MiBibliotecaAnime.spec`. **Ni la GUI ni los proveedores se tocan**: la ↗ desaparece sola, porque la
@@ -697,12 +697,12 @@ class MP4UploadResolver(Resolver):
 ⚠️ **Lo que no hay que hacer**:
 
 - **Cachear** el `MediaSource` o la URL del medio: hay URLs que caducan en horas y otras atadas a la
-  IP ([trampa 45](10-invariantes-y-trampas.md)). Se resuelve cada vez que se pulsa.
+  IP ([trampa 27](10-invariantes-y-trampas.md)). Se resuelve cada vez que se pulsa.
 - **Resolver al listar los servidores**: solo al pulsar. `ServerInfo` no cambia.
 - **Añadir el resolutor como método de `AnimeProvider`** ni pasar por el *fallback* del manager
   ([01 I10](01-arquitectura.md)).
 - **Poner cabeceras por defecto** en `base.py` o en `VideoPlayer.play()` para que «funcione» este
-  hoster: rompe otro ([trampa 44](10-invariantes-y-trampas.md)).
+  hoster: rompe otro ([trampa 26](10-invariantes-y-trampas.md)).
 
 **Checklist**
 

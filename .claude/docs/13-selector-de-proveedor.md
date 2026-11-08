@@ -20,11 +20,10 @@ Procedencia: ✅ verificado en ejecución · 📖 leído en código · ⚠️ si
 > - [§3 Decisiones de diseño](#3-decisiones-de-diseño) para no re-litigar lo ya decidido, y
 >   [§9](#9-verificación) para saber **qué está verificado y qué no**.
 >
-> Lo más importante que dejó esta tarea son cuatro invariantes:
-> **[trampa 21](10-invariantes-y-trampas.md)** (dos identidades del anime en la ficha — la única que
-> se ha llegado a reintroducir), **[trampa 22](10-invariantes-y-trampas.md)** (el `wraplength` a mano
-> recorta la sinopsis), **[trampa 26](10-invariantes-y-trampas.md)** (buscar la biblioteca por slug) y
-> **[trampa 28](10-invariantes-y-trampas.md)** (reapuntar una fila puede duplicarla).
+> Lo más importante que dejó esta tarea son tres invariantes:
+> **[trampa 13](10-invariantes-y-trampas.md)** (dos identidades del anime en la ficha — la única que
+> se ha llegado a reintroducir), **[regla R6](10-invariantes-y-trampas.md)** (buscar la biblioteca por slug) y
+> **[trampa 18](10-invariantes-y-trampas.md)** (reapuntar una fila puede duplicarla).
 
 ---
 
@@ -193,8 +192,8 @@ Es una elección arbitraria pero estable y sin pérdida de datos.
 > guardase el proveedor equivocado.
 >
 > Regla: **quien abra una ficha que pueda venir de otro proveedor está obligado a pasar
-> `anime_record=`.** Omitirlo reintrodujo la trampa 21 durante la propia fase 4
-> ([trampa 21](10-invariantes-y-trampas.md)).
+> `anime_record=`.** Omitirlo reintrodujo la trampa 13 durante la propia fase 4
+> ([trampa 13](10-invariantes-y-trampas.md)).
 >
 > 📌 Si los dos slugs **coinciden** manda el de visualización, aunque haya entrado el fallback: ahí el
 > proveedor que respondió sí sirve ese slug, y es la respuesta correcta para el autorrelleno de la
@@ -215,7 +214,7 @@ temporadas con numeración distinta por sitio. Sin verificar.
 AnimeAV1 y JKAnime **cada temporada es un anime aparte**, con su slug y su título («Kusuriya no
 Hitorigoto», «… 2nd Season», «… 3rd Season»), y los dos sitios las titulan igual. Lo que fallaba era
 **confundirlas entre sí** al decidir identidad por título: la 3.ª escribía en la fila de la 2.ª
-([trampa 58](10-invariantes-y-trampas.md)). Desde entonces dos títulos con números distintos nunca son
+([regla R19](10-invariantes-y-trampas.md)). Desde entonces dos títulos con números distintos nunca son
 el mismo anime.
 
 ### D6 — Resolución *cross-provider* por búsqueda de título + similitud
@@ -229,7 +228,7 @@ Algoritmo:
    **umbral 0.75**; por debajo se considera «no encontrado».
    🆕 **Desde el 2026-10-26** los pasos 2 y 3 son `title_similarity()`, que además da 0 si los
    números del título no coinciden: con 0.75, «X» y «X 2nd Season» (0.80) pasaban por el mismo anime
-   ([trampa 58](10-invariantes-y-trampas.md)).
+   ([regla R19](10-invariantes-y-trampas.md)).
 4. `get_anime_info(match.id, provider_id=..., strict=True)` para traer la ficha completa.
 5. Devuelve `AnimeInfo` o `None`. Nunca lanza.
 
@@ -431,9 +430,9 @@ column=1, columnspan=3, sticky=E`). Ya no es un desplegable, sino una etiqueta:
 └─────────────────────────────────────────────────────────────┘
 ```
 
-⚠️ **No lo muevas a las columnas 2-3 de la fila del título**: es exactamente lo que dispara la
-[trampa 22](10-invariantes-y-trampas.md) y recorta la sinopsis. La fila propia se mantiene aunque el
-widget haya pasado de desplegable a etiqueta, que ocupa menos.
+Se le dio fila propia porque, cuando el `wraplength` de la ficha se calculaba a mano, colocarlo en
+las columnas 2-3 de la fila del título recortaba la sinopsis. Desde el rediseño el `wraplength` se
+recalcula en cada `<Configure>` y eso ya no puede pasar.
 
 El valor mostrado es **el proveedor que sirvió realmente esta ficha**, no el predeterminado — es lo
 que hace visible el fallback silencioso de [D3](#d3--la-preferencia-global-fija-el-predeterminado-del-manager-con-fallback-activo).
@@ -459,7 +458,7 @@ Cada fase deja la app **arrancable**. Si retomas la tarea, mira aquí dónde est
 
 | Planeado | Lo que se hizo | Por qué |
 |---|---|---|
-| Selector de la ficha en `row=0, column=2, columnspan=2` (mock de [§6](#6-ubicación-de-los-controles)) | `row=0, column=1, columnspan=3, sticky=E`, en **su propia fila**; título, sinopsis, géneros, estados y episodios bajan una fila (0-2/3/4 → 1-3/4/5) | Reservar ancho en las columnas 2-3 **recortaba la sinopsis**: su `wraplength` va calculado a mano sobre el ancho del `content_frame`, no de la celda. Detectado por captura, no a ojo → **[trampa 22](10-invariantes-y-trampas.md)** |
+| Selector de la ficha en `row=0, column=2, columnspan=2` (mock de [§6](#6-ubicación-de-los-controles)) | `row=0, column=1, columnspan=3, sticky=E`, en **su propia fila**; título, sinopsis, géneros, estados y episodios bajan una fila (0-2/3/4 → 1-3/4/5) | Reservar ancho en las columnas 2-3 **recortaba la sinopsis**: su `wraplength` va calculado a mano sobre el ancho del `content_frame`, no de la celda. Detectado por captura, no a ojo |
 | — | `main_window` lleva un **contador de generación** de la lista de recientes | Sin él, la precarga en segundo plano de un proveedor seguía escribiendo por índice en la lista del proveedor nuevo. Carrera preexistente que el selector habría hecho fácil de disparar |
 | — | Etiqueta «Apariencia:» en el selector de tema, que estaba vacía | Con una etiqueta «Proveedor de anime:» justo encima, un desplegable sin etiquetar parecía roto |
 | — | `__toggle_servers_frame` avisa si el proveedor no da servidores | Efecto de `strict=True`: antes el fallback tapaba el caso y se pintaba un selector de servidores vacío |
@@ -549,7 +548,7 @@ ejecutó de verdad el 2026-07-30 y qué no**.
 | Arranque real de la app | `python src/app.py`, log capturado | Sin excepciones. `DB_user.db` creada con las 3 columnas y `setting_key` como PK. `DB_Animes.db`: «esquema correcto, no hay nada que migrar» → **ni migración ni copia de seguridad** |
 | Preferencia entre arranques | Guardar `animeflv`, relanzar la app, leer el log | «Proveedor predeterminado del usuario: animeflv». Estado restaurado a prístino después |
 | Layout de la sidebar | Captura de la ventana | «Proveedor de anime: AnimeAV1» sobre «Apariencia: System», sin solaparse con el espaciador de la fila 8 |
-| Layout de la ficha | Captura, **con y sin** el selector (control) | Detectó y confirmó la corrección de la [trampa 22](10-invariantes-y-trampas.md): con la colocación inicial la sinopsis se recortaba; con la definitiva es idéntica al control |
+| Layout de la ficha | Captura, **con y sin** el selector (control) | Detectó y confirmó la corrección del recorte: con la colocación inicial la sinopsis se recortaba; con la definitiva es idéntica al control |
 
 ### ✅ Verificado en la fase 7 (el pin, 2026-08-06)
 
@@ -562,7 +561,7 @@ ejecutó de verdad el 2026-07-30 y qué no**.
 | `DB_user.db` no disponible | `available=False` | `set_setting()` devuelve `False`, se avisa con `messagebox` y **el pin no se marca**: no miente sobre lo que se ha guardado |
 | Intercambio del icono | App real, invocando el `command` del botón | Azul (fijado) → **gris** (sin fijar), y la fila queda a `NULL`. Es lo que el script sin GUI no puede ver: allí `__refresh_pin_provider_button` sale por la guarda de widget |
 | Layout de la sidebar | Captura de la app real | Desplegable + pin en la misma fila, sin desplazar «Apariencia:» ni solaparse con el espaciador de la fila 8 |
-| Layout de la ficha | Captura de la app real | «Proveedor: **AnimeAV1**» como etiqueta arriba a la derecha; la sinopsis ocupa el ancho completo → la [trampa 22](10-invariantes-y-trampas.md) **no** se ha reabierto |
+| Layout de la ficha | Captura de la app real | «Proveedor: **AnimeAV1**» como etiqueta arriba a la derecha; la sinopsis ocupa el ancho completo → el recorte **no** se ha reabierto |
 | Legibilidad de los iconos | Hoja de contactos a 20 px sobre los grises reales de la sidebar | Descartado el diseño relleno/contorno (ilegible al reducir) en favor de **azul/gris**, ambos rellenos |
 | La biblioteca no se toca | `SELECT count(*)` antes y después | **25 filas** en `ANIMES`; `DB_user.db` restaurada a su valor original desde copia previa |
 
@@ -727,7 +726,7 @@ comprobaciones ([09](09-verificacion-y-pruebas.md)).
 | 5 | El proveedor visible en las 4 vistas de estado y en la ficha | 26 |
 | 6 | Migrar una fila a otro proveedor + aviso de duplicado | 105 + 26 (GUI) |
 | 7 | Esta documentación | — |
-| — | Buscador local de la biblioteca (trampa 26), fuera del plan inicial | 49 |
+| — | Buscador local de la biblioteca (regla R6), fuera del plan inicial | 49 |
 | | **Total** | **351, sin fallos** |
 
 ### Las tres funcionalidades que trajo la columna
@@ -754,7 +753,7 @@ correcta, que es la migración.
 ⚠️ **El 0.9 no bastaba para las temporadas**: «… 3rd Season» y «… 2nd Season» se parecen 0.939. Y
 la misma función pone el sello de «Buscar», que abre la ficha **con esa fila**, así que el error no
 era un diálogo de más sino escribir en la fila de otra temporada. Desde el 2026-10-26 compara con
-`title_similarity()`, que exige los mismos números ([trampa 58](10-invariantes-y-trampas.md)).
+`title_similarity()`, que exige los mismos números ([regla R19](10-invariantes-y-trampas.md)).
 
 ### Los dos ajustes que salieron del uso real
 
@@ -768,7 +767,7 @@ Ninguno de los dos se detectó probando; los dos los reportó el usuario al usar
 **La regla que quedó**, y que conviene no volver a tocar: el ⚠ compara las **dos líneas del bloque**.
 `Proveedor: X` (de dónde vienen los datos que ves) frente a `En tu biblioteca: Y` (de quién es tu
 fila). Iguales → gris. Distintas → ámbar con ⚠, porque entonces los botones de estado y el póster
-escriben en algo distinto de lo que tienes delante ([trampa 21](10-invariantes-y-trampas.md)).
+escriben en algo distinto de lo que tienes delante ([trampa 13](10-invariantes-y-trampas.md)).
 
 ### Lo que se hizo distinto de lo planeado
 
@@ -778,5 +777,5 @@ escriben en algo distinto de lo que tienes delante ([trampa 21](10-invariantes-y
 | `PROVIDER_ID` sigue siendo `str` | **Enum `AnimeProviderId`** | Un dato que se persiste necesita valores legales y una degradación definida para los que dejen de serlo |
 | Filas antiguas a `NULL` para siempre | Se **autorrellenan** al abrirlas | Sale gratis: al abrir la ficha ya se sabe quién sirve ese slug |
 | Solo elegir proveedor al abrir | + migrar la fila + avisar de duplicados | Elegir proveedor destapa que el mismo anime puede acabar dos veces en la biblioteca; sin salida, la funcionalidad creaba un problema nuevo |
-| — | **Buscador local de la biblioteca** | El buscador de las 4 vistas cruzaba por slug y perdía animes según el proveedor puesto ([trampa 26](10-invariantes-y-trampas.md)). Apareció al probar la fase 5 |
+| — | **Buscador local de la biblioteca** | El buscador de las 4 vistas cruzaba por slug y perdía animes según el proveedor puesto ([regla R6](10-invariantes-y-trampas.md)). Apareció al probar la fase 5 |
 | — | `provider_for_saved_anime` mide la desviación contra una **referencia capturada en `__init__`** | El predeterminado vivo del manager lo cambia el propio desplegable: comparar contra él daría «nunca hay desviación» |
